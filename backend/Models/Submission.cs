@@ -19,8 +19,9 @@ namespace DailyChallenges.Models
 
         public string? Username { get; set; }
 
-        // Relative URL to screenshot (wwwroot)
-        public string? ScreenshotUrl { get; set; }
+        // Screenshot stored as blob
+        public byte[]? ScreenshotData { get; set; }
+        public string? ScreenshotContentType { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

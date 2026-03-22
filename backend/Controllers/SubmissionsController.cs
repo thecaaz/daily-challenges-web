@@ -40,18 +40,23 @@ namespace DailyChallenges.Controllers
 
             if (screenshot != null && screenshot.Length > 0)
             {
-                var uploadsPath = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads");
-                Directory.CreateDirectory(uploadsPath);
-                var filename = Path.GetRandomFileName() + Path.GetExtension(screenshot.FileName);
-                var filePath = Path.Combine(uploadsPath, filename);
-                using var stream = System.IO.File.Create(filePath);
-                await screenshot.CopyToAsync(stream);
-                submission.ScreenshotUrl = Path.Combine("/uploads", filename).Replace("\\", "/");
+                using var ms = new MemoryStream();
+                await screenshot.CopyToAsync(ms);
+                submission.ScreenshotData = ms.ToArray();
+                submission.ScreenshotContentType = screenshot.ContentType;
             }
 
             var created = await _subs.CreateAsync(submission);
             var dto = DailyChallenges.Mapping.DtoMapper.ToDto(created);
             return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, dto);
+        }
+
+        [HttpGet("{id}/screenshot")]
+        public async Task<IActionResult> GetScreenshot(int id)
+        {
+            var s = await _subs.GetByIdAsync(id);
+            if (s == null || s.ScreenshotData == null) return NotFound();
+            return File(s.ScreenshotData, s.ScreenshotContentType ?? "application/octet-stream");
         }
     }
 }

@@ -32,6 +32,8 @@ export default function GameSubmissions() {
 
   if (!game) return <div>Loading...</div>
 
+  const apiRoot = api.defaults.baseURL ? api.defaults.baseURL.replace(/\/api\/?$/, '') : 'http://localhost:5000'
+
   return (
     <div>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
@@ -54,7 +56,7 @@ export default function GameSubmissions() {
         {filtered.map(s => (
           <Grid item xs={12} sm={6} md={4} key={s.id}>
             <Card>
-              {s.screenshotUrl && <CardMedia component="img" height="200" image={`http://localhost:5000${s.screenshotUrl}`} />}
+              {s.screenshotUrl && <CardMedia component="img" height="200" image={`${apiRoot}${s.screenshotUrl}`} />}
               <CardContent>
                 <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
                 <Typography variant="body2">Score: {s.score}</Typography>

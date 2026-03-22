@@ -20,5 +20,10 @@ namespace DailyChallenges.Repositories
             await _db.SaveChangesAsync();
             return submission;
         }
+
+        public async Task<Submission?> GetByIdAsync(int id)
+        {
+            return await _db.Submissions.FirstOrDefaultAsync(s => s.Id == id);
+        }
     }
 }

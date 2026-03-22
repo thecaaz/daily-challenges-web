@@ -13,13 +13,15 @@ export default function Games() {
     setGames(res.data)
   }
 
+  const apiRoot = api.defaults.baseURL ? api.defaults.baseURL.replace(/\/api\/?$/, '') : 'http://localhost:5000'
+
   return (
     <Grid container spacing={2}>
       {games.map(g => (
         <Grid item xs={12} sm={6} md={4} key={g.id}>
           <Card>
             <CardActionArea component={Link} to={`/games/${g.id}`}>
-              {g.imageUrl && <CardMedia component="img" height="140" image={`http://localhost:5000${g.imageUrl}`} />}
+              {g.imageUrl && <CardMedia component="img" height="140" image={`${apiRoot}${g.imageUrl}`} />}
               <CardContent>
                 <Typography variant="h6">{g.name}</Typography>
               </CardContent>

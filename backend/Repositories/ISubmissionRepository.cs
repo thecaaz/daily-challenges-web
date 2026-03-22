@@ -5,5 +5,6 @@ namespace DailyChallenges.Repositories
     {
         Task<List<Submission>> GetByGameAsync(int gameId);
         Task<Submission> CreateAsync(Submission submission);
+        Task<Submission?> GetByIdAsync(int id);
     }
 }
