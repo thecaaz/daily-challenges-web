@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using DailyChallenges.Data;
 using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
+using DailyChallenges.Repositories;
 
 namespace DailyChallenges.Controllers
 {
@@ -9,26 +10,29 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class SubmissionsController : ControllerBase
     {
-        private readonly AppDbContext _db;
+        private readonly ISubmissionRepository _subs;
+        private readonly IGameRepository _games;
         private readonly IWebHostEnvironment _env;
 
-        public SubmissionsController(AppDbContext db, IWebHostEnvironment env)
+        public SubmissionsController(ISubmissionRepository subs, IGameRepository games, IWebHostEnvironment env)
         {
-            _db = db;
+            _subs = subs;
+            _games = games;
             _env = env;
         }
 
         [HttpGet("game/{gameId}")]
         public async Task<IActionResult> GetByGame(int gameId)
         {
-            var subs = await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).ToListAsync();
-            return Ok(subs);
+            var subs = await _subs.GetByGameAsync(gameId);
+            var dtos = subs.Select(s => DailyChallenges.Mapping.DtoMapper.ToDto(s)).ToList();
+            return Ok(dtos);
         }
 
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] int gameId, [FromForm] string score, [FromForm] string? username, [FromForm] IFormFile? screenshot)
         {
-            var game = await _db.Games.FindAsync(gameId);
+            var game = await _games.GetByIdAsync(gameId);
             if (game == null) return BadRequest("invalid gameId");
             if (string.IsNullOrWhiteSpace(score)) return BadRequest("score is required");
 
@@ -45,9 +49,9 @@ namespace DailyChallenges.Controllers
                 submission.ScreenshotUrl = Path.Combine("/uploads", filename).Replace("\\", "/");
             }
 
-            _db.Submissions.Add(submission);
-            await _db.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, submission);
+            var created = await _subs.CreateAsync(submission);
+            var dto = DailyChallenges.Mapping.DtoMapper.ToDto(created);
+            return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, dto);
         }
     }
 }

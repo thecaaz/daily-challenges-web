@@ -14,7 +14,7 @@ namespace DailyChallenges.Models
         // Relative URL to the image stored in wwwroot
         public string? ImageUrl { get; set; }
 
-        [NotMapped]
-        public List<Submission>? Submissions { get; set; }
+        // Navigation property
+        public List<Submission> Submissions { get; set; } = new();
     }
 }
