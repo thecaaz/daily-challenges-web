@@ -25,7 +25,7 @@ namespace DailyChallenges.Mapping
             {
                 Id = g.Id,
                 Name = g.Name,
-                ImageUrl = g.ImageUrl,
+                ImageUrl = g.ScreenshotData != null ? $"/api/games/{g.Id}/image" : null,
                 Submissions = includeSubmissions && g.Submissions != null
                     ? g.Submissions.Select(ToDto).ToList()
                     : null

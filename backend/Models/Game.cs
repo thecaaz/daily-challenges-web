@@ -11,8 +11,9 @@ namespace DailyChallenges.Models
         [Required]
         public string Name { get; set; } = string.Empty;
 
-        // Relative URL to the image stored in wwwroot
-        public string? ImageUrl { get; set; }
+        // Stored image as blob
+        public byte[]? ScreenshotData { get; set; }
+        public string? ScreenshotContentType { get; set; }
 
         // Navigation property
         public List<Submission> Submissions { get; set; } = new();
