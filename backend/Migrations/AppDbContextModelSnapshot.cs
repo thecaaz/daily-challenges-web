@@ -23,10 +23,7 @@ namespace DailyChallenges.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<byte[]>("ScreenshotData")
-                        .HasColumnType("BLOB");
-
-                    b.Property<string>("ScreenshotContentType")
+                    b.Property<string>("ImageUrl")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -35,7 +32,7 @@ namespace DailyChallenges.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Games");
+                    b.ToTable("Games", (string)null);
                 });
 
             modelBuilder.Entity("DailyChallenges.Models.Submission", b =>
@@ -67,7 +64,7 @@ namespace DailyChallenges.Migrations
 
                     b.HasIndex("GameId");
 
-                    b.ToTable("Submissions");
+                    b.ToTable("Submissions", (string)null);
                 });
 
             modelBuilder.Entity("DailyChallenges.Models.Submission", b =>
