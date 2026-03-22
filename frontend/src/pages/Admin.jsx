@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { TextField, Button, Stack, Snackbar, Alert } from '@mui/material'
+import { TextField, Button, Stack } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
+import { useSnackbar } from '../contexts/SnackbarContext'
 
 export default function Admin() {
   const [name, setName] = useState('')
   const [image, setImage] = useState(null)
+  const { showSnackbar } = useSnackbar()
 
   const submit = async (e) => {
     e.preventDefault()
@@ -16,18 +18,16 @@ export default function Admin() {
       await api.post('/games', fd)
       setName('')
       setImage(null)
-      setToast({ open: true, severity: 'success', message: 'Game created' })
+      showSnackbar('Game created', 'success')
       // navigate back to games overview
       navigate('/')
     } catch (err) {
-      setToast({ open: true, severity: 'error', message: 'Failed to create game' })
+      showSnackbar('Failed to create game', 'error')
     }
   }
 
   const navigate = useNavigate()
-  const [toast, setToast] = useState({ open: false, severity: 'success', message: '' })
-
-  const handleClose = () => setToast(t => ({ ...t, open: false }))
+  
 
   return (
     <form onSubmit={submit}>
@@ -36,11 +36,7 @@ export default function Admin() {
         <input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] ?? null)} />
         <Button variant="contained" type="submit">Create Game</Button>
       </Stack>
-      <Snackbar open={toast.open} autoHideDuration={3000} onClose={handleClose}>
-        <Alert onClose={handleClose} severity={toast.severity} sx={{ width: '100%' }}>
-          {toast.message}
-        </Alert>
-      </Snackbar>
+      
     </form>
   )
 }
