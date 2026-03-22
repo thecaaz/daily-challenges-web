@@ -1,0 +1,31 @@
+import React, { useEffect, useState } from 'react'
+import { Card, CardContent, CardMedia, Typography, Grid, Button } from '@mui/material'
+import { Link } from 'react-router-dom'
+import api from '../api'
+
+export default function Games() {
+  const [games, setGames] = useState([])
+
+  useEffect(() => { fetchGames() }, [])
+
+  const fetchGames = async () => {
+    const res = await api.get('/games')
+    setGames(res.data)
+  }
+
+  return (
+    <Grid container spacing={2}>
+      {games.map(g => (
+        <Grid item xs={12} sm={6} md={4} key={g.id}>
+          <Card>
+            {g.imageUrl && <CardMedia component="img" height="140" image={`http://localhost:5000${g.imageUrl}`} />}
+            <CardContent>
+              <Typography variant="h6">{g.name}</Typography>
+              <Button component={Link} to={`/submit/${g.id}`} variant="outlined" sx={{ mt: 1 }}>Submit Score</Button>
+            </CardContent>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  )
+}

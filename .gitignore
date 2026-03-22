@@ -1,0 +1,44 @@
+# .gitignore for Daily Challenges (backend + frontend)
+
+## OS
+.DS_Store
+
+## .NET / Visual Studio
+/backend/bin/
+/backend/obj/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# EF / SQLite database files (do not commit local DB)
+/backend/*.db
+*.db
+
+## Publish outputs
+/backend/publish/
+
+## Node / frontend
+/frontend/node_modules/
+/frontend/dist/
+/frontend/build/
+npm-debug.log*
+yarn-error.log*
+
+## Vite / env
+.env
+.env.local
+.env.*.local
+
+## Logs
+logs/
+*.log
+
+## IDEs
+.idea/
+
+## Temp
+tmp/
+*.tmp
