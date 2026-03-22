@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
-import { TextField, Button, Stack, Typography } from '@mui/material'
+import { useParams, useNavigate } from 'react-router-dom'
+import { TextField, Button, Stack, Typography, Snackbar, Alert } from '@mui/material'
 import api from '../api'
 
 export default function Submit() {
@@ -25,11 +25,21 @@ export default function Submit() {
     fd.append('score', score)
     if (username) fd.append('username', username)
     if (screenshot) fd.append('screenshot', screenshot)
-    await api.post('/submissions', fd)
-    alert('Submitted')
-    setScore('')
-    setScreenshot(null)
+    try {
+      const res = await api.post('/submissions', fd)
+      const created = res.data
+      setToast({ open: true, severity: 'success', message: 'Submitted' })
+      // navigate to the game's submissions and select the submission day
+      const date = created?.createdAt ? new Date(created.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      navigate(`/games/${gameId}`, { state: { selectedDate: date } })
+    } catch (err) {
+      setToast({ open: true, severity: 'error', message: 'Failed to submit' })
+    }
   }
+
+  const navigate = useNavigate()
+  const [toast, setToast] = useState({ open: false, severity: 'success', message: '' })
+  const handleClose = () => setToast(t => ({ ...t, open: false }))
 
   if (!game) return <div>Loading...</div>
 
@@ -44,6 +54,11 @@ export default function Submit() {
           <Button type="submit" variant="contained">Submit</Button>
         </Stack>
       </form>
+      <Snackbar open={toast.open} autoHideDuration={3000} onClose={handleClose}>
+        <Alert onClose={handleClose} severity={toast.severity} sx={{ width: '100%' }}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useLocation } from 'react-router-dom'
 import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
 import api from '../api'
 
@@ -9,6 +9,8 @@ export default function GameSubmissions() {
   const [submissions, setSubmissions] = useState([])
   const [selectedDate, setSelectedDate] = useState('')
   const [availableDates, setAvailableDates] = useState([])
+
+  const location = useLocation()
 
   useEffect(() => { fetchData() }, [])
 
@@ -25,7 +27,9 @@ export default function GameSubmissions() {
 
     const dates = Array.from(new Set(subs.map(s => s._date))).sort().reverse()
     setAvailableDates(dates)
-    setSelectedDate(dates[0] ?? '')
+    // prefer date passed by navigation state
+    const preferred = location?.state?.selectedDate
+    setSelectedDate(preferred && dates.includes(preferred) ? preferred : (dates[0] ?? ''))
   }
 
   const filtered = selectedDate ? submissions.filter(s => s._date === selectedDate) : submissions
