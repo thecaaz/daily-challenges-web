@@ -4,6 +4,7 @@ import { Container, AppBar, Toolbar, Button, Typography } from '@mui/material'
 import Games from './pages/Games'
 import Admin from './pages/Admin'
 import Submit from './pages/Submit'
+import GameSubmissions from './pages/GameSubmissions'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/" element={<Games />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/submit/:gameId" element={<Submit />} />
+          <Route path="/games/:gameId" element={<GameSubmissions />} />
         </Routes>
       </Container>
     </div>

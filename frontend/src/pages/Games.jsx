@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Card, CardContent, CardMedia, Typography, Grid, Button } from '@mui/material'
+import { Card, CardContent, CardMedia, Typography, Grid, Button, CardActionArea } from '@mui/material'
 import { Link } from 'react-router-dom'
 import api from '../api'
 
@@ -18,9 +18,13 @@ export default function Games() {
       {games.map(g => (
         <Grid item xs={12} sm={6} md={4} key={g.id}>
           <Card>
-            {g.imageUrl && <CardMedia component="img" height="140" image={`http://localhost:5000${g.imageUrl}`} />}
+            <CardActionArea component={Link} to={`/games/${g.id}`}>
+              {g.imageUrl && <CardMedia component="img" height="140" image={`http://localhost:5000${g.imageUrl}`} />}
+              <CardContent>
+                <Typography variant="h6">{g.name}</Typography>
+              </CardContent>
+            </CardActionArea>
             <CardContent>
-              <Typography variant="h6">{g.name}</Typography>
               <Button component={Link} to={`/submit/${g.id}`} variant="outlined" sx={{ mt: 1 }}>Submit Score</Button>
             </CardContent>
           </Card>
