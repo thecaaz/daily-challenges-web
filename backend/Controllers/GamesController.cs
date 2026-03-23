@@ -4,6 +4,8 @@ using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using DailyChallenges.Repositories;
+using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace DailyChallenges.Controllers
 {
@@ -79,6 +81,37 @@ namespace DailyChallenges.Controllers
             if (g.ScreenshotData == null || g.ScreenshotData.Length == 0) return NotFound();
             var contentType = string.IsNullOrWhiteSpace(g.ScreenshotContentType) ? "application/octet-stream" : g.ScreenshotContentType;
             return File(g.ScreenshotData, contentType);
+        }
+
+        [HttpGet("{id}/highscore")]
+        public async Task<IActionResult> GetHighscore(int id)
+        {
+            var g = await _games.GetByIdAsync(id);
+            if (g == null) return NotFound();
+
+            var subs = g.Submissions ?? new List<Submission>();
+
+            double ParseScore(string s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return double.NaN;
+                var m = Regex.Match(s, "-?\\d+(?:[.,]\\d+)?");
+                if (!m.Success) return double.NaN;
+                var raw = m.Value.Replace(',', '.');
+                if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) return v;
+                return double.NaN;
+            }
+
+            // Order by parsed numeric score descending (higher is better). If parsing fails, treat as very low.
+            var ordered = subs
+                .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
+                .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
+                .ThenBy(x => x.Sub.CreatedAt)
+                .Take(50)
+                .Select(x => DailyChallenges.Mapping.DtoMapper.ToDto(x.Sub))
+                .ToList();
+
+            var top = ordered.FirstOrDefault();
+            return Ok(new { highscore = top, top = ordered });
         }
     }
 }
