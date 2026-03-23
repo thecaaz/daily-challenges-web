@@ -17,6 +17,9 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+    environment:
+      # Runtime backend URL that will be written to /usr/share/nginx/html/env.js
+      BACKEND_URL: http://backend:5000
     ports:
       - "5173:80"
     depends_on:
