@@ -111,7 +111,7 @@ export default function Admin() {
 
   const updateSubmission = async (s) => {
     try {
-      await api.put(`/submissions/${s.id}`, { score: s.score, username: s.username })
+      await api.put(`/submissions/${s.id}`, { score: s.score })
       showSnackbar('Submission updated', 'success')
       manageSubs(selectedGameId)
     } catch (err) {
@@ -206,9 +206,7 @@ export default function Admin() {
             {submissions.map(s => (
               <TableRow key={s.id}>
                 <TableCell>{s.id}</TableCell>
-                <TableCell>
-                  <input value={s.username ?? ''} onChange={e => setSubmissions(submissions.map(x => x.id === s.id ? { ...x, username: e.target.value } : x))} />
-                </TableCell>
+                <TableCell>{s.username ?? ''}</TableCell>
                 <TableCell>
                   <input value={s.score ?? ''} onChange={e => setSubmissions(submissions.map(x => x.id === s.id ? { ...x, score: e.target.value } : x))} />
                 </TableCell>

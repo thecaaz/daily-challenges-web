@@ -36,7 +36,6 @@ namespace DailyChallenges.Repositories
             var existing = await _db.Submissions.FirstOrDefaultAsync(s => s.Id == submission.Id);
             if (existing == null) throw new KeyNotFoundException("Submission not found");
             existing.Score = submission.Score;
-            existing.Username = submission.Username;
             // Don't update screenshot here
             await _db.SaveChangesAsync();
             return existing;

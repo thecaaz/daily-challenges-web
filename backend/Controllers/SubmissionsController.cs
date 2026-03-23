@@ -91,7 +91,6 @@ namespace DailyChallenges.Controllers
             var s = await _subs.GetByIdAsync(id);
             if (s == null) return NotFound();
             if (!string.IsNullOrWhiteSpace(model.Score)) s.Score = model.Score;
-            s.Username = model.Username;
             var updated = await _subs.UpdateAsync(s);
             return Ok(DailyChallenges.Mapping.DtoMapper.ToDto(updated));
         }
@@ -108,6 +107,5 @@ namespace DailyChallenges.Controllers
     public class SubmissionUpdateModel
     {
         public string? Score { get; set; }
-        public string? Username { get; set; }
     }
 }
