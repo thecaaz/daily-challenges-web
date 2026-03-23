@@ -1,4 +1,3 @@
-- Game Highscore
 - User Highscore
 - Streaks
 - Live updateds?
