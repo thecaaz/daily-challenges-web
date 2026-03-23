@@ -33,6 +33,7 @@ export default function GameBar() {
         <div style={{ marginLeft: 12 }}>
           {user ? (
             <>
+              {user.isAdmin && <Link to="/admin" style={{ marginRight: 8 }}>Admin</Link>}
               <span style={{ marginRight: 8 }}>Hello, {user.username}</span>
               <button onClick={() => logout()}>Logout</button>
             </>
