@@ -28,7 +28,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image)
+        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId)
         {
             if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
 
@@ -40,6 +40,23 @@ namespace DailyChallenges.Controllers
                 await image.CopyToAsync(ms);
                 game.ScreenshotData = ms.ToArray();
                 game.ScreenshotContentType = image.ContentType;
+            }
+
+            // parse reset time (expecting HH:mm) and optional timezone id
+            if (!string.IsNullOrWhiteSpace(resetTime))
+            {
+                if (TimeSpan.TryParse(resetTime, out var ts))
+                {
+                    game.ResetTime = ts;
+                }
+                else if (TimeSpan.TryParseExact(resetTime, "hh\\:mm", null, out var ts2))
+                {
+                    game.ResetTime = ts2;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(resetTimezoneId))
+            {
+                game.ResetTimezoneId = resetTimezoneId;
             }
 
             var created = await _games.CreateAsync(game);

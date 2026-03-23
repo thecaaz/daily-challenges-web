@@ -21,8 +21,26 @@ export default function GameSubmissions() {
 
     const sres = await api.get(`/submissions/game/${gameId}`)
     const subs = sres.data || []
-    // normalize date strings (yyyy-mm-dd)
-    subs.forEach(s => s._date = (new Date(s.createdAt)).toISOString().split('T')[0])
+    // normalize date strings according to game's reset time/timezone
+    const resetTime = g?.resetTime ?? '00:00'
+    const tz = g?.resetTimezoneId ?? 'UTC'
+    const [rh, rm] = (resetTime || '00:00').split(':').map(x => parseInt(x, 10) || 0)
+    const resetMinutes = (rh * 60) + rm
+    subs.forEach(s => {
+      const dt = new Date(s.createdAt)
+      const localDateStr = dt.toLocaleDateString('en-CA', { timeZone: tz }) // YYYY-MM-DD
+      const timeParts = dt.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
+      const localMinutes = (parseInt(timeParts[0] || '0', 10) * 60) + (parseInt(timeParts[1] || '0', 10))
+      if (localMinutes < resetMinutes) {
+        // subtract one day from localDateStr
+        const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
+        const base = new Date(Date.UTC(y, (m - 1), d))
+        base.setUTCDate(base.getUTCDate() - 1)
+        s._date = base.toISOString().split('T')[0]
+      } else {
+        s._date = localDateStr
+      }
+    })
     setSubmissions(subs)
 
     const dates = Array.from(new Set(subs.map(s => s._date))).sort().reverse()
