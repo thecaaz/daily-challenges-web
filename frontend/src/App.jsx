@@ -6,6 +6,8 @@ import Admin from './pages/Admin'
 import Submit from './pages/Submit'
 import GameSubmissions from './pages/GameSubmissions'
 import GameBar from './components/GameBar'
+import Login from './pages/Login'
+import Register from './pages/Register'
 
 export default function App() {
   return (
@@ -15,6 +17,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Games />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/submit/:gameId" element={<Submit />} />
           <Route path="/games/:gameId" element={<GameSubmissions />} />
         </Routes>
