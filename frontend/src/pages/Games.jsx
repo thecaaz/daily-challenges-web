@@ -27,7 +27,14 @@ export default function Games() {
               </CardContent>
             </CardActionArea>
             <CardContent>
-              <Button component={Link} to={`/submit/${g.id}`} className="btn" sx={{ mt: 1 }}>Submit Score</Button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button component={Link} to={`/submit/${g.id}`} className="btn" sx={{ mt: 1 }}>Submit Score</Button>
+                {g.url && (
+                  <Button href={g.url} target="_blank" rel="noreferrer" sx={{ mt: 1 }}>
+                    Play
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </div>
         </Grid>

@@ -22,5 +22,8 @@ namespace DailyChallenges.Models
 
         // Navigation property
         public List<Submission> Submissions { get; set; } = new();
+
+        // Optional URL where the game can be played or viewed
+        public string? Url { get; set; }
     }
 }

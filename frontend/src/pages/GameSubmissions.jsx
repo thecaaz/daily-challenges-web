@@ -63,6 +63,11 @@ export default function GameSubmissions() {
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <div>
           <Typography variant="h5">Submissions — {game.name}</Typography>
+          {game.url && (
+            <div style={{ marginTop: 6 }}>
+              <a href={game.url} target="_blank" rel="noreferrer">Play</a>
+            </div>
+          )}
           <div className="muted">Compete on daily challenges — climb the leaderboard!</div>
         </div>
         <div>

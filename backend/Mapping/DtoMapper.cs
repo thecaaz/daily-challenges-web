@@ -26,6 +26,7 @@ namespace DailyChallenges.Mapping
             {
                 Id = g.Id,
                 Name = g.Name,
+                Url = g.Url,
                 ImageUrl = g.ScreenshotData != null ? $"/api/games/{g.Id}/image" : null,
                 // ResetTime is exported as HH:mm and timezone id as provided
                 ResetTime = g.ResetTime.ToString(@"hh\:mm"),

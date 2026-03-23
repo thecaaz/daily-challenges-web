@@ -10,6 +10,7 @@ export default function Admin() {
   const [image, setImage] = useState(null)
   const { showSnackbar } = useSnackbar()
   const [resetTime, setResetTime] = useState('00:00')
+  const [url, setUrl] = useState('')
   const [detectedTimezone, setDetectedTimezone] = useState(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -22,6 +23,7 @@ export default function Admin() {
     e.preventDefault()
     const fd = new FormData()
     fd.append('name', name)
+    if (url) fd.append('url', url)
     fd.append('resetTime', resetTime)
     fd.append('resetTimezoneId', detectedTimezone)
     if (image) fd.append('image', image)
@@ -51,6 +53,7 @@ export default function Admin() {
     <form onSubmit={submit}>
       <Stack spacing={2} maxWidth={400}>
         <TextField label="Game name" value={name} onChange={e => setName(e.target.value)} required />
+        <TextField label="Game URL (optional)" value={url} onChange={e => setUrl(e.target.value)} />
           <input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] ?? null)} />
           <div>
             <label>Reset time (day boundary): </label>

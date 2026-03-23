@@ -1,4 +1,3 @@
-- Add game url to game
 - Dont show scores until user has submitted their own
 - Game Highscore
 - User Highscore

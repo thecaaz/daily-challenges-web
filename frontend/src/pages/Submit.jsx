@@ -77,6 +77,11 @@ export default function Submit() {
     <div>
       <div className="card">
         <Typography variant="h5">Submit for {game.name}</Typography>
+        {game.url && (
+          <div style={{ marginTop: 6 }}>
+            <a href={game.url} target="_blank" rel="noreferrer">Play</a>
+          </div>
+        )}
         <form onSubmit={submit}>
           <Stack spacing={2} maxWidth={480} sx={{ mt: 2 }}>
             {(!user || !user.id) && (

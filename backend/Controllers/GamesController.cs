@@ -30,7 +30,7 @@ namespace DailyChallenges.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId)
+        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url)
         {
             if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
 
@@ -59,6 +59,11 @@ namespace DailyChallenges.Controllers
             if (!string.IsNullOrWhiteSpace(resetTimezoneId))
             {
                 game.ResetTimezoneId = resetTimezoneId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                game.Url = url;
             }
 
             var created = await _games.CreateAsync(game);
