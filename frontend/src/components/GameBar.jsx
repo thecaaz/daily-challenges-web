@@ -15,11 +15,13 @@ export default function GameBar() {
   return (
     <header className="gamebar">
       <div className="gamebar-left">
-        <div className="logo">🎮</div>
-        <div>
-          <div className="title">Daily Challenges</div>
-          <div className="subtitle muted">Play, compete, repeat</div>
-        </div>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+          <div className="logo">🎮</div>
+          <div>
+            <div className="title">Daily Challenges</div>
+            <div className="subtitle muted">Play, compete, repeat</div>
+          </div>
+        </Link>
       </div>
 
       <div className="gamebar-right">
