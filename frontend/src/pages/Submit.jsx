@@ -13,6 +13,8 @@ export default function Submit() {
   const [screenshot, setScreenshot] = useState(null)
   const { showSnackbar } = useSnackbar()
 
+  const [previewUrl, setPreviewUrl] = useState(null)
+
   useEffect(() => { fetchGame() }, [])
   const { user, loading } = useAuth()
   const navigate = useNavigate()
@@ -68,6 +70,68 @@ export default function Submit() {
     }
   }
 
+  // create/revoke preview URL when screenshot changes
+  useEffect(() => {
+    if (!screenshot) {
+      setPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(screenshot)
+    setPreviewUrl(url)
+    return () => { URL.revokeObjectURL(url) }
+  }, [screenshot])
+
+  // handle paste events (Ctrl+V) to accept images from clipboard
+  useEffect(() => {
+    const handler = (e) => {
+      try {
+        const items = e.clipboardData?.items
+        if (!items) return
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i]
+          if (item && item.type && item.type.startsWith('image/')) {
+            const blob = item.getAsFile ? item.getAsFile() : null
+            if (blob) {
+              const file = new File([blob], 'clipboard.png', { type: blob.type })
+              setScreenshot(file)
+              showSnackbar('Image pasted from clipboard', 'success')
+              e.preventDefault()
+              return
+            }
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+    window.addEventListener('paste', handler)
+    return () => window.removeEventListener('paste', handler)
+  }, [showSnackbar])
+
+  // optional programmatic clipboard read (may require user permission/secure context)
+  const pasteFromClipboard = async () => {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      showSnackbar('Clipboard read not supported in this browser', 'error')
+      return
+    }
+    try {
+      const items = await navigator.clipboard.read()
+      for (const it of items) {
+        const type = it.types.find(t => t.startsWith('image/'))
+        if (type) {
+          const blob = await it.getType(type)
+          const file = new File([blob], 'clipboard.png', { type: blob.type })
+          setScreenshot(file)
+          showSnackbar('Image read from clipboard', 'success')
+          return
+        }
+      }
+      showSnackbar('No image found on clipboard', 'error')
+    } catch (err) {
+      showSnackbar('Failed to read clipboard', 'error')
+    }
+  }
+
   
   
 
@@ -89,6 +153,16 @@ export default function Submit() {
             )}
             <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
             <input type="file" accept="image/*" onChange={e => setScreenshot(e.target.files?.[0] ?? null)} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ fontSize: 12, color: '#666' }}>You can paste an image from clipboard (Ctrl+V) or use the button.</div>
+              <Button onClick={pasteFromClipboard} size="small">Paste</Button>
+            </div>
+            {previewUrl && (
+              <div style={{ marginTop: 8 }}>
+                <img src={previewUrl} alt="preview" style={{ maxWidth: 320, display: 'block', marginBottom: 6 }} />
+                <Button onClick={() => setScreenshot(null)} size="small">Remove</Button>
+              </div>
+            )}
             <Button type="submit" className="btn">Submit</Button>
           </Stack>
         </form>
