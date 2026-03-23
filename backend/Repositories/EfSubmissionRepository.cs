@@ -14,6 +14,11 @@ namespace DailyChallenges.Repositories
             return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).AsNoTracking().ToListAsync();
         }
 
+        public async Task<Submission?> GetByGameAndUserAsync(int gameId, int userId)
+        {
+            return await _db.Submissions.FirstOrDefaultAsync(s => s.GameId == gameId && s.UserId == userId);
+        }
+
         public async Task<Submission> CreateAsync(Submission submission)
         {
             _db.Submissions.Add(submission);

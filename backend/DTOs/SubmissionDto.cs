@@ -6,6 +6,7 @@ namespace DailyChallenges.DTOs
     {
         public int Id { get; set; }
         public int GameId { get; set; }
+        public int? UserId { get; set; }
         public string Score { get; set; } = string.Empty;
         public string? Username { get; set; }
         public string? ScreenshotUrl { get; set; }

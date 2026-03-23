@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
 import api from '../api'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function GameSubmissions() {
+  const { user } = useAuth()
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
   const [submissions, setSubmissions] = useState([])
@@ -84,7 +86,12 @@ export default function GameSubmissions() {
               {s.screenshotUrl && <img className="game-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
               <CardContent>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
+                    {s.userId && user && s.userId === user.id && (
+                      <Typography variant="caption" sx={{ color: '#666' }}>You</Typography>
+                    )}
+                  </div>
                   <div className="badge">#{s.rank ?? ''}</div>
                 </div>
                 <Typography variant="h6">{s.score}</Typography>

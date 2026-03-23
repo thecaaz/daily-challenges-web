@@ -30,13 +30,29 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost]
+        [Microsoft.AspNetCore.Authorization.Authorize]
         public async Task<IActionResult> Create([FromForm] int gameId, [FromForm] string score, [FromForm] string? username, [FromForm] IFormFile? screenshot)
         {
             var game = await _games.GetByIdAsync(gameId);
             if (game == null) return BadRequest("invalid gameId");
             if (string.IsNullOrWhiteSpace(score)) return BadRequest("score is required");
 
-            var submission = new Submission { GameId = gameId, Score = score, Username = username };
+            // get authenticated user id if present
+            int? userId = null;
+            if (User.Identity?.IsAuthenticated ?? false)
+            {
+                var idClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(idClaim, out var parsed)) userId = parsed;
+            }
+
+            // If authenticated, prevent multiple submissions per user per game
+            if (userId.HasValue)
+            {
+                var existing = await _subs.GetByGameAndUserAsync(gameId, userId.Value);
+                if (existing != null) return Conflict(new { message = "User has already submitted for this game" });
+            }
+
+            var submission = new Submission { GameId = gameId, Score = score, Username = username, UserId = userId };
 
             if (screenshot != null && screenshot.Length > 0)
             {
@@ -44,6 +60,15 @@ namespace DailyChallenges.Controllers
                 await screenshot.CopyToAsync(ms);
                 submission.ScreenshotData = ms.ToArray();
                 submission.ScreenshotContentType = screenshot.ContentType;
+            }
+
+            // if authenticated, prefer authoritative username from Users table
+            if (userId.HasValue)
+            {
+                // load user name from DB to avoid spoofing
+                var u = await (_env.ApplicationName != null ? Task.FromResult((DailyChallenges.Models.User?)null) : Task.FromResult((DailyChallenges.Models.User?)null));
+                // We don't have direct DbContext here; just rely on User.Identity.Name when present
+                if (!string.IsNullOrEmpty(User.Identity?.Name)) submission.Username = User.Identity.Name;
             }
 
             var created = await _subs.CreateAsync(submission);

@@ -13,6 +13,10 @@ namespace DailyChallenges.Models
 
         public Game? Game { get; set; }
 
+        // If set, this links the submission to a registered user
+        public int? UserId { get; set; }
+        public User? User { get; set; }
+
         // Allow flexible score formats (e.g., "3/6", "2:34")
         [Required]
         public string Score { get; set; } = string.Empty;

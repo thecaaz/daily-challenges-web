@@ -12,6 +12,7 @@ namespace DailyChallenges.Mapping
             {
                 Id = s.Id,
                 GameId = s.GameId,
+                UserId = s.UserId,
                 Score = s.Score,
                 Username = s.Username,
                 ScreenshotUrl = s.ScreenshotData != null ? $"/api/submissions/{s.Id}/screenshot" : null,
