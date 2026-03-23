@@ -84,6 +84,15 @@ namespace DailyChallenges.Controllers
             return File(s.ScreenshotData, s.ScreenshotContentType ?? "application/octet-stream");
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var s = await _subs.GetByIdAsync(id);
+            if (s == null) return NotFound();
+            var dto = DailyChallenges.Mapping.DtoMapper.ToDto(s);
+            return Ok(dto);
+        }
+
         [HttpPut("{id}")]
         [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] SubmissionUpdateModel model)
