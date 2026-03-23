@@ -8,8 +8,7 @@ services:
     environment:
       SQLITE_PATH: /data/app.db
       ASPNETCORE_URLS: "http://+:5000"
-      # Configurable frontend origin used by backend CORS; can be overridden with FRONTEND_ORIGIN env var
-      Frontend__DevOrigin: ${FRONTEND_ORIGIN:-http://frontend:80}
+      Frontend__DevOrigin: ${FRONTEND_ORIGIN:-http://localhost:5173}
     image: caaz/daily-challenge-web-backend
     ports:
       - "5000:5000"

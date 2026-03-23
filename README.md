@@ -48,9 +48,5 @@ docker compose up --detach --build
 
 ```bash
 docker compose down
-docker compose up --build -d \
-	-v %CD%/db:/data
+docker compose up --build -d
 ```
-
-	On unix/mac use `$(pwd)/db:/data` instead of the Windows `%CD%` syntax.
-
