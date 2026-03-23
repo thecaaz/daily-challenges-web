@@ -18,6 +18,7 @@ COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy entrypoint that generates runtime env.js (window.__BACKEND_URL)
 COPY frontend/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.sh || true
 
 EXPOSE 80
 ENTRYPOINT ["/docker-entrypoint.sh"]
