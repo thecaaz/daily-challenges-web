@@ -30,5 +30,24 @@ namespace DailyChallenges.Repositories
         {
             return await _db.Submissions.FirstOrDefaultAsync(s => s.Id == id);
         }
+
+        public async Task<Submission> UpdateAsync(Submission submission)
+        {
+            var existing = await _db.Submissions.FirstOrDefaultAsync(s => s.Id == submission.Id);
+            if (existing == null) throw new KeyNotFoundException("Submission not found");
+            existing.Score = submission.Score;
+            existing.Username = submission.Username;
+            // Don't update screenshot here
+            await _db.SaveChangesAsync();
+            return existing;
+        }
+
+        public async Task DeleteAsync(int id)
+        {
+            var existing = await _db.Submissions.FindAsync(id);
+            if (existing == null) return;
+            _db.Submissions.Remove(existing);
+            await _db.SaveChangesAsync();
+        }
     }
 }

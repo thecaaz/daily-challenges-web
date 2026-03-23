@@ -148,5 +148,41 @@ namespace DailyChallenges.Controllers
             var best = ordered.FirstOrDefault();
             return Ok(new { personalHighscore = best, top = ordered });
         }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url)
+        {
+            var g = await _games.GetByIdAsync(id);
+            if (g == null) return NotFound();
+
+            if (!string.IsNullOrWhiteSpace(name)) g.Name = name;
+            if (!string.IsNullOrWhiteSpace(url)) g.Url = url;
+            if (!string.IsNullOrWhiteSpace(resetTime))
+            {
+                if (TimeSpan.TryParse(resetTime, out var ts)) g.ResetTime = ts;
+                else if (TimeSpan.TryParseExact(resetTime, "hh\\:mm", null, out var ts2)) g.ResetTime = ts2;
+            }
+            if (!string.IsNullOrWhiteSpace(resetTimezoneId)) g.ResetTimezoneId = resetTimezoneId;
+
+            if (image != null && image.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await image.CopyToAsync(ms);
+                g.ScreenshotData = ms.ToArray();
+                g.ScreenshotContentType = image.ContentType;
+            }
+
+            var updated = await _games.UpdateAsync(g);
+            return Ok(DailyChallenges.Mapping.DtoMapper.ToDto(updated));
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            await _games.DeleteAsync(id);
+            return NoContent();
+        }
     }
 }

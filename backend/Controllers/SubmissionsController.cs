@@ -83,5 +83,31 @@ namespace DailyChallenges.Controllers
             if (s == null || s.ScreenshotData == null) return NotFound();
             return File(s.ScreenshotData, s.ScreenshotContentType ?? "application/octet-stream");
         }
+
+        [HttpPut("{id}")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int id, [FromBody] SubmissionUpdateModel model)
+        {
+            var s = await _subs.GetByIdAsync(id);
+            if (s == null) return NotFound();
+            if (!string.IsNullOrWhiteSpace(model.Score)) s.Score = model.Score;
+            s.Username = model.Username;
+            var updated = await _subs.UpdateAsync(s);
+            return Ok(DailyChallenges.Mapping.DtoMapper.ToDto(updated));
+        }
+
+        [HttpDelete("{id}")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            await _subs.DeleteAsync(id);
+            return NoContent();
+        }
+    }
+
+    public class SubmissionUpdateModel
+    {
+        public string? Score { get; set; }
+        public string? Username { get; set; }
     }
 }

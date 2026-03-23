@@ -7,5 +7,7 @@ namespace DailyChallenges.Repositories
         Task<Submission?> GetByGameAndUserAsync(int gameId, int userId);
         Task<Submission> CreateAsync(Submission submission);
         Task<Submission?> GetByIdAsync(int id);
+        Task<Submission> UpdateAsync(Submission submission);
+        Task DeleteAsync(int id);
     }
 }
