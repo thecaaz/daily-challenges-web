@@ -15,7 +15,6 @@ builder.Services.AddControllers().AddJsonOptions(o =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure SQLite connection: prefer SQLITE_PATH env var, then ConnectionStrings:Default, then fallback
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     var envSqlitePath = Environment.GetEnvironmentVariable("SQLITE_PATH");
