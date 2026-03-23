@@ -25,5 +25,30 @@ namespace DailyChallenges.Repositories
             await _db.SaveChangesAsync();
             return game;
         }
+
+        public async Task<Game> UpdateAsync(Game game)
+        {
+            var existing = await _db.Games.Include(g => g.Submissions).FirstOrDefaultAsync(g => g.Id == game.Id);
+            if (existing == null) throw new KeyNotFoundException("Game not found");
+            existing.Name = game.Name;
+            existing.Url = game.Url;
+            existing.ResetTime = game.ResetTime;
+            existing.ResetTimezoneId = game.ResetTimezoneId;
+            if (game.ScreenshotData != null && game.ScreenshotData.Length > 0)
+            {
+                existing.ScreenshotData = game.ScreenshotData;
+                existing.ScreenshotContentType = game.ScreenshotContentType;
+            }
+            await _db.SaveChangesAsync();
+            return existing;
+        }
+
+        public async Task DeleteAsync(int id)
+        {
+            var existing = await _db.Games.FindAsync(id);
+            if (existing == null) return;
+            _db.Games.Remove(existing);
+            await _db.SaveChangesAsync();
+        }
     }
 }
