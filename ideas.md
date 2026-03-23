@@ -1,3 +1,5 @@
 - Streaks
 - Live updates?
 - Add admin pages to list users, revoke admin, delete/flag submissions
+- Comments for a specific day
+- detail view of a submission to zoom in pic
