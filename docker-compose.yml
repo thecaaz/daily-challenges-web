@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      SQLITE_PATH: /data/app.db
+      ASPNETCORE_URLS: "http://+:5000"
+      Frontend__DevOrigin: ${FRONTEND_ORIGIN:-http://localhost:5173}
+    image: caaz/daily-challenge-web-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - sqlite_data:/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      # Runtime backend URL that will be written to /usr/share/nginx/html/env.js
+      BACKEND_URL: http://localhost:5000
+    image: caaz/daily-challenge-web-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  sqlite_data:
+    driver: local
