@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using DailyChallenges.Repositories;
 using System.Text.RegularExpressions;
 using System.Globalization;
+using System.Security.Claims;
 
 namespace DailyChallenges.Controllers
 {
@@ -112,6 +113,40 @@ namespace DailyChallenges.Controllers
 
             var top = ordered.FirstOrDefault();
             return Ok(new { highscore = top, top = ordered });
+        }
+
+        [HttpGet("{id}/personal-highscore")]
+        [Authorize]
+        public async Task<IActionResult> GetPersonalHighscore(int id)
+        {
+            var g = await _games.GetByIdAsync(id);
+            if (g == null) return NotFound();
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out var userId)) return Forbid();
+
+            var subs = g.Submissions?.Where(s => s.UserId == userId).ToList() ?? new List<Submission>();
+
+            double ParseScore(string s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return double.NaN;
+                var m = Regex.Match(s, "-?\\d+(?:[.,]\\d+)?");
+                if (!m.Success) return double.NaN;
+                var raw = m.Value.Replace(',', '.');
+                if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) return v;
+                return double.NaN;
+            }
+
+            var ordered = subs
+                .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
+                .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
+                .ThenBy(x => x.Sub.CreatedAt)
+                .Take(50)
+                .Select(x => DailyChallenges.Mapping.DtoMapper.ToDto(x.Sub))
+                .ToList();
+
+            var best = ordered.FirstOrDefault();
+            return Ok(new { personalHighscore = best, top = ordered });
         }
     }
 }

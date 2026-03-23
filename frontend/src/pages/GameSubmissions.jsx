@@ -78,8 +78,9 @@ export default function GameSubmissions() {
               <a href={game.url} target="_blank" rel="noreferrer">Play</a>
             </div>
           )}
-          <div style={{ marginTop: 6 }}>
+          <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
             <a href={`/games/${game.id}/highscore`}>Highscores</a>
+            <a href={`/games/${game.id}/personal-highscore`}>Your Highscores</a>
           </div>
           <div className="muted">Compete on daily challenges — climb the leaderboard!</div>
         </div>

@@ -6,6 +6,7 @@ import Admin from './pages/Admin'
 import Submit from './pages/Submit'
 import GameSubmissions from './pages/GameSubmissions'
 import GameHighscore from './pages/GameHighscore'
+import PersonalHighscore from './pages/PersonalHighscore'
 import GameBar from './components/GameBar'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/submit/:gameId" element={<Submit />} />
           <Route path="/games/:gameId" element={<GameSubmissions />} />
           <Route path="/games/:gameId/highscore" element={<GameHighscore />} />
+          <Route path="/games/:gameId/personal-highscore" element={<PersonalHighscore />} />
         </Routes>
       </Container>
     </div>
