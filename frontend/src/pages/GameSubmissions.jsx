@@ -110,22 +110,24 @@ export default function GameSubmissions() {
             <Grid container spacing={2}>
               {filtered.map(s => (
                 <Grid item xs={12} sm={6} md={4} key={s.id}>
-                  <div className="card">
-                    {s.screenshotUrl && <img className="game-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
-                    <CardContent>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                          <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
-                          {s.userId && user && s.userId === user.id && (
-                            <Typography variant="caption" sx={{ color: '#666' }}>You</Typography>
-                          )}
+                  <Link to={`/submission/${s.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <div className="card">
+                      {s.screenshotUrl && <img className="game-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
+                      <CardContent>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                            <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
+                            {s.userId && user && s.userId === user.id && (
+                              <Typography variant="caption" sx={{ color: '#666' }}>You</Typography>
+                            )}
+                          </div>
+                          <div className="badge">#{s.rank ?? ''}</div>
                         </div>
-                        <div className="badge">#{s.rank ?? ''}</div>
-                      </div>
-                      <Typography variant="h6">{s.score}</Typography>
-                      <Typography variant="caption">{new Date(s.createdAt).toLocaleString()}</Typography>
-                    </CardContent>
-                  </div>
+                        <Typography variant="h6">{s.score}</Typography>
+                        <Typography variant="caption">{new Date(s.createdAt).toLocaleString()}</Typography>
+                      </CardContent>
+                    </div>
+                  </Link>
                 </Grid>
               ))}
             </Grid>

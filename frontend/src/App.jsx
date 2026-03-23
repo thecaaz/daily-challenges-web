@@ -4,6 +4,7 @@ import { Container, Button, Typography } from '@mui/material'
 import Games from './pages/Games'
 import Admin from './pages/Admin'
 import Submit from './pages/Submit'
+import SubmissionDetail from './pages/SubmissionDetail'
 import GameSubmissions from './pages/GameSubmissions'
 import GameHighscore from './pages/GameHighscore'
 import PersonalHighscore from './pages/PersonalHighscore'
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/submit/:gameId" element={<Submit />} />
+          <Route path="/submission/:id" element={<SubmissionDetail />} />
           <Route path="/games/:gameId" element={<GameSubmissions />} />
           <Route path="/games/:gameId/highscore" element={<GameHighscore />} />
           <Route path="/games/:gameId/personal-highscore" element={<PersonalHighscore />} />
