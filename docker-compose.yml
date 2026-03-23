@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      SQLITE_PATH: /data/app.db
+      ASPNETCORE_URLS: "http://+:5000"
+    ports:
+      - "5000:5000"
+    volumes:
+      - sqlite_data:/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  sqlite_data:
+    driver: local
