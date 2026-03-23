@@ -1,5 +1,7 @@
 - Streaks
-- Live updates?
-- Add admin pages to list users, revoke admin, delete/flag submissions
+- Actually implement the leveling and xp aspect (gain xp on submits, day wins, streaks?)
+- Live updates
+- Add admin pages to list/administrate users
 - Comments for a specific day
-- detail view of a submission to zoom in pic
+- indicator on player count (how many people have played today)
+- Allow editing of your own score
