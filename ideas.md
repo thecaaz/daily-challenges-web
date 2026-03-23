@@ -1,4 +1,3 @@
-- User Highscore
 - Streaks
-- Live updateds?
+- Live updates?
 - Add admin pages to list users, revoke admin, delete/flag submissions
