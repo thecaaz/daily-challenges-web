@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using DailyChallenges.Data;
 using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using DailyChallenges.Repositories;
 
 namespace DailyChallenges.Controllers
@@ -28,6 +29,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId)
         {
             if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");

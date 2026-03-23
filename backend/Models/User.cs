@@ -12,5 +12,6 @@ namespace DailyChallenges.Models
 
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
+        public bool IsAdmin { get; set; } = false;
     }
 }

@@ -28,11 +28,12 @@ namespace DailyChallenges.Controllers
             if (await _db.Users.AnyAsync(u => u.Username == dto.Username))
                 return BadRequest(new { message = "Username already taken" });
 
+            var isFirstUser = !await _db.Users.AnyAsync();
             var hash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
-            var user = new User { Username = dto.Username, PasswordHash = hash };
+            var user = new User { Username = dto.Username, PasswordHash = hash, IsAdmin = isFirstUser };
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
-            return Ok(new { id = user.Id, username = user.Username });
+            return Ok(new { id = user.Id, username = user.Username, isAdmin = user.IsAdmin });
         }
 
         [HttpPost("login")]
@@ -54,7 +55,7 @@ namespace DailyChallenges.Controllers
                 Expires = DateTimeOffset.UtcNow.AddDays(int.Parse(_config["Jwt:ExpiresDays"] ?? "7"))
             });
 
-            return Ok(new { id = user.Id, username = user.Username });
+            return Ok(new { id = user.Id, username = user.Username, isAdmin = user.IsAdmin });
         }
 
         [HttpPost("logout")]
@@ -73,7 +74,7 @@ namespace DailyChallenges.Controllers
             if (!int.TryParse(idClaim, out var id)) return Unauthorized();
             var user = await _db.Users.FindAsync(id);
             if (user == null) return Unauthorized();
-            return Ok(new { id = user.Id, username = user.Username });
+            return Ok(new { id = user.Id, username = user.Username, isAdmin = user.IsAdmin });
         }
 
         private string GenerateJwtToken(User user)
@@ -83,10 +84,16 @@ namespace DailyChallenges.Controllers
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? string.Empty));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[] {
+            var claims = new List<Claim>
+            {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username)
             };
+
+            if (user.IsAdmin)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            }
 
             var token = new JwtSecurityToken(issuer, audience, claims, expires: DateTime.UtcNow.AddDays(double.Parse(_config["Jwt:ExpiresDays"] ?? "7")), signingCredentials: creds);
             return new JwtSecurityTokenHandler().WriteToken(token);

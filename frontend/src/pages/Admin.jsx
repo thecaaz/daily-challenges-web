@@ -3,6 +3,7 @@ import { TextField, Button, Stack } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Admin() {
   const [name, setName] = useState('')
@@ -38,6 +39,12 @@ export default function Admin() {
   }
 
   const navigate = useNavigate()
+  const { user, loading } = useAuth()
+
+  if (!loading && (!user || !user.isAdmin)) {
+    navigate('/')
+    return null
+  }
   
 
   return (
