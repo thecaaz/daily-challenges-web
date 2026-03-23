@@ -9,21 +9,26 @@ export default function Admin() {
   const [image, setImage] = useState(null)
   const { showSnackbar } = useSnackbar()
   const [resetTime, setResetTime] = useState('00:00')
-  const [resetTimezoneId, setResetTimezoneId] = useState('UTC')
+  const [detectedTimezone, setDetectedTimezone] = useState(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    } catch (e) {
+      return 'UTC'
+    }
+  })
 
   const submit = async (e) => {
     e.preventDefault()
     const fd = new FormData()
     fd.append('name', name)
     fd.append('resetTime', resetTime)
-    fd.append('resetTimezoneId', resetTimezoneId)
+    fd.append('resetTimezoneId', detectedTimezone)
     if (image) fd.append('image', image)
     try {
       await api.post('/games', fd)
       setName('')
       setImage(null)
       setResetTime('00:00')
-      setResetTimezoneId('UTC')
       showSnackbar('Game created', 'success')
       // navigate back to games overview
       navigate('/')
@@ -45,8 +50,8 @@ export default function Admin() {
             <input type="time" value={resetTime} onChange={e => setResetTime(e.target.value)} />
           </div>
           <div>
-            <label>Reset timezone (IANA): </label>
-            <input type="text" value={resetTimezoneId} onChange={e => setResetTimezoneId(e.target.value)} placeholder="e.g. Europe/Paris or UTC" />
+            <label>Reset timezone (detected): </label>
+            <input type="text" value={detectedTimezone} readOnly />
           </div>
         <Button variant="contained" type="submit">Create Game</Button>
       </Stack>
