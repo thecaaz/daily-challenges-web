@@ -8,6 +8,7 @@ services:
     environment:
       SQLITE_PATH: /data/app.db
       ASPNETCORE_URLS: "http://+:5000"
+    image: caaz/daily-challenge-web-backend
     ports:
       - "5000:5000"
     volumes:
@@ -19,7 +20,8 @@ services:
       dockerfile: frontend/Dockerfile
     environment:
       # Runtime backend URL that will be written to /usr/share/nginx/html/env.js
-      BACKEND_URL: http://backend:5000
+      BACKEND_URL: http://localhost:5000
+    image: caaz/daily-challenge-web-frontend
     ports:
       - "5173:80"
     depends_on:
