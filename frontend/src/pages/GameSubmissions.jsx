@@ -54,6 +54,16 @@ export default function GameSubmissions() {
 
   const filtered = selectedDate ? submissions.filter(s => s._date === selectedDate) : submissions
 
+  // Determine whether we're viewing the latest day (most recent scoring day)
+  const latestDate = availableDates[0] ?? ''
+  const isViewingLatest = selectedDate === latestDate
+  const hasSubmittedForLatest = (() => {
+    if (!latestDate) return false
+    if (!submissions || submissions.length === 0) return false
+    if (!user || !user.id) return false
+    return submissions.some(s => s._date === latestDate && s.userId === user.id)
+  })()
+
   if (!game) return <div>Loading...</div>
 
   const apiRoot = api.defaults.baseURL ? api.defaults.baseURL.replace(/\/api\/?$/, '') : 'http://localhost:5000'
@@ -84,28 +94,38 @@ export default function GameSubmissions() {
         </Select>
       </FormControl>
 
-      <Grid container spacing={2}>
-        {filtered.map(s => (
-          <Grid item xs={12} sm={6} md={4} key={s.id}>
-            <div className="card">
-              {s.screenshotUrl && <img className="game-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
-              <CardContent>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
-                    {s.userId && user && s.userId === user.id && (
-                      <Typography variant="caption" sx={{ color: '#666' }}>You</Typography>
-                    )}
-                  </div>
-                  <div className="badge">#{s.rank ?? ''}</div>
-                </div>
-                <Typography variant="h6">{s.score}</Typography>
-                <Typography variant="caption">{new Date(s.createdAt).toLocaleString()}</Typography>
-              </CardContent>
+          {isViewingLatest && !hasSubmittedForLatest ? (
+            <div className="card" style={{ padding: 24 }}>
+              <Typography variant="h6">Today's scores are hidden.</Typography>
+              <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
+              <div style={{ marginTop: 12 }}>
+                <Button component={Link} to={`/submit/${game.id}`} className="btn">Submit Score</Button>
+              </div>
             </div>
-          </Grid>
-        ))}
-      </Grid>
+          ) : (
+            <Grid container spacing={2}>
+              {filtered.map(s => (
+                <Grid item xs={12} sm={6} md={4} key={s.id}>
+                  <div className="card">
+                    {s.screenshotUrl && <img className="game-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
+                    <CardContent>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                          <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
+                          {s.userId && user && s.userId === user.id && (
+                            <Typography variant="caption" sx={{ color: '#666' }}>You</Typography>
+                          )}
+                        </div>
+                        <div className="badge">#{s.rank ?? ''}</div>
+                      </div>
+                      <Typography variant="h6">{s.score}</Typography>
+                      <Typography variant="caption">{new Date(s.createdAt).toLocaleString()}</Typography>
+                    </CardContent>
+                  </div>
+                </Grid>
+              ))}
+            </Grid>
+          )}
     </div>
   )
 }

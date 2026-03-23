@@ -1,4 +1,3 @@
-- Dont show scores until user has submitted their own
 - Game Highscore
 - User Highscore
 - Streaks
