@@ -19,17 +19,17 @@ export default function Games() {
     <Grid container spacing={2}>
       {games.map(g => (
         <Grid item xs={12} sm={6} md={4} key={g.id}>
-          <Card>
+          <div className="card">
             <CardActionArea component={Link} to={`/games/${g.id}`}>
-              {g.imageUrl && <CardMedia component="img" height="140" image={`${apiRoot}${g.imageUrl}`} />}
+              {g.imageUrl && <img className="game-image" src={`${apiRoot}${g.imageUrl}`} alt={g.name} />}
               <CardContent>
                 <Typography variant="h6">{g.name}</Typography>
               </CardContent>
             </CardActionArea>
             <CardContent>
-              <Button component={Link} to={`/submit/${g.id}`} variant="outlined" sx={{ mt: 1 }}>Submit Score</Button>
+              <Button component={Link} to={`/submit/${g.id}`} className="btn" sx={{ mt: 1 }}>Submit Score</Button>
             </CardContent>
-          </Card>
+          </div>
         </Grid>
       ))}
     </Grid>

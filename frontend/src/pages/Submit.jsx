@@ -46,15 +46,17 @@ export default function Submit() {
 
   return (
     <div>
-      <Typography variant="h5">Submit for {game.name}</Typography>
-      <form onSubmit={submit}>
-        <Stack spacing={2} maxWidth={480} sx={{ mt: 2 }}>
-          <TextField label="Username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
-          <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
-          <input type="file" accept="image/*" onChange={e => setScreenshot(e.target.files?.[0] ?? null)} />
-          <Button type="submit" variant="contained">Submit</Button>
-        </Stack>
-      </form>
+      <div className="card">
+        <Typography variant="h5">Submit for {game.name}</Typography>
+        <form onSubmit={submit}>
+          <Stack spacing={2} maxWidth={480} sx={{ mt: 2 }}>
+            <TextField label="Username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
+            <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
+            <input type="file" accept="image/*" onChange={e => setScreenshot(e.target.files?.[0] ?? null)} />
+            <Button type="submit" className="btn">Submit</Button>
+          </Stack>
+        </form>
+      </div>
       
     </div>
   )

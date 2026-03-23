@@ -59,10 +59,13 @@ export default function GameSubmissions() {
   return (
     <div>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5">Submissions — {game.name}</Typography>
         <div>
-          <Button component={Link} to="/" sx={{ mr: 1 }}>Back</Button>
-          <Button component={Link} to={`/submit/${game.id}`} variant="contained">Submit Score</Button>
+          <Typography variant="h5">Submissions — {game.name}</Typography>
+          <div className="muted">Compete on daily challenges — climb the leaderboard!</div>
+        </div>
+        <div>
+          <Button component={Link} to="/" className="btn" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</Button>
+          <Button component={Link} to={`/submit/${game.id}`} className="btn">Submit Score</Button>
         </div>
       </Stack>
 
@@ -77,14 +80,17 @@ export default function GameSubmissions() {
       <Grid container spacing={2}>
         {filtered.map(s => (
           <Grid item xs={12} sm={6} md={4} key={s.id}>
-            <Card>
-              {s.screenshotUrl && <CardMedia component="img" height="200" image={`${apiRoot}${s.screenshotUrl}`} />}
+            <div className="card">
+              {s.screenshotUrl && <img className="game-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
               <CardContent>
-                <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
-                <Typography variant="body2">Score: {s.score}</Typography>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
+                  <div className="badge">#{s.rank ?? ''}</div>
+                </div>
+                <Typography variant="h6">{s.score}</Typography>
                 <Typography variant="caption">{new Date(s.createdAt).toLocaleString()}</Typography>
               </CardContent>
-            </Card>
+            </div>
           </Grid>
         ))}
       </Grid>
