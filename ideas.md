@@ -1,0 +1,7 @@
+- Add game url to game
+- Dont show scores until user has submitted their own
+- Game Highscore
+- User Highscore
+- Streaks
+- Live updateds?
+- Add admin pages to list users, revoke admin, delete/flag submissions
