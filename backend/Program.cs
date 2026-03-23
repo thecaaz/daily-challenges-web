@@ -16,7 +16,23 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=app.db"));
+{
+    var envSqlitePath = Environment.GetEnvironmentVariable("SQLITE_PATH");
+    var configConn = builder.Configuration.GetConnectionString("Default");
+
+    if (!string.IsNullOrEmpty(envSqlitePath))
+    {
+        options.UseSqlite($"Data Source={envSqlitePath}");
+    }
+    else if (!string.IsNullOrEmpty(configConn))
+    {
+        options.UseSqlite(configConn);
+    }
+    else
+    {
+        options.UseSqlite("Data Source=app.db");
+    }
+});
 
 // CORS: allow frontend origin and credentials (adjust origin for your dev host)
 var frontendOrigin = builder.Configuration["Frontend:DevOrigin"] ?? "http://localhost:5173";
