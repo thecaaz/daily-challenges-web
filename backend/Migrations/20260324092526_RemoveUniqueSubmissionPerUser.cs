@@ -1,39 +1,30 @@
-using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace DailyChallenges.Migrations
 {
+    /// <inheritdoc />
     public partial class RemoveUniqueSubmissionPerUser : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Drop the unique composite index on GameId+UserId created in AddSubmissionUser
             migrationBuilder.DropIndex(
                 name: "IX_Submissions_GameId_UserId",
                 table: "Submissions");
 
-            // Recreate non-unique indexes to keep lookup performance
             migrationBuilder.CreateIndex(
-                name: "IX_Submissions_GameId",
+                name: "IX_Submissions_GameId_UserId",
                 table: "Submissions",
-                column: "GameId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Submissions_UserId",
-                table: "Submissions",
-                column: "UserId");
+                columns: new[] { "GameId", "UserId" });
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
-                name: "IX_Submissions_GameId",
-                table: "Submissions");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Submissions_UserId",
+                name: "IX_Submissions_GameId_UserId",
                 table: "Submissions");
 
             migrationBuilder.CreateIndex(
