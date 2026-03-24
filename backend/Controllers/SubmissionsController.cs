@@ -10,22 +10,17 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class SubmissionsController : ControllerBase
     {
-        private readonly ISubmissionRepository _subs;
-        private readonly IGameRepository _games;
-        private readonly IWebHostEnvironment _env;
+        private readonly DailyChallenges.Services.ISubmissionService _subs;
 
-        public SubmissionsController(ISubmissionRepository subs, IGameRepository games, IWebHostEnvironment env)
+        public SubmissionsController(DailyChallenges.Services.ISubmissionService subs)
         {
             _subs = subs;
-            _games = games;
-            _env = env;
         }
 
         [HttpGet("game/{gameId}")]
         public async Task<IActionResult> GetByGame(int gameId)
         {
-            var subs = await _subs.GetByGameAsync(gameId);
-            var dtos = subs.Select(s => DailyChallenges.Mapping.DtoMapper.ToDto(s)).ToList();
+            var dtos = await _subs.GetByGameAsync(gameId);
             return Ok(dtos);
         }
 
@@ -33,63 +28,30 @@ namespace DailyChallenges.Controllers
         [Microsoft.AspNetCore.Authorization.Authorize]
         public async Task<IActionResult> Create([FromForm] int gameId, [FromForm] string score, [FromForm] string? username, [FromForm] IFormFile? screenshot)
         {
-            var game = await _games.GetByIdAsync(gameId);
-            if (game == null) return BadRequest("invalid gameId");
-            if (string.IsNullOrWhiteSpace(score)) return BadRequest("score is required");
-
-            // get authenticated user id if present
-            int? userId = null;
-            if (User.Identity?.IsAuthenticated ?? false)
+            try
             {
-                var idClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (int.TryParse(idClaim, out var parsed)) userId = parsed;
+                var created = await _subs.CreateAsync(gameId, score, username, screenshot, User);
+                return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, created);
             }
-
-            // If authenticated, prevent multiple submissions per user per game
-            if (userId.HasValue)
+            catch (InvalidOperationException ex)
             {
-                var existing = await _subs.GetByGameAndUserAsync(gameId, userId.Value);
-                if (existing != null) return Conflict(new { message = "User has already submitted for this game" });
+                return ex.Message.Contains("already submitted") ? Conflict(new { message = ex.Message }) : BadRequest(new { message = ex.Message });
             }
-
-            var submission = new Submission { GameId = gameId, Score = score, Username = username, UserId = userId };
-
-            if (screenshot != null && screenshot.Length > 0)
-            {
-                using var ms = new MemoryStream();
-                await screenshot.CopyToAsync(ms);
-                submission.ScreenshotData = ms.ToArray();
-                submission.ScreenshotContentType = screenshot.ContentType;
-            }
-
-            // if authenticated, prefer authoritative username from Users table
-            if (userId.HasValue)
-            {
-                // load user name from DB to avoid spoofing
-                var u = await (_env.ApplicationName != null ? Task.FromResult((DailyChallenges.Models.User?)null) : Task.FromResult((DailyChallenges.Models.User?)null));
-                // We don't have direct DbContext here; just rely on User.Identity.Name when present
-                if (!string.IsNullOrEmpty(User.Identity?.Name)) submission.Username = User.Identity.Name;
-            }
-
-            var created = await _subs.CreateAsync(submission);
-            var dto = DailyChallenges.Mapping.DtoMapper.ToDto(created);
-            return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, dto);
         }
 
         [HttpGet("{id}/screenshot")]
         public async Task<IActionResult> GetScreenshot(int id)
         {
-            var s = await _subs.GetByIdAsync(id);
-            if (s == null || s.ScreenshotData == null) return NotFound();
-            return File(s.ScreenshotData, s.ScreenshotContentType ?? "application/octet-stream");
+            var (data, contentType) = await _subs.GetScreenshotAsync(id);
+            if (data == null) return NotFound();
+            return File(data, contentType ?? "application/octet-stream");
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var s = await _subs.GetByIdAsync(id);
-            if (s == null) return NotFound();
-            var dto = DailyChallenges.Mapping.DtoMapper.ToDto(s);
+            var dto = await _subs.GetByIdAsync(id);
+            if (dto == null) return NotFound();
             return Ok(dto);
         }
 
@@ -97,11 +59,15 @@ namespace DailyChallenges.Controllers
         [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] SubmissionUpdateModel model)
         {
-            var s = await _subs.GetByIdAsync(id);
-            if (s == null) return NotFound();
-            if (!string.IsNullOrWhiteSpace(model.Score)) s.Score = model.Score;
-            var updated = await _subs.UpdateAsync(s);
-            return Ok(DailyChallenges.Mapping.DtoMapper.ToDto(updated));
+            try
+            {
+                var updated = await _subs.UpdateAsync(id, model.Score);
+                return Ok(updated);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
         }
 
         [HttpDelete("{id}")]
