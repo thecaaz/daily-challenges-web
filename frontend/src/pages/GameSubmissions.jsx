@@ -116,7 +116,7 @@ export default function GameSubmissions() {
                 <Grid item xs={12} sm={6} md={4} key={s.id}>
                   <Link to={`/submission/${s.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                     <div className="card">
-                      {s.screenshotUrl && <img className="game-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
+                      {s.screenshotUrl && <img className="game-list-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
                       <CardContent>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>

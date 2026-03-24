@@ -21,7 +21,7 @@ export default function Games() {
         <Grid item xs={12} sm={6} md={4} key={g.id}>
           <div className="card">
             <CardActionArea component={Link} to={`/games/${g.id}`}>
-              {g.imageUrl && <img className="game-image" src={`${apiRoot}${g.imageUrl}`} alt={g.name} />}
+              {g.imageUrl && <img className="game-list-image" src={`${apiRoot}${g.imageUrl}`} alt={g.name} />}
               <CardContent>
                 <Typography variant="h6">{g.name}</Typography>
               </CardContent>
