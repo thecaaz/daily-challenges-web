@@ -49,7 +49,14 @@ export default function GameSubmissions() {
     setAvailableDates(dates)
     // prefer date passed by navigation state
     const preferred = location?.state?.selectedDate
-    setSelectedDate(preferred && dates.includes(preferred) ? preferred : (dates[0] ?? ''))
+    // compute current scoring day (use server-provided when available)
+    const currentDay = computeCurrentScoringDay(g)
+    // If the preferred date is supplied and available, use it. Otherwise,
+    // only auto-select the current scoring day if it actually has submissions;
+    // otherwise leave selection empty (show 'All').
+    if (preferred && dates.includes(preferred)) setSelectedDate(preferred)
+    else if (currentDay && dates.includes(currentDay)) setSelectedDate(currentDay)
+    else setSelectedDate('')
   }
 
   // Compute the current scoring day. Prefer server-provided value when available
