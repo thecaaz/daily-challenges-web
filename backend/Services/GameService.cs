@@ -13,11 +13,13 @@ namespace DailyChallenges.Services
     {
         private readonly IGameRepository _games;
         private readonly IFileStorage _files;
+        private readonly ISubmissionRepository _subsRepo;
 
-        public GameService(IGameRepository games, IFileStorage files)
+        public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo)
         {
             _games = games;
             _files = files;
+            _subsRepo = subsRepo;
         }
 
         public async Task<List<GameDto>> GetAllAsync()
@@ -90,7 +92,8 @@ namespace DailyChallenges.Services
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
-            var subs = g.Submissions ?? new List<Submission>();
+            // avoid loading all submissions (may include large blobs); fetch a bounded recent set
+            var subs = (await _subsRepo.GetTopByGameAsync(id, 2000)) ?? new List<Submission>();
 
             // Filter current-day submissions for users who haven't submitted yet
             if (user == null || !user.IsInRole("Admin"))
@@ -126,7 +129,8 @@ namespace DailyChallenges.Services
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
-            var subs = g.Submissions?.Where(s => s.UserId == userId).ToList() ?? new List<Submission>();
+            // fetch a bounded set and filter for the user locally
+            var subs = (await _subsRepo.GetTopByGameAsync(id, 2000)).Where(s => s.UserId == userId).ToList();
 
             var ordered = subs
                 .Select(s => new { Sub = s, Num = ParseScore(s.Score) })

@@ -102,8 +102,8 @@ export default function Admin() {
   const manageSubs = async (gameId) => {
     setSelectedGameId(gameId)
     try {
-      const res = await api.get(`/submissions/game/${gameId}`)
-      setSubmissions(res.data)
+      const res = await api.get(`/submissions/game/${gameId}/unfiltered`)
+      setSubmissions(res.data || [])
     } catch (err) {
       showSnackbar('Failed to load submissions', 'error')
     }

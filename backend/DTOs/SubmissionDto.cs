@@ -11,5 +11,7 @@ namespace DailyChallenges.DTOs
         public string? Username { get; set; }
         public string? ScreenshotUrl { get; set; }
         public DateTime CreatedAt { get; set; }
+        // server-computed scoring day (YYYY-MM-DD) according to game's reset settings
+        public string? ScoringDay { get; set; }
     }
 }

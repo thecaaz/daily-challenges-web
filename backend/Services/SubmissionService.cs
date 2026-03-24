@@ -22,14 +22,17 @@ namespace DailyChallenges.Services
             _files = files;
         }
 
-        public async Task<List<SubmissionDto>> GetByGameAsync(int gameId, ClaimsPrincipal? user)
+        public async Task<DailyChallenges.DTOs.SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, int page = 1, int pageSize = 50)
         {
             var game = await _games.GetByIdAsync(gameId);
-            var subs = await _subs.GetByGameAsync(gameId);
+            // fetch a bounded set to avoid loading large collections; will page after filtering
+            var all = await _subs.GetTopByGameAsync(gameId, 2000);
+            var subs = all ?? new List<DailyChallenges.Models.Submission>();
 
-            // Admins always see everything
-            if (user != null && user.IsInRole("Admin"))
-                return subs.Select(s => DtoMapper.ToDto(s)).ToList();
+            var result = new DailyChallenges.DTOs.SubmissionPageDto { Page = page, PageSize = pageSize };
+
+            // Admins use the dedicated unfiltered admin endpoint; fall through
+            // to the normal paged/hide-today logic so behavior is consistent.
 
             // Determine the current scoring day for this game
             var currentDay = ScoringDayHelper.GetCurrentScoringDay(
@@ -49,14 +52,70 @@ namespace DailyChallenges.Services
                 s.UserId == userId.Value &&
                 ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC") == currentDay);
 
-            if (hasSubmittedToday)
-                return subs.Select(s => DtoMapper.ToDto(s)).ToList();
+            // determine hasSubmittedToday for the caller (server-side)
+            bool hasSubmittedTodayFlag = false;
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var idClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(idClaim, out var parsedUserId))
+                {
+                    var latest = await _subs.GetByGameAndUserAsync(gameId, parsedUserId);
+                    if (latest != null)
+                    {
+                        var exDay = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
+                        var currentDay2 = ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
+                        hasSubmittedTodayFlag = exDay == currentDay2;
+                    }
+                }
+            }
 
-            // Hide current-day submissions from users who haven't submitted yet
-            return subs
-                .Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC") != currentDay)
-                .Select(s => DtoMapper.ToDto(s))
+            // If caller hasn't submitted today, hide current-day submissions
+            List<DailyChallenges.Models.Submission> filtered;
+            if (!hasSubmittedTodayFlag)
+            {
+                filtered = subs.Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC") != currentDay).ToList();
+            }
+            else
+            {
+                filtered = subs;
+            }
+
+            var mapped = filtered.Select(s =>
+            {
+                var dto = DtoMapper.ToDto(s);
+                dto.ScoringDay = ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC").ToString("yyyy-MM-dd");
+                return dto;
+            }).ToList();
+            var paged = mapped.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            result.Items = paged;
+            result.HasSubmittedForLatest = hasSubmittedTodayFlag;
+            result.TotalCount = filtered.Count;
+            result.TotalPages = (int)Math.Ceiling(filtered.Count / (double)pageSize);
+            result.HasMore = page < result.TotalPages;
+            result.AvailableDates = mapped
+                .Select(d => d.ScoringDay)
+                .Where(x => x is not null)
+                .Select(x => x!)
+                .Distinct()
+                .OrderByDescending(x => x)
                 .ToList();
+            return result;
+        }
+
+        public async Task<List<SubmissionDto>> GetUnfilteredByGameAsync(int gameId)
+        {
+            var game = await _games.GetByIdAsync(gameId);
+            var all = await _subs.GetByGameAsync(gameId);
+            var subs = all ?? new List<DailyChallenges.Models.Submission>();
+
+            var adminDtos = subs.Select(s =>
+            {
+                var dto = DtoMapper.ToDto(s);
+                dto.ScoringDay = ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC").ToString("yyyy-MM-dd");
+                return dto;
+            }).ToList();
+
+            return adminDtos;
         }
 
         public async Task<SubmissionDto> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user)
@@ -75,15 +134,12 @@ namespace DailyChallenges.Services
             if (userId.HasValue)
             {
                 // enforce one submission per user per game *per scoring day*.
-                var allForGame = await _subs.GetByGameAsync(gameId);
-                var userSubs = allForGame.Where(s => s.UserId == userId.Value).ToList();
-                DateTime newDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime, game.ResetTimezoneId);
-
-                foreach (var ex in userSubs)
+                var latest = await _subs.GetByGameAndUserAsync(gameId, userId.Value);
+                if (latest != null)
                 {
-                    var exDay = ScoringDayHelper.GetScoringDay(ex.CreatedAt, game.ResetTime, game.ResetTimezoneId);
-                    if (exDay == newDay)
-                        throw new InvalidOperationException("User has already submitted for this game");
+                    DateTime newDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime, game.ResetTimezoneId);
+                    var exDay = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game.ResetTime, game.ResetTimezoneId);
+                    if (exDay == newDay) throw new InvalidOperationException("User has already submitted for this game");
                 }
             }
 

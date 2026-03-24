@@ -32,56 +32,11 @@ export default function Submit() {
     setGame(g)
     // if logged in, check if user already submitted for this game
     try {
-      if (user && user.id) {
-        const sres = await api.get(`/submissions/game/${gameId}`)
-        const subs = sres.data || []
-
-        // Determine current scoring day: prefer server-provided value on Game DTO,
-        // otherwise compute from game's resetTime/resetTimezoneId like other pages.
-        const computeCurrentScoringDay = (gg) => {
-          if (!gg) return ''
-          if (gg.currentScoringDay) return gg.currentScoringDay
-          const tz = gg.resetTimezoneId ?? 'UTC'
-          const [rh, rm] = (gg.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
-          const resetMinutes = (rh * 60) + rm
-          const now = new Date()
-          const localDateStr = now.toLocaleDateString('en-CA', { timeZone: tz })
-          const timeParts = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
-          const localMinutes = (parseInt(timeParts[0] || '0', 10) * 60) + (parseInt(timeParts[1] || '0', 10))
-          if (localMinutes < resetMinutes) {
-            const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
-            const base = new Date(Date.UTC(y, (m - 1), d))
-            base.setUTCDate(base.getUTCDate() - 1)
-            return base.toISOString().split('T')[0]
-          }
-          return localDateStr
-        }
-
-        const currentDay = computeCurrentScoringDay(g)
-        const resetTime = g?.resetTime ?? '00:00'
-        const tz = g?.resetTimezoneId ?? 'UTC'
-        const [rh, rm] = (resetTime || '00:00').split(':').map(x => parseInt(x, 10) || 0)
-        const resetMinutes = (rh * 60) + rm
-
-        // Tag each submission with its scoring day (for debugging/consistency)
-        subs.forEach(s => {
-          const dt = new Date(s.createdAt)
-          const localDateStr = dt.toLocaleDateString('en-CA', { timeZone: tz }) // YYYY-MM-DD
-          const timeParts = dt.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
-          const localMinutes = (parseInt(timeParts[0] || '0', 10) * 60) + (parseInt(timeParts[1] || '0', 10))
-          if (localMinutes < resetMinutes) {
-            const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
-            const base = new Date(Date.UTC(y, (m - 1), d))
-            base.setUTCDate(base.getUTCDate() - 1)
-            s._date = base.toISOString().split('T')[0]
-          } else {
-            s._date = localDateStr
-          }
-        })
-
-        // Determine whether the current user has a submission for the current scoring day
-        const my = subs.find(s => s.userId === user.id && s._date === currentDay)
-        if (my) setHasSubmitted(true)
+        if (user && user.id) {
+        // Ask backend whether the current user has submitted for latest scoring day
+        const sres = await api.get(`/submissions/game/${gameId}?page=1&pageSize=1`)
+        const pageResult = sres.data || { hasSubmittedForLatest: false }
+        if (pageResult.hasSubmittedForLatest === true) setHasSubmitted(true)
       }
     } catch (e) {
       // ignore
@@ -111,7 +66,9 @@ export default function Submit() {
       const date = created?.createdAt ? new Date(created.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       navigate(`/games/${gameId}`, { state: { selectedDate: date } })
     } catch (err) {
-      showSnackbar('Failed to submit', 'error')
+      // Prefer backend-provided message when available
+      const msg = err?.response?.data?.message || err?.response?.data || err?.message || 'Failed to submit'
+      showSnackbar(String(msg), 'error')
     }
   }
 

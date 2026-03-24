@@ -11,23 +11,39 @@ namespace DailyChallenges.Controllers
     public class SubmissionsController : ControllerBase
     {
         private readonly DailyChallenges.Services.ISubmissionService _subs;
+        private readonly DailyChallenges.Services.IFileValidator _validator;
 
-        public SubmissionsController(DailyChallenges.Services.ISubmissionService subs)
+        public SubmissionsController(DailyChallenges.Services.ISubmissionService subs, DailyChallenges.Services.IFileValidator validator)
         {
             _subs = subs;
+            _validator = validator;
         }
 
         [HttpGet("game/{gameId}")]
-        public async Task<IActionResult> GetByGame(int gameId)
+        public async Task<IActionResult> GetByGame(int gameId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
-            var dtos = await _subs.GetByGameAsync(gameId, User);
-            return Ok(dtos);
+            var pageResult = await _subs.GetByGameAsync(gameId, User, page, pageSize);
+            return Ok(pageResult);
+        }
+
+        [HttpGet("game/{gameId}/unfiltered")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUnfilteredByGame(int gameId)
+        {
+            var list = await _subs.GetUnfilteredByGameAsync(gameId);
+            return Ok(list);
         }
 
         [HttpPost]
         [Microsoft.AspNetCore.Authorization.Authorize]
         public async Task<IActionResult> Create([FromForm] int gameId, [FromForm] string score, [FromForm] string? username, [FromForm] IFormFile? screenshot)
         {
+            // validate screenshot if provided
+            if (screenshot != null)
+            {
+                try { _validator.ValidateImage(screenshot); }
+                catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            }
             try
             {
                 var created = await _subs.CreateAsync(gameId, score, username, screenshot, User);
@@ -36,6 +52,10 @@ namespace DailyChallenges.Controllers
             catch (InvalidOperationException ex)
             {
                 return ex.Message.Contains("already submitted") ? Conflict(new { message = ex.Message }) : BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
 

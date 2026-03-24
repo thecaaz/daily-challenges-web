@@ -15,10 +15,12 @@ namespace DailyChallenges.Controllers
     public class GamesController : ControllerBase
     {
         private readonly DailyChallenges.Services.IGameService _games;
+        private readonly DailyChallenges.Services.IFileValidator _validator;
 
-        public GamesController(DailyChallenges.Services.IGameService games)
+        public GamesController(DailyChallenges.Services.IGameService games, DailyChallenges.Services.IFileValidator validator)
         {
             _games = games;
+            _validator = validator;
         }
 
         [HttpGet]
@@ -33,8 +35,21 @@ namespace DailyChallenges.Controllers
         public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url)
         {
             if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
-            var created = await _games.CreateAsync(name, image, resetTime, resetTimezoneId, url);
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+            // validate image if provided
+            if (image != null)
+            {
+                try { _validator.ValidateImage(image); }
+                catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            }
+            try
+            {
+                var created = await _games.CreateAsync(name, image, resetTime, resetTimezoneId, url);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("{id}/image")]
@@ -82,6 +97,12 @@ namespace DailyChallenges.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url)
         {
+            // validate image if provided
+            if (image != null)
+            {
+                try { _validator.ValidateImage(image); }
+                catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            }
             try
             {
                 var updated = await _games.UpdateAsync(id, name, image, resetTime, resetTimezoneId, url);
@@ -90,6 +111,10 @@ namespace DailyChallenges.Controllers
             catch (KeyNotFoundException)
             {
                 return NotFound();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
 
