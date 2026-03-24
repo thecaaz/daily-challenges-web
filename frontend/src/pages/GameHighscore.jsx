@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Typography, Grid, CardContent, Button } from '@mui/material'
 import api from '../api'
@@ -11,64 +11,26 @@ export default function GameHighscore() {
   const { user } = useAuth()
   const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
 
-  useEffect(() => { fetchData() }, [user])
+  // Avoid duplicate fetches when React StrictMode or auth updates trigger
+  // multiple mounts/updates. Use a fetch key so identical requests are skipped.
+  const lastFetchKeyRef = useRef(null)
+  useEffect(() => { fetchData() }, [gameId, user?.id])
 
-  // Compute current scoring day from game settings + live clock, not from the
-  // submissions response (which is filtered server-side before the user submits).
-  const computeCurrentScoringDay = (g) => {
-    if (!g) return ''
-    if (g.currentScoringDay) return g.currentScoringDay
-    const tz = g.resetTimezoneId ?? 'UTC'
-    const [rh, rm] = (g.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
-    const resetMinutes = rh * 60 + rm
-    const now = new Date()
-    const localDateStr = now.toLocaleDateString('en-CA', { timeZone: tz })
-    const timeParts = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
-    const localMinutes = parseInt(timeParts[0] || '0', 10) * 60 + parseInt(timeParts[1] || '0', 10)
-    if (localMinutes < resetMinutes) {
-      const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
-      const base = new Date(Date.UTC(y, m - 1, d))
-      base.setUTCDate(base.getUTCDate() - 1)
-      return base.toISOString().split('T')[0]
-    }
-    return localDateStr
-  }
 
   const fetchData = async () => {
+    const fetchKey = `${gameId}-${user?.id ?? 'anon'}`
+    if (lastFetchKeyRef.current === fetchKey) return
+    lastFetchKeyRef.current = fetchKey
+
     const gres = await api.get('/games')
     const g = gres.data.find(x => String(x.id) === String(gameId))
     setGame(g)
 
     // Fetch submissions only to check whether the current user has submitted today.
-    // The backend already filters current-day entries when the user hasn't submitted,
-    // so we compare against the clock-derived scoring day, not the response dates.
     try {
-      const sres = await api.get(`/submissions/game/${gameId}`)
-      const subs = sres.data || []
-      const currentDay = computeCurrentScoringDay(g)
-      const tz = g?.resetTimezoneId ?? 'UTC'
-      const [rh, rm] = (g?.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
-      const resetMinutes = rh * 60 + rm
-      // tag each returned submission with its scoring day
-      subs.forEach(s => {
-        const dt = new Date(s.createdAt)
-        const localDateStr = dt.toLocaleDateString('en-CA', { timeZone: tz })
-        const timeParts = dt.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
-        const localMinutes = parseInt(timeParts[0] || '0', 10) * 60 + parseInt(timeParts[1] || '0', 10)
-        if (localMinutes < resetMinutes) {
-          const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
-          const base = new Date(Date.UTC(y, m - 1, d))
-          base.setUTCDate(base.getUTCDate() - 1)
-          s._date = base.toISOString().split('T')[0]
-        } else {
-          s._date = localDateStr
-        }
-      })
-      if (currentDay && user && user.id) {
-        setHasSubmittedForLatest(subs.some(s => s.userId === user.id && s._date === currentDay))
-      } else {
-        setHasSubmittedForLatest(false)
-      }
+      const sres = await api.get(`/submissions/game/${gameId}?page=1&pageSize=200`)
+      const pageResult = sres.data || { items: [], hasSubmittedForLatest: false }
+      setHasSubmittedForLatest(pageResult.hasSubmittedForLatest === true)
     } catch (e) {
       setHasSubmittedForLatest(false)
     }
@@ -80,7 +42,7 @@ export default function GameHighscore() {
 
   if (!game) return <div>Loading...</div>
 
-  const currentScoringDay = computeCurrentScoringDay(game)
+  const currentScoringDay = game?.currentScoringDay ?? ''
 
   return (
     <div>

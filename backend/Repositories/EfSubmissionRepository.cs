@@ -14,9 +14,25 @@ namespace DailyChallenges.Repositories
             return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).AsNoTracking().ToListAsync();
         }
 
+        public async Task<List<Submission>> GetByGamePagedAsync(int gameId, int page, int pageSize)
+        {
+            if (page < 1) page = 1;
+            var skip = (page - 1) * pageSize;
+            return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).Skip(skip).Take(pageSize).AsNoTracking().ToListAsync();
+        }
+
+        public async Task<List<Submission>> GetTopByGameAsync(int gameId, int top)
+        {
+            if (top < 1) top = 10;
+            return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).Take(top).AsNoTracking().ToListAsync();
+        }
+
         public async Task<Submission?> GetByGameAndUserAsync(int gameId, int userId)
         {
-            return await _db.Submissions.FirstOrDefaultAsync(s => s.GameId == gameId && s.UserId == userId);
+            // return the most recent submission for the user in this game
+            return await _db.Submissions.Where(s => s.GameId == gameId && s.UserId == userId)
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefaultAsync();
         }
 
         public async Task<Submission> CreateAsync(Submission submission)

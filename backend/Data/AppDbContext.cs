@@ -29,6 +29,10 @@ namespace DailyChallenges.Data
             // index submissions by game and user for lookup; uniqueness is now enforced per-game-day in the service layer
             modelBuilder.Entity<Submission>()
                 .HasIndex(s => new { s.GameId, s.UserId });
+
+            // index for queries ordering/filtering by creation time per game
+            modelBuilder.Entity<Submission>()
+                .HasIndex(s => new { s.GameId, s.CreatedAt });
         }
     }
 }

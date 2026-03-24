@@ -9,8 +9,12 @@ export default function GameSubmissions() {
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
   const [submissions, setSubmissions] = useState([])
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(50)
+  const [hasMore, setHasMore] = useState(true)
   const [selectedDate, setSelectedDate] = useState('')
   const [availableDates, setAvailableDates] = useState([])
+  const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
 
   const location = useLocation()
 
@@ -21,36 +25,22 @@ export default function GameSubmissions() {
     const g = gres.data.find(x => String(x.id) === String(gameId))
     setGame(g)
 
-    const sres = await api.get(`/submissions/game/${gameId}`)
-    const subs = sres.data || []
-    // normalize date strings according to game's reset time/timezone
-    const resetTime = g?.resetTime ?? '00:00'
-    const tz = g?.resetTimezoneId ?? 'UTC'
-    const [rh, rm] = (resetTime || '00:00').split(':').map(x => parseInt(x, 10) || 0)
-    const resetMinutes = (rh * 60) + rm
-    subs.forEach(s => {
-      const dt = new Date(s.createdAt)
-      const localDateStr = dt.toLocaleDateString('en-CA', { timeZone: tz }) // YYYY-MM-DD
-      const timeParts = dt.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
-      const localMinutes = (parseInt(timeParts[0] || '0', 10) * 60) + (parseInt(timeParts[1] || '0', 10))
-      if (localMinutes < resetMinutes) {
-        // subtract one day from localDateStr
-        const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
-        const base = new Date(Date.UTC(y, (m - 1), d))
-        base.setUTCDate(base.getUTCDate() - 1)
-        s._date = base.toISOString().split('T')[0]
-      } else {
-        s._date = localDateStr
-      }
-    })
+    const sres = await api.get(`/submissions/game/${gameId}?page=1&pageSize=${pageSize}`)
+    const pageResult = sres.data || { items: [], hasSubmittedForLatest: false, hasMore: false }
+    const subs = pageResult.items || []
     setSubmissions(subs)
+    setPage(1)
+    // Prefer server-provided paging info when available
+    if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
+    else setHasMore(pageResult.hasMore === true)
 
-    const dates = Array.from(new Set(subs.map(s => s._date))).sort().reverse()
+    const dates = pageResult.availableDates || []
     setAvailableDates(dates)
+    setHasSubmittedForLatest(pageResult.hasSubmittedForLatest === true)
     // prefer date passed by navigation state
     const preferred = location?.state?.selectedDate
     // compute current scoring day (use server-provided when available)
-    const currentDay = computeCurrentScoringDay(g)
+    const currentDay = g?.currentScoringDay ?? ''
     // If the preferred date is supplied and available, use it. Otherwise,
     // only auto-select the current scoring day if it actually has submissions;
     // otherwise leave selection empty (show 'All').
@@ -59,38 +49,23 @@ export default function GameSubmissions() {
     else setSelectedDate('')
   }
 
-  // Compute the current scoring day. Prefer server-provided value when available
-  // (authoritative, avoids TZ format mismatches). Fallback to client-side clock calculation.
-  const computeCurrentScoringDay = (g) => {
-    if (!g) return ''
-    if (g.currentScoringDay) return g.currentScoringDay
-    const tz = g.resetTimezoneId ?? 'UTC'
-    const [rh, rm] = (g.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
-    const resetMinutes = rh * 60 + rm
-    const now = new Date()
-    const localDateStr = now.toLocaleDateString('en-CA', { timeZone: tz })
-    const timeParts = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
-    const localMinutes = parseInt(timeParts[0] || '0', 10) * 60 + parseInt(timeParts[1] || '0', 10)
-    if (localMinutes < resetMinutes) {
-      const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
-      const base = new Date(Date.UTC(y, m - 1, d))
-      base.setUTCDate(base.getUTCDate() - 1)
-      return base.toISOString().split('T')[0]
-    }
-    return localDateStr
+  const loadMore = async () => {
+    const next = page + 1
+    const res = await api.get(`/submissions/game/${gameId}?page=${next}&pageSize=${pageSize}`)
+    const pageResult = res.data || { items: [], hasMore: false }
+    const more = pageResult.items || []
+    setSubmissions(prev => [...prev, ...more])
+    setPage(next)
+    if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
+    else setHasMore(pageResult.hasMore === true)
   }
 
-  const filtered = selectedDate ? submissions.filter(s => s._date === selectedDate) : submissions
+
+  const filtered = selectedDate ? submissions.filter(s => s.scoringDay === selectedDate) : submissions
 
   // Determine whether we're viewing the latest day (most recent scoring day)
-  const currentScoringDay = computeCurrentScoringDay(game)
+  const currentScoringDay = game?.currentScoringDay ?? ''
   const isViewingLatest = !selectedDate || selectedDate === currentScoringDay
-  const hasSubmittedForLatest = (() => {
-    if (!currentScoringDay) return false
-    if (!submissions || submissions.length === 0) return false
-    if (!user || !user.id) return false
-    return submissions.some(s => s._date === currentScoringDay && s.userId === user.id)
-  })()
 
   if (!game) return <div>Loading...</div>
 
@@ -135,6 +110,7 @@ export default function GameSubmissions() {
               </div>
             </div>
           ) : (
+            <>
             <Grid container spacing={2}>
               {filtered.map(s => (
                 <Grid item xs={12} sm={6} md={4} key={s.id}>
@@ -159,6 +135,12 @@ export default function GameSubmissions() {
                 </Grid>
               ))}
             </Grid>
+            {hasMore && (
+              <div style={{ marginTop: 16, textAlign: 'center' }}>
+                <Button onClick={loadMore} className="btn">Load more</Button>
+              </div>
+            )}
+            </>
           )}
     </div>
   )

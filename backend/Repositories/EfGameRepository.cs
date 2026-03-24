@@ -16,7 +16,7 @@ namespace DailyChallenges.Repositories
 
         public async Task<Game?> GetByIdAsync(int id)
         {
-            return await _db.Games.Include(g => g.Submissions).FirstOrDefaultAsync(g => g.Id == id);
+            return await _db.Games.FirstOrDefaultAsync(g => g.Id == id);
         }
 
         public async Task<Game> CreateAsync(Game game)
@@ -28,7 +28,7 @@ namespace DailyChallenges.Repositories
 
         public async Task<Game> UpdateAsync(Game game)
         {
-            var existing = await _db.Games.Include(g => g.Submissions).FirstOrDefaultAsync(g => g.Id == game.Id);
+            var existing = await _db.Games.FirstOrDefaultAsync(g => g.Id == game.Id);
             if (existing == null) throw new KeyNotFoundException("Game not found");
             existing.Name = game.Name;
             existing.Url = game.Url;
