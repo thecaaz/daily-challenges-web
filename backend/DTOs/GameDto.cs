@@ -13,6 +13,8 @@ namespace DailyChallenges.DTOs
         // Reset time (HH:mm) and timezone id for scoring day boundaries
         public string? ResetTime { get; set; }
         public string? ResetTimezoneId { get; set; }
+        // Current scoring day computed on server (YYYY-MM-DD) based on ResetTime/ResetTimezoneId
+        public string? CurrentScoringDay { get; set; }
         public List<SubmissionDto>? Submissions { get; set; }
     }
 }

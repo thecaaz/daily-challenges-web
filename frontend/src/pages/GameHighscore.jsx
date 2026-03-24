@@ -17,6 +17,7 @@ export default function GameHighscore() {
   // submissions response (which is filtered server-side before the user submits).
   const computeCurrentScoringDay = (g) => {
     if (!g) return ''
+    if (g.currentScoringDay) return g.currentScoringDay
     const tz = g.resetTimezoneId ?? 'UTC'
     const [rh, rm] = (g.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
     const resetMinutes = rh * 60 + rm

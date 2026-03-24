@@ -52,11 +52,11 @@ export default function GameSubmissions() {
     setSelectedDate(preferred && dates.includes(preferred) ? preferred : (dates[0] ?? ''))
   }
 
-  // Compute the current scoring day directly from the game's reset time and the
-  // live clock — do NOT derive it from the submissions response, because
-  // the backend omits today's subs when the user hasn't submitted yet.
+  // Compute the current scoring day. Prefer server-provided value when available
+  // (authoritative, avoids TZ format mismatches). Fallback to client-side clock calculation.
   const computeCurrentScoringDay = (g) => {
     if (!g) return ''
+    if (g.currentScoringDay) return g.currentScoringDay
     const tz = g.resetTimezoneId ?? 'UTC'
     const [rh, rm] = (g.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
     const resetMinutes = rh * 60 + rm

@@ -22,7 +22,7 @@ namespace DailyChallenges.Mapping
 
         public static GameDto ToDto(Game g, bool includeSubmissions = false)
         {
-            return new GameDto
+            var dto = new GameDto
             {
                 Id = g.Id,
                 Name = g.Name,
@@ -35,6 +35,18 @@ namespace DailyChallenges.Mapping
                     ? g.Submissions.Select(ToDto).ToList()
                     : null
             };
+
+            try
+            {
+                // Compute current scoring day on the server side so frontend can rely on it
+                dto.CurrentScoringDay = Services.ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).ToString("yyyy-MM-dd");
+            }
+            catch
+            {
+                dto.CurrentScoringDay = null;
+            }
+
+            return dto;
         }
     }
 }
