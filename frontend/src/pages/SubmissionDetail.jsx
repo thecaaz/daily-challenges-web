@@ -29,10 +29,30 @@ export default function SubmissionDetail() {
   }
 
   const onWheel = (e) => {
-    if (!submission?.screenshotUrl) return
-    const delta = -e.deltaY
-    const factor = delta > 0 ? 1.1 : 0.9
-    setScale(prev => Math.max(0.1, Math.min(10, +(prev * factor).toFixed(3))))
+      if (!submission?.screenshotUrl) return
+      const el = containerRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+      const centerX = rect.width / 2
+      const centerY = rect.height / 2
+
+      const delta = -e.deltaY
+      const factor = delta > 0 ? 1.1 : 0.9
+
+      setScale(prevScale => {
+        const newScale = Math.max(0.1, Math.min(10, +(prevScale * factor).toFixed(3)))
+        setOffset(prevOff => {
+          const dx = mouseX - centerX - prevOff.x
+          const dy = mouseY - centerY - prevOff.y
+          const scaleChange = newScale / prevScale
+          const newX = prevOff.x - dx * (scaleChange - 1)
+          const newY = prevOff.y - dy * (scaleChange - 1)
+          return { x: newX, y: newY }
+        })
+        return newScale
+      })
   }
 
   // Attach a non-passive native wheel listener so we can reliably call
