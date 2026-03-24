@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Typography, Grid, CardContent } from '@mui/material'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Typography, Grid } from '@mui/material'
+import SubmissionCard from '../components/SubmissionCard'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -38,13 +39,7 @@ export default function PersonalHighscore() {
           <Grid container spacing={2} sx={{ mt: 1 }}>
             {top.map(s => (
               <Grid item xs={12} sm={6} md={4} key={s.id}>
-                <div className="card">
-                  <CardContent>
-                    <Typography variant="subtitle1">{s.username ?? 'You'}</Typography>
-                    <Typography variant="h6">{s.score}</Typography>
-                    <Typography variant="caption">{new Date(s.createdAt).toLocaleString()}</Typography>
-                  </CardContent>
-                </div>
+                <SubmissionCard submission={s} />
               </Grid>
             ))}
           </Grid>

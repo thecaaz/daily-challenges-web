@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
 import api from '../api'
+import SubmissionCard from '../components/SubmissionCard'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function GameSubmissions() {
@@ -82,14 +83,27 @@ export default function GameSubmissions() {
             </div>
           )}
           <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
-            <a href={`/games/${game.id}/highscore`}>Highscores</a>
-            <a href={`/games/${game.id}/personal-highscore`}>Your Highscores</a>
+            <Link to={`/games/${game.id}/highscore`}>Highscores</Link>
+            <Link to={`/games/${game.id}/personal-highscore`}>Your Highscores</Link>
           </div>
           <div className="muted">Compete on daily challenges — climb the leaderboard!</div>
         </div>
         <div>
           <Button component={Link} to="/" className="btn" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</Button>
-          <Button component={Link} to={`/submit/${game.id}`} className="btn">Submit Score</Button>
+          {(() => {
+            const submitDisabled = isViewingLatest && hasSubmittedForLatest
+            return (
+              <Button
+                component={submitDisabled ? 'span' : Link}
+                to={submitDisabled ? undefined : `/submit/${game.id}`}
+                className="btn"
+                disabled={submitDisabled}
+                title={submitDisabled ? "You've already submitted for today" : undefined}
+              >
+                Submit Score
+              </Button>
+            )
+          })()}
         </div>
       </Stack>
 
@@ -114,24 +128,7 @@ export default function GameSubmissions() {
             <Grid container spacing={2}>
               {filtered.map(s => (
                 <Grid item xs={12} sm={6} md={4} key={s.id}>
-                  <Link to={`/submission/${s.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                    <div className="card">
-                      {s.screenshotUrl && <img className="game-list-image" src={`${apiRoot}${s.screenshotUrl}`} alt="screenshot" />}
-                      <CardContent>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                            <Typography variant="subtitle1">{s.username ?? 'Anonymous'}</Typography>
-                            {s.userId && user && s.userId === user.id && (
-                              <Typography variant="caption" sx={{ color: '#666' }}>You</Typography>
-                            )}
-                          </div>
-                          <div className="badge">#{s.rank ?? ''}</div>
-                        </div>
-                        <Typography variant="h6">{s.score}</Typography>
-                        <Typography variant="caption">{new Date(s.createdAt).toLocaleString()}</Typography>
-                      </CardContent>
-                    </div>
-                  </Link>
+                  <SubmissionCard submission={s} />
                 </Grid>
               ))}
             </Grid>
