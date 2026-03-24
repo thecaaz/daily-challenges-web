@@ -1,9 +1,11 @@
-using DailyChallenges.DTOs;
+﻿using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
+using System;
+using System.Linq;
 
 namespace DailyChallenges.Services
 {
@@ -20,10 +22,41 @@ namespace DailyChallenges.Services
             _files = files;
         }
 
-        public async Task<List<SubmissionDto>> GetByGameAsync(int gameId)
+        public async Task<List<SubmissionDto>> GetByGameAsync(int gameId, ClaimsPrincipal? user)
         {
+            var game = await _games.GetByIdAsync(gameId);
             var subs = await _subs.GetByGameAsync(gameId);
-            return subs.Select(s => DtoMapper.ToDto(s)).ToList();
+
+            // Admins always see everything
+            if (user != null && user.IsInRole("Admin"))
+                return subs.Select(s => DtoMapper.ToDto(s)).ToList();
+
+            // Determine the current scoring day for this game
+            var currentDay = ScoringDayHelper.GetCurrentScoringDay(
+                game?.ResetTime ?? TimeSpan.Zero,
+                game?.ResetTimezoneId ?? "UTC");
+
+            // Resolve the calling user's id (null = unauthenticated)
+            int? userId = null;
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(idClaim, out var parsed)) userId = parsed;
+            }
+
+            // Check whether this user has submitted for today's scoring day
+            bool hasSubmittedToday = userId.HasValue && subs.Any(s =>
+                s.UserId == userId.Value &&
+                ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC") == currentDay);
+
+            if (hasSubmittedToday)
+                return subs.Select(s => DtoMapper.ToDto(s)).ToList();
+
+            // Hide current-day submissions from users who haven't submitted yet
+            return subs
+                .Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC") != currentDay)
+                .Select(s => DtoMapper.ToDto(s))
+                .ToList();
         }
 
         public async Task<SubmissionDto> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user)
@@ -41,12 +74,20 @@ namespace DailyChallenges.Services
 
             if (userId.HasValue)
             {
-                var existing = await _subs.GetByGameAndUserAsync(gameId, userId.Value);
-                if (existing != null) throw new InvalidOperationException("User has already submitted for this game");
+                // enforce one submission per user per game *per scoring day*.
+                var allForGame = await _subs.GetByGameAsync(gameId);
+                var userSubs = allForGame.Where(s => s.UserId == userId.Value).ToList();
+                DateTime newDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime, game.ResetTimezoneId);
+
+                foreach (var ex in userSubs)
+                {
+                    var exDay = ScoringDayHelper.GetScoringDay(ex.CreatedAt, game.ResetTime, game.ResetTimezoneId);
+                    if (exDay == newDay)
+                        throw new InvalidOperationException("User has already submitted for this game");
+                }
             }
 
             var submission = new Submission { GameId = gameId, Score = score, Username = username, UserId = userId };
-
             if (screenshot != null && screenshot.Length > 0)
             {
                 var (data, contentType) = await _files.ReadFileAsync(screenshot);
@@ -55,7 +96,6 @@ namespace DailyChallenges.Services
             }
 
             if (userId.HasValue && !string.IsNullOrEmpty(user.Identity?.Name)) submission.Username = user.Identity.Name;
-
             var created = await _subs.CreateAsync(submission);
             return DtoMapper.ToDto(created);
         }

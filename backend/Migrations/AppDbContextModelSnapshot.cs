@@ -80,8 +80,7 @@ namespace DailyChallenges.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("GameId", "UserId")
-                        .IsUnique();
+                    b.HasIndex("GameId", "UserId");
 
                     b.ToTable("Submissions");
                 });

@@ -26,9 +26,9 @@ namespace DailyChallenges.Data
                 .HasForeignKey(s => s.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // index submissions by game and user for lookup; uniqueness is now enforced per-game-day in the service layer
             modelBuilder.Entity<Submission>()
-                .HasIndex(s => new { s.GameId, s.UserId })
-                .IsUnique();
+                .HasIndex(s => new { s.GameId, s.UserId });
         }
     }
 }

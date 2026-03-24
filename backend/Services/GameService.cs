@@ -4,6 +4,7 @@ using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 
 namespace DailyChallenges.Services
@@ -85,11 +86,30 @@ namespace DailyChallenges.Services
             return double.NaN;
         }
 
-        public async Task<HighscoreResult> GetHighscoreAsync(int id)
+        public async Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user)
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
             var subs = g.Submissions ?? new List<Submission>();
+
+            // Filter current-day submissions for users who haven't submitted yet
+            if (user == null || !user.IsInRole("Admin"))
+            {
+                int? userId = null;
+                if (user?.Identity?.IsAuthenticated == true)
+                {
+                    var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    if (int.TryParse(idClaim, out var parsed)) userId = parsed;
+                }
+
+                var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId);
+                bool hasSubmittedToday = userId.HasValue && subs.Any(s =>
+                    s.UserId == userId.Value &&
+                    ScoringDayHelper.GetScoringDay(s.CreatedAt, g.ResetTime, g.ResetTimezoneId) == currentDay);
+
+                if (!hasSubmittedToday)
+                    subs = subs.Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, g.ResetTime, g.ResetTimezoneId) != currentDay).ToList();
+            }
 
             var ordered = subs
                 .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
