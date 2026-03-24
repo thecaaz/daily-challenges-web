@@ -13,91 +13,57 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly AppDbContext _db;
-        private readonly IConfiguration _config;
+        private readonly DailyChallenges.Services.IAuthService _auth;
 
-        public AuthController(AppDbContext db, IConfiguration config)
+        public AuthController(DailyChallenges.Services.IAuthService auth)
         {
-            _db = db;
-            _config = config;
+            _auth = auth;
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            if (await _db.Users.AnyAsync(u => u.Username == dto.Username))
-                return BadRequest(new { message = "Username already taken" });
-
-            var isFirstUser = !await _db.Users.AnyAsync();
-            var hash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
-            var user = new User { Username = dto.Username, PasswordHash = hash, IsAdmin = isFirstUser };
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
-            return Ok(new { id = user.Id, username = user.Username, isAdmin = user.IsAdmin });
+            try
+            {
+                var u = await _auth.RegisterAsync(dto.Username, dto.Password);
+                return Ok(new { id = u.Id, username = u.Username, isAdmin = u.IsAdmin });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == dto.Username);
-            if (user == null) return Unauthorized(new { message = "Invalid credentials" });
-
-            if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                return Unauthorized(new { message = "Invalid credentials" });
-
-            var token = GenerateJwtToken(user);
-
-            Response.Cookies.Append("access_token", token, new CookieOptions
+            try
             {
-                HttpOnly = true,
-                Secure = false,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTimeOffset.UtcNow.AddDays(int.Parse(_config["Jwt:ExpiresDays"] ?? "7"))
-            });
-
-            return Ok(new { id = user.Id, username = user.Username, isAdmin = user.IsAdmin });
+                var u = await _auth.LoginAsync(dto.Username, dto.Password, Response);
+                return Ok(new { id = u.Id, username = u.Username, isAdmin = u.IsAdmin });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized(new { message = "Invalid credentials" });
+            }
         }
 
         [HttpPost("logout")]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            Response.Cookies.Delete("access_token");
+            await _auth.LogoutAsync(Response);
             return Ok(new { success = true });
         }
 
         [HttpGet("me")]
         public async Task<IActionResult> Me()
         {
-            if (!User.Identity?.IsAuthenticated ?? true) return Unauthorized();
-            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(idClaim)) return Unauthorized();
-            if (!int.TryParse(idClaim, out var id)) return Unauthorized();
-            var user = await _db.Users.FindAsync(id);
-            if (user == null) return Unauthorized();
-            return Ok(new { id = user.Id, username = user.Username, isAdmin = user.IsAdmin });
+            var u = await _auth.GetCurrentUserAsync(User);
+            if (u == null) return Unauthorized();
+            return Ok(new { id = u.Id, username = u.Username, isAdmin = u.IsAdmin });
         }
 
-        private string GenerateJwtToken(User user)
-        {
-            var issuer = _config["Jwt:Issuer"];
-            var audience = _config["Jwt:Audience"];
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? string.Empty));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username)
-            };
-
-            if (user.IsAdmin)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
-            }
-
-            var token = new JwtSecurityToken(issuer, audience, claims, expires: DateTime.UtcNow.AddDays(double.Parse(_config["Jwt:ExpiresDays"] ?? "7")), signingCredentials: creds);
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
+        // JWT generation moved to AuthService
     }
 
     public record RegisterDto(string Username, string Password);
