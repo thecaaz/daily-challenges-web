@@ -28,14 +28,26 @@ export default function SubmissionDetail() {
     }
   }
 
-  // wheel to zoom
   const onWheel = (e) => {
     if (!submission?.screenshotUrl) return
-    e.preventDefault()
     const delta = -e.deltaY
     const factor = delta > 0 ? 1.1 : 0.9
     setScale(prev => Math.max(0.1, Math.min(10, +(prev * factor).toFixed(3))))
   }
+
+  // Attach a non-passive native wheel listener so we can reliably call
+  // preventDefault() and stop the page from scrolling while zooming.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const handler = (e) => {
+      if (!submission?.screenshotUrl) return
+      e.preventDefault()
+      onWheel(e)
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler, { passive: false })
+  }, [submission])
 
   const onMouseDown = (e) => {
     if (!submission?.screenshotUrl) return
@@ -75,7 +87,6 @@ export default function SubmissionDetail() {
       {submission.screenshotUrl ? (
         <div
           ref={containerRef}
-          onWheel={onWheel}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
