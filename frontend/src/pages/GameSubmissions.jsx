@@ -52,16 +52,37 @@ export default function GameSubmissions() {
     setSelectedDate(preferred && dates.includes(preferred) ? preferred : (dates[0] ?? ''))
   }
 
+  // Compute the current scoring day directly from the game's reset time and the
+  // live clock — do NOT derive it from the submissions response, because
+  // the backend omits today's subs when the user hasn't submitted yet.
+  const computeCurrentScoringDay = (g) => {
+    if (!g) return ''
+    const tz = g.resetTimezoneId ?? 'UTC'
+    const [rh, rm] = (g.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
+    const resetMinutes = rh * 60 + rm
+    const now = new Date()
+    const localDateStr = now.toLocaleDateString('en-CA', { timeZone: tz })
+    const timeParts = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
+    const localMinutes = parseInt(timeParts[0] || '0', 10) * 60 + parseInt(timeParts[1] || '0', 10)
+    if (localMinutes < resetMinutes) {
+      const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
+      const base = new Date(Date.UTC(y, m - 1, d))
+      base.setUTCDate(base.getUTCDate() - 1)
+      return base.toISOString().split('T')[0]
+    }
+    return localDateStr
+  }
+
   const filtered = selectedDate ? submissions.filter(s => s._date === selectedDate) : submissions
 
   // Determine whether we're viewing the latest day (most recent scoring day)
-  const latestDate = availableDates[0] ?? ''
-  const isViewingLatest = selectedDate === latestDate
+  const currentScoringDay = computeCurrentScoringDay(game)
+  const isViewingLatest = !selectedDate || selectedDate === currentScoringDay
   const hasSubmittedForLatest = (() => {
-    if (!latestDate) return false
+    if (!currentScoringDay) return false
     if (!submissions || submissions.length === 0) return false
     if (!user || !user.id) return false
-    return submissions.some(s => s._date === latestDate && s.userId === user.id)
+    return submissions.some(s => s._date === currentScoringDay && s.userId === user.id)
   })()
 
   if (!game) return <div>Loading...</div>

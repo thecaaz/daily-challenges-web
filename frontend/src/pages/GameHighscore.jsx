@@ -10,49 +10,66 @@ export default function GameHighscore() {
   const [top, setTop] = useState([])
   const { user } = useAuth()
   const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
-  const [latestDate, setLatestDate] = useState('')
 
   useEffect(() => { fetchData() }, [user])
+
+  // Compute current scoring day from game settings + live clock, not from the
+  // submissions response (which is filtered server-side before the user submits).
+  const computeCurrentScoringDay = (g) => {
+    if (!g) return ''
+    const tz = g.resetTimezoneId ?? 'UTC'
+    const [rh, rm] = (g.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
+    const resetMinutes = rh * 60 + rm
+    const now = new Date()
+    const localDateStr = now.toLocaleDateString('en-CA', { timeZone: tz })
+    const timeParts = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
+    const localMinutes = parseInt(timeParts[0] || '0', 10) * 60 + parseInt(timeParts[1] || '0', 10)
+    if (localMinutes < resetMinutes) {
+      const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
+      const base = new Date(Date.UTC(y, m - 1, d))
+      base.setUTCDate(base.getUTCDate() - 1)
+      return base.toISOString().split('T')[0]
+    }
+    return localDateStr
+  }
 
   const fetchData = async () => {
     const gres = await api.get('/games')
     const g = gres.data.find(x => String(x.id) === String(gameId))
     setGame(g)
 
-    // fetch submissions to determine latest scoring day and whether user submitted
+    // Fetch submissions only to check whether the current user has submitted today.
+    // The backend already filters current-day entries when the user hasn't submitted,
+    // so we compare against the clock-derived scoring day, not the response dates.
     try {
       const sres = await api.get(`/submissions/game/${gameId}`)
       const subs = sres.data || []
-      const resetTime = g?.resetTime ?? '00:00'
+      const currentDay = computeCurrentScoringDay(g)
       const tz = g?.resetTimezoneId ?? 'UTC'
-      const [rh, rm] = (resetTime || '00:00').split(':').map(x => parseInt(x, 10) || 0)
-      const resetMinutes = (rh * 60) + rm
+      const [rh, rm] = (g?.resetTime ?? '00:00').split(':').map(x => parseInt(x, 10) || 0)
+      const resetMinutes = rh * 60 + rm
+      // tag each returned submission with its scoring day
       subs.forEach(s => {
         const dt = new Date(s.createdAt)
-        const localDateStr = dt.toLocaleDateString('en-CA', { timeZone: tz }) // YYYY-MM-DD
+        const localDateStr = dt.toLocaleDateString('en-CA', { timeZone: tz })
         const timeParts = dt.toLocaleTimeString('en-GB', { hour12: false, timeZone: tz }).split(':')
-        const localMinutes = (parseInt(timeParts[0] || '0', 10) * 60) + (parseInt(timeParts[1] || '0', 10))
+        const localMinutes = parseInt(timeParts[0] || '0', 10) * 60 + parseInt(timeParts[1] || '0', 10)
         if (localMinutes < resetMinutes) {
           const [y, m, d] = localDateStr.split('-').map(x => parseInt(x, 10))
-          const base = new Date(Date.UTC(y, (m - 1), d))
+          const base = new Date(Date.UTC(y, m - 1, d))
           base.setUTCDate(base.getUTCDate() - 1)
           s._date = base.toISOString().split('T')[0]
         } else {
           s._date = localDateStr
         }
       })
-      const dates = Array.from(new Set(subs.map(s => s._date))).sort().reverse()
-      const latest = dates[0] ?? ''
-      setLatestDate(latest)
-      if (latest && user && user.id) {
-        const my = subs.find(s => s.userId === user.id && s._date === latest)
-        setHasSubmittedForLatest(!!my)
+      if (currentDay && user && user.id) {
+        setHasSubmittedForLatest(subs.some(s => s.userId === user.id && s._date === currentDay))
       } else {
         setHasSubmittedForLatest(false)
       }
     } catch (e) {
       setHasSubmittedForLatest(false)
-      setLatestDate('')
     }
 
     const res = await api.get(`/games/${gameId}/highscore`)
@@ -62,11 +79,13 @@ export default function GameHighscore() {
 
   if (!game) return <div>Loading...</div>
 
+  const currentScoringDay = computeCurrentScoringDay(game)
+
   return (
     <div>
       <Typography variant="h5">Highscores — {game.name}</Typography>
       <div style={{ marginTop: 12 }}>
-        {latestDate && !hasSubmittedForLatest ? (
+        {currentScoringDay && !hasSubmittedForLatest ? (
           <div className="card" style={{ padding: 24 }}>
             <Typography variant="h6">Today's scores are hidden.</Typography>
             <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>

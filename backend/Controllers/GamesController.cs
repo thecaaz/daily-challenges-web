@@ -52,7 +52,7 @@ namespace DailyChallenges.Controllers
         {
             try
             {
-                var res = await _games.GetHighscoreAsync(id);
+                var res = await _games.GetHighscoreAsync(id, User);
                 return Ok(new { highscore = res.Highscore, top = res.Top });
             }
             catch (KeyNotFoundException)
