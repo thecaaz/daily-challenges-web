@@ -22,14 +22,14 @@ namespace DailyChallenges.Services
             _files = files;
         }
 
-        public async Task<DailyChallenges.DTOs.SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, int page = 1, int pageSize = 50)
+        public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, int page = 1, int pageSize = 50)
         {
             var game = await _games.GetByIdAsync(gameId);
             // fetch a bounded set to avoid loading large collections; will page after filtering
             var all = await _subs.GetTopByGameAsync(gameId, 2000);
-            var subs = all ?? new List<DailyChallenges.Models.Submission>();
+            var subs = all ?? new List<Submission>();
 
-            var result = new DailyChallenges.DTOs.SubmissionPageDto { Page = page, PageSize = pageSize };
+            var result = new SubmissionPageDto { Page = page, PageSize = pageSize };
 
             // Admins use the dedicated unfiltered admin endpoint; fall through
             // to the normal paged/hide-today logic so behavior is consistent.
@@ -40,12 +40,7 @@ namespace DailyChallenges.Services
                 game?.ResetTimezoneId ?? "UTC");
 
             // Resolve the calling user's id (null = unauthenticated)
-            int? userId = null;
-            if (user?.Identity?.IsAuthenticated == true)
-            {
-                var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (int.TryParse(idClaim, out var parsed)) userId = parsed;
-            }
+            int? userId = ClaimsPrincipalExtensions.GetUserId(user);
 
             // Check whether this user has submitted for today's scoring day
             bool hasSubmittedToday = userId.HasValue && subs.Any(s =>
@@ -54,23 +49,20 @@ namespace DailyChallenges.Services
 
             // determine hasSubmittedToday for the caller (server-side)
             bool hasSubmittedTodayFlag = false;
-            if (user?.Identity?.IsAuthenticated == true)
+            var parsedUserId = ClaimsPrincipalExtensions.GetUserId(user);
+            if (parsedUserId.HasValue)
             {
-                var idClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (int.TryParse(idClaim, out var parsedUserId))
+                var latest = await _subs.GetByGameAndUserAsync(gameId, parsedUserId.Value);
+                if (latest != null)
                 {
-                    var latest = await _subs.GetByGameAndUserAsync(gameId, parsedUserId);
-                    if (latest != null)
-                    {
-                        var exDay = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
-                        var currentDay2 = ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
-                        hasSubmittedTodayFlag = exDay == currentDay2;
-                    }
+                    var exDay = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
+                    var currentDay2 = ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
+                    hasSubmittedTodayFlag = exDay == currentDay2;
                 }
             }
 
             // If caller hasn't submitted today, hide current-day submissions
-            List<DailyChallenges.Models.Submission> filtered;
+            List<Submission> filtered;
             if (!hasSubmittedTodayFlag)
             {
                 filtered = subs.Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC") != currentDay).ToList();
@@ -106,7 +98,7 @@ namespace DailyChallenges.Services
         {
             var game = await _games.GetByIdAsync(gameId);
             var all = await _subs.GetByGameAsync(gameId);
-            var subs = all ?? new List<DailyChallenges.Models.Submission>();
+            var subs = all ?? new List<Submission>();
 
             var adminDtos = subs.Select(s =>
             {
@@ -124,12 +116,7 @@ namespace DailyChallenges.Services
             if (game == null) throw new InvalidOperationException("invalid gameId");
             if (string.IsNullOrWhiteSpace(score)) throw new InvalidOperationException("score is required");
 
-            int? userId = null;
-            if (user.Identity?.IsAuthenticated ?? false)
-            {
-                var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (int.TryParse(idClaim, out var parsed)) userId = parsed;
-            }
+            int? userId = ClaimsPrincipalExtensions.GetUserId(user);
 
             if (userId.HasValue)
             {
