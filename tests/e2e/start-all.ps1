@@ -9,7 +9,7 @@ Write-Host "Starting backend and frontend (PowerShell)..."
 $dbPath = Join-Path $dataDir 'test.db'
 $env:SQLITE_PATH = $dbPath
 $env:ASPNETCORE_ENVIRONMENT = 'IntegrationTests'
-$env:ASPNETCORE_URLS = 'http://localhost:5001'
+$env:ASPNETCORE_URLS = 'http://localhost:5000'
 Write-Host "-> Starting backend with SQLITE_PATH=$dbPath"
 $backendOut = Join-Path $dataDir 'backend.out.log'
 $backendErr = Join-Path $dataDir 'backend.err.log'
