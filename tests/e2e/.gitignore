@@ -1,0 +1,4 @@
+.data/
+.playwright/
+test-results/
+node_modules/
