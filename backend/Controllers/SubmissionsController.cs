@@ -10,10 +10,10 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class SubmissionsController : ControllerBase
     {
-        private readonly DailyChallenges.Services.ISubmissionService _subs;
-        private readonly DailyChallenges.Services.IFileValidator _validator;
+        private readonly Services.ISubmissionService _subs;
+        private readonly Services.IFileValidator _validator;
 
-        public SubmissionsController(DailyChallenges.Services.ISubmissionService subs, DailyChallenges.Services.IFileValidator validator)
+        public SubmissionsController(Services.ISubmissionService subs, Services.IFileValidator validator)
         {
             _subs = subs;
             _validator = validator;
@@ -38,12 +38,6 @@ namespace DailyChallenges.Controllers
         [Microsoft.AspNetCore.Authorization.Authorize]
         public async Task<IActionResult> Create([FromForm] int gameId, [FromForm] string score, [FromForm] string? username, [FromForm] IFormFile? screenshot)
         {
-            // validate screenshot if provided
-            if (screenshot != null)
-            {
-                try { _validator.ValidateImage(screenshot); }
-                catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            }
             try
             {
                 var created = await _subs.CreateAsync(gameId, score, username, screenshot, User);

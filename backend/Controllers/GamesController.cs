@@ -14,10 +14,10 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class GamesController : ControllerBase
     {
-        private readonly DailyChallenges.Services.IGameService _games;
-        private readonly DailyChallenges.Services.IFileValidator _validator;
+        private readonly Services.IGameService _games;
+        private readonly Services.IFileValidator _validator;
 
-        public GamesController(DailyChallenges.Services.IGameService games, DailyChallenges.Services.IFileValidator validator)
+        public GamesController(Services.IGameService games, Services.IFileValidator validator)
         {
             _games = games;
             _validator = validator;
@@ -35,12 +35,6 @@ namespace DailyChallenges.Controllers
         public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url)
         {
             if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
-            // validate image if provided
-            if (image != null)
-            {
-                try { _validator.ValidateImage(image); }
-                catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            }
             try
             {
                 var created = await _games.CreateAsync(name, image, resetTime, resetTimezoneId, url);
@@ -80,11 +74,11 @@ namespace DailyChallenges.Controllers
         [Authorize]
         public async Task<IActionResult> GetPersonalHighscore(int id)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!int.TryParse(userIdClaim, out var userId)) return Forbid();
+            var userId = Services.ClaimsPrincipalExtensions.GetUserId(User);
+            if (!userId.HasValue) return Forbid();
             try
             {
-                var res = await _games.GetPersonalHighscoreAsync(id, userId);
+                var res = await _games.GetPersonalHighscoreAsync(id, userId.Value);
                 return Ok(new { personalHighscore = res.Highscore, top = res.Top });
             }
             catch (KeyNotFoundException)
@@ -97,12 +91,6 @@ namespace DailyChallenges.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url)
         {
-            // validate image if provided
-            if (image != null)
-            {
-                try { _validator.ValidateImage(image); }
-                catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            }
             try
             {
                 var updated = await _games.UpdateAsync(id, name, image, resetTime, resetTimezoneId, url);

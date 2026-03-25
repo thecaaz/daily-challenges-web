@@ -16,7 +16,6 @@ namespace DailyChallenges.Services
         public async Task<(byte[]? Data, string? ContentType)> ReadFileAsync(IFormFile? file)
         {
             if (file == null || file.Length == 0) return (null, null);
-            // validator will throw ArgumentException on invalid files
             _validator.ValidateImage(file);
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms);

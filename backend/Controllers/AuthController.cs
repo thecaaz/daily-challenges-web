@@ -13,9 +13,9 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly DailyChallenges.Services.IAuthService _auth;
+        private readonly Services.IAuthService _auth;
 
-        public AuthController(DailyChallenges.Services.IAuthService auth)
+        public AuthController(Services.IAuthService auth)
         {
             _auth = auth;
         }

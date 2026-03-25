@@ -98,12 +98,7 @@ namespace DailyChallenges.Services
             // Filter current-day submissions for users who haven't submitted yet
             if (user == null || !user.IsInRole("Admin"))
             {
-                int? userId = null;
-                if (user?.Identity?.IsAuthenticated == true)
-                {
-                    var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                    if (int.TryParse(idClaim, out var parsed)) userId = parsed;
-                }
+                int? userId = ClaimsPrincipalExtensions.GetUserId(user);
 
                 var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId);
                 bool hasSubmittedToday = userId.HasValue && subs.Any(s =>
