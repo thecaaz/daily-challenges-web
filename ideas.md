@@ -5,3 +5,4 @@
 - Comments for a specific day
 - indicator on player count (how many people have played today)
 - Allow editing of your own score
+- Move scoring-day & timezone handling into a small ScoringService with well-tested semantics.

@@ -25,7 +25,6 @@ namespace DailyChallenges.Services
         public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, int page = 1, int pageSize = 50)
         {
             var game = await _games.GetByIdAsync(gameId);
-            var recent = await GetRecentSubmissionsAsync(gameId);
             var result = new SubmissionPageDto { Page = page, PageSize = pageSize };
 
             var currentDay = GetCurrentScoringDay(game);
@@ -33,7 +32,10 @@ namespace DailyChallenges.Services
             var userId = user.GetUserId();
             var hasSubmittedForLatest = await HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
 
-            var filtered = FilterSubmissionsForVisibility(recent, hasSubmittedForLatest, game, currentDay);
+            var (items, totalCount, availableDates) = await _subs.GetByGameFilteredAsync(gameId, page, pageSize, null, null);
+
+            // If caller hasn't submitted today, hide current-day submissions
+            var filtered = FilterSubmissionsForVisibility(items, hasSubmittedForLatest, game, currentDay);
 
             var mapped = MapAndAnnotate(filtered, game);
             var paged = mapped.Skip((page - 1) * pageSize).Take(pageSize).ToList();
@@ -43,10 +45,8 @@ namespace DailyChallenges.Services
             result.TotalCount = filtered.Count;
             result.TotalPages = (int)Math.Ceiling(filtered.Count / (double)pageSize);
             result.HasMore = page < result.TotalPages;
-            result.AvailableDates = mapped
-                .Select(d => d.ScoringDay)
-                .Where(x => x is not null)
-                .Select(x => x!)
+            result.AvailableDates = availableDates
+                .Select(d => d.ToString("yyyy-MM-dd"))
                 .Distinct()
                 .OrderByDescending(x => x)
                 .ToList();
