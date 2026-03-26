@@ -28,5 +28,11 @@ test('admin can create game with image via UI', async ({ page }) => {
   await page.waitForTimeout(500)
   await page.goto('/')
   await expect(page.locator(`text=${uniqueName}`)).toBeVisible()
-  await expect(page.locator('img')).toBeVisible()
+
+  // Ensure we assert the image that belongs to the created game's card/list item.
+  // Find a container element that contains the game's name and then assert it has an <img> descendant.
+  const gameImage = page.locator(
+    `xpath=//div[.//text()[normalize-space()="${uniqueName}"]]//img`
+  )
+  await expect(gameImage).toBeVisible()
 })

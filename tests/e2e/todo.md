@@ -10,9 +10,6 @@ Guiding rules
 
 -## High priority UI scenarios (must implement first)
 
-- Submit score with screenshot via submit UI
-  - Flow: Login as user/admin → Navigate to a game's submit page → Fill score and attach screenshot via file input → Submit → Verify the submitted entry appears on the game's page and screenshot thumbnail/link is visible in the UI (open it if UI supports viewing screenshot).
-
 - Admin view: unfiltered submissions through admin UI
   - Flow: Login as admin → Navigate to the admin submissions/unfiltered UI (the page or control that shows all submissions) → Create multiple submissions across dates and with and without user association → Verify the admin UI lists all entries including today's ones.
 
