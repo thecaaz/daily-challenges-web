@@ -42,11 +42,6 @@ test('admin can submit a score and it appears for today', async ({ page }) => {
   await page.goto(`/submit/${gameId}`)
   await expect(page.locator('text=Submit for')).toBeVisible()
 
-  // Capture console and page errors for debugging
-  const consoleMessages: string[] = []
-  page.on('console', msg => consoleMessages.push(`[console:${msg.type()}] ${msg.text()}`))
-  page.on('pageerror', err => consoleMessages.push(`[pageerror] ${err.message}`))
-
   const scoreValue = String(Math.floor(Math.random() * 100000))
   // Prefer semantic selectors (role/label). Fall back to placeholder/attribute selectors.
   await page.getByRole('textbox', { name: 'Score' }).fill(scoreValue).catch(async () => {
@@ -58,25 +53,13 @@ test('admin can submit a score and it appears for today', async ({ page }) => {
   })
 
   // Click submit using a robust locator and wait for SPA route change
-  const dataDir = path.resolve(__dirname, '..', '.data')
-  await fs.mkdir(dataDir, { recursive: true })
   const submitBtn = page.getByRole('button', { name: 'Submit' })
   // Make interaction resilient: wait for attachment/visibility but tolerate transient failures
   await submitBtn.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
   await submitBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {})
   await submitBtn.scrollIntoViewIfNeeded().catch(() => {})
-
-  try {
-    await submitBtn.click({ timeout: 10000 })
-    await page.waitForFunction((id) => location.pathname.includes(`/games/${id}`), gameId, { timeout: 15000 })
-  } catch (err) {
-    // Save diagnostics
-    const screenshotPath = path.join(dataDir, `submit-fail-${Date.now()}.png`)
-    await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {})
-    const logsPath = path.join(dataDir, `console-${Date.now()}.log`)
-    await fs.writeFile(logsPath, consoleMessages.join('\n')).catch(() => {})
-    throw new Error(`Submit click failed. Saved screenshot to ${screenshotPath} and logs to ${logsPath}: ${err}`)
-  }
+  await submitBtn.click({ timeout: 10000 })
+  await page.waitForFunction((id) => location.pathname.includes(`/games/${id}`), gameId, { timeout: 15000 })
 
   // After submission, visit the game's submissions page and assert the submitted score is visible
   await page.goto(`/games/${gameId}`)

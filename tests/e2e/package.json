@@ -8,6 +8,7 @@
     "test-visible": "cross-env HEADLESS=false npx playwright test",
     "test:debug": "cross-env HEADLESS=false npx playwright test --headed --debug",
     "debug": "cross-env HEADLESS=false npx playwright test --debug",
+    "test:video": "cross-env HEADLESS=true npx playwright test --config=playwright.video.config.ts",
     "start:all": "powershell -ExecutionPolicy Bypass -File start-all.ps1",
     "run:ci": "powershell -ExecutionPolicy Bypass -File run-ci.ps1",
     "run:headed": "powershell -ExecutionPolicy Bypass -File run-headed.ps1",

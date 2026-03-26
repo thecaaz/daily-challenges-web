@@ -22,10 +22,13 @@ test('admin cannot see today\'s scores if he has not submitted yet', async ({ pa
     await page.fill('input[aria-label="Game name"]', gameName)
   })
   await page.fill('input[type="time"]', '00:00')
-  await Promise.all([
-    page.waitForResponse(resp => resp.url().endsWith('/api/games') && (resp.status() === 200 || resp.status() === 201)),
+  // Click create and wait for the backend response; assert successful status
+  const [createResp] = await Promise.all([
+    page.waitForResponse(resp => resp.url().endsWith('/api/games')),
     page.click('button:has-text("Create Game")')
   ])
+  const status = createResp.status()
+  if (status < 200 || status >= 300) throw new Error(`Create Game failed with status ${status}`)
 
   // Navigate to home and click the created game to get to its page
   await page.goto('/')
