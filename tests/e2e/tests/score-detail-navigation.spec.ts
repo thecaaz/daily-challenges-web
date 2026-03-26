@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { login, createGame } from '../test-utils'
+import { loginAsAdmin, createGame } from '../test-utils'
 
 // Increase timeout for stability
 test.setTimeout(60_000)
 
 test('clicking a score navigates to submission detail', async ({ page }) => {
-  await login(page)
+  await loginAsAdmin(page)
   const { gameId } = await createGame(page)
 
   // Go to submit page

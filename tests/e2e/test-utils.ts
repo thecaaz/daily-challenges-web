@@ -2,10 +2,58 @@ import { Page, expect } from '@playwright/test'
 import fs from 'fs/promises'
 import path from 'path'
 
-export async function login(page: Page) {
-  const credsPath = path.resolve(__dirname, 'credentials.json')
-  const credsRaw = await fs.readFile(credsPath, 'utf-8')
-  const { username, password } = JSON.parse(credsRaw)
+type Creds = { username: string; password: string }
+
+function isCreds(obj: any): obj is Creds {
+  return obj && typeof obj.username === 'string' && typeof obj.password === 'string'
+}
+
+async function readCredsFromFile(filePath: string) {
+  const p = path.isAbsolute(filePath) ? filePath : path.resolve(__dirname, filePath)
+  const raw = await fs.readFile(p, 'utf-8')
+  return JSON.parse(raw) as Creds
+}
+
+async function resolveCreds(roleOrCreds?: any) : Promise<{creds: Creds, role?: 'admin'|'user'}> {
+  // env overrides: if present, can be a JSON string or a path to a file
+  const adminEnv = process.env.E2E_CREDENTIALS_ADMIN
+  const userEnv = process.env.E2E_CREDENTIALS_USER
+
+  if (roleOrCreds === 'admin' || roleOrCreds === undefined) {
+    if (adminEnv) {
+      try { return { creds: JSON.parse(adminEnv), role: 'admin' } }
+      catch { /* treat as path */ }
+      return { creds: await readCredsFromFile(adminEnv), role: 'admin' }
+    }
+    const creds = await readCredsFromFile('credentials.json')
+    return { creds, role: 'admin' }
+  }
+
+  if (roleOrCreds === 'user' || roleOrCreds === 'normal') {
+    if (userEnv) {
+      try { return { creds: JSON.parse(userEnv), role: 'user' } }
+      catch { /* treat as path */ }
+      return { creds: await readCredsFromFile(userEnv), role: 'user' }
+    }
+    const creds = await readCredsFromFile('credentials-normal.json')
+    return { creds, role: 'user' }
+  }
+
+  if (typeof roleOrCreds === 'string') {
+    // treat as path to json file
+    const creds = await readCredsFromFile(roleOrCreds)
+    return { creds }
+  }
+
+  if (isCreds(roleOrCreds)) return { creds: roleOrCreds }
+
+  throw new Error('Unable to resolve credentials')
+}
+
+export async function login(page: Page, roleOrCreds?: any, options?: { verifyRole?: boolean, expectedIsAdmin?: boolean }) {
+  const { creds, role } = await resolveCreds(roleOrCreds)
+  const { username, password } = creds
+  const verifyRole = options?.verifyRole ?? true
 
   await page.goto('/login')
   await page.fill('input[placeholder="Username"]', username)
@@ -17,6 +65,33 @@ export async function login(page: Page) {
   ])
   expect(resp.status()).toBeGreaterThanOrEqual(200)
   expect(resp.status()).toBeLessThan(300)
+
+  if (verifyRole) {
+    // Prefer using the login response body (contains isAdmin). Fallback to /api/auth/me if needed.
+    let loginBody: any = null
+    try {
+      loginBody = await resp.json()
+    } catch {}
+
+    if (loginBody) {
+      const isAdminFromLogin = loginBody.isAdmin ?? loginBody.IsAdmin ?? false
+      if (typeof options?.expectedIsAdmin === 'boolean') {
+        expect(isAdminFromLogin).toBe(options!.expectedIsAdmin)
+      } else if (role) {
+        expect(isAdminFromLogin).toBe(role === 'admin')
+      }
+    } else {
+      throw new Error('Login response did not include isAdmin; expected backend to return isAdmin in POST /api/auth/login response')
+    }
+  }
+}
+
+export async function loginAsAdmin(page: Page, verifyRole = true) {
+  return login(page, 'admin', { verifyRole })
+}
+
+export async function loginAsUser(page: Page, verifyRole = true) {
+  return login(page, 'user', { verifyRole })
 }
 
 export async function createGame(page: Page, providedName?: string) {

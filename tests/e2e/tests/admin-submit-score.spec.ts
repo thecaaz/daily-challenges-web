@@ -1,21 +1,11 @@
 import { test, expect } from '@playwright/test'
-import fs from 'fs/promises'
-import path from 'path'
+import { loginAsAdmin } from '../test-utils'
 
 // Increase per-file test timeout to reduce flakiness in CI
 test.setTimeout(60_000)
 
 test('admin can submit a score and it appears for today', async ({ page }) => {
-  const credsPath = path.resolve(__dirname, '..', 'credentials.json')
-  const credsRaw = await fs.readFile(credsPath, 'utf-8')
-  const adminCreds = JSON.parse(credsRaw)
-
-  // Login as admin
-  await page.goto('/login')
-  await page.fill('input[placeholder="Username"]', adminCreds.username)
-  await page.fill('input[placeholder="Password"]', adminCreds.password)
-  await page.click('button[type="submit"]')
-  await page.waitForResponse(resp => resp.url().endsWith('/api/auth/login'))
+  await loginAsAdmin(page)
 
   // Create a new game
   const gameName = `e2e-submit-${Date.now()}`

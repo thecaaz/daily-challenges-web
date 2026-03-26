@@ -1,18 +1,9 @@
 import { test, expect } from '@playwright/test'
-import fs from 'fs/promises'
-import path from 'path'
+import { loginAsAdmin } from '../test-utils'
 
 test('admin cannot see today\'s scores if he has not submitted yet', async ({ page }) => {
-  const credsPath = path.resolve(__dirname, '..', 'credentials.json')
-  const credsRaw = await fs.readFile(credsPath, 'utf-8')
-  const adminCreds = JSON.parse(credsRaw)
-
   // Admin: login and create a new game
-  await page.goto('/login')
-  await page.fill('input[placeholder="Username"]', adminCreds.username)
-  await page.fill('input[placeholder="Password"]', adminCreds.password)
-  await page.click('button[type="submit"]')
-  await page.waitForResponse(resp => resp.url().endsWith('/api/auth/login'))
+  await loginAsAdmin(page)
 
   const gameName = `e2e-hide-today-${Date.now()}`
   await page.goto('/admin')
