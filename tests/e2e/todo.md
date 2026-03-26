@@ -10,9 +10,7 @@ Guiding rules
 
 -## High priority UI scenarios (must implement first)
 
-- Admin updates and deletes a game via admin UI
-  - Flow: Login as admin → `/admin` → Create a game → Use the admin edit UI to change `name`, `url`, `resetTime`, `resetTimezone` and save → Verify changes in the UI and on the game's public page. Then delete via admin UI and confirm it's removed from the home list.
-
+ 
 - Admin updates and deletes a submission via UI
   - Flow: Login as admin → Navigate to submission management UI → Edit a submission's score and save → Verify change appears on the game's page. Delete a submission and verify it's removed from public listings.
 

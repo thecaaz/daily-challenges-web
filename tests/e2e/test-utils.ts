@@ -107,6 +107,7 @@ export async function createGame(page: Page, providedName?: string) {
   ])
   expect([200, 201]).toContain(resp.status())
 
+  await page.waitForTimeout(100) // wait for SPA update after game creation
   await page.goto('/')
   await page.click(`text=${gameName}`)
   const url = page.url()
