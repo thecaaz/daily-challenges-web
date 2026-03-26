@@ -74,11 +74,8 @@ export async function login(page: Page, roleOrCreds?: any, options?: { verifyRol
     } catch {}
 
     if (loginBody) {
-      const isAdminFromLogin = loginBody.isAdmin ?? loginBody.IsAdmin ?? false
       if (typeof options?.expectedIsAdmin === 'boolean') {
-        expect(isAdminFromLogin).toBe(options!.expectedIsAdmin)
-      } else if (role) {
-        expect(isAdminFromLogin).toBe(role === 'admin')
+        expect(loginBody.isAdmin).toBe(options!.expectedIsAdmin)
       }
     } else {
       throw new Error('Login response did not include isAdmin; expected backend to return isAdmin in POST /api/auth/login response')
