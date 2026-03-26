@@ -31,7 +31,25 @@ $frontendDir = Join-Path $scriptDir '..\..\frontend'
 Write-Host "-> Starting frontend dev server (npm run dev) in $frontendDir"
 $frontendOut = Join-Path $dataDir 'frontend.out.log'
 $frontendErr = Join-Path $dataDir 'frontend.err.log'
-$frontendProc = Start-Process -FilePath 'npm' -ArgumentList 'run','dev' -WorkingDirectory $frontendDir -RedirectStandardOutput $frontendOut -RedirectStandardError $frontendErr -PassThru
+## On Windows `npm` may resolve to a PowerShell wrapper (`npm.ps1`).
+## `Start-Process` cannot directly start that wrapper, so prefer `npm.cmd`
+$npmCmdObj = Get-Command npm.cmd -ErrorAction SilentlyContinue
+if ($npmCmdObj) {
+	$npmCmd = $npmCmdObj.Source
+} else {
+	$npmCmd = $null
+}
+
+if ($npmCmd) {
+	$startFile = $npmCmd
+	$startArgs = @('run','dev')
+} else {
+	# Fallback to running via cmd.exe which will resolve the correct npm executable
+	$startFile = 'cmd.exe'
+	$startArgs = @('/c','npm','run','dev')
+}
+
+$frontendProc = Start-Process -FilePath $startFile -ArgumentList $startArgs -WorkingDirectory $frontendDir -RedirectStandardOutput $frontendOut -RedirectStandardError $frontendErr -PassThru
 Set-Content -Path (Join-Path $dataDir 'frontend.pid') -Value $frontendProc.Id
 Write-Host "   Frontend PID $($frontendProc.Id) started; logs: $frontendOut, $frontendErr"
 
