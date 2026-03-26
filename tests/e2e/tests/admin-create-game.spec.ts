@@ -34,6 +34,7 @@ test('admin can create a new game', async ({ page }) => {
     page.waitForResponse(resp => resp.url().endsWith('/api/games') && (resp.status() === 200 || resp.status() === 201)),
     page.click('button:has-text("Create Game")')
   ])
+  await page.waitForTimeout(500) // wait for SPA update after game creation
 
   // After creation, navigate to games list and assert the new game is visible
   await page.goto('/')

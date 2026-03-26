@@ -34,6 +34,7 @@ test('admin can submit a score and it appears for today', async ({ page }) => {
   if (status < 200 || status >= 300) throw new Error(`Create Game failed with status ${status}`)
 
   // Open the game page to determine id
+  await page.waitForTimeout(500) // wait for SPA update after game creation
   await page.goto('/')
   await page.click(`text=${gameName}`)
   const url = page.url()
