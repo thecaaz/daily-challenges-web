@@ -1,3 +1,4 @@
+import path from 'path';
 import { defineConfig, devices } from '@playwright/test';
 
 const headless = process.env.HEADLESS !== 'false';
@@ -5,6 +6,7 @@ const baseURL = process.env.BASE_URL || 'http://localhost:5173';
 
 export default defineConfig({
   testDir: './tests',
+  globalSetup: path.resolve(__dirname, 'global-setup.js'),
   timeout: 30_000,
   use: {
     baseURL,

@@ -7,6 +7,13 @@ Write-Host "Starting backend and frontend (PowerShell)..."
 
 ## Start backend (dotnet run) with isolated SQLite DB
 $dbPath = Join-Path $dataDir 'test.db'
+
+# Ensure fresh test DB so seeded admin is the first user
+if (Test-Path $dbPath) {
+	Write-Host "Removing existing test DB at $dbPath"
+	Remove-Item $dbPath -Force -ErrorAction SilentlyContinue
+}
+
 $env:SQLITE_PATH = $dbPath
 $env:ASPNETCORE_ENVIRONMENT = 'IntegrationTests'
 $env:ASPNETCORE_URLS = 'http://localhost:5000'
