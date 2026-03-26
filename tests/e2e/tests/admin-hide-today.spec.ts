@@ -22,6 +22,7 @@ test('admin cannot see today\'s scores if he has not submitted yet', async ({ pa
   if (status < 200 || status >= 300) throw new Error(`Create Game failed with status ${status}`)
 
   // Navigate to home and click the created game to get to its page
+  await page.waitForTimeout(500) // wait for SPA update after game creation
   await page.goto('/')
   await page.click(`text=${gameName}`)
   // Now we should be on /games/:id
