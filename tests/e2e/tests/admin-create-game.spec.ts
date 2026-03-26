@@ -27,5 +27,6 @@ test('admin can create a new game', async ({ page }) => {
 
   // After creation, navigate to games list and assert the new game is visible
   await page.goto('/')
+  await page.waitForTimeout(500) // wait for SPA update after navigation
   await expect(page.locator(`text=${uniqueName}`)).toBeVisible()
 })
