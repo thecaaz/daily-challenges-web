@@ -127,6 +127,7 @@ namespace DailyChallenges.Services
             }
 
             var submission = new Submission { GameId = gameId, Score = score, Username = username, UserId = userId };
+            if (int.TryParse(score, out var parsedScore)) submission.ScoreValue = parsedScore;
             if (screenshot != null && screenshot.Length > 0)
             {
                 var (data, contentType) = await _files.ReadFileAsync(screenshot);
@@ -157,7 +158,12 @@ namespace DailyChallenges.Services
         {
             var s = await _subs.GetByIdAsync(id);
             if (s == null) throw new KeyNotFoundException("Submission not found");
-            if (!string.IsNullOrWhiteSpace(score)) s.Score = score;
+            if (!string.IsNullOrWhiteSpace(score))
+            {
+                s.Score = score;
+                if (int.TryParse(score, out var parsedScore)) s.ScoreValue = parsedScore;
+                else s.ScoreValue = null;
+            }
             var updated = await _subs.UpdateAsync(s);
             return DtoMapper.ToDto(updated);
         }

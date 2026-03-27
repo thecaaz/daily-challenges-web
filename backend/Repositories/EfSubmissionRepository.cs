@@ -42,7 +42,14 @@ namespace DailyChallenges.Repositories
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var lower = search.ToLower();
-                q = q.Where(s => (s.Username != null && s.Username.ToLower().Contains(lower)) || (s.Score != null && s.Score.ToLower().Contains(lower)));
+                if (int.TryParse(search, out var parsedInt))
+                {
+                    q = q.Where(s => (s.Username != null && s.Username.ToLower().Contains(lower)) || (s.Score != null && s.Score.ToLower().Contains(lower)) || (s.ScoreValue.HasValue && s.ScoreValue == parsedInt));
+                }
+                else
+                {
+                    q = q.Where(s => (s.Username != null && s.Username.ToLower().Contains(lower)) || (s.Score != null && s.Score.ToLower().Contains(lower)));
+                }
             }
 
             var all = await q.OrderByDescending(s => s.CreatedAt).AsNoTracking().ToListAsync();
@@ -90,6 +97,7 @@ namespace DailyChallenges.Repositories
             var existing = await _db.Submissions.FirstOrDefaultAsync(s => s.Id == submission.Id);
             if (existing == null) throw new KeyNotFoundException("Submission not found");
             existing.Score = submission.Score;
+            existing.ScoreValue = submission.ScoreValue;
             // Don't update screenshot here
             await _db.SaveChangesAsync();
             return existing;
