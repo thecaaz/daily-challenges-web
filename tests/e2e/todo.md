@@ -7,11 +7,6 @@ Guiding rules
 - Tests must use UI interactions (navigation, form fills, clicks, file-pickers) and not call backend endpoints directly.
 - Prefer semantic selectors (`getByRole`, `getByLabel`, visible text). Use `tests/e2e/test-utils.ts` helpers for login and `createGame` flows when the helper itself uses UI interactions.
 - Where a backend-only admin view exists in the UI, the test must navigate to that admin UI and perform actions there.
- 
-## Medium priority UI scenarios
-
-- Pagination, available dates, and page metadata in UI
-  - Flow: Create many submissions using the UI across different dates → Visit game's submissions page → Use UI pagination controls / date filters → Verify that items change and UI shows `page`, `total pages`, `has more` or date filter options as expected.
 
 ## Low priority / Nice-to-have UI scenarios
 
