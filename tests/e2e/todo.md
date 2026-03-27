@@ -10,9 +10,6 @@ Guiding rules
  
 ## Medium priority UI scenarios
 
-- Highscore display and personal highscore via UI
-  - Flow: Create multiple submissions (different users/timestamps) using UI flows → Visit the game's leaderboard/highscore UI → Verify ordering and top N are displayed correctly. As a logged-in user, view personal highscore area of the UI and assert correct personal top value.
-
 - Duplicate submission attempt via UI (conflict messaging)
   - Flow: Login as the same user → Submit a score for today's scoring day via the UI → Attempt to submit again via UI → Verify the UI shows an error/notification indicating duplicate submission is not allowed (message text asserted).
 
