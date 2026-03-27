@@ -10,9 +10,6 @@ Guiding rules
  
 ## Medium priority UI scenarios
 
-- Duplicate submission attempt via UI (conflict messaging)
-  - Flow: Login as the same user → Submit a score for today's scoring day via the UI → Attempt to submit again via UI → Verify the UI shows an error/notification indicating duplicate submission is not allowed (message text asserted).
-
 - Pagination, available dates, and page metadata in UI
   - Flow: Create many submissions using the UI across different dates → Visit game's submissions page → Use UI pagination controls / date filters → Verify that items change and UI shows `page`, `total pages`, `has more` or date filter options as expected.
 

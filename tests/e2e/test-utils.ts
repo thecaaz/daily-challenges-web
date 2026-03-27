@@ -108,7 +108,7 @@ export async function createGame(page: Page, providedName?: string) {
   expect([200, 201]).toContain(resp.status())
 
   // Wait for SPA update after game creation then navigate via UI-only flow.
-  await page.waitForTimeout(100)
+  await page.waitForTimeout(200)
   await page.goto('/')
 
   // Find the public listing link that contains the game's name and click it.

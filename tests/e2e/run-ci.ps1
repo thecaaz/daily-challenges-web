@@ -9,6 +9,15 @@ if (-not (Test-Path (Join-Path $scriptDir 'node_modules')) ) {
     & npm ci --prefix $scriptDir
 }
 
+# Ensure Playwright browsers are installed (needed for CI runners)
+Write-Host "Installing Playwright browsers..."
+Push-Location $scriptDir
+try {
+    & npx playwright install --with-deps
+} finally {
+    Pop-Location
+}
+
 $env:HEADLESS = 'true'
 
 Write-Host "Starting services..."
