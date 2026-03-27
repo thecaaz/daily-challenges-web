@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { loginAsAdmin } from '../test-utils'
+import { randomUUID } from 'crypto'
 
 test('admin can create a new game', async ({ page }) => {
   await loginAsAdmin(page)
@@ -9,7 +10,7 @@ test('admin can create a new game', async ({ page }) => {
   await expect(page.locator('text=Manage Games')).toBeVisible()
 
   // Fill create form
-  const uniqueName = `e2e-game-${Date.now()}`
+  const uniqueName = `e2e-game-${Date.now()}-${randomUUID()}`
   await page.fill('label:has-text("Game name") >> xpath=.. >> input', uniqueName).catch(async () => {
     // fallback: try TextField by role
     await page.fill('input[aria-label="Game name"]', uniqueName)

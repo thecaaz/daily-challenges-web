@@ -1,6 +1,7 @@
 import { Page, expect } from '@playwright/test'
 import fs from 'fs/promises'
 import path from 'path'
+import { randomUUID } from 'crypto'
 
 type Creds = { username: string; password: string }
 
@@ -92,7 +93,7 @@ export async function loginAsUser(page: Page, verifyRole = true) {
 }
 
 export async function createGame(page: Page, providedName?: string) {
-  const gameName = providedName ?? `e2e-game-${Date.now()}`
+  const gameName = providedName ?? `e2e-game-${Date.now()}-${randomUUID()}`
   await page.goto('/admin')
   await expect(page.locator('text=Manage Games')).toBeVisible()
 
@@ -107,9 +108,17 @@ export async function createGame(page: Page, providedName?: string) {
   ])
   expect([200, 201]).toContain(resp.status())
 
-  await page.waitForTimeout(100) // wait for SPA update after game creation
+  // Wait for SPA update after game creation then navigate via UI-only flow.
+  await page.waitForTimeout(200)
   await page.goto('/')
-  await page.click(`text=${gameName}`)
+
+  // Find the public listing link that contains the game's name and click it.
+  // Use a generous timeout to allow the listing to update/render.
+  const gameLink = page.locator(`a:has-text("${gameName}")`).first()
+  await expect(gameLink).toBeVisible({ timeout: 15000 })
+  await gameLink.click()
+
+  // Determine the created game id from the navigation URL (read-only).
   const url = page.url()
   const match = url.match(/\/games\/(\d+)/)
   if (!match) throw new Error('could not determine game id from URL: ' + url)

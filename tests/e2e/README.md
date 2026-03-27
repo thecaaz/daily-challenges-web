@@ -141,7 +141,3 @@ Get-Command npm; npm --version
 ```
 
 - If ports are already in use (default backend at `http://localhost:5000`), stop the conflicting process or change `ASPNETCORE_URLS` in the script.
-
-Notes
-- Scripts are written to be explicit and minimal; if you prefer cross-platform orchestration consider using Docker Compose or a node-based orchestrator.
-- If you want me to add a short `npm` script that shows logs in the console instead of redirecting them to files, tell me and I can add it.
