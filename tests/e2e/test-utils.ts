@@ -1,6 +1,7 @@
 import { Page, expect } from '@playwright/test'
 import fs from 'fs/promises'
 import path from 'path'
+import { randomUUID } from 'crypto'
 
 type Creds = { username: string; password: string }
 
@@ -92,7 +93,7 @@ export async function loginAsUser(page: Page, verifyRole = true) {
 }
 
 export async function createGame(page: Page, providedName?: string) {
-  const gameName = providedName ?? `e2e-game-${Date.now()}`
+  const gameName = providedName ?? `e2e-game-${Date.now()}-${randomUUID()}`
   await page.goto('/admin')
   await expect(page.locator('text=Manage Games')).toBeVisible()
 

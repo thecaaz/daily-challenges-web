@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test'
 import path from 'path'
 import { loginAsAdmin } from '../test-utils'
+import { randomUUID } from 'crypto'
 
 test('admin can create game with image via UI', async ({ page }) => {
   await loginAsAdmin(page)
 
   await page.goto('/admin')
 
-  const uniqueName = `e2e-game-img-${Date.now()}`
+  const uniqueName = `e2e-game-img-${Date.now()}-${randomUUID()}`
   await page.fill('label:has-text("Game name") >> xpath=.. >> input', uniqueName).catch(async () => {
     await page.fill('input[aria-label="Game name"]', uniqueName)
   })
