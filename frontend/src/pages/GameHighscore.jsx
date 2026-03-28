@@ -35,11 +35,10 @@ export default function GameHighscore() {
       throw err
     }
 
-    // Fetch submissions only to check whether the current user has submitted today.
+    // Lightweight check for whether the current user has submitted today.
     try {
-      const sres = await api.get(`/submissions/game/${gameId}?page=1&pageSize=200`)
-      const pageResult = sres.data || { items: [], hasSubmittedForLatest: false }
-      setHasSubmittedForLatest(pageResult.hasSubmittedForLatest === true)
+      const sres = await api.get(`/submissions/game/${gameId}/has-submitted`)
+      setHasSubmittedForLatest(sres.data?.hasSubmittedForLatest === true)
     } catch (e) {
       setHasSubmittedForLatest(false)
     }

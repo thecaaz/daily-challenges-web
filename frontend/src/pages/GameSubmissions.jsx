@@ -44,9 +44,11 @@ export default function GameSubmissions() {
   }
 
   const fetchData = async () => {
+    let gameData = null
     try {
       const gres = await api.get(`/games/${gameId}`)
-      setGame(gres.data)
+      gameData = gres.data
+      setGame(gameData)
     } catch (err) {
       if (err?.response?.status === 404) {
         setNotFound(true)
@@ -55,8 +57,7 @@ export default function GameSubmissions() {
       throw err
     }
 
-    // Fetch canonical availableDates from dedicated endpoint, then fetch
-    // an unfiltered submissions page to learn submission flags.
+    // Fetch canonical availableDates from dedicated endpoint
     let dates = []
     try {
       const dr = await api.get(`/submissions/game/${gameId}/available-dates`)
@@ -64,19 +65,12 @@ export default function GameSubmissions() {
     } catch (err) {
       dates = []
     }
-    debugger
     setAvailableDates(dates)
-
-    const initial = await fetchSubmissionsPage(1)
-    const initialSubs = initial.items || []
-    setHasSubmittedForLatest(initial.hasSubmittedForLatest === true)
-    if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
-    else setHasMore(initial.hasMore === true)
 
     // prefer date passed by URL query param, then navigation state
     const preferred = searchParams.get('scoringDay') || location?.state?.selectedDate
     // compute current scoring day (use server-provided when available)
-    const currentDay = g?.currentScoringDay ?? ''
+    const currentDay = gameData?.currentScoringDay ?? ''
     let initialSelected = ''
     if (preferred && dates.includes(preferred)) initialSelected = preferred
     else if (currentDay && dates.includes(currentDay)) initialSelected = currentDay
@@ -84,6 +78,14 @@ export default function GameSubmissions() {
 
     setSelectedDate(initialSelected)
     setPage(1)
+
+    // lightweight check to see if current user has submitted for latest
+    try {
+      const sres = await api.get(`/submissions/game/${gameId}/has-submitted`)
+      setHasSubmittedForLatest(sres.data?.hasSubmittedForLatest === true)
+    } catch (err) {
+      setHasSubmittedForLatest(false)
+    }
 
     if (initialSelected) {
       const dayPage = await fetchSubmissionsPage(1, initialSelected)
@@ -93,6 +95,11 @@ export default function GameSubmissions() {
       else setHasMore(dayPage.hasMore === true)
       // availableDates is provided by the dedicated endpoint; do not override here.
     } else {
+      const initial = await fetchSubmissionsPage(1)
+      const initialSubs = initial.items || []
+
+      if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
+      else setHasMore(initial.hasMore === true)
       setSubmissions(initialSubs)
     }
   }

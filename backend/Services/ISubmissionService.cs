@@ -14,5 +14,6 @@ namespace DailyChallenges.Services
         Task<SubmissionDto?> GetByIdAsync(int id);
         Task<SubmissionDto> UpdateAsync(int id, string? score);
         Task DeleteAsync(int id);
+        Task<bool> HasUserSubmittedForLatestAsync(int gameId, System.Security.Claims.ClaimsPrincipal? user);
     }
 }

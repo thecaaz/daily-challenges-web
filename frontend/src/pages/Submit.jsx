@@ -42,10 +42,9 @@ export default function Submit() {
     // if logged in, check if user already submitted for this game
     try {
         if (user && user.id) {
-        // Ask backend whether the current user has submitted for latest scoring day
-        const sres = await api.get(`/submissions/game/${gameId}?page=1&pageSize=1`)
-        const pageResult = sres.data || { hasSubmittedForLatest: false }
-        if (pageResult.hasSubmittedForLatest === true) setHasSubmitted(true)
+        // Ask backend whether the current user has submitted for latest scoring day (lightweight)
+        const sres = await api.get(`/submissions/game/${gameId}/has-submitted`)
+        if (sres.data?.hasSubmittedForLatest === true) setHasSubmitted(true)
       }
     } catch (e) {
       // ignore
