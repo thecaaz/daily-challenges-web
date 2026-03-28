@@ -124,8 +124,6 @@ export default function GameSubmissions() {
 
   if (!game) return <div>Loading...</div>
 
-  const apiRoot = api.defaults.baseURL ? api.defaults.baseURL.replace(/\/api\/?$/, '') : 'http://localhost:5000'
-
   return (
     <div>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Typography, Button } from '@mui/material'
-import api from '../api'
+import api, { getApiRoot } from '../api'
 
 export default function SubmissionDetail() {
   const { id } = useParams()
@@ -91,7 +91,7 @@ export default function SubmissionDetail() {
   if (loading) return <div>Loading...</div>
   if (!submission) return <div>Not found</div>
 
-  const apiRoot = api.defaults.baseURL ? api.defaults.baseURL.replace(/\/api\/?$/, '') : 'http://localhost:5000'
+  const apiRoot = getApiRoot()
 
   return (
     <div>

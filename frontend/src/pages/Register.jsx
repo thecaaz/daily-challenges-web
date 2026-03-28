@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useSnackbar } from '../contexts/SnackbarContext'
 
 export default function Register(){
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const { register } = useAuth()
+  const { showSnackbar } = useSnackbar()
   const navigate = useNavigate()
 
   const submit = async (e) => {
@@ -14,7 +16,7 @@ export default function Register(){
       await register(username, password)
       navigate('/login')
     } catch (err) {
-      alert('Registration failed')
+      showSnackbar('Registration failed', 'error')
     }
   }
 

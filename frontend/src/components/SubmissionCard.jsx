@@ -2,13 +2,13 @@ import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { CardContent, Typography, Tooltip } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
-import api from '../api'
+import api, { getApiRoot } from '../api'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function SubmissionCard({ submission }) {
   if (!submission) return null
   const { user } = useAuth()
-  const apiRoot = api.defaults.baseURL ? api.defaults.baseURL.replace(/\/api\/?$/, '') : 'http://localhost:5000'
+  const apiRoot = getApiRoot()
   const location = useLocation()
 
   return (

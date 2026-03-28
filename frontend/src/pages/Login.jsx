@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useSnackbar } from '../contexts/SnackbarContext'
 
 export default function Login(){
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const { login } = useAuth()
+  const { showSnackbar } = useSnackbar()
   const navigate = useNavigate()
 
   const submit = async (e) => {
@@ -14,7 +16,7 @@ export default function Login(){
       await login(username, password)
       navigate('/')
     } catch (err) {
-      alert('Login failed')
+      showSnackbar('Login failed', 'error')
     }
   }
 
