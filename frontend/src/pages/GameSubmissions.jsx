@@ -21,44 +21,75 @@ export default function GameSubmissions() {
 
   useEffect(() => { fetchData() }, [])
 
+  const buildSubmissionsUrl = (pageNum, scoringDay) => {
+    let url = `/submissions/game/${gameId}?page=${pageNum}&pageSize=${pageSize}`
+    if (scoringDay) url += `&scoringDay=${encodeURIComponent(scoringDay)}`
+    return url
+  }
+
+  const fetchSubmissionsPage = async (pageNum, scoringDay) => {
+    const res = await api.get(buildSubmissionsUrl(pageNum, scoringDay))
+    return res.data || { items: [], hasSubmittedForLatest: false, hasMore: false }
+  }
+
   const fetchData = async () => {
     const gres = await api.get('/games')
     const g = gres.data.find(x => String(x.id) === String(gameId))
     setGame(g)
 
-    const sres = await api.get(`/submissions/game/${gameId}?page=1&pageSize=${pageSize}`)
-    const pageResult = sres.data || { items: [], hasSubmittedForLatest: false, hasMore: false }
-    const subs = pageResult.items || []
-    setSubmissions(subs)
-    setPage(1)
-    // Prefer server-provided paging info when available
-    if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
-    else setHasMore(pageResult.hasMore === true)
-
-    const dates = pageResult.availableDates || []
+    // First fetch an unfiltered page to learn availableDates & submission flags
+    const initial = await fetchSubmissionsPage(1)
+    const initialSubs = initial.items || []
+    const dates = initial.availableDates || []
     setAvailableDates(dates)
-    setHasSubmittedForLatest(pageResult.hasSubmittedForLatest === true)
+    setHasSubmittedForLatest(initial.hasSubmittedForLatest === true)
+    if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
+    else setHasMore(initial.hasMore === true)
+
     // prefer date passed by navigation state
     const preferred = location?.state?.selectedDate
     // compute current scoring day (use server-provided when available)
     const currentDay = g?.currentScoringDay ?? ''
-    // If the preferred date is supplied and available, use it. Otherwise,
-    // only auto-select the current scoring day if it actually has submissions;
-    // otherwise leave selection empty (show 'All').
-    if (preferred && dates.includes(preferred)) setSelectedDate(preferred)
-    else if (currentDay && dates.includes(currentDay)) setSelectedDate(currentDay)
-    else setSelectedDate('')
+    let initialSelected = ''
+    if (preferred && dates.includes(preferred)) initialSelected = preferred
+    else if (currentDay && dates.includes(currentDay)) initialSelected = currentDay
+    else initialSelected = ''
+
+    setSelectedDate(initialSelected)
+    setPage(1)
+
+    if (initialSelected) {
+      const dayPage = await fetchSubmissionsPage(1, initialSelected)
+      const subs = dayPage.items || []
+      setSubmissions(subs)
+      if (typeof dayPage.totalPages === 'number') setHasMore(dayPage.page < dayPage.totalPages)
+      else setHasMore(dayPage.hasMore === true)
+      if (dayPage.availableDates) setAvailableDates(dayPage.availableDates)
+    } else {
+      setSubmissions(initialSubs)
+    }
   }
 
   const loadMore = async () => {
     const next = page + 1
-    const res = await api.get(`/submissions/game/${gameId}?page=${next}&pageSize=${pageSize}`)
-    const pageResult = res.data || { items: [], hasMore: false }
+    const pageResult = await fetchSubmissionsPage(next, selectedDate || undefined)
     const more = pageResult.items || []
     setSubmissions(prev => [...prev, ...more])
     setPage(next)
     if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
     else setHasMore(pageResult.hasMore === true)
+  }
+
+  const handleDateChange = async (value) => {
+    setSelectedDate(value)
+    setPage(1)
+    setSubmissions([])
+    const pageResult = await fetchSubmissionsPage(1, value || undefined)
+    const subs = pageResult.items || []
+    setSubmissions(subs)
+    if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
+    else setHasMore(pageResult.hasMore === true)
+    if (pageResult.availableDates) setAvailableDates(pageResult.availableDates)
   }
 
 
@@ -109,7 +140,7 @@ export default function GameSubmissions() {
 
       <FormControl sx={{ mb: 2, minWidth: 200 }}>
         <InputLabel id="date-select-label">Day</InputLabel>
-        <Select labelId="date-select-label" value={selectedDate} label="Day" onChange={e => setSelectedDate(e.target.value)}>
+        <Select labelId="date-select-label" value={selectedDate} label="Day" onChange={e => handleDateChange(e.target.value)}>
           <MenuItem value="">All</MenuItem>
           {availableDates.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
         </Select>
