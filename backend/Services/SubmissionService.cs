@@ -80,6 +80,14 @@ namespace DailyChallenges.Services
             return result;
         }
 
+        public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user)
+        {
+            var game = await _games.GetByIdAsync(gameId);
+            var currentDay = GetCurrentScoringDay(game);
+            var userId = user.GetUserId();
+            return await HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
+        }
+
         private async Task<List<Submission>> GetRecentSubmissionsAsync(int gameId)
         {
             var all = await _subs.GetTopByGameAsync(gameId, 2000);

@@ -7,6 +7,7 @@ using DailyChallenges.Repositories;
 using System.Text.RegularExpressions;
 using System.Globalization;
 using System.Security.Claims;
+using DailyChallenges.Mapping;
 
 namespace DailyChallenges.Controllers
 {
@@ -112,6 +113,14 @@ namespace DailyChallenges.Controllers
         {
             await _games.DeleteAsync(id);
             return NoContent();
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            var g = await _games.GetByIdAsync(id);
+            if (g == null) return NotFound();
+            return Ok(DtoMapper.ToDto(g));
         }
     }
 }

@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 export default function Submit() {
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
+  const [notFound, setNotFound] = useState(false)
   const [username, setUsername] = useState('')
   const [score, setScore] = useState('')
   const [screenshot, setScreenshot] = useState(null)
@@ -28,16 +29,22 @@ export default function Submit() {
   const [hasSubmitted, setHasSubmitted] = useState(false)
 
   const fetchGame = async () => {
-    const res = await api.get('/games')
-    const g = res.data.find(x => String(x.id) === String(gameId))
-    setGame(g)
+    try {
+      const res = await api.get(`/games/${gameId}`)
+      setGame(res.data)
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setNotFound(true)
+        return
+      }
+      throw err
+    }
     // if logged in, check if user already submitted for this game
     try {
         if (user && user.id) {
-        // Ask backend whether the current user has submitted for latest scoring day
-        const sres = await api.get(`/submissions/game/${gameId}?page=1&pageSize=1`)
-        const pageResult = sres.data || { hasSubmittedForLatest: false }
-        if (pageResult.hasSubmittedForLatest === true) setHasSubmitted(true)
+        // Ask backend whether the current user has submitted for latest scoring day (lightweight)
+        const sres = await api.get(`/submissions/game/${gameId}/has-submitted`)
+        if (sres.data?.hasSubmittedForLatest === true) setHasSubmitted(true)
       }
     } catch (e) {
       // ignore
@@ -111,6 +118,13 @@ export default function Submit() {
     return () => window.removeEventListener('paste', handler)
   }, [showSnackbar])   
 
+  if (notFound) {
+    return (
+      <Typography component="h1" role="alert">
+        Game not found
+      </Typography>
+    )
+  }
   if (!game) return <div>Loading...</div>
 
   return (

@@ -6,9 +6,9 @@ import SubmissionCard from '../components/SubmissionCard'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function GameSubmissions() {
-  const { user } = useAuth()
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
+  const [notFound, setNotFound] = useState(false)
   const [submissions, setSubmissions] = useState([])
   const [page, setPage] = useState(1)
   const [pageSize] = useState(50)
@@ -44,31 +44,34 @@ export default function GameSubmissions() {
   }
 
   const fetchData = async () => {
-    const gres = await api.get('/games')
-    const g = gres.data.find(x => String(x.id) === String(gameId))
-    setGame(g)
+    // Fetch game info, available dates and has-submitted in parallel.
+    const gameReq = api.get(`/games/${gameId}`).catch(e => ({ __error: e }))
+    const datesReq = api.get(`/submissions/game/${gameId}/available-dates`).catch(e => ({ __error: e }))
+    const hasSubmittedReq = api.get(`/submissions/game/${gameId}/has-submitted`).catch(e => ({ __error: e }))
 
-    // Fetch canonical availableDates from dedicated endpoint, then fetch
-    // an unfiltered submissions page to learn submission flags.
-    let dates = []
-    try {
-      const dr = await api.get(`/submissions/game/${gameId}/available-dates`)
-      dates = dr.data || []
-    } catch (err) {
-      dates = []
+    const [gameRes, datesRes, submittedRes] = await Promise.all([gameReq, datesReq, hasSubmittedReq])
+
+    // Handle game response (404 => not found)
+    if (gameRes && gameRes.__error) {
+      const err = gameRes.__error
+      if (err?.response?.status === 404) {
+        setNotFound(true)
+        return
+      }
+      throw err
     }
-    setAvailableDates(dates)
 
-    const initial = await fetchSubmissionsPage(1)
-    const initialSubs = initial.items || []
-    setHasSubmittedForLatest(initial.hasSubmittedForLatest === true)
-    if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
-    else setHasMore(initial.hasMore === true)
+    const gameData = gameRes?.data
+    setGame(gameData)
+
+    // available dates may fail independently; fall back to empty list
+    const dates = (datesRes && datesRes.__error) ? [] : (datesRes?.data || [])
+    setAvailableDates(dates)
 
     // prefer date passed by URL query param, then navigation state
     const preferred = searchParams.get('scoringDay') || location?.state?.selectedDate
     // compute current scoring day (use server-provided when available)
-    const currentDay = g?.currentScoringDay ?? ''
+    const currentDay = gameData?.currentScoringDay ?? ''
     let initialSelected = ''
     if (preferred && dates.includes(preferred)) initialSelected = preferred
     else if (currentDay && dates.includes(currentDay)) initialSelected = currentDay
@@ -76,6 +79,10 @@ export default function GameSubmissions() {
 
     setSelectedDate(initialSelected)
     setPage(1)
+
+    // use result of has-submitted when available; fall back to false
+    const hasSubmitted = !(submittedRes && submittedRes.__error) && (submittedRes?.data?.hasSubmittedForLatest === true)
+    setHasSubmittedForLatest(hasSubmitted)
 
     if (initialSelected) {
       const dayPage = await fetchSubmissionsPage(1, initialSelected)
@@ -85,6 +92,11 @@ export default function GameSubmissions() {
       else setHasMore(dayPage.hasMore === true)
       // availableDates is provided by the dedicated endpoint; do not override here.
     } else {
+      const initial = await fetchSubmissionsPage(1)
+      const initialSubs = initial.items || []
+
+      if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
+      else setHasMore(initial.hasMore === true)
       setSubmissions(initialSubs)
     }
   }
@@ -122,6 +134,7 @@ export default function GameSubmissions() {
   const currentScoringDay = game?.currentScoringDay ?? ''
   const isViewingLatest = !selectedDate || selectedDate === currentScoringDay
 
+  if (notFound) return <div role="alert">Game not found</div>
   if (!game) return <div>Loading...</div>
 
   return (

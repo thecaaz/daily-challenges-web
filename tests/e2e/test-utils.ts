@@ -103,7 +103,7 @@ export async function createGame(page: Page, providedName?: string) {
   await page.fill('input[type="time"]', '00:00')
 
   const [resp] = await Promise.all([
-    page.waitForResponse(r => r.url().endsWith('/api/games')),
+    page.waitForResponse(r => r.url().endsWith('/api/games') && (r.status() === 200 || r.status() === 201)),
     page.click('button:has-text("Create Game")')
   ])
   expect([200, 201]).toContain(resp.status())
@@ -111,6 +111,9 @@ export async function createGame(page: Page, providedName?: string) {
   // Wait for SPA update after game creation then navigate via UI-only flow.
   await page.waitForTimeout(200)
   await page.goto('/')
+
+  // Ensure the games list has loaded from the API before searching for the created item
+  await page.waitForResponse(r => r.url().endsWith('/api/games') && r.request().method() === 'GET')
 
   // Find the public listing link that contains the game's name and click it.
   // Use a generous timeout to allow the listing to update/render.
