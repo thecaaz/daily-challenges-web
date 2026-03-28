@@ -22,7 +22,7 @@ namespace DailyChallenges.Services
             _files = files;
         }
 
-        public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, int page = 1, int pageSize = 50)
+        public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, DateTime? scoringDay = null, int page = 1, int pageSize = 50)
         {
             var game = await _games.GetByIdAsync(gameId);
             var result = new SubmissionPageDto { Page = page, PageSize = pageSize };
@@ -32,18 +32,49 @@ namespace DailyChallenges.Services
             var userId = user.GetUserId();
             var hasSubmittedForLatest = await HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
 
-            var (items, totalCount, availableDates) = await _subs.GetByGameFilteredAsync(gameId, page, pageSize, null, null);
+            // Fetch all matching submissions (use a very large page size so repository returns the full set)
+            var fetchPageSize = int.MaxValue / 4;
+            var (allItems, totalCount, availableDates) = await _subs.GetByGameFilteredAsync(gameId, 1, fetchPageSize, null, scoringDay);
 
-            // If caller hasn't submitted today, hide current-day submissions
-            var filtered = FilterSubmissionsForVisibility(items, hasSubmittedForLatest, game, currentDay);
+            // If caller hasn't submitted today and caller didn't request a specific scoringDay, hide current-day submissions
+            var filteredAll = scoringDay.HasValue ? allItems : FilterSubmissionsForVisibility(allItems, hasSubmittedForLatest, game, currentDay);
 
-            var mapped = MapAndAnnotate(filtered, game);
-            var paged = mapped.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            // Compute scoring day for each submission and determine winners per day using ScoreValue (numeric only)
+            var resetTime = game?.ResetTime ?? TimeSpan.Zero;
+            var resetTz = game?.ResetTimezoneId ?? "UTC";
 
-            result.Items = paged;
+            var scored = filteredAll.Select(s => new { Submission = s, Day = ScoringDayHelper.GetScoringDay(s.CreatedAt, resetTime, resetTz) }).ToList();
+
+            var winnersByDay = new Dictionary<DateTime, Submission>();
+            foreach (var group in scored.GroupBy(x => x.Day))
+            {
+                var numericSubs = group.Where(x => x.Submission.ScoreValue.HasValue).ToList();
+                if (!numericSubs.Any()) continue;
+                var maxScore = numericSubs.Max(x => x.Submission.ScoreValue!.Value);
+                var candidates = numericSubs.Where(x => x.Submission.ScoreValue == maxScore).Select(x => x.Submission).ToList();
+                var winner = candidates.OrderBy(s => s.CreatedAt).First();
+                winnersByDay[group.Key] = winner;
+            }
+
+            // Apply pagination on filteredAll (ordered by CreatedAt desc)
+            var ordered = filteredAll.OrderByDescending(s => s.CreatedAt).ToList();
+            if (page < 1) page = 1;
+            var skip = (page - 1) * pageSize;
+            var pageSubmissions = ordered.Skip(skip).Take(pageSize).ToList();
+
+            var mapped = pageSubmissions.Select(s =>
+            {
+                var dto = DtoMapper.ToDto(s);
+                var day = ScoringDayHelper.GetScoringDay(s.CreatedAt, resetTime, resetTz);
+                dto.ScoringDay = day.ToString("yyyy-MM-dd");
+                dto.IsDayWinner = winnersByDay.TryGetValue(day, out var w) && w.Id == s.Id;
+                return dto;
+            }).ToList();
+
+            result.Items = mapped;
             result.HasSubmittedForLatest = hasSubmittedForLatest;
-            result.TotalCount = filtered.Count;
-            result.TotalPages = (int)Math.Ceiling(filtered.Count / (double)pageSize);
+            result.TotalCount = filteredAll.Count;
+            result.TotalPages = (int)Math.Ceiling(filteredAll.Count / (double)pageSize);
             result.HasMore = page < result.TotalPages;
             result.AvailableDates = availableDates
                 .Select(d => d.ToString("yyyy-MM-dd"))

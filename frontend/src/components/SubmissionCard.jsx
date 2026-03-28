@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { CardContent, Typography } from '@mui/material'
+import { CardContent, Typography, Tooltip } from '@mui/material'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -17,6 +18,11 @@ export default function SubmissionCard({ submission }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <Typography variant="subtitle1">{submission.username ?? 'Anonymous'}</Typography>
+              {submission.isDayWinner && (
+                <Tooltip title={submission.scoringDay ? `Winner for ${submission.scoringDay}` : 'Winner'}>
+                  <EmojiEventsIcon sx={{ color: '#FFD700' }} fontSize="small" />
+                </Tooltip>
+              )}
               {submission.userId && user && submission.userId === user.id && (
                 <Typography variant="caption" sx={{ color: '#666' }}>You</Typography>
               )}
