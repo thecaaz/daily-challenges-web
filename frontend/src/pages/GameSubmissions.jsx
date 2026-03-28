@@ -48,11 +48,19 @@ export default function GameSubmissions() {
     const g = gres.data.find(x => String(x.id) === String(gameId))
     setGame(g)
 
-    // First fetch an unfiltered page to learn availableDates & submission flags
+    // Fetch canonical availableDates from dedicated endpoint, then fetch
+    // an unfiltered submissions page to learn submission flags.
+    let dates = []
+    try {
+      const dr = await api.get(`/submissions/game/${gameId}/available-dates`)
+      dates = dr.data || []
+    } catch (err) {
+      dates = []
+    }
+    setAvailableDates(dates)
+
     const initial = await fetchSubmissionsPage(1)
     const initialSubs = initial.items || []
-    const dates = initial.availableDates || []
-    setAvailableDates(dates)
     setHasSubmittedForLatest(initial.hasSubmittedForLatest === true)
     if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
     else setHasMore(initial.hasMore === true)
@@ -75,10 +83,7 @@ export default function GameSubmissions() {
       setSubmissions(subs)
       if (typeof dayPage.totalPages === 'number') setHasMore(dayPage.page < dayPage.totalPages)
       else setHasMore(dayPage.hasMore === true)
-      // Do not overwrite the canonical list of available dates obtained from the
-      // initial unfiltered fetch. Only use the day-specific response if we
-      // didn't get any dates from the unfiltered call.
-      if (dayPage.availableDates && dates.length === 0) setAvailableDates(dayPage.availableDates)
+      // availableDates is provided by the dedicated endpoint; do not override here.
     } else {
       setSubmissions(initialSubs)
     }
@@ -107,9 +112,7 @@ export default function GameSubmissions() {
     setSubmissions(subs)
     if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
     else setHasMore(pageResult.hasMore === true)
-    // Preserve the existing canonical availableDates; only populate from the
-    // filtered response if we don't already have a canonical list.
-    if (pageResult.availableDates && availableDates.length === 0) setAvailableDates(pageResult.availableDates)
+    // availableDates is provided by the dedicated endpoint; do not override here.
   }
 
 

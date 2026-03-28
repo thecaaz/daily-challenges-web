@@ -35,6 +35,13 @@ namespace DailyChallenges.Controllers
             return Ok(pageResult);
         }
 
+        [HttpGet("game/{gameId}/available-dates")]
+        public async Task<IActionResult> GetAvailableDates(int gameId)
+        {
+            var dates = await _subs.GetAvailableDatesAsync(gameId);
+            return Ok(dates);
+        }
+
         [HttpGet("game/{gameId}/winner")]
         public async Task<IActionResult> GetWinner(int gameId, [FromQuery] string? scoringDay = null)
         {

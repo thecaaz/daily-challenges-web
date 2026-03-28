@@ -9,17 +9,44 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
   const { gameId } = await createGame(page)
 
   // Intercept submission list requests and return a controlled paged dataset
+  await page.route(`**/api/submissions/game/${gameId}/available-dates`, async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['2026-03-27', '2026-03-26']) })
+  })
+
   await page.route(`**/api/submissions/game/${gameId}*`, async route => {
     const req = route.request()
     const url = new URL(req.url())
     const pageParam = url.searchParams.get('page') || '1'
+    const scoringDayParam = url.searchParams.get('scoringDay') || null
+
+    // If caller requested a specific scoringDay, return the items for that day
+    if (scoringDayParam) {
+      if (scoringDayParam === '2026-03-26') {
+        const items = [
+          { id: 1003, gameId: Number(gameId), userId: null, score: '30', username: 'UserC', screenshotUrl: null, createdAt: '2026-03-26T10:00:00Z', scoringDay: '2026-03-26' },
+          { id: 1004, gameId: Number(gameId), userId: null, score: '40', username: 'UserD', screenshotUrl: null, createdAt: '2026-03-26T11:00:00Z', scoringDay: '2026-03-26' }
+        ]
+        const body = { items, hasSubmittedForLatest: true, hasMore: false, page: 1, pageSize: 2, totalCount: 2, totalPages: 1 }
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+        return
+      }
+      if (scoringDayParam === '2026-03-27') {
+        const items = [
+          { id: 1001, gameId: Number(gameId), userId: null, score: '10', username: 'UserA', screenshotUrl: null, createdAt: '2026-03-27T10:00:00Z', scoringDay: '2026-03-27' },
+          { id: 1002, gameId: Number(gameId), userId: null, score: '20', username: 'UserB', screenshotUrl: null, createdAt: '2026-03-27T11:00:00Z', scoringDay: '2026-03-27' }
+        ]
+        const body = { items, hasSubmittedForLatest: true, hasMore: false, page: 1, pageSize: 2, totalCount: 2, totalPages: 1 }
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+        return
+      }
+    }
 
     if (pageParam === '1') {
       const items = [
         { id: 1001, gameId: Number(gameId), userId: null, score: '10', username: 'UserA', screenshotUrl: null, createdAt: '2026-03-27T10:00:00Z', scoringDay: '2026-03-27' },
         { id: 1002, gameId: Number(gameId), userId: null, score: '20', username: 'UserB', screenshotUrl: null, createdAt: '2026-03-27T11:00:00Z', scoringDay: '2026-03-27' }
       ]
-      const body = { items, hasSubmittedForLatest: true, hasMore: true, page: 1, pageSize: 2, availableDates: ['2026-03-27', '2026-03-26'], totalCount: 4, totalPages: 2 }
+      const body = { items, hasSubmittedForLatest: true, hasMore: true, page: 1, pageSize: 2, totalCount: 4, totalPages: 2 }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
       return
     }
@@ -29,13 +56,13 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
         { id: 1003, gameId: Number(gameId), userId: null, score: '30', username: 'UserC', screenshotUrl: null, createdAt: '2026-03-26T10:00:00Z', scoringDay: '2026-03-26' },
         { id: 1004, gameId: Number(gameId), userId: null, score: '40', username: 'UserD', screenshotUrl: null, createdAt: '2026-03-26T11:00:00Z', scoringDay: '2026-03-26' }
       ]
-      const body = { items, hasSubmittedForLatest: true, hasMore: false, page: 2, pageSize: 2, availableDates: ['2026-03-27', '2026-03-26'], totalCount: 4, totalPages: 2 }
+      const body = { items, hasSubmittedForLatest: true, hasMore: false, page: 2, pageSize: 2, totalCount: 4, totalPages: 2 }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
       return
     }
 
     // fallback
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], hasSubmittedForLatest: false, hasMore: false, page: Number(pageParam), pageSize: 2, availableDates: ['2026-03-27', '2026-03-26'], totalCount: 4, totalPages: 2 }) })
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], hasSubmittedForLatest: false, hasMore: false, page: Number(pageParam), pageSize: 2, totalCount: 4, totalPages: 2 }) })
   })
 
   // Open the game's submissions page (this will trigger the intercepted request)

@@ -9,7 +9,6 @@ namespace DailyChallenges.DTOs
         public bool HasMore { get; set; }
         public int Page { get; set; }
         public int PageSize { get; set; }
-        public List<string> AvailableDates { get; set; } = new List<string>();
         public int TotalCount { get; set; }
         public int TotalPages { get; set; }
     }

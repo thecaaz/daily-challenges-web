@@ -31,6 +31,28 @@ namespace DailyChallenges.Repositories
             return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).Take(top).AsNoTracking().ToListAsync();
         }
 
+        public async Task<List<DateTime>> GetAvailableDatesAsync(int gameId)
+        {
+            var game = await _db.Games.FindAsync(gameId);
+            var resetTime = game?.ResetTime ?? TimeSpan.Zero;
+            var resetTz = game?.ResetTimezoneId ?? "UTC";
+
+            var createdAtList = await _db.Submissions
+                .Where(s => s.GameId == gameId)
+                .AsNoTracking()
+                .Select(s => s.CreatedAt)
+                .Distinct()
+                .ToListAsync();
+
+            var availableDates = createdAtList
+                .Select(createdAt => Services.ScoringDayHelper.GetScoringDay(createdAt, resetTime, resetTz))
+                .Distinct()
+                .OrderByDescending(d => d)
+                .ToList();
+
+            return availableDates;
+        }
+
         public async Task<(List<Submission> Items, int TotalCount, List<DateTime> AvailableDates)> GetByGameFilteredAsync(int gameId, int page, int pageSize, string? search, DateTime? scoringDay)
         {
             var game = await _db.Games.FindAsync(gameId);

@@ -34,7 +34,7 @@ namespace DailyChallenges.Services
 
             // Fetch all matching submissions (use a very large page size so repository returns the full set)
             var fetchPageSize = int.MaxValue / 4;
-            var (allItems, totalCount, availableDates) = await _subs.GetByGameFilteredAsync(gameId, 1, fetchPageSize, null, scoringDay);
+            var (allItems, totalCount, _) = await _subs.GetByGameFilteredAsync(gameId, 1, fetchPageSize, null, scoringDay);
 
             // If caller hasn't submitted today and caller didn't request a specific scoringDay, hide current-day submissions
             var filteredAll = scoringDay.HasValue ? allItems : FilterSubmissionsForVisibility(allItems, hasSubmittedForLatest, game, currentDay);
@@ -76,11 +76,6 @@ namespace DailyChallenges.Services
             result.TotalCount = filteredAll.Count;
             result.TotalPages = (int)Math.Ceiling(filteredAll.Count / (double)pageSize);
             result.HasMore = page < result.TotalPages;
-            result.AvailableDates = availableDates
-                .Select(d => d.ToString("yyyy-MM-dd"))
-                .Distinct()
-                .OrderByDescending(x => x)
-                .ToList();
 
             return result;
         }
@@ -135,6 +130,16 @@ namespace DailyChallenges.Services
             }).ToList();
 
             return adminDtos;
+        }
+
+        public async Task<List<string>> GetAvailableDatesAsync(int gameId)
+        {
+            var dates = await _subs.GetAvailableDatesAsync(gameId);
+            return dates
+                .Select(d => d.ToString("yyyy-MM-dd"))
+                .Distinct()
+                .OrderByDescending(x => x)
+                .ToList();
         }
 
         public async Task<SubmissionDto> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user)
