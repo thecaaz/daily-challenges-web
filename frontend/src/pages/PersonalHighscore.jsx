@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 export default function PersonalHighscore() {
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
+  const [notFound, setNotFound] = useState(false)
   const [top, setTop] = useState([])
   const { user, loading } = useAuth()
   const navigate = useNavigate()
@@ -19,14 +20,27 @@ export default function PersonalHighscore() {
       navigate('/login')
       return
     }
-    const gres = await api.get('/games')
-    const g = gres.data.find(x => String(x.id) === String(gameId))
-    setGame(g)
+    try {
+      const gres = await api.get(`/games/${gameId}`)
+      setGame(gres.data)
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setNotFound(true)
+        return
+      }
+      throw err
+    }
     const res = await api.get(`/games/${gameId}/personal-highscore`)
     const data = res.data || { top: [] }
     setTop(data.top || [])
   }
 
+  if (notFound)
+    return (
+      <Typography variant="h5" role="alert">
+        Game not found
+      </Typography>
+    )
   if (!game) return <div>Loading...</div>
 
   return (

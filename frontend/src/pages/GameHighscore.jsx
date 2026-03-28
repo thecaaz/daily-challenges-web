@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 export default function GameHighscore() {
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
+  const [notFound, setNotFound] = useState(false)
   const [top, setTop] = useState([])
   const { user } = useAuth()
   const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
@@ -23,9 +24,16 @@ export default function GameHighscore() {
     if (lastFetchKeyRef.current === fetchKey) return
     lastFetchKeyRef.current = fetchKey
 
-    const gres = await api.get('/games')
-    const g = gres.data.find(x => String(x.id) === String(gameId))
-    setGame(g)
+    try {
+      const gres = await api.get(`/games/${gameId}`)
+      setGame(gres.data)
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setNotFound(true)
+        return
+      }
+      throw err
+    }
 
     // Fetch submissions only to check whether the current user has submitted today.
     try {
@@ -41,6 +49,7 @@ export default function GameHighscore() {
     setTop(data.top || [])
   }
 
+  if (notFound) return <Typography variant="h5" component="h1" role="alert">Game not found</Typography>
   if (!game) return <div>Loading...</div>
 
   const currentScoringDay = game?.currentScoringDay ?? ''

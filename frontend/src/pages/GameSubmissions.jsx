@@ -6,9 +6,9 @@ import SubmissionCard from '../components/SubmissionCard'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function GameSubmissions() {
-  const { user } = useAuth()
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
+  const [notFound, setNotFound] = useState(false)
   const [submissions, setSubmissions] = useState([])
   const [page, setPage] = useState(1)
   const [pageSize] = useState(50)
@@ -44,9 +44,16 @@ export default function GameSubmissions() {
   }
 
   const fetchData = async () => {
-    const gres = await api.get('/games')
-    const g = gres.data.find(x => String(x.id) === String(gameId))
-    setGame(g)
+    try {
+      const gres = await api.get(`/games/${gameId}`)
+      setGame(gres.data)
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setNotFound(true)
+        return
+      }
+      throw err
+    }
 
     // Fetch canonical availableDates from dedicated endpoint, then fetch
     // an unfiltered submissions page to learn submission flags.
@@ -57,6 +64,7 @@ export default function GameSubmissions() {
     } catch (err) {
       dates = []
     }
+    debugger
     setAvailableDates(dates)
 
     const initial = await fetchSubmissionsPage(1)
@@ -122,6 +130,7 @@ export default function GameSubmissions() {
   const currentScoringDay = game?.currentScoringDay ?? ''
   const isViewingLatest = !selectedDate || selectedDate === currentScoringDay
 
+  if (notFound) return <div role="alert">Game not found</div>
   if (!game) return <div>Loading...</div>
 
   return (
