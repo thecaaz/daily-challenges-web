@@ -64,6 +64,9 @@ namespace DailyChallenges.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("ScoreValue")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ScreenshotContentType")
                         .HasColumnType("TEXT");
 
@@ -79,6 +82,8 @@ namespace DailyChallenges.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("GameId", "CreatedAt");
 
                     b.HasIndex("GameId", "UserId");
 

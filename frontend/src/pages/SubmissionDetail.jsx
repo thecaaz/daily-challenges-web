@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Typography, Button } from '@mui/material'
 import api from '../api'
 
@@ -16,6 +16,8 @@ export default function SubmissionDetail() {
   const lastPos = useRef({ x: 0, y: 0 })
 
   useEffect(() => { fetchSubmission() }, [])
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const fetchSubmission = async () => {
     try {
@@ -99,7 +101,14 @@ export default function SubmissionDetail() {
           <Typography variant="caption">Score: {submission.score} — {new Date(submission.createdAt).toLocaleString()}</Typography>
         </div>
         <div>
-          <Button component={Link} to={`/games/${submission.gameId}`} className="btn" sx={{ mr: 1 }}>Back</Button>
+          <Button onClick={() => {
+            // Prefer history back so the previous page (with query params/state) is preserved.
+            if (window.history.length > 1) navigate(-1)
+            else {
+              const qs = location.search || (submission?.scoringDay ? `?scoringDay=${submission.scoringDay}` : '')
+              navigate(`/games/${submission.gameId}${qs}`)
+            }
+          }} className="btn" sx={{ mr: 1 }}>Back</Button>
           <Button onClick={resetView} className="btn">Reset View</Button>
         </div>
       </div>

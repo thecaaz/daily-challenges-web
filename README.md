@@ -50,3 +50,16 @@ docker compose up --detach --build
 docker compose down
 docker compose up --build -d
 ```
+
+## Migrations
+
+Database schema changes are managed with Entity Framework Core migrations. There are two convenient ways to create and apply migrations.
+
+- From the repository root (explicit project paths):
+
+```bash
+dotnet ef migrations add <Name> --project backend/DailyChallenges.csproj --startup-project backend/DailyChallenges.csproj
+dotnet ef database update --project backend/DailyChallenges.csproj --startup-project backend/DailyChallenges.csproj
+```
+
+The migration files are created under [backend/Migrations](backend/Migrations). After running `migrations add`, review the generated migration before applying it.

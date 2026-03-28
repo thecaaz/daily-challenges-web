@@ -8,6 +8,9 @@ namespace DailyChallenges.DTOs
         public int GameId { get; set; }
         public int? UserId { get; set; }
         public string Score { get; set; } = string.Empty;
+        public int? ScoreValue { get; set; }
+        // true when this submission is the winning submission for its scoring day
+        public bool IsDayWinner { get; set; }
         public string? Username { get; set; }
         public string? ScreenshotUrl { get; set; }
         public DateTime CreatedAt { get; set; }
