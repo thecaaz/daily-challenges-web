@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link, useLocation } from 'react-router-dom'
+import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
 import api from '../api'
 import SubmissionCard from '../components/SubmissionCard'
@@ -18,47 +18,101 @@ export default function GameSubmissions() {
   const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
 
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => { fetchData() }, [])
+
+  // respond to browser back/forward changes to the scoringDay query param
+  useEffect(() => {
+    const paramDay = searchParams.get('scoringDay') || ''
+    if (paramDay !== selectedDate) {
+      // if param changed externally (history navigation), load that day
+      handleDateChange(paramDay)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  const buildSubmissionsUrl = (pageNum, scoringDay) => {
+    let url = `/submissions/game/${gameId}?page=${pageNum}&pageSize=${pageSize}`
+    if (scoringDay) url += `&scoringDay=${encodeURIComponent(scoringDay)}`
+    return url
+  }
+
+  const fetchSubmissionsPage = async (pageNum, scoringDay) => {
+    const res = await api.get(buildSubmissionsUrl(pageNum, scoringDay))
+    return res.data || { items: [], hasSubmittedForLatest: false, hasMore: false }
+  }
 
   const fetchData = async () => {
     const gres = await api.get('/games')
     const g = gres.data.find(x => String(x.id) === String(gameId))
     setGame(g)
 
-    const sres = await api.get(`/submissions/game/${gameId}?page=1&pageSize=${pageSize}`)
-    const pageResult = sres.data || { items: [], hasSubmittedForLatest: false, hasMore: false }
-    const subs = pageResult.items || []
-    setSubmissions(subs)
-    setPage(1)
-    // Prefer server-provided paging info when available
-    if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
-    else setHasMore(pageResult.hasMore === true)
-
-    const dates = pageResult.availableDates || []
+    // Fetch canonical availableDates from dedicated endpoint, then fetch
+    // an unfiltered submissions page to learn submission flags.
+    let dates = []
+    try {
+      const dr = await api.get(`/submissions/game/${gameId}/available-dates`)
+      dates = dr.data || []
+    } catch (err) {
+      dates = []
+    }
     setAvailableDates(dates)
-    setHasSubmittedForLatest(pageResult.hasSubmittedForLatest === true)
-    // prefer date passed by navigation state
-    const preferred = location?.state?.selectedDate
+
+    const initial = await fetchSubmissionsPage(1)
+    const initialSubs = initial.items || []
+    setHasSubmittedForLatest(initial.hasSubmittedForLatest === true)
+    if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
+    else setHasMore(initial.hasMore === true)
+
+    // prefer date passed by URL query param, then navigation state
+    const preferred = searchParams.get('scoringDay') || location?.state?.selectedDate
     // compute current scoring day (use server-provided when available)
     const currentDay = g?.currentScoringDay ?? ''
-    // If the preferred date is supplied and available, use it. Otherwise,
-    // only auto-select the current scoring day if it actually has submissions;
-    // otherwise leave selection empty (show 'All').
-    if (preferred && dates.includes(preferred)) setSelectedDate(preferred)
-    else if (currentDay && dates.includes(currentDay)) setSelectedDate(currentDay)
-    else setSelectedDate('')
+    let initialSelected = ''
+    if (preferred && dates.includes(preferred)) initialSelected = preferred
+    else if (currentDay && dates.includes(currentDay)) initialSelected = currentDay
+    else initialSelected = ''
+
+    setSelectedDate(initialSelected)
+    setPage(1)
+
+    if (initialSelected) {
+      const dayPage = await fetchSubmissionsPage(1, initialSelected)
+      const subs = dayPage.items || []
+      setSubmissions(subs)
+      if (typeof dayPage.totalPages === 'number') setHasMore(dayPage.page < dayPage.totalPages)
+      else setHasMore(dayPage.hasMore === true)
+      // availableDates is provided by the dedicated endpoint; do not override here.
+    } else {
+      setSubmissions(initialSubs)
+    }
   }
 
   const loadMore = async () => {
     const next = page + 1
-    const res = await api.get(`/submissions/game/${gameId}?page=${next}&pageSize=${pageSize}`)
-    const pageResult = res.data || { items: [], hasMore: false }
+    const pageResult = await fetchSubmissionsPage(next, selectedDate || undefined)
     const more = pageResult.items || []
     setSubmissions(prev => [...prev, ...more])
     setPage(next)
     if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
     else setHasMore(pageResult.hasMore === true)
+  }
+
+  const handleDateChange = async (value) => {
+    // update url param
+    if (value) setSearchParams({ scoringDay: value })
+    else setSearchParams({})
+
+    setSelectedDate(value)
+    setPage(1)
+    setSubmissions([])
+    const pageResult = await fetchSubmissionsPage(1, value || undefined)
+    const subs = pageResult.items || []
+    setSubmissions(subs)
+    if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
+    else setHasMore(pageResult.hasMore === true)
+    // availableDates is provided by the dedicated endpoint; do not override here.
   }
 
 
@@ -92,10 +146,10 @@ export default function GameSubmissions() {
           <Button component={Link} to="/" className="btn" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</Button>
           {(() => {
             const submitDisabled = isViewingLatest && hasSubmittedForLatest
-            return (
+              return (
               <Button
                 component={submitDisabled ? 'span' : Link}
-                to={submitDisabled ? undefined : `/submit/${game.id}`}
+                to={submitDisabled ? undefined : `/submit/${game.id}${location.search || ''}`}
                 className="btn"
                 disabled={submitDisabled}
                 title={submitDisabled ? "You've already submitted for today" : undefined}
@@ -109,7 +163,7 @@ export default function GameSubmissions() {
 
       <FormControl sx={{ mb: 2, minWidth: 200 }}>
         <InputLabel id="date-select-label">Day</InputLabel>
-        <Select labelId="date-select-label" value={selectedDate} label="Day" onChange={e => setSelectedDate(e.target.value)}>
+        <Select labelId="date-select-label" value={selectedDate} label="Day" onChange={e => handleDateChange(e.target.value)}>
           <MenuItem value="">All</MenuItem>
           {availableDates.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
         </Select>
@@ -120,7 +174,7 @@ export default function GameSubmissions() {
               <Typography variant="h6">Today's scores are hidden.</Typography>
               <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
               <div style={{ marginTop: 12 }}>
-                <Button component={Link} to={`/submit/${game.id}`} className="btn">Submit Score</Button>
+                <Button component={Link} to={`/submit/${game.id}${location.search || ''}`} className="btn">Submit Score</Button>
               </div>
             </div>
           ) : (

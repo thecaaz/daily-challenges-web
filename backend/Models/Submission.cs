@@ -21,6 +21,9 @@ namespace DailyChallenges.Models
         [Required]
         public string Score { get; set; } = string.Empty;
 
+        // Numeric score value parsed when the score can be represented as an integer
+        public int? ScoreValue { get; set; }
+
         public string? Username { get; set; }
 
         // Screenshot stored as blob
