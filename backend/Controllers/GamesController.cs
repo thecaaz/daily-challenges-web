@@ -122,5 +122,19 @@ namespace DailyChallenges.Controllers
             if (g == null) return NotFound();
             return Ok(DtoMapper.ToDto(g));
         }
+
+        [HttpGet("{id}/overview")]
+        public async Task<IActionResult> GetOverview(int id, [FromQuery] string? include, [FromQuery] int? top)
+        {
+            try
+            {
+                var dto = await _games.GetOverviewAsync(id, User, include, top ?? 0);
+                return Ok(dto);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
     }
 }
