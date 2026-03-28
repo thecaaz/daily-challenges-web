@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { CardContent, Typography, Tooltip } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import api from '../api'
@@ -9,9 +9,10 @@ export default function SubmissionCard({ submission }) {
   if (!submission) return null
   const { user } = useAuth()
   const apiRoot = api.defaults.baseURL ? api.defaults.baseURL.replace(/\/api\/?$/, '') : 'http://localhost:5000'
+  const location = useLocation()
 
   return (
-    <Link to={`/submission/${submission.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+    <Link to={`/submission/${submission.id}${location.search || ''}`} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div className="card">
         {submission.screenshotUrl && <img className="game-list-image" src={`${apiRoot}${submission.screenshotUrl}`} alt="screenshot" />}
         <CardContent>

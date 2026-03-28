@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link, useLocation } from 'react-router-dom'
+import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
 import api from '../api'
 import SubmissionCard from '../components/SubmissionCard'
@@ -18,8 +18,19 @@ export default function GameSubmissions() {
   const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
 
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => { fetchData() }, [])
+
+  // respond to browser back/forward changes to the scoringDay query param
+  useEffect(() => {
+    const paramDay = searchParams.get('scoringDay') || ''
+    if (paramDay !== selectedDate) {
+      // if param changed externally (history navigation), load that day
+      handleDateChange(paramDay)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const buildSubmissionsUrl = (pageNum, scoringDay) => {
     let url = `/submissions/game/${gameId}?page=${pageNum}&pageSize=${pageSize}`
@@ -46,8 +57,8 @@ export default function GameSubmissions() {
     if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
     else setHasMore(initial.hasMore === true)
 
-    // prefer date passed by navigation state
-    const preferred = location?.state?.selectedDate
+    // prefer date passed by URL query param, then navigation state
+    const preferred = searchParams.get('scoringDay') || location?.state?.selectedDate
     // compute current scoring day (use server-provided when available)
     const currentDay = g?.currentScoringDay ?? ''
     let initialSelected = ''
@@ -64,7 +75,10 @@ export default function GameSubmissions() {
       setSubmissions(subs)
       if (typeof dayPage.totalPages === 'number') setHasMore(dayPage.page < dayPage.totalPages)
       else setHasMore(dayPage.hasMore === true)
-      if (dayPage.availableDates) setAvailableDates(dayPage.availableDates)
+      // Do not overwrite the canonical list of available dates obtained from the
+      // initial unfiltered fetch. Only use the day-specific response if we
+      // didn't get any dates from the unfiltered call.
+      if (dayPage.availableDates && dates.length === 0) setAvailableDates(dayPage.availableDates)
     } else {
       setSubmissions(initialSubs)
     }
@@ -81,6 +95,10 @@ export default function GameSubmissions() {
   }
 
   const handleDateChange = async (value) => {
+    // update url param
+    if (value) setSearchParams({ scoringDay: value })
+    else setSearchParams({})
+
     setSelectedDate(value)
     setPage(1)
     setSubmissions([])
@@ -89,7 +107,9 @@ export default function GameSubmissions() {
     setSubmissions(subs)
     if (typeof pageResult.totalPages === 'number') setHasMore(pageResult.page < pageResult.totalPages)
     else setHasMore(pageResult.hasMore === true)
-    if (pageResult.availableDates) setAvailableDates(pageResult.availableDates)
+    // Preserve the existing canonical availableDates; only populate from the
+    // filtered response if we don't already have a canonical list.
+    if (pageResult.availableDates && availableDates.length === 0) setAvailableDates(pageResult.availableDates)
   }
 
 
@@ -123,10 +143,10 @@ export default function GameSubmissions() {
           <Button component={Link} to="/" className="btn" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</Button>
           {(() => {
             const submitDisabled = isViewingLatest && hasSubmittedForLatest
-            return (
+              return (
               <Button
                 component={submitDisabled ? 'span' : Link}
-                to={submitDisabled ? undefined : `/submit/${game.id}`}
+                to={submitDisabled ? undefined : `/submit/${game.id}${location.search || ''}`}
                 className="btn"
                 disabled={submitDisabled}
                 title={submitDisabled ? "You've already submitted for today" : undefined}
@@ -151,7 +171,7 @@ export default function GameSubmissions() {
               <Typography variant="h6">Today's scores are hidden.</Typography>
               <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
               <div style={{ marginTop: 12 }}>
-                <Button component={Link} to={`/submit/${game.id}`} className="btn">Submit Score</Button>
+                <Button component={Link} to={`/submit/${game.id}${location.search || ''}`} className="btn">Submit Score</Button>
               </div>
             </div>
           ) : (
