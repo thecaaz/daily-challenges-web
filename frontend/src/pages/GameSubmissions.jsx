@@ -44,12 +44,16 @@ export default function GameSubmissions() {
   }
 
   const fetchData = async () => {
-    let gameData = null
-    try {
-      const gres = await api.get(`/games/${gameId}`)
-      gameData = gres.data
-      setGame(gameData)
-    } catch (err) {
+    // Fetch game info, available dates and has-submitted in parallel.
+    const gameReq = api.get(`/games/${gameId}`).catch(e => ({ __error: e }))
+    const datesReq = api.get(`/submissions/game/${gameId}/available-dates`).catch(e => ({ __error: e }))
+    const hasSubmittedReq = api.get(`/submissions/game/${gameId}/has-submitted`).catch(e => ({ __error: e }))
+
+    const [gameRes, datesRes, submittedRes] = await Promise.all([gameReq, datesReq, hasSubmittedReq])
+
+    // Handle game response (404 => not found)
+    if (gameRes && gameRes.__error) {
+      const err = gameRes.__error
       if (err?.response?.status === 404) {
         setNotFound(true)
         return
@@ -57,14 +61,11 @@ export default function GameSubmissions() {
       throw err
     }
 
-    // Fetch canonical availableDates from dedicated endpoint
-    let dates = []
-    try {
-      const dr = await api.get(`/submissions/game/${gameId}/available-dates`)
-      dates = dr.data || []
-    } catch (err) {
-      dates = []
-    }
+    const gameData = gameRes?.data
+    setGame(gameData)
+
+    // available dates may fail independently; fall back to empty list
+    const dates = (datesRes && datesRes.__error) ? [] : (datesRes?.data || [])
     setAvailableDates(dates)
 
     // prefer date passed by URL query param, then navigation state
@@ -79,13 +80,9 @@ export default function GameSubmissions() {
     setSelectedDate(initialSelected)
     setPage(1)
 
-    // lightweight check to see if current user has submitted for latest
-    try {
-      const sres = await api.get(`/submissions/game/${gameId}/has-submitted`)
-      setHasSubmittedForLatest(sres.data?.hasSubmittedForLatest === true)
-    } catch (err) {
-      setHasSubmittedForLatest(false)
-    }
+    // use result of has-submitted when available; fall back to false
+    const hasSubmitted = !(submittedRes && submittedRes.__error) && (submittedRes?.data?.hasSubmittedForLatest === true)
+    setHasSubmittedForLatest(hasSubmitted)
 
     if (initialSelected) {
       const dayPage = await fetchSubmissionsPage(1, initialSelected)
