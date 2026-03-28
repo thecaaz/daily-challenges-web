@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardMedia, Typography, Grid, Button, CardActionArea } from '@mui/material'
 import { Link } from 'react-router-dom'
-import api from '../api'
+import api, { getApiRoot } from '../api'
 
 export default function Games() {
   const [games, setGames] = useState([])
@@ -13,7 +13,7 @@ export default function Games() {
     setGames(res.data)
   }
 
-  const apiRoot = api.defaults.baseURL ? api.defaults.baseURL.replace(/\/api\/?$/, '') : 'http://localhost:5000'
+  const apiRoot = getApiRoot()
 
   return (
     <Grid container spacing={2}>

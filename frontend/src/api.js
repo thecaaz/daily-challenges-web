@@ -39,3 +39,8 @@ api.get = (url, config = {}) => {
 }
 
 export default api
+
+export const getApiRoot = () => {
+  const base = api.defaults.baseURL || 'http://localhost:5000'
+  return base.replace(/\/api\/?$/, '')
+}
