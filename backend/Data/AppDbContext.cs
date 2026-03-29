@@ -10,6 +10,7 @@ namespace DailyChallenges.Data
         public DbSet<Game> Games => Set<Game>();
         public DbSet<Submission> Submissions => Set<Submission>();
         public DbSet<User> Users => Set<User>();
+        public DbSet<Models.XpEvent> XpEvents => Set<Models.XpEvent>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -37,6 +38,29 @@ namespace DailyChallenges.Data
             // index submissions by game and scoring day for fast available-dates queries
             modelBuilder.Entity<Submission>()
                 .HasIndex(s => new { s.GameId, s.ScoringDay });
+
+            // XpEvents: FK to User (required), FK to Submission and Game (optional)
+            modelBuilder.Entity<Models.XpEvent>()
+                .HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Models.XpEvent>()
+                .HasOne(e => e.Submission)
+                .WithMany()
+                .HasForeignKey(e => e.SubmissionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Models.XpEvent>()
+                .HasOne(e => e.Game)
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Index for fetching all XP history for a user efficiently
+            modelBuilder.Entity<Models.XpEvent>()
+                .HasIndex(e => new { e.UserId, e.CreatedAt });
         }
     }
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import './gamebar.css'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -6,11 +6,30 @@ import { useAuth } from '../contexts/AuthContext'
 export default function GameBar() {
   const { user, logout } = useAuth()
 
-  // static placeholder values — can be wired to real data later
-  const level = 7
-  const xp = 420
-  const xpForNext = 600
-  const progress = Math.min(100, Math.round((xp / xpForNext) * 100))
+  // Real XP data from the authenticated user object
+  const level = user?.level ?? 1
+  const xpInto = user?.xpIntoLevel ?? 0
+  const xpToNext = user?.xpToNextLevel ?? 100
+  const streak = user?.streak ?? 0
+  const progress = xpToNext > 0 ? Math.min(100, Math.round((xpInto / xpToNext) * 100)) : 0
+
+  // Flash "+N XP" whenever totalXp increases (e.g. after a submission)
+  const prevXpRef = useRef(null)
+  const gainTimerRef = useRef(null)
+  const [gainDisplay, setGainDisplay] = useState(null)
+
+  useEffect(() => {
+    if (!user) { prevXpRef.current = null; return }
+    const current = user.totalXp ?? 0
+    if (prevXpRef.current !== null && current > prevXpRef.current) {
+      const gained = current - prevXpRef.current
+      setGainDisplay(gained)
+      clearTimeout(gainTimerRef.current)
+      gainTimerRef.current = setTimeout(() => setGainDisplay(null), 2500)
+    }
+    prevXpRef.current = current
+    return () => clearTimeout(gainTimerRef.current)
+  }, [user?.totalXp])
 
   return (
     <header className="gamebar">
@@ -25,13 +44,22 @@ export default function GameBar() {
       </div>
 
       <div className="gamebar-right">
-        <div className="xp">
-          <div className="xp-bar-outer">
-            <div className="xp-bar-inner" style={{ width: `${progress}%` }} />
+        {user && (
+          <div className="xp">
+            <div className="xp-bar-wrapper">
+              <div className="xp-bar-outer" aria-label={`XP progress: ${xpInto} of ${xpToNext}`} aria-valuenow={progress} role="progressbar">
+                <div className="xp-bar-inner" style={{ width: `${progress}%` }} />
+              </div>
+              {gainDisplay && (
+                <span className="xp-gain" key={gainDisplay + Date.now()}>+{gainDisplay} XP</span>
+              )}
+            </div>
+            <div className="xp-meta muted">
+              Level <strong>{level}</strong> &bull; {xpInto.toLocaleString()}/{xpToNext.toLocaleString()} XP
+              {streak > 1 && <span className="xp-streak"> &nbsp;🔥 {streak}</span>}
+            </div>
           </div>
-          <div className="xp-meta muted">Level <strong>{level}</strong> • {xp}/{xpForNext} XP</div>
-        </div>
-        <div className="coins badge">💎 128</div>
+        )}
         <div style={{ marginLeft: 12 }}>
           {user ? (
             <>
@@ -49,3 +77,4 @@ export default function GameBar() {
     </header>
   )
 }
+

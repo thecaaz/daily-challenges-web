@@ -1,5 +1,6 @@
 using DailyChallenges.Data;
 using DailyChallenges.DTOs;
+using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -14,12 +15,14 @@ namespace DailyChallenges.Services
         private readonly AppDbContext _db;
         private readonly IConfiguration _config;
         private readonly IWebHostEnvironment _env;
+        private readonly LevelCalculator _levelCalc;
 
-        public AuthService(AppDbContext db, IConfiguration config, IWebHostEnvironment env)
+        public AuthService(AppDbContext db, IConfiguration config, IWebHostEnvironment env, LevelCalculator levelCalc)
         {
             _db = db;
             _config = config;
             _env = env;
+            _levelCalc = levelCalc;
         }
 
         public async Task<UserDto> RegisterAsync(string username, string password)
@@ -32,7 +35,7 @@ namespace DailyChallenges.Services
             var user = new User { Username = username, PasswordHash = hash, IsAdmin = isFirstUser };
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
-            return new UserDto { Id = user.Id, Username = user.Username, IsAdmin = user.IsAdmin };
+            return DtoMapper.ToDto(user, _levelCalc);
         }
 
         public async Task<UserDto> LoginAsync(string username, string password, HttpResponse response)
@@ -54,7 +57,7 @@ namespace DailyChallenges.Services
                 Expires = DateTimeOffset.UtcNow.AddDays(expiresDays)
             });
 
-            return new UserDto { Id = user.Id, Username = user.Username, IsAdmin = user.IsAdmin };
+            return DtoMapper.ToDto(user, _levelCalc);
         }
 
         public Task LogoutAsync(HttpResponse response)
@@ -71,7 +74,7 @@ namespace DailyChallenges.Services
             if (!int.TryParse(idClaim, out var id)) return null;
             var u = await _db.Users.FindAsync(id);
             if (u == null) return null;
-            return new UserDto { Id = u.Id, Username = u.Username, IsAdmin = u.IsAdmin };
+            return DtoMapper.ToDto(u, _levelCalc);
         }
 
         private string GenerateJwtToken(User user)

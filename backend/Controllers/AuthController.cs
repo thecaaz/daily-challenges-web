@@ -19,7 +19,7 @@ namespace DailyChallenges.Controllers
             try
             {
                 var u = await _auth.RegisterAsync(dto.Username, dto.Password);
-                return Ok(new { id = u.Id, username = u.Username, isAdmin = u.IsAdmin });
+                return Ok(u);
             }
             catch (InvalidOperationException ex)
             {
@@ -33,7 +33,7 @@ namespace DailyChallenges.Controllers
             try
             {
                 var u = await _auth.LoginAsync(dto.Username, dto.Password, Response);
-                return Ok(new { id = u.Id, username = u.Username, isAdmin = u.IsAdmin });
+                return Ok(u);
             }
             catch (UnauthorizedAccessException)
             {
@@ -53,7 +53,7 @@ namespace DailyChallenges.Controllers
         {
             var u = await _auth.GetCurrentUserAsync(User);
             if (u == null) return Unauthorized();
-            return Ok(new { id = u.Id, username = u.Username, isAdmin = u.IsAdmin });
+            return Ok(u);
         }
 
         // JWT generation moved to AuthService

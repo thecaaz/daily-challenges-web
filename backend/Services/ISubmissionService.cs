@@ -9,7 +9,8 @@ namespace DailyChallenges.Services
         Task<List<SubmissionDto>> GetUnfilteredByGameAsync(int gameId);
         Task<List<string>> GetAvailableDatesAsync(int gameId);
         Task<(byte[]? Data, string? ContentType)> GetScreenshotAsync(int id);
-        Task<SubmissionDto> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user);
+        /// <returns>Tuple of the created SubmissionDto and the XP awarded (0 for anonymous users).</returns>
+        Task<(SubmissionDto Dto, int XpGain)> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user);
         Task<SubmissionDto?> GetByIdAsync(int id);
         Task<SubmissionDto> UpdateAsync(int id, string? score);
         Task DeleteAsync(int id);
