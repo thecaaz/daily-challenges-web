@@ -39,11 +39,8 @@ namespace DailyChallenges.Services
             // If caller hasn't submitted today and caller didn't request a specific scoringDay, hide current-day submissions
             var filteredAll = scoringDay.HasValue ? allItems : FilterSubmissionsForVisibility(allItems, hasSubmittedForLatest, game, currentDay);
 
-            // Compute scoring day for each submission and determine winners per day using ScoreValue (numeric only)
-            var resetTime = game?.ResetTime ?? TimeSpan.Zero;
-            var resetTz = game?.ResetTimezoneId ?? "UTC";
-
-            var scored = filteredAll.Select(s => new { Submission = s, Day = ScoringDayHelper.GetScoringDay(s.CreatedAt, resetTime, resetTz) }).ToList();
+            // Use persisted ScoringDay for each submission and determine winners per day using ScoreValue (numeric only)
+            var scored = filteredAll.Select(s => new { Submission = s, Day = s.ScoringDay.Date }).ToList();
 
             var winnersByDay = new Dictionary<DateTime, Submission>();
             foreach (var group in scored.GroupBy(x => x.Day))
@@ -65,8 +62,8 @@ namespace DailyChallenges.Services
             var mapped = pageSubmissions.Select(s =>
             {
                 var dto = DtoMapper.ToDto(s);
-                var day = ScoringDayHelper.GetScoringDay(s.CreatedAt, resetTime, resetTz);
-                dto.ScoringDay = day.ToString("yyyy-MM-dd");
+                dto.ScoringDay = s.ScoringDay.Date.ToString("yyyy-MM-dd");
+                var day = s.ScoringDay.Date;
                 dto.IsDayWinner = winnersByDay.TryGetValue(day, out var w) && w.Id == s.Id;
                 return dto;
             }).ToList();
@@ -104,14 +101,13 @@ namespace DailyChallenges.Services
             if (!userId.HasValue) return false;
             var latest = await _subs.GetByGameAndUserAsync(gameId, userId.Value);
             if (latest == null) return false;
-            var exDay = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
-            return exDay == currentDay;
+            return latest.ScoringDay.Date == currentDay;
         }
 
         private List<Submission> FilterSubmissionsForVisibility(List<Submission> subs, bool hasSubmittedToday, Game? game, DateTime currentDay)
         {
             if (hasSubmittedToday) return subs;
-            return subs.Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC") != currentDay).ToList();
+            return subs.Where(s => s.ScoringDay.Date != currentDay).ToList();
         }
 
         private List<SubmissionDto> MapAndAnnotate(List<Submission> subs, Game? game)
@@ -119,7 +115,7 @@ namespace DailyChallenges.Services
             return subs.Select(s =>
             {
                 var dto = DtoMapper.ToDto(s);
-                dto.ScoringDay = ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC").ToString("yyyy-MM-dd");
+                dto.ScoringDay = s.ScoringDay.Date.ToString("yyyy-MM-dd");
                 return dto;
             }).ToList();
         }
@@ -181,14 +177,7 @@ namespace DailyChallenges.Services
 
             if (userId.HasValue && !string.IsNullOrEmpty(user.Identity?.Name)) submission.Username = user.Identity.Name;
             // Compute and persist scoring day at write time so reads can query it directly.
-            try
-            {
-                submission.ScoringDay = ScoringDayHelper.GetScoringDay(submission.CreatedAt, game.ResetTime, game.ResetTimezoneId);
-            }
-            catch
-            {
-                submission.ScoringDay = null;
-            }
+            submission.ScoringDay = ScoringDayHelper.GetScoringDay(submission.CreatedAt, game.ResetTime, game.ResetTimezoneId);
 
             var created = await _subs.CreateAsync(submission);
             return DtoMapper.ToDto(created);

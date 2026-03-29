@@ -55,8 +55,6 @@ builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenge
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
 builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionService, DailyChallenges.Services.SubmissionService>();
-// Backfill helper
-builder.Services.AddScoped<DailyChallenges.Services.SubmissionScoringBackfill>();
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? string.Empty;
@@ -116,50 +114,6 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
-
-    // Run a batched backfill on startup until all submissions have ScoringDay populated.
-    try
-    {
-        var backfill = scope.ServiceProvider.GetService<SubmissionScoringBackfill>();
-        if (backfill != null)
-        {
-            var loggerFactory = scope.ServiceProvider.GetService<ILoggerFactory>();
-            var logger = loggerFactory?.CreateLogger("StartupBackfill");
-            logger?.LogInformation("Starting ScoringDay backfill on startup...");
-
-            int totalUpdated = 0;
-            const int batchSize = 500;
-            while (true)
-            {
-                int updated;
-                try
-                {
-                    updated = backfill.BackfillBatchAsync(batchSize).GetAwaiter().GetResult();
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogError(ex, "Error during ScoringDay backfill");
-                    break;
-                }
-
-                totalUpdated += updated;
-                logger?.LogInformation("Backfill batch updated {Updated} rows", updated);
-                if (updated == 0) break;
-
-                // Small pause between batches to reduce load
-                Thread.Sleep(100);
-            }
-
-            logger?.LogInformation("ScoringDay backfill complete. Total updated: {Total}", totalUpdated);
-        }
-    }
-    catch (Exception ex)
-    {
-        // Don't prevent app startup for backfill failures; log and continue.
-        var loggerFactory = scope.ServiceProvider.GetService<ILoggerFactory>();
-        var logger = loggerFactory?.CreateLogger("StartupBackfill");
-        logger?.LogError(ex, "Unhandled exception during scoring-day startup backfill");
-    }
 }
 
 app.Run();

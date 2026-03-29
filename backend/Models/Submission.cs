@@ -31,8 +31,7 @@ namespace DailyChallenges.Models
         public string? ScreenshotContentType { get; set; }
 
         // Date-only scoring day calculated based on the game's reset time/timezone.
-        // Nullable initially to support a two-phase migration/backfill.
-        public DateTime? ScoringDay { get; set; }
+        public DateTime ScoringDay { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
