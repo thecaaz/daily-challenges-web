@@ -194,7 +194,6 @@ export default function GameSubmissions() {
               <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
               <div style={{ marginTop: 12 }}>
                 <Button component={Link} to={`/submit/${game.id}${location.search || ''}`} className="btn">Submit Score</Button>
-                <Button sx={{ ml: 2 }} onClick={() => handleDateChange(currentScoringDay)} className="btn">Show today's submissions</Button>
               </div>
             </div>
           ) : (
