@@ -1,5 +1,5 @@
 ---
-title: Ensure UI tests pass (Playwright e2e)
+name: Ensure UI tests pass (Playwright e2e)
 description: |
   Run, diagnose, and fix Playwright UI (e2e) tests for this repository. This prompt
   guides an agent to run the provided CI script (`tests/e2e/run-ci.ps1`), inspect
