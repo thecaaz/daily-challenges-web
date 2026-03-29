@@ -49,9 +49,9 @@ namespace DailyChallenges.Services
 
                 if (scoringDate == lastDate)
                 {
-                    // Same scoring day already accounted for (defensive; should not occur with
-                    // the one-submission-per-day enforcement, but be safe).
-                    return 0;
+                    // Same scoring day (different game): award XP but keep the existing streak
+                    // unchanged — the streak has already been accounted for this day.
+                    newStreak = user.Streak;
                 }
                 else if (scoringDate == lastDate.AddDays(1))
                 {
@@ -75,7 +75,10 @@ namespace DailyChallenges.Services
             user.TotalXp += xpAwarded;
             user.Level = _levelCalc.GetLevelFromTotalXp(user.TotalXp);
             user.Streak = newStreak;
-            user.LastSubmissionAt = scoringDate;
+            // Only advance LastSubmissionAt when the scoring day is newer, so that same-day
+            // submissions for different games do not accidentally re-trigger streak logic.
+            if (user.LastSubmissionAt == null || scoringDate > user.LastSubmissionAt.Value.Date)
+                user.LastSubmissionAt = scoringDate;
 
             // --- Stamp submission ---
             var submission = await _db.Submissions.FindAsync(submissionId);

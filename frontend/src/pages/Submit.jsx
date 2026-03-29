@@ -71,10 +71,25 @@ export default function Submit() {
       const res = await api.post('/submissions', fd)
       const { submission, xpGain } = res.data
 
-      // Refresh user context so GameBar reflects the new XP/level immediately.
-      await fetchMe()
+      // Capture current level before refreshing, so we can detect a level-up.
+      const prevLevel = user?.level ?? 1
 
-      if (xpGain > 0) {
+      // Refresh user context so GameBar reflects the new XP/level immediately.
+      const updatedUser = await fetchMe()
+
+      const leveledUp = updatedUser && updatedUser.level > prevLevel
+
+      if (leveledUp) {
+        // Re-fetch once more to ensure xpIntoLevel / xpToNextLevel reflect the new
+        // level's range after the level-up boundary was crossed.
+        await fetchMe()
+        showSnackbar(
+          xpGain > 0
+            ? `Submitted! +${xpGain} XP ⬆️ Level ${updatedUser.level}!`
+            : `Level ${updatedUser.level}!`,
+          'success'
+        )
+      } else if (xpGain > 0) {
         showSnackbar(`Submitted! +${xpGain} XP`, 'success')
       } else {
         showSnackbar('Submitted!', 'success')
