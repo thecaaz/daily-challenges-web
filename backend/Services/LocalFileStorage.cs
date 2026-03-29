@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace DailyChallenges.Services
 {
     // Simple implementation that reads the file into memory and returns bytes.

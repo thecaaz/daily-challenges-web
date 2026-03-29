@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using DailyChallenges.Models;
 
 namespace DailyChallenges.Repositories

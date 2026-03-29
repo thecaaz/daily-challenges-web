@@ -1,5 +1,4 @@
 using DailyChallenges.DTOs;
-using Microsoft.AspNetCore.Http;
 
 namespace DailyChallenges.Services
 {

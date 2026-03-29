@@ -2,10 +2,7 @@
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
-using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
-using System;
-using System.Linq;
 
 namespace DailyChallenges.Services
 {

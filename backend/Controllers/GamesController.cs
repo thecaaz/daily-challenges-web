@@ -1,12 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using DailyChallenges.Data;
-using DailyChallenges.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
-using DailyChallenges.Repositories;
-using System.Text.RegularExpressions;
-using System.Globalization;
-using System.Security.Claims;
 using DailyChallenges.Mapping;
 
 namespace DailyChallenges.Controllers
