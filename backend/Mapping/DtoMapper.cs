@@ -1,10 +1,29 @@
 using DailyChallenges.DTOs;
 using DailyChallenges.Models;
+using DailyChallenges.Services;
 
 namespace DailyChallenges.Mapping
 {
     public static class DtoMapper
     {
+        /// <summary>Maps a User entity to a UserDto, computing XP-into-level and XP-to-next-level.</summary>
+        public static UserDto ToDto(User u, LevelCalculator levelCalc)
+        {
+            var (level, xpInto, xpToNext) = levelCalc.GetLevelInfo(u.TotalXp);
+            return new UserDto
+            {
+                Id = u.Id,
+                Username = u.Username,
+                IsAdmin = u.IsAdmin,
+                TotalXp = u.TotalXp,
+                Level = level,
+                XpIntoLevel = xpInto,
+                XpToNextLevel = xpToNext,
+                Streak = u.Streak,
+                LastSubmissionAt = u.LastSubmissionAt
+            };
+        }
+
         public static SubmissionDto ToDto(Submission s)
         {
             return new SubmissionDto

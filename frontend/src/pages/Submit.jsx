@@ -18,7 +18,7 @@ export default function Submit() {
   const [previewUrl, setPreviewUrl] = useState(null)
 
   useEffect(() => { fetchGame() }, [])
-  const { user, loading } = useAuth()
+  const { user, loading, fetchMe } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -69,10 +69,36 @@ export default function Submit() {
     if (screenshot) fd.append('screenshot', screenshot)
     try {
       const res = await api.post('/submissions', fd)
-      const created = res.data
-      showSnackbar('Submitted', 'success')
-      // navigate to the game's submissions and select the submission day via query param
-      const date = created?.createdAt ? parseUtcDate(created.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      const { submission, xpGain } = res.data
+
+      // Capture current level before refreshing, so we can detect a level-up.
+      const prevLevel = user?.level ?? 1
+
+      // Refresh user context so GameBar reflects the new XP/level immediately.
+      const updatedUser = await fetchMe()
+
+      const leveledUp = updatedUser && updatedUser.level > prevLevel
+
+      if (leveledUp) {
+        // Re-fetch once more to ensure xpIntoLevel / xpToNextLevel reflect the new
+        // level's range after the level-up boundary was crossed.
+        await fetchMe()
+        showSnackbar(
+          xpGain > 0
+            ? `Submitted! +${xpGain} XP ⬆️ Level ${updatedUser.level}!`
+            : `Level ${updatedUser.level}!`,
+          'success'
+        )
+      } else if (xpGain > 0) {
+        showSnackbar(`Submitted! +${xpGain} XP`, 'success')
+      } else {
+        showSnackbar('Submitted!', 'success')
+      }
+
+      // Navigate to the game's submissions filtered by the new submission's scoring day.
+      const date = submission?.createdAt
+        ? parseUtcDate(submission.createdAt).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0]
       navigate(`/games/${gameId}?scoringDay=${date}`)
     } catch (err) {
       // Prefer backend-provided message when available

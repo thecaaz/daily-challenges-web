@@ -77,8 +77,9 @@ namespace DailyChallenges.Controllers
         {
             try
             {
-                var created = await _subs.CreateAsync(gameId, score, username, screenshot, User);
-                return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, created);
+                var (submissionDto, xpGain) = await _subs.CreateAsync(gameId, score, username, screenshot, User);
+                var response = new { submission = submissionDto, xpGain };
+                return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, response);
             }
             catch (InvalidOperationException ex)
             {

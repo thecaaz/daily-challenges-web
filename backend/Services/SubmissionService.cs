@@ -1,4 +1,5 @@
-﻿using DailyChallenges.DTOs;
+﻿using DailyChallenges.Data;
+using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
@@ -11,12 +12,21 @@ namespace DailyChallenges.Services
         private readonly ISubmissionRepository _subs;
         private readonly IGameRepository _games;
         private readonly IFileStorage _files;
+        private readonly IXpService _xp;
+        private readonly AppDbContext _db;
 
-        public SubmissionService(ISubmissionRepository subs, IGameRepository games, IFileStorage files)
+        public SubmissionService(
+            ISubmissionRepository subs,
+            IGameRepository games,
+            IFileStorage files,
+            IXpService xp,
+            AppDbContext db)
         {
             _subs = subs;
             _games = games;
             _files = files;
+            _xp = xp;
+            _db = db;
         }
 
         public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, DateTime? scoringDay = null, int page = 1, int pageSize = 50)
@@ -135,7 +145,7 @@ namespace DailyChallenges.Services
                 .ToList();
         }
 
-        public async Task<SubmissionDto> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user)
+        public async Task<(SubmissionDto Dto, int XpGain)> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user)
         {
             var game = await _games.GetByIdAsync(gameId);
             if (game == null) throw new InvalidOperationException("invalid gameId");
@@ -168,8 +178,25 @@ namespace DailyChallenges.Services
             // Compute and persist scoring day at write time so reads can query it directly.
             submission.ScoringDay = ScoringDayHelper.GetScoringDay(submission.CreatedAt, game.ResetTime, game.ResetTimezoneId);
 
-            var created = await _subs.CreateAsync(submission);
-            return DtoMapper.ToDto(created);
+            // Wrap submission creation and XP award in a single DB transaction so both
+            // succeed or both roll back together.
+            await using var tx = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var created = await _subs.CreateAsync(submission);
+
+                int xpGain = 0;
+                if (userId.HasValue)
+                    xpGain = await _xp.AwardForSubmissionAsync(userId.Value, created.Id, created.ScoringDay);
+
+                await tx.CommitAsync();
+                return (DtoMapper.ToDto(created), xpGain);
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<SubmissionDto?> GetByIdAsync(int id)

@@ -46,6 +46,15 @@ builder.Services.AddCors(options => options.AddPolicy("DefaultCors", b =>
 builder.Services.AddScoped<DailyChallenges.Repositories.IGameRepository, DailyChallenges.Repositories.EfGameRepository>();
 builder.Services.AddScoped<DailyChallenges.Repositories.ISubmissionRepository, DailyChallenges.Repositories.EfSubmissionRepository>();
 
+// XP system
+builder.Services.Configure<DailyChallenges.Services.XpConfig>(builder.Configuration.GetSection("Xp"));
+builder.Services.AddSingleton(sp =>
+{
+    var cfg = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<DailyChallenges.Services.XpConfig>>().Value;
+    return new DailyChallenges.Services.LevelCalculator(cfg.LevelBase, cfg.LevelExponent);
+});
+builder.Services.AddScoped<DailyChallenges.Services.IXpService, DailyChallenges.Services.XpService>();
+
 // Register services
 builder.Services.AddScoped<DailyChallenges.Services.IAuthService, DailyChallenges.Services.AuthService>();
 builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenges.Services.LocalFileStorage>();
