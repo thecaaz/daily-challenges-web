@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { TextField, Button, Stack, Typography } from '@mui/material'
 import api from '../api'
+import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -71,7 +72,7 @@ export default function Submit() {
       const created = res.data
       showSnackbar('Submitted', 'success')
       // navigate to the game's submissions and select the submission day via query param
-      const date = created?.createdAt ? new Date(created.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      const date = created?.createdAt ? parseUtcDate(created.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       navigate(`/games/${gameId}?scoringDay=${date}`)
     } catch (err) {
       // Prefer backend-provided message when available

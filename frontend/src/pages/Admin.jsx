@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { TextField, Button, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
+import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
 import EditIcon from '@mui/icons-material/Edit'
@@ -210,7 +211,7 @@ export default function Admin() {
                 <TableCell>
                   <input value={s.score ?? ''} onChange={e => setSubmissions(submissions.map(x => x.id === s.id ? { ...x, score: e.target.value } : x))} />
                 </TableCell>
-                <TableCell>{new Date(s.createdAt).toLocaleString()}</TableCell>
+                <TableCell>{parseUtcDate(s.createdAt).toLocaleString()}</TableCell>
                 <TableCell>
                   <Button onClick={() => updateSubmission(s)}>Save</Button>
                   <Button color="error" onClick={() => deleteSubmission(s.id)}>Delete</Button>

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { CardContent, Typography, Tooltip } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import api, { getApiRoot } from '../api'
+import parseUtcDate from '../utils/parseUtcDate'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function SubmissionCard({ submission }) {
@@ -31,7 +32,7 @@ export default function SubmissionCard({ submission }) {
             <div className="badge">#{submission.rank ?? ''}</div>
           </div>
           <Typography variant="h6">{submission.score}</Typography>
-          <Typography variant="caption">{new Date(submission.createdAt).toLocaleString()}</Typography>
+          <Typography variant="caption">{parseUtcDate(submission.createdAt).toLocaleString()}</Typography>
         </CardContent>
       </div>
     </Link>
