@@ -3,6 +3,7 @@ import { Routes, Route, Link } from 'react-router-dom'
 import { Container, Button, Typography } from '@mui/material'
 import Games from './pages/Games'
 import Admin from './pages/Admin'
+import AdminUsers from './pages/AdminUsers'
 import Submit from './pages/Submit'
 import SubmissionDetail from './pages/SubmissionDetail'
 import GameSubmissions from './pages/GameSubmissions'
@@ -20,6 +21,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Games />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/submit/:gameId" element={<Submit />} />

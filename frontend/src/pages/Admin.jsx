@@ -47,6 +47,8 @@ export default function Admin() {
   const navigate = useNavigate()
   const { user, loading } = useAuth()
 
+  const goUsers = () => navigate('/admin/users')
+
   if (!loading && (!user || !user.isAdmin)) {
     navigate('/')
     return null
@@ -133,6 +135,9 @@ export default function Admin() {
 
   return (
     <>
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+      <Button variant="contained" onClick={goUsers} sx={{ mb: 2 }}>Manage Users</Button>
+    </div>
     <form onSubmit={submit}>
       <Stack spacing={2} maxWidth={400}>
         <TextField label="Game name" value={name} onChange={e => setName(e.target.value)} required />
