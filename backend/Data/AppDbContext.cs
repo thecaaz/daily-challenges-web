@@ -33,6 +33,10 @@ namespace DailyChallenges.Data
             // index for queries ordering/filtering by creation time per game
             modelBuilder.Entity<Submission>()
                 .HasIndex(s => new { s.GameId, s.CreatedAt });
+
+            // index submissions by game and scoring day for fast available-dates queries
+            modelBuilder.Entity<Submission>()
+                .HasIndex(s => new { s.GameId, s.ScoringDay });
         }
     }
 }

@@ -33,32 +33,19 @@ namespace DailyChallenges.Repositories
 
         public async Task<List<DateTime>> GetAvailableDatesAsync(int gameId)
         {
-            var game = await _db.Games.FindAsync(gameId);
-            var resetTime = game?.ResetTime ?? TimeSpan.Zero;
-            var resetTz = game?.ResetTimezoneId ?? "UTC";
-
-            var createdAtList = await _db.Submissions
+            var dates = await _db.Submissions
                 .Where(s => s.GameId == gameId)
                 .AsNoTracking()
-                .Select(s => s.CreatedAt)
-                .Distinct()
-                .ToListAsync();
-
-            var availableDates = createdAtList
-                .Select(createdAt => Services.ScoringDayHelper.GetScoringDay(createdAt, resetTime, resetTz))
+                .Select(s => s.ScoringDay)
                 .Distinct()
                 .OrderByDescending(d => d)
-                .ToList();
+                .ToListAsync();
 
-            return availableDates;
+            return dates;
         }
 
         public async Task<(List<Submission> Items, int TotalCount, List<DateTime> AvailableDates)> GetByGameFilteredAsync(int gameId, int page, int pageSize, string? search, DateTime? scoringDay)
         {
-            var game = await _db.Games.FindAsync(gameId);
-            var resetTime = game?.ResetTime ?? TimeSpan.Zero;
-            var resetTz = game?.ResetTimezoneId ?? "UTC";
-
             IQueryable<Submission> q = _db.Submissions.Where(s => s.GameId == gameId);
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -74,22 +61,25 @@ namespace DailyChallenges.Repositories
                 }
             }
 
-            var all = await q.OrderByDescending(s => s.CreatedAt).AsNoTracking().ToListAsync();
-
-            var scored = all.Select(s => new { Submission = s, Day = Services.ScoringDayHelper.GetScoringDay(s.CreatedAt, resetTime, resetTz) }).ToList();
-
             if (scoringDay.HasValue)
             {
                 var target = scoringDay.Value.Date;
-                scored = scored.Where(x => x.Day == target).ToList();
+                q = q.Where(s => s.ScoringDay == target);
             }
 
-            var availableDates = scored.Select(x => x.Day).Distinct().OrderByDescending(d => d).ToList();
-            var total = scored.Count;
+            var total = await q.CountAsync();
 
             if (page < 1) page = 1;
             var skip = (page - 1) * pageSize;
-            var items = scored.Skip(skip).Take(pageSize).Select(x => x.Submission).ToList();
+            var items = await q.OrderByDescending(s => s.CreatedAt).AsNoTracking().Skip(skip).Take(pageSize).ToListAsync();
+
+            var availableDates = await _db.Submissions
+                .Where(s => s.GameId == gameId)
+                .AsNoTracking()
+                .Select(s => s.ScoringDay)
+                .Distinct()
+                .OrderByDescending(d => d)
+                .ToListAsync();
 
             return (items, total, availableDates);
         }
