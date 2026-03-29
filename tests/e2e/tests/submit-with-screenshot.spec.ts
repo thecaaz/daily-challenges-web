@@ -5,7 +5,7 @@ import { loginAsAdmin, createGame } from '../test-utils'
 test('submit a score with screenshot via UI', async ({ page }) => {
   await loginAsAdmin(page)
 
-  const { gameId } = await createGame(page)
+  const { gameId } = await createGame(page, undefined, { navigateToGame: false })
 
   await page.goto(`/submit/${gameId}`)
   await expect(page.locator('text=Submit for')).toBeVisible()

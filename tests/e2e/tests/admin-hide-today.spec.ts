@@ -15,7 +15,7 @@ test('admin cannot see today\'s scores if he has not submitted yet', async ({ pa
   await page.fill('input[type="time"]', '00:00')
   // Click create and wait for the backend response; assert successful status
   const [createResp] = await Promise.all([
-    page.waitForResponse(resp => resp.url().endsWith('/api/games')),
+    page.waitForResponse(resp => resp.url().includes('/api/games')),
     page.click('button:has-text("Create Game")')
   ])
   const status = createResp.status()
@@ -24,7 +24,7 @@ test('admin cannot see today\'s scores if he has not submitted yet', async ({ pa
   // Navigate to home and click the created game to get to its page
   await page.waitForTimeout(500) // wait for SPA update after game creation
   await page.goto('/')
-  await page.click(`text=${gameName}`)
+  await page.getByRole('link', { name: gameName }).click({ timeout: 10000 })
   // Now we should be on /games/:id
   const url = page.url()
   const match = url.match(/\/games\/(\d+)/)

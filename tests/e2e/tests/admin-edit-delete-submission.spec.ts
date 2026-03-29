@@ -4,7 +4,7 @@ import { loginAsAdmin, loginAsUser, createGame } from '../test-utils'
 test('admin can edit and delete a submission via admin UI', async ({ page }) => {
   // Login as admin and create a game via UI
   await loginAsAdmin(page)
-  const { gameId, gameName } = await createGame(page)
+  const { gameId, gameName } = await createGame(page, undefined, { navigateToGame: false })
 
   // Logout admin and create a submission as a normal user (capture created id)
   await page.click('button:has-text("Logout")')

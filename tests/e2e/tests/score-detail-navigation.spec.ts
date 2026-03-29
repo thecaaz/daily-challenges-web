@@ -6,7 +6,7 @@ test.setTimeout(60_000)
 
 test('clicking a score navigates to submission detail', async ({ page }) => {
   await loginAsAdmin(page)
-  const { gameId } = await createGame(page)
+  const { gameId } = await createGame(page, undefined, { navigateToGame: false })
 
   // Go to submit page
   await page.goto(`/submit/${gameId}`)

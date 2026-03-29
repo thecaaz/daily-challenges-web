@@ -92,8 +92,9 @@ export async function loginAsUser(page: Page, verifyRole = true) {
   return login(page, 'user', { verifyRole })
 }
 
-export async function createGame(page: Page, providedName?: string) {
+export async function createGame(page: Page, providedName?: string, options?: { navigateToGame?: boolean }) {
   const gameName = providedName ?? `e2e-game-${Date.now()}-${randomUUID()}`
+  const navigateToGame = options?.navigateToGame !== false
   await page.goto('/admin')
   await expect(page.locator('text=Manage Games')).toBeVisible()
 
@@ -103,25 +104,35 @@ export async function createGame(page: Page, providedName?: string) {
   await page.fill('input[type="time"]', '00:00')
 
   const [resp] = await Promise.all([
-    page.waitForResponse(r => r.url().endsWith('/api/games') && (r.status() === 200 || r.status() === 201)),
+    page.waitForResponse(r => r.url().includes('/api/games') && (r.status() === 200 || r.status() === 201)),
     page.click('button:has-text("Create Game")')
   ])
   expect([200, 201]).toContain(resp.status())
 
   // Wait for SPA update after game creation then navigate via UI-only flow.
   await page.waitForTimeout(200)
+  // Parse the POST response body if available (created game DTO)
+  let createdBody: any = null
+  try { createdBody = await resp.json() } catch {}
+  const createdId = createdBody?.id ?? createdBody?.Id ?? createdBody?.gameId ?? createdBody?.GameId
+
+  // If the caller doesn't want to navigate to the created game's page, return the created id (if available)
+  if (!navigateToGame) {
+    return { gameId: String(createdId), gameName }
+  }
+
+  // If we have the created id, directly navigate to the game's page to avoid relying on a separate list GET
+  if (createdId) {
+    await page.goto(`/games/${createdId}`)
+    return { gameId: String(createdId), gameName }
+  }
+
+  // Fallback: navigate to home and click the visible link to reach the game's page
   await page.goto('/')
-
-  // Ensure the games list has loaded from the API before searching for the created item
-  await page.waitForResponse(r => r.url().endsWith('/api/games') && r.request().method() === 'GET')
-
-  // Find the public listing link that contains the game's name and click it.
-  // Use a generous timeout to allow the listing to update/render.
+  await page.waitForResponse(r => r.url().includes('/api/games') && r.request().method() === 'GET')
   const gameLink = page.locator(`a:has-text("${gameName}")`).first()
   await expect(gameLink).toBeVisible({ timeout: 15000 })
   await gameLink.click()
-
-  // Determine the created game id from the navigation URL (read-only).
   const url = page.url()
   const match = url.match(/\/games\/(\d+)/)
   if (!match) throw new Error('could not determine game id from URL: ' + url)
