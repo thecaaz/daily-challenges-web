@@ -14,40 +14,22 @@ namespace DailyChallenges.Controllers
     [Authorize(Roles = "Admin")]
     public class AdminUsersController : ControllerBase
     {
-        private readonly AppDbContext _db;
-        private readonly IXpService _xpService;
-        private readonly LevelCalculator _levelCalc;
+        private readonly IAdminUserService _adminService;
 
-        public AdminUsersController(AppDbContext db, IXpService xpService, LevelCalculator levelCalc)
+        public AdminUsersController(IAdminUserService adminService)
         {
-            _db = db;
-            _xpService = xpService;
-            _levelCalc = levelCalc;
+            _adminService = adminService;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 50;
-
-            var q = _db.Users.AsQueryable();
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                q = q.Where(u => u.Username.Contains(search));
-            }
-
-            var total = await q.CountAsync();
-            var users = await q.OrderBy(u => u.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-
-            var items = users.Select(u => DtoMapper.ToDto(u, _levelCalc)).ToList();
+            var (items, total) = await _adminService.GetUsersAsync(page, pageSize, search);
             return Ok(new { items, totalCount = total });
         }
 
-        public record AdjustXpDto(int Delta, string? Reason);
-
         [HttpPost("{id}/xp")]
-        public async Task<IActionResult> AdjustXp(int id, [FromBody] AdjustXpDto dto)
+        public async Task<IActionResult> AdjustXp(int id, [FromBody] DailyChallenges.DTOs.AdminAdjustXpDto dto)
         {
             if (dto == null) return BadRequest();
             if (dto.Delta == 0) return BadRequest(new { message = "Delta must be non-zero" });
@@ -58,10 +40,8 @@ namespace DailyChallenges.Controllers
 
             try
             {
-                await _xpService.AdjustXpAsync(id, dto.Delta, dto.Reason ?? "admin_adjustment", adminId);
-                var user = await _db.Users.FindAsync(id);
-                if (user == null) return NotFound();
-                return Ok(DtoMapper.ToDto(user, _levelCalc));
+                var updated = await _adminService.AdjustXpAsync(id, dto.Delta, dto.Reason, adminId);
+                return Ok(updated);
             }
             catch (KeyNotFoundException ex)
             {

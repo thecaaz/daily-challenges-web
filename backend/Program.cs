@@ -55,6 +55,9 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.AddScoped<DailyChallenges.Services.IXpService, DailyChallenges.Services.XpService>();
 
+// Admin users service
+builder.Services.AddScoped<DailyChallenges.Services.IAdminUserService, DailyChallenges.Services.AdminUserService>();
+
 // Register services
 builder.Services.AddScoped<DailyChallenges.Services.IAuthService, DailyChallenges.Services.AuthService>();
 builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenges.Services.LocalFileStorage>();
