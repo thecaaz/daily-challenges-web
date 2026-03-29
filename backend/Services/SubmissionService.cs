@@ -180,6 +180,16 @@ namespace DailyChallenges.Services
             }
 
             if (userId.HasValue && !string.IsNullOrEmpty(user.Identity?.Name)) submission.Username = user.Identity.Name;
+            // Compute and persist scoring day at write time so reads can query it directly.
+            try
+            {
+                submission.ScoringDay = ScoringDayHelper.GetScoringDay(submission.CreatedAt, game.ResetTime, game.ResetTimezoneId);
+            }
+            catch
+            {
+                submission.ScoringDay = null;
+            }
+
             var created = await _subs.CreateAsync(submission);
             return DtoMapper.ToDto(created);
         }

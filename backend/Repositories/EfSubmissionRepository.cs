@@ -37,15 +37,26 @@ namespace DailyChallenges.Repositories
             var resetTime = game?.ResetTime ?? TimeSpan.Zero;
             var resetTz = game?.ResetTimezoneId ?? "UTC";
 
-            var createdAtList = await _db.Submissions
-                .Where(s => s.GameId == gameId)
+            // Prefer the persisted ScoringDay when available; fall back to computing from CreatedAt for rows
+            // that haven't been backfilled yet.
+            var dbDates = await _db.Submissions
+                .Where(s => s.GameId == gameId && s.ScoringDay != null)
                 .AsNoTracking()
-                .Select(s => s.CreatedAt)
+                .Select(s => s.ScoringDay!.Value)
                 .Distinct()
                 .ToListAsync();
 
-            var availableDates = createdAtList
-                .Select(createdAt => Services.ScoringDayHelper.GetScoringDay(createdAt, resetTime, resetTz))
+            var missingCreatedAt = await _db.Submissions
+                .Where(s => s.GameId == gameId && s.ScoringDay == null)
+                .AsNoTracking()
+                .Select(s => s.CreatedAt)
+                .ToListAsync();
+
+            var computed = missingCreatedAt
+                .Select(createdAt => Services.ScoringDayHelper.GetScoringDay(createdAt, resetTime, resetTz));
+
+            var availableDates = dbDates
+                .Concat(computed)
                 .Distinct()
                 .OrderByDescending(d => d)
                 .ToList();
