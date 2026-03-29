@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsUser, createGame } from '../test-utils'
+import { loginAsAdmin, loginAsUser, createGame, openSubmitForGame, openAdminViaUI } from '../test-utils'
 
 test('admin can view unfiltered submissions for a game via admin UI', async ({ page }) => {
   // Login as admin and create a game
@@ -7,7 +7,7 @@ test('admin can view unfiltered submissions for a game via admin UI', async ({ p
   const { gameId, gameName } = await createGame(page)
 
   // Create a submission as admin
-  await page.goto(`/submit/${gameId}`)
+  await openSubmitForGame(page, gameName)
   const adminScore = `admin-${Date.now() % 100000}`
   await page.getByRole('textbox', { name: 'Score' }).fill(adminScore).catch(async () => {
     await page.fill('input[placeholder="Score"]', adminScore)
@@ -18,7 +18,7 @@ test('admin can view unfiltered submissions for a game via admin UI', async ({ p
   // Logout admin and login as normal user to create another submission
   await page.click('button:has-text("Logout")')
   await loginAsUser(page)
-  await page.goto(`/submit/${gameId}`)
+  await openSubmitForGame(page, gameName)
   const userScore = `user-${Date.now() % 100000}`
   await page.getByRole('textbox', { name: 'Score' }).fill(userScore).catch(async () => {
     await page.fill('input[placeholder="Score"]', userScore)
@@ -29,7 +29,7 @@ test('admin can view unfiltered submissions for a game via admin UI', async ({ p
   // Login back as admin and open admin page
   await page.click('button:has-text("Logout")')
   await loginAsAdmin(page)
-  await page.goto('/admin')
+  await openAdminViaUI(page)
 
     // Click the Manage Submissions button for the created game's card and wait for rows to load
     // Find the <strong> element that contains the game's name, then find its ancestor container that has the Manage Submissions button.

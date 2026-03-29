@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, createGame } from '../test-utils'
+import { loginAsAdmin, createGame, openAdminViaUI, openGameByName, openHomeViaUI } from '../test-utils'
 
 test('admin can edit and delete a game via admin UI', async ({ page }) => {
   // Login and create a game via the UI helper
   await loginAsAdmin(page)
   const { gameId, gameName } = await createGame(page)
 
-  // Open admin page and locate the game's card
-  await page.goto('/admin')
+  // Open admin page via UI and locate the game's card
+  await openAdminViaUI(page)
   const strong = page.locator('strong', { hasText: gameName }).first()
   await expect(strong).toBeVisible()
   const gameContainer = strong.locator('xpath=ancestor::div[.//button[@title="Edit"]][1]')
@@ -47,8 +47,8 @@ test('admin can edit and delete a game via admin UI', async ({ page }) => {
   // Verify updated name appears in admin list
   await expect(page.locator('strong', { hasText: newName })).toBeVisible()
 
-  // Verify changes on the public game page
-  await page.goto(`/games/${gameId}`)
+  // Verify changes on the public game page via UI navigation
+  await openGameByName(page, newName)
   await expect(page.locator(`text=${newName}`)).toBeVisible()
   // Scope the Play link to the game's header so we don't match the global nav
   const header = page.locator('h5', { hasText: `Submissions — ${newName}` }).first()
@@ -56,7 +56,7 @@ test('admin can edit and delete a game via admin UI', async ({ page }) => {
   await expect(playLink).toHaveAttribute('href', newUrl)
 
   // Delete the game via admin UI (assert confirm dialog text and accept)
-  await page.goto('/admin')
+  await openAdminViaUI(page)
   const strong2 = page.locator('strong', { hasText: newName }).first()
   const gameContainer2 = strong2.locator('xpath=ancestor::div[.//button[@title="Delete"]][1]')
   const deleteBtn = gameContainer2.locator('button[title="Delete"]').first()
@@ -93,6 +93,6 @@ test('admin can edit and delete a game via admin UI', async ({ page }) => {
 
   // Verify the game is removed from admin list and home page
   await expect(page.locator('strong', { hasText: newName })).toHaveCount(0)
-  await page.goto('/')
+  await openHomeViaUI(page)
   await expect(page.locator(`text=${newName}`)).toHaveCount(0)
 })

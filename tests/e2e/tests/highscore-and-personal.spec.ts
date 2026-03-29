@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsUser, createGame } from '../test-utils'
+import { loginAsAdmin, loginAsUser, createGame, openRegisterViaUI, login, openSubmitForGame, openHighscoresForGame, openGameByName, openSubmissionById } from '../test-utils'
+import { randomUUID } from 'crypto'
 
 test('highscore list and personal highscores display and order correctly via UI', async ({ page }) => {
   // Create a game as admin
@@ -8,9 +9,9 @@ test('highscore list and personal highscores display and order correctly via UI'
 
   // Register a separate user (userA) and submit a score as that user
   await page.click('button:has-text("Logout")').catch(() => {})
-  const userA = `e2e-guest-${Date.now()}`
+  const userA = `e2e-guest-${Date.now()}-${randomUUID()}`
   const userAPass = `Pass-${Date.now() % 10000}`
-  await page.goto('/register')
+  await openRegisterViaUI(page)
   await page.fill('input[placeholder="Username"]', userA)
   await page.fill('input[placeholder="Password"]', userAPass)
   await Promise.all([
@@ -19,14 +20,8 @@ test('highscore list and personal highscores display and order correctly via UI'
   ])
 
   // Login as the newly registered user and submit score 200
-  await page.goto('/login')
-  await page.fill('input[placeholder="Username"]', userA)
-  await page.fill('input[placeholder="Password"]', userAPass)
-  await Promise.all([
-    page.waitForResponse(r => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST'),
-    page.click('button[type="submit"]')
-  ])
-  await page.goto(`/submit/${gameId}`)
+  await login(page, { username: userA, password: userAPass })
+  await openSubmitForGame(page, gameName)
   const anonScore = '200'
   await page.getByRole('textbox', { name: 'Score' }).fill(anonScore).catch(async () => {
     await page.fill('input[placeholder="Score"]', anonScore)
@@ -40,7 +35,7 @@ test('highscore list and personal highscores display and order correctly via UI'
   // Login as normal user and create one submission (250)
   await page.click('button:has-text("Logout")').catch(() => {})
   await loginAsUser(page)
-  await page.goto(`/submit/${gameId}`)
+  await openSubmitForGame(page, gameName)
   const userScore = '250'
   await page.getByRole('textbox', { name: 'Score' }).fill(userScore).catch(async () => {
     await page.fill('input[placeholder="Score"]', userScore)
@@ -54,7 +49,7 @@ test('highscore list and personal highscores display and order correctly via UI'
   // Logout user and create an admin submission that should top the leaderboard
   await page.click('button:has-text("Logout")').catch(() => {})
   await loginAsAdmin(page)
-  await page.goto(`/submit/${gameId}`)
+  await openSubmitForGame(page, gameName)
   const adminTop = '300'
   await page.getByRole('textbox', { name: 'Score' }).fill(adminTop).catch(async () => {
     await page.fill('input[placeholder="Score"]', adminTop)
@@ -68,12 +63,12 @@ test('highscore list and personal highscores display and order correctly via UI'
   // Finally, view the highscores as the logged-in normal user (so today's scores are visible)
   await page.click('button:has-text("Logout")').catch(() => {})
   await loginAsUser(page)
-  await page.goto(`/games/${gameId}/highscore`)
+  await openHighscoresForGame(page, gameName)
 
   const header = page.locator('h5', { hasText: `Highscores — ${gameName}` }).first()
-  await expect(header).toBeVisible()
+  await expect(header).toBeVisible({ timeout: 15000 })
   const grid = header.locator('xpath=following::div[contains(@class,"MuiGrid-container")][1]')
-  await expect(grid).toBeVisible()
+  await expect(grid).toBeVisible({ timeout: 15000 })
   const cards = grid.locator('div.card')
   const cardCount = await cards.count()
   expect(cardCount).toBeGreaterThanOrEqual(3)
@@ -90,19 +85,18 @@ test('highscore list and personal highscores display and order correctly via UI'
   }
 
   for (let i = 0; i < hrefs.length; i++) {
-    const m = hrefs[i].match(/\/submission\/(\d+)/)
-    if (!m) throw new Error('invalid submission href: ' + hrefs[i])
-    const id = m[1]
-    await page.goto(`/submission/${id}`)
+    // Click the submission link to open detail via UI
+    const link = cards.nth(i).locator('xpath=ancestor::a[1]').first()
+    await link.click()
     const scoreLocator = page.locator('text=/Score:\\s*-?\\d+(?:[.,]\\d+)?/').first()
     await expect(scoreLocator).toBeVisible()
     const scoreRaw = (await scoreLocator.textContent()) ?? ''
     const mm = scoreRaw.match(/-?\d+(?:[.,]\d+)?/)
     const num = mm ? Math.round(parseFloat(mm[0].replace(',', '.'))) : NaN
     scores.push(num)
-    // go back to highscores for next item
-    await page.goto(`/games/${gameId}/highscore`)
-    await expect(page.locator('h5', { hasText: `Highscores — ${gameName}` })).toBeVisible()
+    // go back to highscores for next item via UI
+    await openHighscoresForGame(page, gameName)
+    await expect(page.locator('h5', { hasText: `Highscores — ${gameName}` })).toBeVisible({ timeout: 15000 })
   }
   // Expect descending order: adminTop, userScore2, anonScore
   expect(scores[0]).toBe(parseInt(adminTop))
@@ -110,11 +104,14 @@ test('highscore list and personal highscores display and order correctly via UI'
   expect(scores[2]).toBe(parseInt(anonScore))
 
   // Check personal highs for the logged-in user
-  await page.goto(`/games/${gameId}/personal-highscore`)
+  await openGameByName(page, gameName)
+  const yourHs = page.getByRole('link', { name: 'Your Highscores' })
+  await expect(yourHs).toBeVisible()
+  await yourHs.click()
   const pHeader = page.locator('h5', { hasText: `Your Highscores — ${gameName}` }).first()
-  await expect(pHeader).toBeVisible()
+  await expect(pHeader).toBeVisible({ timeout: 15000 })
   const pGrid = pHeader.locator('xpath=following::div[contains(@class,"MuiGrid-container")][1]')
-  await expect(pGrid).toBeVisible()
+  await expect(pGrid).toBeVisible({ timeout: 15000 })
   const pCards = pGrid.locator('div.card')
   const pCount = await pCards.count()
   expect(pCount).toBeGreaterThanOrEqual(1)

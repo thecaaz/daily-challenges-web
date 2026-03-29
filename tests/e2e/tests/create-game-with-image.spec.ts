@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test'
 import path from 'path'
-import { loginAsAdmin } from '../test-utils'
+import { loginAsAdmin, openAdminViaUI, openHomeViaUI } from '../test-utils'
 import { randomUUID } from 'crypto'
 
 test('admin can create game with image via UI', async ({ page }) => {
   await loginAsAdmin(page)
 
-  await page.goto('/admin')
+  await openAdminViaUI(page)
 
   const uniqueName = `e2e-game-img-${Date.now()}-${randomUUID()}`
   await page.fill('label:has-text("Game name") >> xpath=.. >> input', uniqueName).catch(async () => {
@@ -38,7 +38,7 @@ test('admin can create game with image via UI', async ({ page }) => {
   // Regardless of whether the API returned the id, check the public games
   // listing for the new game (the image should appear in the listing).
   await page.waitForTimeout(500)
-  await page.goto('/')
+  await openHomeViaUI(page)
   await expect(page.locator(`text=${uniqueName}`)).toBeVisible({ timeout: 10000 })
 
   // Ensure we assert the image that belongs to the created game's card/list item.

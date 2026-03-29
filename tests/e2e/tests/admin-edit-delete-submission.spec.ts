@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, loginAsUser, createGame } from '../test-utils'
+import { loginAsAdmin, loginAsUser, createGame, openSubmitForGame, openAdminViaUI, openSubmissionById } from '../test-utils'
 
 test('admin can edit and delete a submission via admin UI', async ({ page }) => {
   // Login as admin and create a game via UI
@@ -9,7 +9,7 @@ test('admin can edit and delete a submission via admin UI', async ({ page }) => 
   // Logout admin and create a submission as a normal user (capture created id)
   await page.click('button:has-text("Logout")')
   await loginAsUser(page)
-  await page.goto(`/submit/${gameId}`)
+  await openSubmitForGame(page, gameName)
   const originalScore = `score-${Date.now() % 100000}`
   await page.getByRole('textbox', { name: 'Score' }).fill(originalScore).catch(async () => {
     await page.fill('input[placeholder="Score"]', originalScore)
@@ -27,7 +27,7 @@ test('admin can edit and delete a submission via admin UI', async ({ page }) => 
   // Login back as admin and open admin UI
   await page.click('button:has-text("Logout")')
   await loginAsAdmin(page)
-  await page.goto('/admin')
+  await openAdminViaUI(page)
 
   // Open Manage Submissions for the created game
   const strong = page.locator('strong', { hasText: gameName }).first()
@@ -59,12 +59,12 @@ test('admin can edit and delete a submission via admin UI', async ({ page }) => 
   const putResp = await putRespPromise
   expect([200, 204]).toContain(putResp.status())
 
-  // Verify updated score appears on the public submission detail page
-  await page.goto(`/submission/${submissionId}`)
+  // Verify updated score appears on the public submission detail page (navigate via UI if possible)
+  await openSubmissionById(page, submissionId)
   await expect(page.locator(`text=Score: ${newScore}`)).toBeVisible()
 
   // Delete the submission via admin UI
-  await page.goto('/admin')
+  await openAdminViaUI(page)
   const strong2 = page.locator('strong', { hasText: gameName }).first()
   const gameContainer2 = strong2.locator('xpath=ancestor::div[.//button[contains(normalize-space(.), "Manage Submissions")]][1]')
   const manageBtn2 = gameContainer2.locator('button:has-text("Manage Submissions")')
@@ -108,7 +108,7 @@ test('admin can edit and delete a submission via admin UI', async ({ page }) => 
   }
   expect(found).toBeTruthy()
 
-  // Verify submission detail returns Not found after deletion
-  await page.goto(`/submission/${submissionId}`)
+  // Verify submission detail returns Not found after deletion (try via UI, fall back to direct nav)
+  await openSubmissionById(page, submissionId)
   await expect(page.locator('text=Not found')).toBeVisible()
 })

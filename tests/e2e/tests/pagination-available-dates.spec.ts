@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, createGame } from '../test-utils'
+import { loginAsAdmin, createGame, openGameByName } from '../test-utils'
 
 // Increase per-file test timeout to reduce flakiness in CI
 test.setTimeout(60_000)
@@ -80,8 +80,8 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], hasSubmittedForLatest: false, hasMore: false, page: Number(pageParam), pageSize: 2, totalCount: 4, totalPages: 2 }) })
   })
 
-  // Open the game's submissions page (this will trigger the intercepted request)
-  await page.goto(`/games/${gameId}`)
+  // Open the game's submissions page via UI
+  await openGameByName(page, gameName)
   await expect(page.locator('text=Submissions —')).toBeVisible()
 
   // Open Day combobox and select 'All' so load-more will display items from other dates
