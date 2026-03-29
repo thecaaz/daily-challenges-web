@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace DailyChallenges.Services
 {
     public interface IFileValidator

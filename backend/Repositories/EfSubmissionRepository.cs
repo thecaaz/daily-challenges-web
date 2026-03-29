@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using DailyChallenges.Data;
 using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
@@ -44,7 +40,7 @@ namespace DailyChallenges.Repositories
             return dates;
         }
 
-        public async Task<(List<Submission> Items, int TotalCount, List<DateTime> AvailableDates)> GetByGameFilteredAsync(int gameId, int page, int pageSize, string? search, DateTime? scoringDay)
+        public async Task<(List<Submission> Items, int TotalCount, List<DateTime> AvailableDates)> GetByGameFilteredAsync(int gameId, int page, int pageSize, string? search, DateTime? scoringDay, DateTime? excludeScoringDay = null)
         {
             IQueryable<Submission> q = _db.Submissions.Where(s => s.GameId == gameId);
 
@@ -67,6 +63,12 @@ namespace DailyChallenges.Repositories
                 q = q.Where(s => s.ScoringDay == target);
             }
 
+            if (excludeScoringDay.HasValue)
+            {
+                var ex = excludeScoringDay.Value.Date;
+                q = q.Where(s => s.ScoringDay != ex);
+            }
+
             var total = await q.CountAsync();
 
             if (page < 1) page = 1;
@@ -82,6 +84,16 @@ namespace DailyChallenges.Repositories
                 .ToListAsync();
 
             return (items, total, availableDates);
+        }
+
+        public async Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay)
+        {
+            var target = scoringDay.Date;
+            var numericSubs = _db.Submissions.Where(s => s.GameId == gameId && s.ScoringDay == target && s.ScoreValue.HasValue);
+            if (!await numericSubs.AnyAsync()) return null;
+            var maxScore = await numericSubs.MaxAsync(s => s.ScoreValue!.Value);
+            var winner = await numericSubs.Where(s => s.ScoreValue == maxScore).OrderBy(s => s.CreatedAt).FirstOrDefaultAsync();
+            return winner;
         }
 
         public async Task<Submission?> GetByGameAndUserAsync(int gameId, int userId)

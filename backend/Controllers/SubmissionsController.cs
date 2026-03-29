@@ -1,9 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
-using DailyChallenges.Data;
-using DailyChallenges.Models;
-using Microsoft.EntityFrameworkCore;
-using DailyChallenges.Repositories;
 
 namespace DailyChallenges.Controllers
 {

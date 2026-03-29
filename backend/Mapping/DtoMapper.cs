@@ -1,6 +1,5 @@
 using DailyChallenges.DTOs;
 using DailyChallenges.Models;
-using System.Linq;
 
 namespace DailyChallenges.Mapping
 {

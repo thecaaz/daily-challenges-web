@@ -1,5 +1,4 @@
 using DailyChallenges.DTOs;
-using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
 namespace DailyChallenges.Services

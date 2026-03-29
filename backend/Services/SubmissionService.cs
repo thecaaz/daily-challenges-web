@@ -2,10 +2,7 @@
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
-using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
-using System;
-using System.Linq;
 
 namespace DailyChallenges.Services
 {
@@ -32,34 +29,26 @@ namespace DailyChallenges.Services
             var userId = user.GetUserId();
             var hasSubmittedForLatest = await HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
 
-            // Fetch all matching submissions (use a very large page size so repository returns the full set)
-            var fetchPageSize = int.MaxValue / 4;
-            var (allItems, totalCount, _) = await _subs.GetByGameFilteredAsync(gameId, 1, fetchPageSize, null, scoringDay);
-
-            // If caller hasn't submitted today and caller didn't request a specific scoringDay, hide current-day submissions
-            var filteredAll = scoringDay.HasValue ? allItems : FilterSubmissionsForVisibility(allItems, hasSubmittedForLatest, game, currentDay);
-
-            // Use persisted ScoringDay for each submission and determine winners per day using ScoreValue (numeric only)
-            var scored = filteredAll.Select(s => new { Submission = s, Day = s.ScoringDay.Date }).ToList();
-
-            var winnersByDay = new Dictionary<DateTime, Submission>();
-            foreach (var group in scored.GroupBy(x => x.Day))
+            // Determine whether to exclude the current scoring day at the DB level
+            DateTime? excludeScoringDay = null;
+            if (!scoringDay.HasValue && !hasSubmittedForLatest)
             {
-                var numericSubs = group.Where(x => x.Submission.ScoreValue.HasValue).ToList();
-                if (!numericSubs.Any()) continue;
-                var maxScore = numericSubs.Max(x => x.Submission.ScoreValue!.Value);
-                var candidates = numericSubs.Where(x => x.Submission.ScoreValue == maxScore).Select(x => x.Submission).ToList();
-                var winner = candidates.OrderBy(s => s.CreatedAt).First();
-                winnersByDay[group.Key] = winner;
+                excludeScoringDay = currentDay;
             }
 
-            // Apply pagination on filteredAll (ordered by CreatedAt desc)
-            var ordered = filteredAll.OrderByDescending(s => s.CreatedAt).ToList();
-            if (page < 1) page = 1;
-            var skip = (page - 1) * pageSize;
-            var pageSubmissions = ordered.Skip(skip).Take(pageSize).ToList();
+            // Fetch a single page of submissions (repository will apply excludeScoringDay if provided)
+            var (pageItems, totalCount, _) = await _subs.GetByGameFilteredAsync(gameId, page, pageSize, null, scoringDay, excludeScoringDay);
 
-            var mapped = pageSubmissions.Select(s =>
+            // Compute winners only for scoring days present in the returned page by querying the repository per-day
+            var daysInPage = pageItems.Select(s => s.ScoringDay.Date).Distinct().ToList();
+            var winnersByDay = new Dictionary<DateTime, Submission>();
+            foreach (var day in daysInPage)
+            {
+                var winner = await _subs.GetWinnerForGameAndDayAsync(gameId, day);
+                if (winner != null) winnersByDay[day] = winner;
+            }
+
+            var mapped = pageItems.Select(s =>
             {
                 var dto = DtoMapper.ToDto(s);
                 dto.ScoringDay = s.ScoringDay.Date.ToString("yyyy-MM-dd");
@@ -70,8 +59,8 @@ namespace DailyChallenges.Services
 
             result.Items = mapped;
             result.HasSubmittedForLatest = hasSubmittedForLatest;
-            result.TotalCount = filteredAll.Count;
-            result.TotalPages = (int)Math.Ceiling(filteredAll.Count / (double)pageSize);
+            result.TotalCount = totalCount;
+            result.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
             result.HasMore = page < result.TotalPages;
 
             return result;

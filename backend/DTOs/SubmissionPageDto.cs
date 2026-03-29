@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace DailyChallenges.DTOs
 {
     public class SubmissionPageDto
