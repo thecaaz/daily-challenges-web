@@ -4,6 +4,7 @@ import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import AdminUserAuditModal from '../components/AdminUserAuditModal'
 
 export default function AdminUsers() {
   const { user, loading } = useAuth()
@@ -15,6 +16,9 @@ export default function AdminUsers() {
   const [pageSize] = useState(50)
   const [totalCount, setTotalCount] = useState(0)
   const [deltaById, setDeltaById] = useState({})
+  const [auditUserId, setAuditUserId] = useState(null)
+  const [auditUsername, setAuditUsername] = useState(null)
+  const [auditOpen, setAuditOpen] = useState(false)
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -80,12 +84,14 @@ export default function AdminUsers() {
                   />
                   <Button variant="contained" onClick={() => adjust(u.id, Math.abs(Number(deltaById[u.id] || 0)))}>Add</Button>
                   <Button variant="outlined" color="error" onClick={() => adjust(u.id, -Math.abs(Number(deltaById[u.id] || 0)))} style={{ marginLeft: 8 }}>Deduct</Button>
+                  <Button variant="text" onClick={() => { setAuditUserId(u.id); setAuditUsername(u.username); setAuditOpen(true) }} style={{ marginLeft: 8 }}>Audit</Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </Paper>
+      <AdminUserAuditModal open={auditOpen} onClose={() => setAuditOpen(false)} userId={auditUserId} username={auditUsername} />
     </>
   )
 }

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using DailyChallenges.Data;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
+using DailyChallenges.Repositories;
 
 namespace DailyChallenges.Services
 {
@@ -10,12 +11,14 @@ namespace DailyChallenges.Services
         private readonly AppDbContext _db;
         private readonly IXpService _xpService;
         private readonly LevelCalculator _levelCalc;
+        private readonly IXpEventRepository _xpEventRepository;
 
-        public AdminUserService(AppDbContext db, IXpService xpService, LevelCalculator levelCalc)
+        public AdminUserService(AppDbContext db, IXpService xpService, LevelCalculator levelCalc, IXpEventRepository xpEventRepository)
         {
             _db = db;
             _xpService = xpService;
             _levelCalc = levelCalc;
+            _xpEventRepository = xpEventRepository;
         }
 
         public async Task<(List<UserDto> Items, int TotalCount)> GetUsersAsync(int page = 1, int pageSize = 50, string? search = null)
@@ -39,6 +42,13 @@ namespace DailyChallenges.Services
             var user = await _db.Users.FindAsync(userId);
             if (user == null) throw new KeyNotFoundException($"User {userId} not found");
             return DtoMapper.ToDto(user, _levelCalc);
+        }
+
+        public async Task<(List<DailyChallenges.DTOs.XpEventDto> Items, int TotalCount)> GetXpEventsAsync(int userId, int page = 1, int pageSize = 20, DateTime? from = null, DateTime? to = null, string? eventType = null)
+        {
+            var (items, total) = await _xpEventRepository.GetByUserPagedAsync(userId, page, pageSize, from, to, eventType);
+            var dtos = items.Select(e => DtoMapper.ToDto(e)).ToList();
+            return (dtos, total);
         }
     }
 }
