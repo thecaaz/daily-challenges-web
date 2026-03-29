@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Typography, Button } from '@mui/material'
 import api, { getApiRoot } from '../api'
+import parseUtcDate from '../utils/parseUtcDate'
 
 export default function SubmissionDetail() {
   const { id } = useParams()
@@ -98,7 +99,7 @@ export default function SubmissionDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Typography variant="h5">Submission — {submission.username ?? 'Anonymous'}</Typography>
-          <Typography variant="caption">Score: {submission.score} — {new Date(submission.createdAt).toLocaleString()}</Typography>
+          <Typography variant="caption">Score: {submission.score} — {parseUtcDate(submission.createdAt).toLocaleString()}</Typography>
         </div>
         <div>
           <Button onClick={() => {
