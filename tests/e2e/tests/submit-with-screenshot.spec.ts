@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test'
 import path from 'path'
-import { loginAsAdmin, createGame } from '../test-utils'
+import { loginAsAdmin, createGame, openSubmitForGame, openGameByName } from '../test-utils'
 
 test('submit a score with screenshot via UI', async ({ page }) => {
   await loginAsAdmin(page)
 
-  const { gameId } = await createGame(page)
+  const { gameId, gameName } = await createGame(page, undefined, { navigateToGame: false })
 
-  await page.goto(`/submit/${gameId}`)
+  await openSubmitForGame(page, gameName)
   await expect(page.locator('text=Submit for')).toBeVisible()
 
   const scoreValue = String(Math.floor(Math.random() * 100000))
@@ -29,7 +29,7 @@ test('submit a score with screenshot via UI', async ({ page }) => {
   expect(resp.status()).toBeLessThan(400)
 
   // Visit game page and assert the submitted score is present; open the submission and assert screenshot visible
-  await page.goto(`/games/${gameId}`)
+  await openGameByName(page, gameName)
   await expect(page.locator(`text=${scoreValue}`)).toBeVisible()
   await page.click(`text=${scoreValue}`)
   await expect(page.locator('img')).toBeVisible()

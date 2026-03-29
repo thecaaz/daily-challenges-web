@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin } from '../test-utils'
+import { loginAsAdmin, createGame, openSubmitForGame, openGameByName } from '../test-utils'
 
 // Increase per-file test timeout to reduce flakiness in CI
 test.setTimeout(60_000)
@@ -7,33 +7,12 @@ test.setTimeout(60_000)
 test('admin can submit a score and it appears for today', async ({ page }) => {
   await loginAsAdmin(page)
 
-  // Create a new game
+  // Create a new game via helper
   const gameName = `e2e-submit-${Date.now()}`
-  await page.goto('/admin')
-  await expect(page.locator('text=Manage Games')).toBeVisible()
-  await page.fill('label:has-text("Game name") >> xpath=.. >> input', gameName).catch(async () => {
-    await page.fill('input[aria-label="Game name"]', gameName)
-  })
-  await page.fill('input[type="time"]', '00:00')
-  // Click create and wait for the backend response; assert successful status
-  const [createResp] = await Promise.all([
-    page.waitForResponse(resp => resp.url().endsWith('/api/games')),
-    page.click('button:has-text("Create Game")')
-  ])
-  const status = createResp.status()
-  if (status < 200 || status >= 300) throw new Error(`Create Game failed with status ${status}`)
+  const { gameId, gameName: createdName } = await createGame(page, gameName)
 
-  // Open the game page to determine id
-  await page.waitForTimeout(500) // wait for SPA update after game creation
-  await page.goto('/')
-  await page.click(`text=${gameName}`)
-  const url = page.url()
-  const match = url.match(/\/games\/(\d+)/)
-  if (!match) throw new Error('could not determine game id from URL: ' + url)
-  const gameId = match[1]
-
-  // Go to submit page and submit a score
-  await page.goto(`/submit/${gameId}`)
+  // Go to submit page and submit a score via UI
+  await openSubmitForGame(page, createdName)
   await expect(page.locator('text=Submit for')).toBeVisible()
 
   const scoreValue = String(Math.floor(Math.random() * 100000))
@@ -55,8 +34,8 @@ test('admin can submit a score and it appears for today', async ({ page }) => {
   await submitBtn.click({ timeout: 10000 })
   await page.waitForFunction((id) => location.pathname.includes(`/games/${id}`), gameId, { timeout: 15000 })
 
-  // After submission, visit the game's submissions page and assert the submitted score is visible
-  await page.goto(`/games/${gameId}`)
+  // After submission, visit the game's submissions page via UI and assert the submitted score is visible
+  await openGameByName(page, createdName)
   // Ensure hidden message is not present
   await expect(page.locator("text=Today's scores are hidden.")).toHaveCount(0)
   // Assert the score appears

@@ -2,7 +2,6 @@ using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
-using Microsoft.AspNetCore.Http;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -14,12 +13,14 @@ namespace DailyChallenges.Services
         private readonly IGameRepository _games;
         private readonly IFileStorage _files;
         private readonly ISubmissionRepository _subsRepo;
+        private readonly ISubmissionService _submissionService;
 
-        public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo)
+        public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo, ISubmissionService submissionService)
         {
             _games = games;
             _files = files;
             _subsRepo = subsRepo;
+            _submissionService = submissionService;
         }
 
         public async Task<List<GameDto>> GetAllAsync()
@@ -136,6 +137,82 @@ namespace DailyChallenges.Services
                 .ToList();
 
             return new HighscoreResult { Highscore = ordered.FirstOrDefault(), Top = ordered };
+        }
+
+        public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null, int top = 0)
+        {
+            var g = await _games.GetByIdAsync(gameId);
+            if (g == null) throw new KeyNotFoundException("Game not found");
+
+            var dto = new GameOverviewDto
+            {
+                Game = DtoMapper.ToDto(g)
+            };
+
+            var errors = new List<OverviewErrorDto>();
+
+            var includeAll = string.IsNullOrEmpty(include);
+            HashSet<string>? includeSet = null;
+            if (!includeAll)
+            {
+                includeSet = new HashSet<string>(
+                    include!
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim())
+                );
+            }
+
+            var wantAvailable = includeAll || (includeSet != null && includeSet.Contains("availableDates"));
+            var wantHasSubmitted = includeAll || (includeSet != null && includeSet.Contains("hasSubmitted"));
+            List<string>? availableDates = null;
+            bool hasSubmitted = false;
+            List<SubmissionDto>? topDtos = null;
+
+            // Run sub-requests in parallel where possible, but handle failures individually
+            var availTask = wantAvailable ? _submissionService.GetAvailableDatesAsync(gameId) : Task.FromResult(new List<string>());
+            var hasTask = wantHasSubmitted ? _submissionService.HasUserSubmittedForLatestAsync(gameId, user) : Task.FromResult(false);
+            Task<List<Submission>>? topTask = top > 0 ? _subsRepo.GetTopByGameAsync(gameId, top) : null;
+
+            try
+            {
+                availableDates = await availTask;
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new OverviewErrorDto { Part = "availableDates", Message = ex.Message });
+                availableDates = new List<string>();
+            }
+
+            try
+            {
+                hasSubmitted = await hasTask;
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new OverviewErrorDto { Part = "hasSubmitted", Message = ex.Message });
+                hasSubmitted = false;
+            }
+
+            if (topTask != null)
+            {
+                try
+                {
+                    var topSubs = await topTask;
+                    topDtos = topSubs.Select(s => DtoMapper.ToDto(s)).ToList();
+                }
+                catch (Exception ex)
+                {
+                    errors.Add(new OverviewErrorDto { Part = "top", Message = ex.Message });
+                    topDtos = new List<SubmissionDto>();
+                }
+            }
+
+            dto.AvailableDates = availableDates;
+            dto.HasSubmittedForLatest = hasSubmitted;
+            dto.Top = topDtos;
+            dto.Errors = errors.Count > 0 ? errors : null;
+
+            return dto;
         }
     }
 }

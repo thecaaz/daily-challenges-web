@@ -1,12 +1,22 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, createGame } from '../test-utils'
+import { loginAsAdmin, createGame, openGameByName } from '../test-utils'
 
 // Increase per-file test timeout to reduce flakiness in CI
 test.setTimeout(60_000)
 
 test('pagination, available dates, and page metadata in UI', async ({ page }) => {
   await loginAsAdmin(page)
-  const { gameId } = await createGame(page)
+  const { gameId, gameName } = await createGame(page, undefined, { navigateToGame: false })
+
+  // Stub the overview endpoint so the page shows available dates and hasSubmitted flag
+  await page.route(`**/api/games/${gameId}/overview*`, async route => {
+    const body = {
+      game: { id: Number(gameId), name: gameName, currentScoringDay: '2026-03-27' },
+      availableDates: ['2026-03-27', '2026-03-26'],
+      hasSubmittedForLatest: true
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
 
   // Intercept submission list requests and return a controlled paged dataset
   await page.route(`**/api/submissions/game/${gameId}/available-dates`, async route => {
@@ -14,7 +24,7 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
   })
 
   // Respond to lightweight has-submitted check used by the UI so the page shows today's scores
-  await page.route(`**/api/submissions/game/${gameId}/has-submitted`, async route => {
+  await page.route(`**/api/submissions/game/${gameId}/has-submitted*`, async route => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hasSubmittedForLatest: true }) })
   })
 
@@ -70,17 +80,17 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], hasSubmittedForLatest: false, hasMore: false, page: Number(pageParam), pageSize: 2, totalCount: 4, totalPages: 2 }) })
   })
 
-  // Open the game's submissions page (this will trigger the intercepted request)
-  await page.goto(`/games/${gameId}`)
+  // Open the game's submissions page via UI
+  await openGameByName(page, gameName)
   await expect(page.locator('text=Submissions —')).toBeVisible()
-
-  // Assert initial page items (page 1) are visible within submission cards
-  await expect(page.locator('div.card:has-text("10")').first()).toBeVisible()
-  await expect(page.locator('div.card:has-text("20")').first()).toBeVisible()
 
   // Open Day combobox and select 'All' so load-more will display items from other dates
   await page.getByRole('combobox', { name: 'Day' }).click()
   await page.getByRole('option', { name: 'All' }).click()
+
+  // Assert initial page items (page 1) are visible within submission cards after selecting 'All'
+  await expect(page.locator('div.card:has-text("10")').first()).toBeVisible()
+  await expect(page.locator('div.card:has-text("20")').first()).toBeVisible()
 
   // Click 'Load more' to fetch page 2 and assert appended items are visible
   const [loadResp] = await Promise.all([

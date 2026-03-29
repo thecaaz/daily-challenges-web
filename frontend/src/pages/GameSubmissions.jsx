@@ -44,60 +44,54 @@ export default function GameSubmissions() {
   }
 
   const fetchData = async () => {
-    // Fetch game info, available dates and has-submitted in parallel.
-    const gameReq = api.get(`/games/${gameId}`).catch(e => ({ __error: e }))
-    const datesReq = api.get(`/submissions/game/${gameId}/available-dates`).catch(e => ({ __error: e }))
-    const hasSubmittedReq = api.get(`/submissions/game/${gameId}/has-submitted`).catch(e => ({ __error: e }))
+    // Prefer aggregated overview endpoint; fall back to parallel calls if unavailable
+    try {
+      const overviewRes = await api.get(`/games/${gameId}/overview?include=availableDates,hasSubmitted`)
+      const overview = overviewRes.data || {}
 
-    const [gameRes, datesRes, submittedRes] = await Promise.all([gameReq, datesReq, hasSubmittedReq])
+      const gameData = overview.game
+      if (!gameData) {
+        // If the overview response didn't include game, fall back to old behavior
+        throw new Error('Game overview endpoint returned incomplete data: missing "game" object')
+      }
 
-    // Handle game response (404 => not found)
-    if (gameRes && gameRes.__error) {
-      const err = gameRes.__error
-      if (err?.response?.status === 404) {
+      setGame(gameData)
+
+      const dates = overview.availableDates || []
+      setAvailableDates(dates)
+
+      const preferred = searchParams.get('scoringDay') || location?.state?.selectedDate
+      const currentDay = gameData?.currentScoringDay ?? ''
+      let initialSelected = ''
+      if (preferred && dates.includes(preferred)) initialSelected = preferred
+      else if (currentDay && dates.includes(currentDay)) initialSelected = currentDay
+      else initialSelected = ''
+
+      setSelectedDate(initialSelected)
+      setPage(1)
+
+      setHasSubmittedForLatest(!!overview.hasSubmittedForLatest)
+
+      if (initialSelected) {
+        const dayPage = await fetchSubmissionsPage(1, initialSelected)
+        const subs = dayPage.items || []
+        setSubmissions(subs)
+        if (typeof dayPage.totalPages === 'number') setHasMore(dayPage.page < dayPage.totalPages)
+        else setHasMore(dayPage.hasMore === true)
+      } else {
+        const initial = await fetchSubmissionsPage(1)
+        const initialSubs = initial.items || []
+        if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
+        else setHasMore(initial.hasMore === true)
+        setSubmissions(initialSubs)
+      }
+    } catch (err) {
+      const e = err
+      if (e?.response?.status === 404) {
         setNotFound(true)
         return
       }
       throw err
-    }
-
-    const gameData = gameRes?.data
-    setGame(gameData)
-
-    // available dates may fail independently; fall back to empty list
-    const dates = (datesRes && datesRes.__error) ? [] : (datesRes?.data || [])
-    setAvailableDates(dates)
-
-    // prefer date passed by URL query param, then navigation state
-    const preferred = searchParams.get('scoringDay') || location?.state?.selectedDate
-    // compute current scoring day (use server-provided when available)
-    const currentDay = gameData?.currentScoringDay ?? ''
-    let initialSelected = ''
-    if (preferred && dates.includes(preferred)) initialSelected = preferred
-    else if (currentDay && dates.includes(currentDay)) initialSelected = currentDay
-    else initialSelected = ''
-
-    setSelectedDate(initialSelected)
-    setPage(1)
-
-    // use result of has-submitted when available; fall back to false
-    const hasSubmitted = !(submittedRes && submittedRes.__error) && (submittedRes?.data?.hasSubmittedForLatest === true)
-    setHasSubmittedForLatest(hasSubmitted)
-
-    if (initialSelected) {
-      const dayPage = await fetchSubmissionsPage(1, initialSelected)
-      const subs = dayPage.items || []
-      setSubmissions(subs)
-      if (typeof dayPage.totalPages === 'number') setHasMore(dayPage.page < dayPage.totalPages)
-      else setHasMore(dayPage.hasMore === true)
-      // availableDates is provided by the dedicated endpoint; do not override here.
-    } else {
-      const initial = await fetchSubmissionsPage(1)
-      const initialSubs = initial.items || []
-
-      if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
-      else setHasMore(initial.hasMore === true)
-      setSubmissions(initialSubs)
     }
   }
 

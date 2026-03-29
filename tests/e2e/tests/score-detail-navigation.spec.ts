@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, createGame } from '../test-utils'
+import { loginAsAdmin, createGame, openSubmitForGame, openGameByName } from '../test-utils'
 
 // Increase timeout for stability
 test.setTimeout(60_000)
 
 test('clicking a score navigates to submission detail', async ({ page }) => {
   await loginAsAdmin(page)
-  const { gameId } = await createGame(page)
+  const { gameId, gameName } = await createGame(page, undefined, { navigateToGame: false })
 
-  // Go to submit page
-  await page.goto(`/submit/${gameId}`)
+  // Navigate to submit page via UI-only helpers
+  await openSubmitForGame(page, gameName)
   await expect(page.locator('text=Submit for')).toBeVisible()
 
   const scoreValue = String(Math.floor(Math.random() * 100000))
@@ -34,8 +34,8 @@ test('clicking a score navigates to submission detail', async ({ page }) => {
   expect(resp.status()).toBeGreaterThanOrEqual(200)
   expect(resp.status()).toBeLessThan(300)
 
-  // Visit the game's page and ensure the score appears
-  await page.goto(`/games/${gameId}`)
+  // Visit the game's page via UI-only navigation and ensure the score appears
+  await openGameByName(page, gameName)
   await expect(page.locator(`text=${scoreValue}`)).toBeVisible()
 
   // Click the score and assert navigation to /submission/:id

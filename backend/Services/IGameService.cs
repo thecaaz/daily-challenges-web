@@ -12,6 +12,7 @@ namespace DailyChallenges.Services
         Task DeleteAsync(int id);
         Task<HighscoreResult> GetHighscoreAsync(int id, System.Security.Claims.ClaimsPrincipal? user);
         Task<HighscoreResult> GetPersonalHighscoreAsync(int id, int userId);
+        Task<GameOverviewDto> GetOverviewAsync(int gameId, System.Security.Claims.ClaimsPrincipal? user, string? include = null, int top = 0);
     }
 
     public class HighscoreResult
