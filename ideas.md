@@ -6,3 +6,4 @@
 - indicator on player count (how many people have played today)
 - Allow editing of your own score
 - Move scoring-day & timezone handling into a small ScoringService with well-tested semantics.
+- Display time correctly, currently time zone agnostic, so +1 in berlin for example

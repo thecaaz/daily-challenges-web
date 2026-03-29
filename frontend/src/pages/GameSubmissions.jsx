@@ -70,7 +70,8 @@ export default function GameSubmissions() {
       setSelectedDate(initialSelected)
       setPage(1)
 
-      setHasSubmittedForLatest(!!overview.hasSubmittedForLatest)
+      const userHasSubmitted = !!overview.hasSubmittedForLatest
+      setHasSubmittedForLatest(userHasSubmitted)
 
       if (initialSelected) {
         const dayPage = await fetchSubmissionsPage(1, initialSelected)
@@ -79,11 +80,18 @@ export default function GameSubmissions() {
         if (typeof dayPage.totalPages === 'number') setHasMore(dayPage.page < dayPage.totalPages)
         else setHasMore(dayPage.hasMore === true)
       } else {
-        const initial = await fetchSubmissionsPage(1)
-        const initialSubs = initial.items || []
-        if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
-        else setHasMore(initial.hasMore === true)
-        setSubmissions(initialSubs)
+        // If the user has not submitted for the latest scoring day and has not selected a day,
+        // skip fetching the submissions list to avoid loading today's hidden submissions.
+        if (!userHasSubmitted) {
+          setSubmissions([])
+          setHasMore(false)
+        } else {
+          const initial = await fetchSubmissionsPage(1)
+          const initialSubs = initial.items || []
+          if (typeof initial.totalPages === 'number') setHasMore(initial.page < initial.totalPages)
+          else setHasMore(initial.hasMore === true)
+          setSubmissions(initialSubs)
+        }
       }
     } catch (err) {
       const e = err
@@ -113,6 +121,12 @@ export default function GameSubmissions() {
     setSelectedDate(value)
     setPage(1)
     setSubmissions([])
+    // If clearing selection (viewing latest) and the user hasn't submitted, skip fetching list
+    if (!value && !hasSubmittedForLatest) {
+      setHasMore(false)
+      return
+    }
+
     const pageResult = await fetchSubmissionsPage(1, value || undefined)
     const subs = pageResult.items || []
     setSubmissions(subs)
@@ -180,6 +194,7 @@ export default function GameSubmissions() {
               <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
               <div style={{ marginTop: 12 }}>
                 <Button component={Link} to={`/submit/${game.id}${location.search || ''}`} className="btn">Submit Score</Button>
+                <Button sx={{ ml: 2 }} onClick={() => handleDateChange(currentScoringDay)} className="btn">Show today's submissions</Button>
               </div>
             </div>
           ) : (
