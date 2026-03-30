@@ -15,5 +15,6 @@ namespace DailyChallenges.Services
         Task<SubmissionDto> UpdateAsync(int id, string? score);
         Task DeleteAsync(int id);
         Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user);
+        Task<SubmissionDto?> GetWinnerAsync(int gameId, DateTime? scoringDay = null);
     }
 }

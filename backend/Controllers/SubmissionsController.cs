@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
+using DailyChallenges.Services;
 
 namespace DailyChallenges.Controllers
 {
@@ -19,13 +20,8 @@ namespace DailyChallenges.Controllers
         [HttpGet("game/{gameId}")]
         public async Task<IActionResult> GetByGame(int gameId, [FromQuery] string? scoringDay = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
-            DateTime? parsedDay = null;
-            if (!string.IsNullOrWhiteSpace(scoringDay))
-            {
-                if (!DateTime.TryParseExact(scoringDay, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-                    return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
-                parsedDay = dt;
-            }
+            if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
+                return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
 
             var pageResult = await _subs.GetByGameAsync(gameId, User, parsedDay, page, pageSize);
             return Ok(pageResult);
@@ -48,17 +44,10 @@ namespace DailyChallenges.Controllers
         [HttpGet("game/{gameId}/winner")]
         public async Task<IActionResult> GetWinner(int gameId, [FromQuery] string? scoringDay = null)
         {
-            DateTime? parsedDay = null;
-            if (!string.IsNullOrWhiteSpace(scoringDay))
-            {
-                if (!DateTime.TryParseExact(scoringDay, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-                    return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
-                parsedDay = dt;
-            }
+            if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
+                return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
 
-            // Request full-day results so the service can compute the winner
-            var pageResult = await _subs.GetByGameAsync(gameId, User, parsedDay, 1, int.MaxValue / 4);
-            var winner = pageResult.Items?.FirstOrDefault(i => i.IsDayWinner);
+            var winner = await _subs.GetWinnerAsync(gameId, parsedDay);
             if (winner == null) return NotFound();
             return Ok(winner);
         }

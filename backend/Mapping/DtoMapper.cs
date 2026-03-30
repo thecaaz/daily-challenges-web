@@ -67,5 +67,21 @@ namespace DailyChallenges.Mapping
 
             return dto;
         }
+
+        public static DailyChallenges.DTOs.XpEventDto ToDto(XpEvent e)
+        {
+            return new DailyChallenges.DTOs.XpEventDto
+            {
+                Id = e.Id,
+                UserId = e.UserId,
+                SubmissionId = e.SubmissionId,
+                GameId = e.GameId,
+                ScoringDay = e.ScoringDay,
+                Amount = e.Amount,
+                EventType = e.EventType,
+                Details = e.Details,
+                CreatedAt = e.CreatedAt
+            };
+        }
     }
 }

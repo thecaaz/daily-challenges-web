@@ -114,7 +114,7 @@ namespace DailyChallenges.Services
             return subs.Select(s =>
             {
                 var dto = DtoMapper.ToDto(s);
-                dto.ScoringDay = s.ScoringDay.Date.ToString("yyyy-MM-dd");
+                dto.ScoringDay = ScoringDayHelper.FormatScoringDay(s.ScoringDay.Date);
                 return dto;
             }).ToList();
         }
@@ -128,7 +128,7 @@ namespace DailyChallenges.Services
             var adminDtos = subs.Select(s =>
             {
                 var dto = DtoMapper.ToDto(s);
-                dto.ScoringDay = ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC").ToString("yyyy-MM-dd");
+                dto.ScoringDay = ScoringDayHelper.FormatScoringDay(ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC"));
                 return dto;
             }).ToList();
 
@@ -139,10 +139,28 @@ namespace DailyChallenges.Services
         {
             var dates = await _subs.GetAvailableDatesAsync(gameId);
             return dates
-                .Select(d => d.ToString("yyyy-MM-dd"))
+                .Select(d => ScoringDayHelper.FormatScoringDay(d))
                 .Distinct()
                 .OrderByDescending(x => x)
                 .ToList();
+        }
+
+        public async Task<SubmissionDto?> GetWinnerAsync(int gameId, DateTime? scoringDay = null)
+        {
+            var game = await _games.GetByIdAsync(gameId);
+            if (game == null) return null;
+
+            DateTime day;
+            if (scoringDay.HasValue) day = scoringDay.Value;
+            else day = GetCurrentScoringDay(game);
+
+            var winner = await _subs.GetWinnerForGameAndDayAsync(gameId, day);
+            if (winner == null) return null;
+
+            var dto = DtoMapper.ToDto(winner);
+            dto.ScoringDay = ScoringDayHelper.FormatScoringDay(winner.ScoringDay.Date);
+            dto.IsDayWinner = true;
+            return dto;
         }
 
         public async Task<(SubmissionDto Dto, int XpGain)> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user)
