@@ -1,3 +1,10 @@
+### [1.0.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.0.0...v1.0.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* test release.yml ([b3dfe3f](https://github.com/thecaaz/daily-challenges-web/commit/b3dfe3f93a6fd113f0fbeb2d4ed328cba5460578))
+
 ## 1.0.0 (2026-03-30)
 
 
