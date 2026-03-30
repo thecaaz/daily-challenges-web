@@ -49,10 +49,16 @@ namespace DailyChallenges.Services
             var token = GenerateJwtToken(user);
 
             var expiresDays = int.Parse(_config["Jwt:ExpiresDays"] ?? "7");
+
+            // Per user request: force insecure cookie (not recommended for production).
+            // This unconditionally disables the Secure flag so the cookie can be set
+            // over plain HTTP.
+            var cookieSecure = false;
+
             response.Cookies.Append("access_token", token, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = !_env.IsDevelopment(),
+                Secure = cookieSecure,
                 SameSite = SameSiteMode.Strict,
                 Expires = DateTimeOffset.UtcNow.AddDays(expiresDays)
             });
