@@ -153,12 +153,38 @@ export default function GameSubmissions() {
           <Typography variant="h5">Submissions — {game.name}</Typography>
           {game.url && (
             <div style={{ marginTop: 6 }}>
-              <a href={game.url} target="_blank" rel="noreferrer">Play</a>
+              <AppButton
+                href={game.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="text"
+                size="small"
+                sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
+                dataTest="game-play-link"
+              >
+                Play
+              </AppButton>
             </div>
           )}
           <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
-            <Link to={`/games/${game.id}/highscore`}>Highscores</Link>
-            <Link to={`/games/${game.id}/personal-highscore`}>Your Highscores</Link>
+            <AppButton
+              to={`/games/${game.id}/highscore`}
+              variant="text"
+              size="small"
+              sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
+              dataTest="game-highscores-link"
+            >
+              Highscores
+            </AppButton>
+            <AppButton
+              to={`/games/${game.id}/personal-highscore`}
+              variant="text"
+              size="small"
+              sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
+              dataTest="game-personal-highscores-link"
+            >
+              Your Highscores
+            </AppButton>
           </div>
           <div className="muted">Compete on daily challenges — climb the leaderboard!</div>
         </div>
