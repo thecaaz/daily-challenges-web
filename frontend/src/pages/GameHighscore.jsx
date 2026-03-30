@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Typography, Grid, Button } from '@mui/material'
+import { Typography, Grid } from '@mui/material'
+import AppButton from '../components/ui/AppButton'
 import SubmissionCard from '../components/SubmissionCard'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
@@ -62,7 +63,7 @@ export default function GameHighscore() {
             <Typography variant="h6">Today's scores are hidden.</Typography>
             <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
             <div style={{ marginTop: 12 }}>
-              <Button component={Link} to={`/submit/${game.id}`} className="btn">Submit Score</Button>
+              <AppButton to={`/submit/${game.id}`}>Submit Score</AppButton>
             </div>
           </div>
         ) : (

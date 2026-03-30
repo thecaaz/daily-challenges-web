@@ -60,13 +60,14 @@ h1, h2, h3, h4, h5, h6 {
   border: none;
   padding: 9px 22px;
   border-radius: var(--radius-btn);
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   box-shadow: 0 6px 18px rgba(255,122,182,0.22);
   transition: transform 150ms ease, box-shadow 150ms ease;
   text-decoration: none;
   font-family: inherit;
   font-size: inherit;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.12);
 }
 .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(255,122,182,0.30); }
 .btn:active { transform: translateY(1px) scale(0.997); }

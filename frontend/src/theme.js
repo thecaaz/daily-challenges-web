@@ -99,6 +99,7 @@ const theme = createTheme({
             background: 'linear-gradient(90deg, #ff90c4, #ffe080)',
             boxShadow: '0 10px 24px rgba(255,122,182,0.30)',
           },
+          textShadow: '0 1px 0 rgba(0,0,0,0.18)',
         },
         containedSecondary: {
           background: '#ffd166',
@@ -108,6 +109,7 @@ const theme = createTheme({
             background: '#ffe080',
             boxShadow: '0 10px 24px rgba(255,209,102,0.4)',
           },
+          textShadow: '0 1px 0 rgba(0,0,0,0.08)',
         },
         outlinedPrimary: {
           borderColor: '#ff7ab6',

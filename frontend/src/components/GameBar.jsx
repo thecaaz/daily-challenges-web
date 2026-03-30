@@ -110,10 +110,18 @@ export default function GameBar() {
                 <span className="xp-gain" key={gainDisplay + Date.now()}>+{gainDisplay} XP</span>
               )}
             </Box>
-            <Box className="xp-meta" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: '4px' }}>
-              <Typography variant="caption" color="text.secondary">
+            <Box
+              className="xp-meta"
+              sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: '4px', flexWrap: 'wrap' }}
+            >
+              <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
+                Level <strong>{level}</strong> &nbsp;•&nbsp; {xpInto.toLocaleString()}/{xpForLevel.toLocaleString()} XP
+              </Typography>
+
+              <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>
                 Lvl <strong>{level}</strong>
               </Typography>
+
               {streak > 1 && (
                 <Chip
                   icon={<LocalFireDepartmentIcon sx={{ fontSize: '0.9rem !important' }} />}

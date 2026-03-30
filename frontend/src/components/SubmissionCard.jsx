@@ -56,7 +56,7 @@ export default function SubmissionCard({ submission }) {
             />
           </Box>
 
-          <Typography variant="h6" sx={{ fontWeight: 800, color: 'primary.main', lineHeight: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1 }}>
             {submission.score}
           </Typography>
           <Typography variant="caption" color="text.secondary">

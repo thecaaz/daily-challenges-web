@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Typography, Button } from '@mui/material'
+import AppButton from '../components/ui/AppButton'
 import api, { getApiRoot } from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 
@@ -102,15 +103,15 @@ export default function SubmissionDetail() {
           <Typography variant="caption">Score: {submission.score} — {parseUtcDate(submission.createdAt).toLocaleString()}</Typography>
         </div>
         <div>
-          <Button onClick={() => {
+          <AppButton onClick={() => {
             // Prefer history back so the previous page (with query params/state) is preserved.
             if (window.history.length > 1) navigate(-1)
             else {
               const qs = location.search || (submission?.scoringDay ? `?scoringDay=${submission.scoringDay}` : '')
               navigate(`/games/${submission.gameId}${qs}`)
             }
-          }} className="btn" sx={{ mr: 1 }}>Back</Button>
-          <Button onClick={resetView} className="btn">Reset View</Button>
+          }} sx={{ mr: 1 }}>Back</AppButton>
+          <AppButton onClick={resetView}>Reset View</AppButton>
         </div>
       </div>
 
