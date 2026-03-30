@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
+import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import SubmissionCard from '../components/SubmissionCard'
 import { useAuth } from '../contexts/AuthContext'
@@ -152,29 +153,54 @@ export default function GameSubmissions() {
           <Typography variant="h5">Submissions — {game.name}</Typography>
           {game.url && (
             <div style={{ marginTop: 6 }}>
-              <a href={game.url} target="_blank" rel="noreferrer">Play</a>
+              <AppButton
+                href={game.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="text"
+                size="small"
+                sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
+                dataTest="game-play-link"
+              >
+                Play
+              </AppButton>
             </div>
           )}
           <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
-            <Link to={`/games/${game.id}/highscore`}>Highscores</Link>
-            <Link to={`/games/${game.id}/personal-highscore`}>Your Highscores</Link>
+            <AppButton
+              to={`/games/${game.id}/highscore`}
+              variant="text"
+              size="small"
+              sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
+              dataTest="game-highscores-link"
+            >
+              Highscores
+            </AppButton>
+            <AppButton
+              to={`/games/${game.id}/personal-highscore`}
+              variant="text"
+              size="small"
+              sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
+              dataTest="game-personal-highscores-link"
+            >
+              Your Highscores
+            </AppButton>
           </div>
           <div className="muted">Compete on daily challenges — climb the leaderboard!</div>
         </div>
         <div>
-          <Button component={Link} to="/" className="btn" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</Button>
+          <AppButton to="/" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</AppButton>
           {(() => {
             const submitDisabled = isViewingLatest && hasSubmittedForLatest
               return (
-              <Button
-                component={submitDisabled ? 'span' : Link}
+              <AppButton
+                component={submitDisabled ? 'span' : undefined}
                 to={submitDisabled ? undefined : `/submit/${game.id}${location.search || ''}`}
-                className="btn"
                 disabled={submitDisabled}
                 title={submitDisabled ? "You've already submitted for today" : undefined}
               >
                 Submit Score
-              </Button>
+              </AppButton>
             )
           })()}
         </div>
@@ -193,7 +219,7 @@ export default function GameSubmissions() {
               <Typography variant="h6">Today's scores are hidden.</Typography>
               <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
               <div style={{ marginTop: 12 }}>
-                <Button component={Link} to={`/submit/${game.id}${location.search || ''}`} className="btn">Submit Score</Button>
+                <AppButton to={`/submit/${game.id}${location.search || ''}`}>Submit Score</AppButton>
               </div>
             </div>
           ) : (
@@ -207,7 +233,7 @@ export default function GameSubmissions() {
             </Grid>
             {hasMore && (
               <div style={{ marginTop: 16, textAlign: 'center' }}>
-                <Button onClick={loadMore} className="btn">Load more</Button>
+                <AppButton onClick={loadMore}>Load more</AppButton>
               </div>
             )}
             </>

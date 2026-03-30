@@ -130,6 +130,7 @@ namespace DailyChallenges.Services
                     .ToList();
             }
 
+            AssignSequentialRanks(topDtos);
             return new HighscoreResult { Highscore = topDtos.FirstOrDefault(), Top = topDtos };
         }
 
@@ -161,6 +162,7 @@ namespace DailyChallenges.Services
                     .ToList();
             }
 
+            AssignSequentialRanks(topDtos);
             return new HighscoreResult { Highscore = topDtos.FirstOrDefault(), Top = topDtos };
         }
 
@@ -238,6 +240,23 @@ namespace DailyChallenges.Services
             dto.Errors = errors.Count > 0 ? errors : null;
 
             return dto;
+        }
+
+        private void AssignSequentialRanks(List<SubmissionDto>? dtos)
+        {
+            if (dtos == null) return;
+            int rank = 1;
+            foreach (var dto in dtos)
+            {
+                if (dto.ScoreValue.HasValue)
+                {
+                    dto.Rank = rank++;
+                }
+                else
+                {
+                    dto.Rank = null;
+                }
+            }
         }
     }
 }

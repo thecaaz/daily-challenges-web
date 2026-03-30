@@ -39,6 +39,17 @@ namespace DailyChallenges.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<Submission>> GetByGameAndDayByScoreValueAsync(int gameId, DateTime scoringDay)
+        {
+            var target = scoringDay.Date;
+            return await _db.Submissions
+                .Where(s => s.GameId == gameId && s.ScoringDay == target && s.ScoreValue.HasValue)
+                .OrderByDescending(s => s.ScoreValue)
+                .ThenBy(s => s.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
         public async Task<List<DateTime>> GetAvailableDatesAsync(int gameId)
         {
             var dates = await _db.Submissions

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { TextField, Button, Stack, Typography } from '@mui/material'
+import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
@@ -179,7 +180,7 @@ export default function Submit() {
                 <Button onClick={() => setScreenshot(null)} size="small">Remove</Button>
               </div>
             )}
-            <Button type="submit" className="btn">Submit</Button>
+            <AppButton type="submit">Submit</AppButton>
           </Stack>
         </form>
       </div>

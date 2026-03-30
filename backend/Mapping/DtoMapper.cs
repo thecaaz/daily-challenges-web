@@ -33,6 +33,7 @@ namespace DailyChallenges.Mapping
                 UserId = s.UserId,
                 Score = s.Score,
                 ScoreValue = s.ScoreValue,
+                Rank = null,
                 Username = s.Username,
                 ScreenshotUrl = s.ScreenshotData != null ? $"/api/submissions/{s.Id}/screenshot" : null,
                 CreatedAt = s.CreatedAt
