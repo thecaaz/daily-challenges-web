@@ -45,3 +45,6 @@ tmp/
 backend/app.db-wal
 backend/app.db-shm
 backend/app.db
+
+# semantic-release
+/node_modules/
