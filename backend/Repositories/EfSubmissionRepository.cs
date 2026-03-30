@@ -27,6 +27,18 @@ namespace DailyChallenges.Repositories
             return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).Take(top).AsNoTracking().ToListAsync();
         }
 
+        public async Task<List<Submission>> GetTopByGameByScoreValueAsync(int gameId, int top)
+        {
+            if (top < 1) top = 10;
+            return await _db.Submissions
+                .Where(s => s.GameId == gameId && s.ScoreValue.HasValue)
+                .OrderByDescending(s => s.ScoreValue)
+                .ThenBy(s => s.CreatedAt)
+                .Take(top)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
         public async Task<List<DateTime>> GetAvailableDatesAsync(int gameId)
         {
             var dates = await _db.Submissions
@@ -96,11 +108,26 @@ namespace DailyChallenges.Repositories
             return winner;
         }
 
+        public async Task<List<Submission>> GetWinnersForGameAndDaysAsync(int gameId, List<DateTime> days)
+        {
+            if (days == null || days.Count == 0) return new List<Submission>();
+
+            var winners = await _db.Submissions
+                .Where(s => s.GameId == gameId && days.Contains(s.ScoringDay) && s.ScoreValue.HasValue)
+                .GroupBy(s => s.ScoringDay)
+                .Select(g => g.OrderByDescending(s => s.ScoreValue).ThenBy(s => s.CreatedAt).FirstOrDefault())
+                .AsNoTracking()
+                .ToListAsync();
+
+            return winners.Where(w => w != null).ToList()!;
+        }
+
         public async Task<Submission?> GetByGameAndUserAsync(int gameId, int userId)
         {
             // return the most recent submission for the user in this game
             return await _db.Submissions.Where(s => s.GameId == gameId && s.UserId == userId)
                 .OrderByDescending(s => s.CreatedAt)
+                .AsNoTracking()
                 .FirstOrDefaultAsync();
         }
 

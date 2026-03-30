@@ -46,6 +46,8 @@ builder.Services.AddCors(options => options.AddPolicy("DefaultCors", b =>
 builder.Services.AddScoped<DailyChallenges.Repositories.IGameRepository, DailyChallenges.Repositories.EfGameRepository>();
 builder.Services.AddScoped<DailyChallenges.Repositories.ISubmissionRepository, DailyChallenges.Repositories.EfSubmissionRepository>();
 builder.Services.AddScoped<DailyChallenges.Repositories.IXpEventRepository, DailyChallenges.Repositories.EfXpEventRepository>();
+// Helper services
+builder.Services.AddScoped<DailyChallenges.Services.IUserSubmissionChecker, DailyChallenges.Services.UserSubmissionChecker>();
 
 // XP system
 builder.Services.Configure<DailyChallenges.Services.XpConfig>(builder.Configuration.GetSection("Xp"));

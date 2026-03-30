@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using DailyChallenges.DTOs;
 
 namespace DailyChallenges.Controllers
 {
@@ -58,7 +59,4 @@ namespace DailyChallenges.Controllers
 
         // JWT generation moved to AuthService
     }
-
-    public record RegisterDto(string Username, string Password);
-    public record LoginDto(string Username, string Password);
 }

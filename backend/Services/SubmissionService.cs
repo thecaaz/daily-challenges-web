@@ -14,19 +14,22 @@ namespace DailyChallenges.Services
         private readonly IFileStorage _files;
         private readonly IXpService _xp;
         private readonly AppDbContext _db;
+        private readonly IUserSubmissionChecker _userSubmissionChecker;
 
         public SubmissionService(
             ISubmissionRepository subs,
             IGameRepository games,
             IFileStorage files,
             IXpService xp,
-            AppDbContext db)
+            AppDbContext db,
+            IUserSubmissionChecker userSubmissionChecker)
         {
             _subs = subs;
             _games = games;
             _files = files;
             _xp = xp;
             _db = db;
+            _userSubmissionChecker = userSubmissionChecker;
         }
 
         public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, DateTime? scoringDay = null, int page = 1, int pageSize = 50)
@@ -37,7 +40,7 @@ namespace DailyChallenges.Services
             var currentDay = GetCurrentScoringDay(game);
 
             var userId = user.GetUserId();
-            var hasSubmittedForLatest = await HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
+            var hasSubmittedForLatest = await _userSubmissionChecker.HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
 
             // Determine whether to exclude the current scoring day at the DB level
             DateTime? excludeScoringDay = null;
@@ -49,22 +52,26 @@ namespace DailyChallenges.Services
             // Fetch a single page of submissions (repository will apply excludeScoringDay if provided)
             var (pageItems, totalCount, _) = await _subs.GetByGameFilteredAsync(gameId, page, pageSize, null, scoringDay, excludeScoringDay);
 
-            // Compute winners only for scoring days present in the returned page by querying the repository per-day
+            // Compute winners only for scoring days present in the returned page using a single batched repository call
             var daysInPage = pageItems.Select(s => s.ScoringDay.Date).Distinct().ToList();
             var winnersByDay = new Dictionary<DateTime, Submission>();
-            foreach (var day in daysInPage)
+            if (daysInPage.Count > 0)
             {
-                var winner = await _subs.GetWinnerForGameAndDayAsync(gameId, day);
-                if (winner != null) winnersByDay[day] = winner;
+                var winners = await _subs.GetWinnersForGameAndDaysAsync(gameId, daysInPage);
+                if (winners != null)
+                {
+                    foreach (var w in winners)
+                    {
+                        winnersByDay[w.ScoringDay.Date] = w;
+                    }
+                }
             }
 
             var mapped = pageItems.Select(s =>
             {
-                var dto = DtoMapper.ToDto(s);
-                dto.ScoringDay = s.ScoringDay.Date.ToString("yyyy-MM-dd");
                 var day = s.ScoringDay.Date;
-                dto.IsDayWinner = winnersByDay.TryGetValue(day, out var w) && w.Id == s.Id;
-                return dto;
+                var isWinner = winnersByDay.TryGetValue(day, out var w) && w.Id == s.Id;
+                return DailyChallenges.Mapping.SubmissionDtoHelper.ToDtoWithScoringDay(s, day, isWinner);
             }).ToList();
 
             result.Items = mapped;
@@ -78,10 +85,7 @@ namespace DailyChallenges.Services
 
         public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user)
         {
-            var game = await _games.GetByIdAsync(gameId);
-            var currentDay = GetCurrentScoringDay(game);
-            var userId = user.GetUserId();
-            return await HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
+            return await _userSubmissionChecker.HasUserSubmittedForLatestAsync(gameId, user);
         }
 
         private async Task<List<Submission>> GetRecentSubmissionsAsync(int gameId)
@@ -95,13 +99,6 @@ namespace DailyChallenges.Services
             return ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
         }
 
-        private async Task<bool> HasUserSubmittedForDayAsync(int? userId, int gameId, DateTime currentDay, Game? game)
-        {
-            if (!userId.HasValue) return false;
-            var latest = await _subs.GetByGameAndUserAsync(gameId, userId.Value);
-            if (latest == null) return false;
-            return latest.ScoringDay.Date == currentDay;
-        }
 
         private List<Submission> FilterSubmissionsForVisibility(List<Submission> subs, bool hasSubmittedToday, Game? game, DateTime currentDay)
         {
@@ -184,7 +181,7 @@ namespace DailyChallenges.Services
             }
 
             var submission = new Submission { GameId = gameId, Score = score, Username = username, UserId = userId };
-            if (int.TryParse(score, out var parsedScore)) submission.ScoreValue = parsedScore;
+            if (ScoreParser.TryParseInt(score, out var parsedScore)) submission.ScoreValue = parsedScore;
             if (screenshot != null && screenshot.Length > 0)
             {
                 var (data, contentType) = await _files.ReadFileAsync(screenshot);
@@ -238,7 +235,7 @@ namespace DailyChallenges.Services
             if (!string.IsNullOrWhiteSpace(score))
             {
                 s.Score = score;
-                if (int.TryParse(score, out var parsedScore)) s.ScoreValue = parsedScore;
+                if (ScoreParser.TryParseInt(score, out var parsedScore)) s.ScoreValue = parsedScore;
                 else s.ScoreValue = null;
             }
             var updated = await _subs.UpdateAsync(s);
