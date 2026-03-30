@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace DailyChallenges.Services
 {
     public static class ScoringDayHelper
@@ -57,5 +59,26 @@ namespace DailyChallenges.Services
                 return (utcStart, utcEnd);
             }
         }
+
+        /// <summary>
+        /// Try to parse a scoring-day string in yyyy-MM-dd format. Returns true for empty/null input
+        /// and sets scoringDay to null in that case. Returns false on invalid format.
+        /// </summary>
+        public static bool TryParseScoringDay(string? s, out DateTime? scoringDay)
+        {
+            scoringDay = null;
+            if (string.IsNullOrWhiteSpace(s)) return true;
+            if (DateTime.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+            {
+                scoringDay = dt;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Format a scoring-day DateTime as yyyy-MM-dd.
+        /// </summary>
+        public static string FormatScoringDay(DateTime d) => d.ToString("yyyy-MM-dd");
     }
 }

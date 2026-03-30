@@ -35,9 +35,7 @@ namespace DailyChallenges.Controllers
             if (dto == null) return BadRequest();
             if (dto.Delta == 0) return BadRequest(new { message = "Delta must be non-zero" });
 
-            int? adminId = null;
-            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!string.IsNullOrEmpty(idClaim) && int.TryParse(idClaim, out var parsed)) adminId = parsed;
+            var adminId = User.GetUserId();
 
             try
             {
@@ -60,38 +58,8 @@ namespace DailyChallenges.Controllers
         [HttpGet("{id}/xp-events/export")]
         public async Task<IActionResult> ExportXpEvents(int id, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] string? eventType = null)
         {
-            const int MaxExportRows = 10000;
-            var (items, total) = await _adminService.GetXpEventsAsync(id, 1, MaxExportRows, from, to, eventType);
-
-            var sb = new StringBuilder();
-            sb.AppendLine("Id,UserId,SubmissionId,GameId,ScoringDay,Amount,EventType,Details,CreatedAt");
-
-            string Escape(string? s)
-            {
-                if (string.IsNullOrEmpty(s)) return string.Empty;
-                return '"' + s.Replace("\"", "\"\"") + '"';
-            }
-
-            foreach (var it in items)
-            {
-                var scoringDay = it.ScoringDay.HasValue ? it.ScoringDay.Value.ToString("yyyy-MM-dd") : string.Empty;
-                var createdAt = it.CreatedAt.ToString("o");
-                var line = string.Join(',', new string[] {
-                    it.Id.ToString(),
-                    it.UserId.ToString(),
-                    it.SubmissionId?.ToString() ?? string.Empty,
-                    it.GameId?.ToString() ?? string.Empty,
-                    scoringDay,
-                    it.Amount.ToString(),
-                    Escape(it.EventType),
-                    Escape(it.Details),
-                    Escape(createdAt)
-                });
-                sb.AppendLine(line);
-            }
-
-            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-            return File(bytes, "text/csv; charset=utf-8", $"xp-events-user-{id}.csv");
+            var (data, filename) = await _adminService.ExportXpEventsCsvAsync(id, from, to, eventType);
+            return File(data, "text/csv; charset=utf-8", filename);
         }
     }
 }

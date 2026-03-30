@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using DailyChallenges.Data;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
+using System.Text;
 using DailyChallenges.Repositories;
 
 namespace DailyChallenges.Services
@@ -49,6 +50,42 @@ namespace DailyChallenges.Services
             var (items, total) = await _xpEventRepository.GetByUserPagedAsync(userId, page, pageSize, from, to, eventType);
             var dtos = items.Select(e => DtoMapper.ToDto(e)).ToList();
             return (dtos, total);
+        }
+
+        public async Task<(byte[] Data, string Filename)> ExportXpEventsCsvAsync(int userId, DateTime? from = null, DateTime? to = null, string? eventType = null, int maxRows = 10000)
+        {
+            var (items, total) = await GetXpEventsAsync(userId, 1, maxRows, from, to, eventType);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Id,UserId,SubmissionId,GameId,ScoringDay,Amount,EventType,Details,CreatedAt");
+
+            string Escape(string? s)
+            {
+                if (string.IsNullOrEmpty(s)) return string.Empty;
+                return '"' + s.Replace("\"", "\"\"") + '"';
+            }
+
+            foreach (var it in items)
+            {
+                var scoringDay = it.ScoringDay.HasValue ? ScoringDayHelper.FormatScoringDay(it.ScoringDay.Value) : string.Empty;
+                var createdAt = it.CreatedAt.ToString("o");
+                var line = string.Join(',', new string[] {
+                    it.Id.ToString(),
+                    it.UserId.ToString(),
+                    it.SubmissionId?.ToString() ?? string.Empty,
+                    it.GameId?.ToString() ?? string.Empty,
+                    scoringDay,
+                    it.Amount.ToString(),
+                    Escape(it.EventType),
+                    Escape(it.Details),
+                    Escape(createdAt)
+                });
+                sb.AppendLine(line);
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var filename = $"xp-events-user-{userId}.csv";
+            return (bytes, filename);
         }
     }
 }
