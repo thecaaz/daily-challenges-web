@@ -50,9 +50,10 @@ namespace DailyChallenges.Services
 
             var expiresDays = int.Parse(_config["Jwt:ExpiresDays"] ?? "7");
 
-            // Per user request: force insecure cookie (not recommended for production).
+            // Per user request: force insecure cookie
             // This unconditionally disables the Secure flag so the cookie can be set
             // over plain HTTP.
+            // This is needed cause i cant be asked to pay for https for this shit.
             var cookieSecure = false;
 
             response.Cookies.Append("access_token", token, new CookieOptions
