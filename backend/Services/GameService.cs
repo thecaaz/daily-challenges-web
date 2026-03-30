@@ -101,50 +101,79 @@ namespace DailyChallenges.Services
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
-            // avoid loading all submissions (may include large blobs); fetch a bounded recent set
-            var subs = (await _subsRepo.GetTopByGameAsync(id, 2000)) ?? new List<Submission>();
+            // Determine whether the current user has already submitted today
+            int? userId = ClaimsPrincipalExtensions.GetUserId(user);
+            var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId);
+            bool hasSubmittedToday = false;
+            if (userId.HasValue)
+            {
+                var latestForUser = await _subsRepo.GetByGameAndUserAsync(id, userId.Value);
+                if (latestForUser != null)
+                    hasSubmittedToday = ScoringDayHelper.GetScoringDay(latestForUser.CreatedAt, g.ResetTime, g.ResetTimezoneId) == currentDay;
+            }
 
-            // Filter current-day submissions for users who haven't submitted yet
+            // Prefer numeric ScoreValue ordering (handled in the DB) to avoid heavy in-memory parsing/sorts.
+            var numericCandidates = (await _subsRepo.GetTopByGameByScoreValueAsync(id, 2000)) ?? new List<Submission>();
+            var usedNumeric = numericCandidates.Count > 0;
+
+            List<Submission> subs = usedNumeric
+                ? numericCandidates
+                : (await _subsRepo.GetTopByGameAsync(id, 2000)) ?? new List<Submission>();
+
             if (user == null || !user.IsInRole("Admin"))
             {
-                int? userId = ClaimsPrincipalExtensions.GetUserId(user);
-
-                var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId);
-                bool hasSubmittedToday = userId.HasValue && subs.Any(s =>
-                    s.UserId == userId.Value &&
-                    ScoringDayHelper.GetScoringDay(s.CreatedAt, g.ResetTime, g.ResetTimezoneId) == currentDay);
-
                 if (!hasSubmittedToday)
                     subs = subs.Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, g.ResetTime, g.ResetTimezoneId) != currentDay).ToList();
             }
 
-            var ordered = subs
-                .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
-                .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
-                .ThenBy(x => x.Sub.CreatedAt)
-                .Take(50)
-                .Select(x => DtoMapper.ToDto(x.Sub))
-                .ToList();
+            List<SubmissionDto> topDtos;
+            if (usedNumeric)
+            {
+                topDtos = subs.Take(50).Select(s => DtoMapper.ToDto(s)).ToList();
+            }
+            else
+            {
+                topDtos = subs
+                    .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
+                    .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
+                    .ThenBy(x => x.Sub.CreatedAt)
+                    .Take(50)
+                    .Select(x => DtoMapper.ToDto(x.Sub))
+                    .ToList();
+            }
 
-            return new HighscoreResult { Highscore = ordered.FirstOrDefault(), Top = ordered };
+            return new HighscoreResult { Highscore = topDtos.FirstOrDefault(), Top = topDtos };
         }
 
         public async Task<HighscoreResult> GetPersonalHighscoreAsync(int id, int userId)
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
-            // fetch a bounded set and filter for the user locally
-            var subs = (await _subsRepo.GetTopByGameAsync(id, 2000)).Where(s => s.UserId == userId).ToList();
+            // Prefer numeric ScoreValue ordering when available
+            var numericCandidates = (await _subsRepo.GetTopByGameByScoreValueAsync(id, 2000)) ?? new List<Submission>();
+            var usedNumeric = numericCandidates.Count > 0;
 
-            var ordered = subs
-                .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
-                .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
-                .ThenBy(x => x.Sub.CreatedAt)
-                .Take(50)
-                .Select(x => DtoMapper.ToDto(x.Sub))
-                .ToList();
+            List<Submission> userSubs = usedNumeric
+                ? numericCandidates.Where(s => s.UserId == userId).ToList()
+                : ((await _subsRepo.GetTopByGameAsync(id, 2000)) ?? new List<Submission>()).Where(s => s.UserId == userId).ToList();
 
-            return new HighscoreResult { Highscore = ordered.FirstOrDefault(), Top = ordered };
+            List<SubmissionDto> topDtos;
+            if (usedNumeric)
+            {
+                topDtos = userSubs.Take(50).Select(s => DtoMapper.ToDto(s)).ToList();
+            }
+            else
+            {
+                topDtos = userSubs
+                    .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
+                    .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
+                    .ThenBy(x => x.Sub.CreatedAt)
+                    .Take(50)
+                    .Select(x => DtoMapper.ToDto(x.Sub))
+                    .ToList();
+            }
+
+            return new HighscoreResult { Highscore = topDtos.FirstOrDefault(), Top = topDtos };
         }
 
         public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null, int top = 0)

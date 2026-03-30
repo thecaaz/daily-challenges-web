@@ -49,13 +49,19 @@ namespace DailyChallenges.Services
             // Fetch a single page of submissions (repository will apply excludeScoringDay if provided)
             var (pageItems, totalCount, _) = await _subs.GetByGameFilteredAsync(gameId, page, pageSize, null, scoringDay, excludeScoringDay);
 
-            // Compute winners only for scoring days present in the returned page by querying the repository per-day
+            // Compute winners only for scoring days present in the returned page using a single batched repository call
             var daysInPage = pageItems.Select(s => s.ScoringDay.Date).Distinct().ToList();
             var winnersByDay = new Dictionary<DateTime, Submission>();
-            foreach (var day in daysInPage)
+            if (daysInPage.Count > 0)
             {
-                var winner = await _subs.GetWinnerForGameAndDayAsync(gameId, day);
-                if (winner != null) winnersByDay[day] = winner;
+                var winners = await _subs.GetWinnersForGameAndDaysAsync(gameId, daysInPage);
+                if (winners != null)
+                {
+                    foreach (var w in winners)
+                    {
+                        winnersByDay[w.ScoringDay.Date] = w;
+                    }
+                }
             }
 
             var mapped = pageItems.Select(s =>
