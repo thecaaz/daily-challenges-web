@@ -79,6 +79,14 @@ namespace DailyChallenges.Services
 
         public async Task DeleteAsync(int id) => await _games.DeleteAsync(id);
 
+        public async Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id)
+        {
+            var g = await _games.GetByIdAsync(id);
+            if (g == null) return (null, null);
+            if (g.ScreenshotData == null || g.ScreenshotData.Length == 0) return (null, null);
+            return (g.ScreenshotData, g.ScreenshotContentType);
+        }
+
         private static double ParseScore(string s)
         {
             if (string.IsNullOrWhiteSpace(s)) return double.NaN;

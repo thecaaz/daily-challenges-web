@@ -43,11 +43,10 @@ namespace DailyChallenges.Controllers
         [HttpGet("{id}/image")]
         public async Task<IActionResult> GetImage(int id)
         {
-            var g = await _games.GetByIdAsync(id);
-            if (g == null) return NotFound();
-            if (g.ScreenshotData == null || g.ScreenshotData.Length == 0) return NotFound();
-            var contentType = string.IsNullOrWhiteSpace(g.ScreenshotContentType) ? "application/octet-stream" : g.ScreenshotContentType;
-            return File(g.ScreenshotData, contentType);
+            var (data, contentType) = await _games.GetImageAsync(id);
+            if (data == null || data.Length == 0) return NotFound();
+            var ct = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType;
+            return File(data, ct);
         }
 
         [HttpGet("{id}/highscore")]
