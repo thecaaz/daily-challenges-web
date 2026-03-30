@@ -1,5 +1,7 @@
 # Disclaimer: This project is intended as a way to learn how to work with AI in a good and productive way.
 
+[![CI](https://img.shields.io/github/actions/workflow/status/thecaaz/daily-challenges-web/ci.yml?branch=main&label=CI&logo=github&style=flat-square)](https://github.com/thecaaz/daily-challenges-web/actions/workflows/ci.yml)
+
 # Daily Challenges — MVP
 
 This repository contains a minimal full-stack MVP for submitting daily challenge scores.
