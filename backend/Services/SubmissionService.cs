@@ -74,6 +74,24 @@ namespace DailyChallenges.Services
                 return DailyChallenges.Mapping.SubmissionDtoHelper.ToDtoWithScoringDay(s, day, isWinner);
             }).ToList();
 
+            // If the caller requested a specific scoring day, populate 1-based ranks for scored submissions on that day.
+            if (scoringDay.HasValue)
+            {
+                var scoredOrdered = await _subs.GetByGameAndDayByScoreValueAsync(gameId, scoringDay.Value.Date);
+                var rankMap = new Dictionary<int, int>();
+                int r = 1;
+                foreach (var s in scoredOrdered)
+                {
+                    rankMap[s.Id] = r++;
+                }
+
+                foreach (var dto in mapped)
+                {
+                    if (rankMap.TryGetValue(dto.Id, out var rv)) dto.Rank = rv;
+                    else dto.Rank = null;
+                }
+            }
+
             result.Items = mapped;
             result.HasSubmittedForLatest = hasSubmittedForLatest;
             result.TotalCount = totalCount;
