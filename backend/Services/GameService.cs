@@ -87,29 +87,17 @@ namespace DailyChallenges.Services
             return (g.ScreenshotData, g.ScreenshotContentType);
         }
 
-        private static double ParseScore(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return double.NaN;
-            var m = Regex.Match(s, "-?\\d+(?:[.,]\\d+)?");
-            if (!m.Success) return double.NaN;
-            var raw = m.Value.Replace(',', '.');
-            if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var v)) return v;
-            return double.NaN;
-        }
 
         public async Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user)
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
             // Determine whether the current user has already submitted today
-            int? userId = ClaimsPrincipalExtensions.GetUserId(user);
             var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId);
             bool hasSubmittedToday = false;
-            if (userId.HasValue)
+            if (user != null)
             {
-                var latestForUser = await _subsRepo.GetByGameAndUserAsync(id, userId.Value);
-                if (latestForUser != null)
-                    hasSubmittedToday = ScoringDayHelper.GetScoringDay(latestForUser.CreatedAt, g.ResetTime, g.ResetTimezoneId) == currentDay;
+                hasSubmittedToday = await _submissionService.HasUserSubmittedForLatestAsync(id, user);
             }
 
             // Prefer numeric ScoreValue ordering (handled in the DB) to avoid heavy in-memory parsing/sorts.
@@ -134,7 +122,7 @@ namespace DailyChallenges.Services
             else
             {
                 topDtos = subs
-                    .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
+                    .Select(s => new { Sub = s, Num = DailyChallenges.Services.ScoreParser.ParseScore(s.Score) })
                     .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
                     .ThenBy(x => x.Sub.CreatedAt)
                     .Take(50)
@@ -165,7 +153,7 @@ namespace DailyChallenges.Services
             else
             {
                 topDtos = userSubs
-                    .Select(s => new { Sub = s, Num = ParseScore(s.Score) })
+                    .Select(s => new { Sub = s, Num = DailyChallenges.Services.ScoreParser.ParseScore(s.Score) })
                     .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
                     .ThenBy(x => x.Sub.CreatedAt)
                     .Take(50)

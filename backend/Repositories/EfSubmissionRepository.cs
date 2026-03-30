@@ -127,6 +127,7 @@ namespace DailyChallenges.Repositories
             // return the most recent submission for the user in this game
             return await _db.Submissions.Where(s => s.GameId == gameId && s.UserId == userId)
                 .OrderByDescending(s => s.CreatedAt)
+                .AsNoTracking()
                 .FirstOrDefaultAsync();
         }
 
