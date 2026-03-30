@@ -1,3 +1,5 @@
+# Disclaimer: This project is intended as a way to learn how to work with AI in a good and productive way.
+
 # Daily Challenges — MVP
 
 This repository contains a minimal full-stack MVP for submitting daily challenge scores.
