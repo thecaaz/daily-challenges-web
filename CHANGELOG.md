@@ -1,3 +1,13 @@
+## [1.1.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.0.1...v1.1.0) (2026-03-30)
+
+
+### Features
+
+* add rank property to SubmissionDto and implement ranking logic in services ([4f559cc](https://github.com/thecaaz/daily-challenges-web/commit/4f559ccc134cdf4500a98daeca3cc0db26cff029))
+* implement AppButton component and update button usage across pages ([abcdefc](https://github.com/thecaaz/daily-challenges-web/commit/abcdefc34881cc1a0aec90d11dd94762f6ec1b4a))
+* replace anchor tags with AppButton components for game links ([55a4795](https://github.com/thecaaz/daily-challenges-web/commit/55a4795df46c33a000d8afc717389df78bf9ab2e))
+* styling update ([6c7c87a](https://github.com/thecaaz/daily-challenges-web/commit/6c7c87a9a6c073e08405f7f4d4a0e6139280b613))
+
 ### [1.0.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.0.0...v1.0.1) (2026-03-30)
 
 
