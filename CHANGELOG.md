@@ -1,3 +1,10 @@
+### [1.5.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.5.2...v1.5.3) (2026-03-31)
+
+
+### Bug Fixes
+
+* ui-tests ([b34ff5d](https://github.com/thecaaz/daily-challenges-web/commit/b34ff5df0ae0cc0db66a97e3313fd02a55230bf9))
+
 ### [1.5.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.5.1...v1.5.2) (2026-03-31)
 
 
