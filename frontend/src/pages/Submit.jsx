@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { TextField, Button, Stack, Typography } from '@mui/material'
+import { TextField, Stack, Typography, Card } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
+import NotFound from '../components/ui/NotFound'
+import Loading from '../components/ui/Loading'
+import useGame from '../hooks/useGame'
+import useImageUpload from '../hooks/useImageUpload'
+import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 
 export default function Submit() {
   const { gameId } = useParams()
@@ -13,12 +19,20 @@ export default function Submit() {
   const [notFound, setNotFound] = useState(false)
   const [username, setUsername] = useState('')
   const [score, setScore] = useState('')
-  const [screenshot, setScreenshot] = useState(null)
   const { showSnackbar } = useSnackbar()
 
-  const [previewUrl, setPreviewUrl] = useState(null)
+  const { screenshot, previewUrl, setScreenshot, onFileChange, clear } = useImageUpload(showSnackbar)
 
-  useEffect(() => { fetchGame() }, [])
+  // Use centralized hook to load game overview
+  const { game: hookGame, hasSubmittedForLatest: hookHasSubmittedForLatest, notFound: hookNotFound } = useGame(gameId)
+
+  useEffect(() => {
+    if (hookNotFound) {
+      setNotFound(true)
+      return
+    }
+    if (hookGame) setGame(hookGame)
+  }, [hookGame, hookNotFound])
   const { user, loading, fetchMe } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -30,28 +44,12 @@ export default function Submit() {
   }, [loading, user, navigate])
   const [hasSubmitted, setHasSubmitted] = useState(false)
 
-  const fetchGame = async () => {
-    try {
-      const res = await api.get(`/games/${gameId}`)
-      setGame(res.data)
-    } catch (err) {
-      if (err?.response?.status === 404) {
-        setNotFound(true)
-        return
-      }
-      throw err
+  // sync has-submitted state for authenticated users
+  useEffect(() => {
+    if (hookHasSubmittedForLatest && user && user.id) {
+      setHasSubmitted(true)
     }
-    // if logged in, check if user already submitted for this game
-    try {
-        if (user && user.id) {
-        // Ask backend whether the current user has submitted for latest scoring day (lightweight)
-        const sres = await api.get(`/submissions/game/${gameId}/has-submitted`)
-        if (sres.data?.hasSubmittedForLatest === true) setHasSubmitted(true)
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
+  }, [hookHasSubmittedForLatest, user])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -108,60 +106,29 @@ export default function Submit() {
     }
   }
 
-  // create/revoke preview URL when screenshot changes
-  useEffect(() => {
-    if (!screenshot) {
-      setPreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(screenshot)
-    setPreviewUrl(url)
-    return () => { URL.revokeObjectURL(url) }
-  }, [screenshot])
+  // image upload and paste handling managed by useImageUpload(showSnackbar)
 
-  // handle paste events (Ctrl+V) to accept images from clipboard
-  useEffect(() => {
-    const handler = (e) => {
-      try {
-        const items = e.clipboardData?.items
-        if (!items) return
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i]
-          if (item && item.type && item.type.startsWith('image/')) {
-            const blob = item.getAsFile ? item.getAsFile() : null
-            if (blob) {
-              const file = new File([blob], 'clipboard.png', { type: blob.type })
-              setScreenshot(file)
-              showSnackbar('Image pasted from clipboard', 'success')
-              e.preventDefault()
-              return
-            }
-          }
-        }
-      } catch (err) {
-        // ignore
-      }
-    }
-    window.addEventListener('paste', handler)
-    return () => window.removeEventListener('paste', handler)
-  }, [showSnackbar])   
-
-  if (notFound) {
-    return (
-      <Typography component="h1" role="alert">
-        Game not found
-      </Typography>
-    )
-  }
-  if (!game) return <div>Loading...</div>
+  if (notFound) return <NotFound message="Game not found" />
+  if (!game) return <Loading />
 
   return (
     <div>
-      <div className="card">
+      <Card sx={{ p: 2 }}>
         <Typography variant="h5">Submit for {game.name}</Typography>
         {game.url && (
           <div style={{ marginTop: 6 }}>
-            <a href={game.url} target="_blank" rel="noreferrer">Play</a>
+            <AppButton
+              href={game.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outlined"
+              size="small"
+              color="primary"
+              endIcon={<OpenInNewIcon />}
+              dataTest="game-play-link"
+            >
+              Play
+            </AppButton>
           </div>
         )}
         <form onSubmit={submit}>
@@ -170,20 +137,11 @@ export default function Submit() {
               <TextField label="Username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
             )}
             <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
-            <input type="file" accept="image/*" onChange={e => setScreenshot(e.target.files?.[0] ?? null)} />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div style={{ fontSize: 12, color: '#666' }}>You can paste an image from clipboard (Ctrl+V).</div>
-            </div>
-            {previewUrl && (
-              <div style={{ marginTop: 8 }}>
-                <img src={previewUrl} alt="preview" style={{ maxWidth: 320, display: 'block', marginBottom: 6 }} />
-                <Button onClick={() => setScreenshot(null)} size="small">Remove</Button>
-              </div>
-            )}
+            <ImageUpload onFileChange={onFileChange} previewUrl={previewUrl} onRemove={clear} />
             <AppButton type="submit">Submit</AppButton>
           </Stack>
         </form>
-      </div>
+      </Card>
       
     </div>
   )

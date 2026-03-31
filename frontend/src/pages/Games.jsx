@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import {
-  Card, CardContent, CardMedia, CardActionArea, CardActions,
-  Typography, Grid, Button, Skeleton, Box, Chip,
-} from '@mui/material'
-import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
-import OpenInNewIcon from '@mui/icons-material/OpenInNew'
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
-import { Link } from 'react-router-dom'
-import api, { getApiRoot } from '../api'
+import { Grid, Typography, Skeleton, Box, Chip, Card } from '@mui/material'
+import GameCard from '../components/ui/GameCard/GameCard'
+import api from '../api'
 
 export default function Games() {
   const [games, setGames] = useState([])
@@ -21,8 +15,6 @@ export default function Games() {
     setLoading(false)
   }
 
-  const apiRoot = getApiRoot()
-
   if (loading) {
     return (
       <Grid container spacing={3}>
@@ -30,10 +22,10 @@ export default function Games() {
           <Grid item xs={12} sm={6} md={4} key={i}>
             <Card>
               <Skeleton variant="rectangular" height={180} />
-              <CardContent>
+              <Box sx={{ p: 2 }}>
                 <Skeleton width="60%" height={28} />
                 <Skeleton width="40%" height={20} sx={{ mt: 1 }} />
-              </CardContent>
+              </Box>
             </Card>
           </Grid>
         ))}
@@ -62,66 +54,11 @@ export default function Games() {
           sx={{ fontWeight: 700 }}
         />
       </Box>
+
       <Grid container spacing={3}>
-        {games.map(g => (
-          <Grid item xs={12} sm={6} md={4} key={g.id}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardActionArea component={Link} to={`/games/${g.id}`} sx={{ flexGrow: 1 }}>
-                {g.imageUrl ? (
-                  <CardMedia
-                    component="img"
-                    image={`${apiRoot}${g.imageUrl}`}
-                    alt={g.name}
-                    height={180}
-                    loading="lazy"
-                    sx={{ objectFit: 'cover' }}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      height: 180,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'linear-gradient(135deg, rgba(255,122,182,0.12), rgba(255,209,102,0.12))',
-                      fontSize: '3.5rem',
-                    }}
-                  >
-                    🎮
-                  </Box>
-                )}
-                <CardContent sx={{ pb: 1 }}>
-                  <Typography variant="h6" gutterBottom sx={{ lineHeight: 1.3 }}>
-                    {g.name}
-                  </Typography>
-                </CardContent>
-              </CardActionArea>
-              <CardActions sx={{ px: 2, pb: 2, pt: 0, gap: 1 }}>
-                <Button
-                  component={Link}
-                  to={`/submit/${g.id}`}
-                  variant="contained"
-                  color="primary"
-                  size="small"
-                  startIcon={<EmojiEventsIcon />}
-                >
-                  Submit Score
-                </Button>
-                {g.url && (
-                  <Button
-                    href={g.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    endIcon={<OpenInNewIcon />}
-                  >
-                    Play
-                  </Button>
-                )}
-              </CardActions>
-            </Card>
+        {games.map(game => (
+          <Grid item xs={12} sm={6} md={4} key={game.id}>
+            <GameCard game={game} />
           </Grid>
         ))}
       </Grid>

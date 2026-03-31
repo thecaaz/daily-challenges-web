@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Typography, Button } from '@mui/material'
+import { Typography, Button, Card } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import api, { getApiRoot } from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
+import formatNumber from '../utils/formatNumber'
+import Loading from '../components/ui/Loading'
+import NotFound from '../components/ui/NotFound'
 
 export default function SubmissionDetail() {
   const { id } = useParams()
@@ -90,8 +93,8 @@ export default function SubmissionDetail() {
 
   const resetView = () => { setScale(1); setOffset({ x: 0, y: 0 }) }
 
-  if (loading) return <div>Loading...</div>
-  if (!submission) return <div>Not found</div>
+  if (loading) return <Loading />
+  if (!submission) return <NotFound message="Not found" />
 
   const apiRoot = getApiRoot()
 
@@ -100,7 +103,7 @@ export default function SubmissionDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Typography variant="h5">Submission — {submission.username ?? 'Anonymous'}</Typography>
-          <Typography variant="caption">Score: {submission.score} — {parseUtcDate(submission.createdAt).toLocaleString()}</Typography>
+          <Typography variant="caption">Score: {formatNumber(submission.score)} — {parseUtcDate(submission.createdAt).toLocaleString()}</Typography>
         </div>
         <div>
           <AppButton onClick={() => {
@@ -145,9 +148,9 @@ export default function SubmissionDetail() {
           />
         </div>
       ) : (
-        <div className="card">
+        <Card sx={{ p: 2 }}>
           <Typography variant="body1">No screenshot attached.</Typography>
-        </div>
+        </Card>
       )}
 
     </div>

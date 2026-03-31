@@ -1,7 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Typography, Grid } from '@mui/material'
+import { Typography } from '@mui/material'
+import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
+import Loading from '../components/ui/Loading'
+import NotFound from '../components/ui/NotFound'
 import AppButton from '../components/ui/AppButton'
+import HiddenScoresCard from '../components/ui/HiddenScoresCard'
 import SubmissionCard from '../components/SubmissionCard'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
@@ -49,8 +53,8 @@ export default function GameHighscore() {
     setTop(data.top || [])
   }
 
-  if (notFound) return <Typography variant="h5" component="h1" role="alert">Game not found</Typography>
-  if (!game) return <div>Loading...</div>
+  if (notFound) return <NotFound message="Game not found" />
+  if (!game) return <Loading />
 
   const currentScoringDay = game?.currentScoringDay ?? ''
 
@@ -59,24 +63,12 @@ export default function GameHighscore() {
       <Typography variant="h5">Highscores — {game.name}</Typography>
       <div style={{ marginTop: 12 }}>
         {currentScoringDay && !hasSubmittedForLatest ? (
-          <div className="card" style={{ padding: 24 }}>
-            <Typography variant="h6">Today's scores are hidden.</Typography>
-            <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
-            <div style={{ marginTop: 12 }}>
-              <AppButton to={`/submit/${game.id}`}>Submit Score</AppButton>
-            </div>
-          </div>
+          <HiddenScoresCard gameId={game.id} />
         ) : (
           (top.length === 0) ? (
             <div className="muted">No highscores yet.</div>
           ) : (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              {top.map(s => (
-                <Grid item xs={12} sm={6} md={4} key={s.id}>
-                  <SubmissionCard submission={s} />
-                </Grid>
-              ))}
-            </Grid>
+            <SubmissionGrid items={top} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
           )
         )}
       </div>

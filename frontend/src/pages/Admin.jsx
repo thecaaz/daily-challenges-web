@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { TextField, Button, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton } from '@mui/material'
+import { TextField, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+import AppButton from '../components/ui/AppButton'
+import useImageUpload from '../hooks/useImageUpload'
+import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
@@ -10,8 +13,20 @@ import DeleteIcon from '@mui/icons-material/Delete'
 
 export default function Admin() {
   const [name, setName] = useState('')
-  const [image, setImage] = useState(null)
   const { showSnackbar } = useSnackbar()
+  const {
+    screenshot: createImageFile,
+    previewUrl: createPreviewUrl,
+    onFileChange: onCreateFileChange,
+    clear: clearCreateImage
+  } = useImageUpload(showSnackbar)
+
+  const {
+    screenshot: editImageFile,
+    previewUrl: editPreviewUrl,
+    onFileChange: onEditFileChange,
+    clear: clearEditImage
+  } = useImageUpload(showSnackbar)
   const [resetTime, setResetTime] = useState('00:00')
   const [url, setUrl] = useState('')
   const [detectedTimezone, setDetectedTimezone] = useState(() => {
@@ -29,11 +44,11 @@ export default function Admin() {
     if (url) fd.append('url', url)
     fd.append('resetTime', resetTime)
     fd.append('resetTimezoneId', detectedTimezone)
-    if (image) fd.append('image', image)
+    if (createImageFile) fd.append('image', createImageFile)
     try {
       await api.post('/games', fd)
       setName('')
-      setImage(null)
+      clearCreateImage()
       setResetTime('00:00')
       showSnackbar('Game created', 'success')
       // navigate back to games overview
@@ -81,10 +96,12 @@ export default function Admin() {
       if (editingGame.url) fd.append('url', editingGame.url)
       if (editingGame.resetTime) fd.append('resetTime', editingGame.resetTime)
       if (editingGame.resetTimezoneId) fd.append('resetTimezoneId', editingGame.resetTimezoneId)
-      if (editingGame.imageFile) fd.append('image', editingGame.imageFile)
+      if (editImageFile) fd.append('image', editImageFile)
+      else if (editingGame.imageFile) fd.append('image', editingGame.imageFile)
       await api.put(`/games/${editingGame.id}`, fd)
       showSnackbar('Game updated', 'success')
       setEditingGame(null)
+      clearEditImage()
       fetchGames()
     } catch (err) {
       showSnackbar('Failed to update game', 'error')
@@ -136,13 +153,13 @@ export default function Admin() {
   return (
     <>
     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-      <Button variant="contained" onClick={goUsers} sx={{ mb: 2 }}>Manage Users</Button>
+      <AppButton onClick={goUsers} sx={{ mb: 2 }}>Manage Users</AppButton>
     </div>
     <form onSubmit={submit}>
       <Stack spacing={2} maxWidth={400}>
         <TextField label="Game name" value={name} onChange={e => setName(e.target.value)} required />
         <TextField label="Game URL (optional)" value={url} onChange={e => setUrl(e.target.value)} />
-          <input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] ?? null)} />
+          <ImageUpload onFileChange={onCreateFileChange} previewUrl={createPreviewUrl} onRemove={clearCreateImage} />
           <div>
             <label>Reset time (day boundary): </label>
             <input type="time" value={resetTime} onChange={e => setResetTime(e.target.value)} />
@@ -151,7 +168,7 @@ export default function Admin() {
             <label>Reset timezone (detected): </label>
             <input type="text" value={detectedTimezone} readOnly />
           </div>
-        <Button variant="contained" type="submit">Create Game</Button>
+        <AppButton type="submit">Create Game</AppButton>
       </Stack>
       
     </form>
@@ -167,7 +184,7 @@ export default function Admin() {
             <div>
               <IconButton onClick={() => startEdit(g)} title="Edit"><EditIcon /></IconButton>
               <IconButton onClick={() => removeGame(g.id)} title="Delete"><DeleteIcon /></IconButton>
-              <Button onClick={() => manageSubs(g.id)} sx={{ ml: 1 }}>Manage Submissions</Button>
+              <AppButton onClick={() => manageSubs(g.id)} sx={{ ml: 1 }}>Manage Submissions</AppButton>
             </div>
           </div>
         </Paper>
@@ -185,11 +202,11 @@ export default function Admin() {
             <input type="time" value={editingGame.resetTime ?? '00:00'} onChange={e => setEditingGame({ ...editingGame, resetTime: e.target.value })} />
           </div>
           <div>
-            <input type="file" accept="image/*" onChange={e => setEditingGame({ ...editingGame, imageFile: e.target.files?.[0] ?? null })} />
+            <ImageUpload onFileChange={onEditFileChange} previewUrl={editPreviewUrl} onRemove={clearEditImage} />
           </div>
           <div>
-            <Button variant="contained" onClick={saveEdit}>Save</Button>
-            <Button onClick={() => setEditingGame(null)}>Cancel</Button>
+            <AppButton onClick={saveEdit}>Save</AppButton>
+            <AppButton onClick={() => setEditingGame(null)}>Cancel</AppButton>
           </div>
         </Stack>
       </Paper>
@@ -218,8 +235,8 @@ export default function Admin() {
                 </TableCell>
                 <TableCell>{parseUtcDate(s.createdAt).toLocaleString()}</TableCell>
                 <TableCell>
-                  <Button onClick={() => updateSubmission(s)}>Save</Button>
-                  <Button color="error" onClick={() => deleteSubmission(s.id)}>Delete</Button>
+                  <AppButton onClick={() => updateSubmission(s)}>Save</AppButton>
+                  <AppButton color="error" onClick={() => deleteSubmission(s.id)}>Delete</AppButton>
                 </TableCell>
               </TableRow>
             ))}

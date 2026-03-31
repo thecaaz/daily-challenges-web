@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Typography, Grid } from '@mui/material'
+import { Typography } from '@mui/material'
 import SubmissionCard from '../components/SubmissionCard'
+import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
+import NotFound from '../components/ui/NotFound'
+import Loading from '../components/ui/Loading'
 
 export default function PersonalHighscore() {
   const { gameId } = useParams()
@@ -35,13 +38,8 @@ export default function PersonalHighscore() {
     setTop(data.top || [])
   }
 
-  if (notFound)
-    return (
-      <Typography variant="h5" role="alert">
-        Game not found
-      </Typography>
-    )
-  if (!game) return <div>Loading...</div>
+  if (notFound) return <NotFound message="Game not found" />
+  if (!game) return <Loading />
 
   return (
     <div>
@@ -50,13 +48,7 @@ export default function PersonalHighscore() {
         {top.length === 0 ? (
           <div className="muted">You have no submissions yet.</div>
         ) : (
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            {top.map(s => (
-              <Grid item xs={12} sm={6} md={4} key={s.id}>
-                <SubmissionCard submission={s} />
-              </Grid>
-            ))}
-          </Grid>
+          <SubmissionGrid items={top} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
         )}
       </div>
     </div>
