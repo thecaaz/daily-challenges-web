@@ -117,6 +117,14 @@ namespace DailyChallenges.Services
             return ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
         }
 
+        public async Task<TodaySubmittersDto> GetTodaySubmittersAsync(int gameId)
+        {
+            var game = await _games.GetByIdAsync(gameId);
+            var currentDay = GetCurrentScoringDay(game);
+            var usernames = await _subs.GetUsernamesForDayAsync(gameId, currentDay);
+            return new TodaySubmittersDto { Count = usernames.Count, Usernames = usernames };
+        }
+
 
         private List<Submission> FilterSubmissionsForVisibility(List<Submission> subs, bool hasSubmittedToday, Game? game, DateTime currentDay)
         {

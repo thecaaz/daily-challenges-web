@@ -142,6 +142,16 @@ namespace DailyChallenges.Repositories
                 .FirstOrDefaultAsync();
         }
 
+        public async Task<List<string>> GetUsernamesForDayAsync(int gameId, DateTime scoringDay)
+        {
+            var target = scoringDay.Date;
+            return await _db.Submissions
+                .Where(s => s.GameId == gameId && s.ScoringDay == target)
+                .AsNoTracking()
+                .Select(s => s.Username ?? "Anonymous")
+                .ToListAsync();
+        }
+
         public async Task<Submission> CreateAsync(Submission submission)
         {
             _db.Submissions.Add(submission);

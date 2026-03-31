@@ -14,6 +14,7 @@ namespace DailyChallenges.Repositories
         Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay);
         Task<List<Submission>> GetWinnersForGameAndDaysAsync(int gameId, List<DateTime> days);
         Task<List<DateTime>> GetAvailableDatesAsync(int gameId);
+        Task<List<string>> GetUsernamesForDayAsync(int gameId, DateTime scoringDay);
         Task<Submission> CreateAsync(Submission submission);
         Task<Submission?> GetByIdAsync(int id);
         Task<Submission> UpdateAsync(Submission submission);
