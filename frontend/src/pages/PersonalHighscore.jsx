@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { Typography } from '@mui/material'
 import SubmissionCard from '../components/SubmissionCard'
 import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
 import api from '../api'
-import { useAuth } from '../contexts/AuthContext'
+import useRequireAuth from '../hooks/useRequireAuth'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
 
@@ -13,16 +13,12 @@ export default function PersonalHighscore() {
   const [game, setGame] = useState(null)
   const [notFound, setNotFound] = useState(false)
   const [top, setTop] = useState([])
-  const { user, loading } = useAuth()
-  const navigate = useNavigate()
+  const { user, loading } = useRequireAuth()
 
   useEffect(() => { fetchData() }, [loading, user])
 
   const fetchData = async () => {
-    if (!loading && !user) {
-      navigate('/login')
-      return
-    }
+    if (loading || !user) return
     try {
       const gres = await api.get(`/games/${gameId}`)
       setGame(gres.data)

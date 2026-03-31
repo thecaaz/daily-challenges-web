@@ -6,7 +6,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
-import { useAuth } from '../contexts/AuthContext'
+import useRequireAuth from '../hooks/useRequireAuth'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
 import useGame from '../hooks/useGame'
@@ -37,15 +37,10 @@ export default function Submit() {
     }
     if (hookGame) setGame(hookGame)
   }, [hookGame, hookNotFound])
-  const { user, loading, fetchMe } = useAuth()
+  const { user, loading, fetchMe } = useRequireAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login')
-    }
-  }, [loading, user, navigate])
   const [hasSubmitted, setHasSubmitted] = useState(false)
 
   // sync has-submitted state for authenticated users
