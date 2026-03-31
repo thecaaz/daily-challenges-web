@@ -8,6 +8,7 @@ import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
+import useGame from '../hooks/useGame'
 
 export default function Submit() {
   const { gameId } = useParams()
@@ -20,7 +21,16 @@ export default function Submit() {
 
   const [previewUrl, setPreviewUrl] = useState(null)
 
-  useEffect(() => { fetchGame() }, [])
+  // Use centralized hook to load game overview
+  const { game: hookGame, hasSubmittedForLatest: hookHasSubmittedForLatest, notFound: hookNotFound } = useGame(gameId)
+
+  useEffect(() => {
+    if (hookNotFound) {
+      setNotFound(true)
+      return
+    }
+    if (hookGame) setGame(hookGame)
+  }, [hookGame, hookNotFound])
   const { user, loading, fetchMe } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -32,28 +42,12 @@ export default function Submit() {
   }, [loading, user, navigate])
   const [hasSubmitted, setHasSubmitted] = useState(false)
 
-  const fetchGame = async () => {
-    try {
-      const res = await api.get(`/games/${gameId}`)
-      setGame(res.data)
-    } catch (err) {
-      if (err?.response?.status === 404) {
-        setNotFound(true)
-        return
-      }
-      throw err
+  // sync has-submitted state for authenticated users
+  useEffect(() => {
+    if (hookHasSubmittedForLatest && user && user.id) {
+      setHasSubmitted(true)
     }
-    // if logged in, check if user already submitted for this game
-    try {
-        if (user && user.id) {
-        // Ask backend whether the current user has submitted for latest scoring day (lightweight)
-        const sres = await api.get(`/submissions/game/${gameId}/has-submitted`)
-        if (sres.data?.hasSubmittedForLatest === true) setHasSubmitted(true)
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
+  }, [hookHasSubmittedForLatest, user])
 
   const submit = async (e) => {
     e.preventDefault()

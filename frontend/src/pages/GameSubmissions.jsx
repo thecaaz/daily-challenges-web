@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel, Box } from '@mui/material'
+import { Grid, Stack, MenuItem, Select, FormControl, InputLabel, Box } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
-import OpenInNewIcon from '@mui/icons-material/OpenInNew'
-import api, { getApiRoot } from '../api'
+import api from '../api'
 import SubmissionCard from '../components/SubmissionCard'
 import HiddenScoresCard from '../components/ui/HiddenScoresCard'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
 import { useAuth } from '../contexts/AuthContext'
+import useGame from '../hooks/useGame'
+import GameHeader from '../components/GameHeader'
 
 export default function GameSubmissions() {
   const { gameId } = useParams()
@@ -22,10 +23,28 @@ export default function GameSubmissions() {
   const [availableDates, setAvailableDates] = useState([])
   const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
 
+  // Centralized game overview (adds availableDates and hasSubmitted info)
+  const { game: hookGame, availableDates: hookAvailableDates, hasSubmittedForLatest: hookHasSubmittedForLatest, notFound: hookNotFound } = useGame(gameId)
+
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  useEffect(() => { fetchData() }, [])
+  // Sync overview data from the hook into local state and run the submissions load
+  useEffect(() => {
+    if (hookNotFound) {
+      setNotFound(true)
+      return
+    }
+    if (!hookGame) return
+
+    setGame(hookGame)
+    setAvailableDates(hookAvailableDates || [])
+    setHasSubmittedForLatest(!!hookHasSubmittedForLatest)
+
+    // Load submissions now that overview data is available
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hookGame, hookAvailableDates, hookHasSubmittedForLatest, hookNotFound])
 
   // respond to browser back/forward changes to the scoringDay query param
   useEffect(() => {
@@ -49,21 +68,12 @@ export default function GameSubmissions() {
   }
 
   const fetchData = async () => {
-    // Prefer aggregated overview endpoint; fall back to parallel calls if unavailable
+    // Use hook-provided overview when available (hookGame/hookAvailableDates/hookHasSubmittedForLatest)
     try {
-      const overviewRes = await api.get(`/games/${gameId}/overview?include=availableDates,hasSubmitted`)
-      const overview = overviewRes.data || {}
+      const gameData = hookGame || game
+      if (!gameData) return
 
-      const gameData = overview.game
-      if (!gameData) {
-        // If the overview response didn't include game, fall back to old behavior
-        throw new Error('Game overview endpoint returned incomplete data: missing "game" object')
-      }
-
-      setGame(gameData)
-
-      const dates = overview.availableDates || []
-      setAvailableDates(dates)
+      const dates = (hookAvailableDates && hookAvailableDates.length) ? hookAvailableDates : availableDates || []
 
       const preferred = searchParams.get('scoringDay') || location?.state?.selectedDate
       const currentDay = gameData?.currentScoringDay ?? ''
@@ -75,7 +85,7 @@ export default function GameSubmissions() {
       setSelectedDate(initialSelected)
       setPage(1)
 
-      const userHasSubmitted = !!overview.hasSubmittedForLatest
+      const userHasSubmitted = !!hookHasSubmittedForLatest
       setHasSubmittedForLatest(userHasSubmitted)
 
       if (initialSelected) {
@@ -85,8 +95,6 @@ export default function GameSubmissions() {
         if (typeof dayPage.totalPages === 'number') setHasMore(dayPage.page < dayPage.totalPages)
         else setHasMore(dayPage.hasMore === true)
       } else {
-        // If the user has not submitted for the latest scoring day and has not selected a day,
-        // skip fetching the submissions list to avoid loading today's hidden submissions.
         if (!userHasSubmitted) {
           setSubmissions([])
           setHasMore(false)
@@ -152,64 +160,7 @@ export default function GameSubmissions() {
 
   return (
     <div>
-      <div className="game-header" style={{ marginBottom: 16 }}>
-        {game.imageUrl ? (
-          <CardMedia
-            component="img"
-            image={`${getApiRoot()}${game.imageUrl}`}
-            alt={game.name}
-            loading="lazy"
-            className="game-image"
-            style={{ width: '100%', height: 260, objectFit: 'cover' }}
-          />
-        ) : (
-          <div className="game-header__fallback" style={{ height: 260 }} />
-        )}
-        <div className="game-header__overlay">
-          <Box className="game-header__content" sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: '70ch' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <Typography variant="h5" sx={{ color: 'white' }}>Submissions — {game.name}</Typography>
-              {game.url && (
-                <AppButton
-                  href={game.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="outlined"
-                  size="small"
-                  color="primary"
-                  endIcon={<OpenInNewIcon />}
-                  dataTest="game-play-link"
-                >
-                  Play
-                </AppButton>
-              )}
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <AppButton
-                to={`/games/${game.id}/highscore`}
-                variant="text"
-                size="small"
-                sx={{ p: 0, minWidth: 'auto', textTransform: 'none', color: 'white' }}
-                dataTest="game-highscores-link"
-              >
-                Highscores
-              </AppButton>
-              <AppButton
-                to={`/games/${game.id}/personal-highscore`}
-                variant="text"
-                size="small"
-                sx={{ p: 0, minWidth: 'auto', textTransform: 'none', color: 'white' }}
-                dataTest="game-personal-highscores-link"
-              >
-                Your Highscores
-              </AppButton>
-            </Box>
-
-            <div className="muted" style={{ color: 'rgba(255,255,255,0.9)' }}>Compete on daily challenges — climb the leaderboard!</div>
-          </Box>
-        </div>
-      </div>
+      <GameHeader game={game} />
 
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
