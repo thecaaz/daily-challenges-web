@@ -6,6 +6,8 @@ const AppButton = React.forwardRef(function AppButton(props, ref) {
   const {
     to,
     href,
+    target,
+    rel,
     dataTest,
     children,
     startIcon,
@@ -23,6 +25,14 @@ const AppButton = React.forwardRef(function AppButton(props, ref) {
   const componentProps = {}
   if (to) componentProps.to = to
   if (href) componentProps.href = href
+  if (href && target) componentProps.target = target
+
+  // For external links opened in a new tab, default to safer rel values if none provided
+  if (href && target === '_blank') {
+    componentProps.rel = rel || 'noopener noreferrer'
+  } else if (href && rel) {
+    componentProps.rel = rel
+  }
 
   return (
     <MuiButton

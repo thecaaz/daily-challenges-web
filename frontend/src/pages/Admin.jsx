@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { TextField, Button, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton } from '@mui/material'
+import { TextField, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
@@ -136,7 +137,7 @@ export default function Admin() {
   return (
     <>
     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-      <Button variant="contained" onClick={goUsers} sx={{ mb: 2 }}>Manage Users</Button>
+      <AppButton onClick={goUsers} sx={{ mb: 2 }}>Manage Users</AppButton>
     </div>
     <form onSubmit={submit}>
       <Stack spacing={2} maxWidth={400}>
@@ -151,7 +152,7 @@ export default function Admin() {
             <label>Reset timezone (detected): </label>
             <input type="text" value={detectedTimezone} readOnly />
           </div>
-        <Button variant="contained" type="submit">Create Game</Button>
+        <AppButton type="submit">Create Game</AppButton>
       </Stack>
       
     </form>
@@ -167,7 +168,7 @@ export default function Admin() {
             <div>
               <IconButton onClick={() => startEdit(g)} title="Edit"><EditIcon /></IconButton>
               <IconButton onClick={() => removeGame(g.id)} title="Delete"><DeleteIcon /></IconButton>
-              <Button onClick={() => manageSubs(g.id)} sx={{ ml: 1 }}>Manage Submissions</Button>
+              <AppButton onClick={() => manageSubs(g.id)} sx={{ ml: 1 }}>Manage Submissions</AppButton>
             </div>
           </div>
         </Paper>
@@ -188,8 +189,8 @@ export default function Admin() {
             <input type="file" accept="image/*" onChange={e => setEditingGame({ ...editingGame, imageFile: e.target.files?.[0] ?? null })} />
           </div>
           <div>
-            <Button variant="contained" onClick={saveEdit}>Save</Button>
-            <Button onClick={() => setEditingGame(null)}>Cancel</Button>
+            <AppButton onClick={saveEdit}>Save</AppButton>
+            <AppButton onClick={() => setEditingGame(null)}>Cancel</AppButton>
           </div>
         </Stack>
       </Paper>
@@ -218,8 +219,8 @@ export default function Admin() {
                 </TableCell>
                 <TableCell>{parseUtcDate(s.createdAt).toLocaleString()}</TableCell>
                 <TableCell>
-                  <Button onClick={() => updateSubmission(s)}>Save</Button>
-                  <Button color="error" onClick={() => deleteSubmission(s.id)}>Delete</Button>
+                  <AppButton onClick={() => updateSubmission(s)}>Save</AppButton>
+                  <AppButton color="error" onClick={() => deleteSubmission(s.id)}>Delete</AppButton>
                 </TableCell>
               </TableRow>
             ))}
