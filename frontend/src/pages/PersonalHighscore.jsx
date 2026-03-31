@@ -4,6 +4,8 @@ import { Typography, Grid } from '@mui/material'
 import SubmissionCard from '../components/SubmissionCard'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
+import NotFound from '../components/ui/NotFound'
+import Loading from '../components/ui/Loading'
 
 export default function PersonalHighscore() {
   const { gameId } = useParams()
@@ -35,13 +37,8 @@ export default function PersonalHighscore() {
     setTop(data.top || [])
   }
 
-  if (notFound)
-    return (
-      <Typography variant="h5" role="alert">
-        Game not found
-      </Typography>
-    )
-  if (!game) return <div>Loading...</div>
+  if (notFound) return <NotFound message="Game not found" />
+  if (!game) return <Loading />
 
   return (
     <div>

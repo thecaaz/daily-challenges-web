@@ -6,6 +6,8 @@ import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
+import NotFound from '../components/ui/NotFound'
+import Loading from '../components/ui/Loading'
 
 export default function Submit() {
   const { gameId } = useParams()
@@ -146,14 +148,8 @@ export default function Submit() {
     return () => window.removeEventListener('paste', handler)
   }, [showSnackbar])   
 
-  if (notFound) {
-    return (
-      <Typography component="h1" role="alert">
-        Game not found
-      </Typography>
-    )
-  }
-  if (!game) return <div>Loading...</div>
+  if (notFound) return <NotFound message="Game not found" />
+  if (!game) return <Loading />
 
   return (
     <div>

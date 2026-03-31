@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Typography, Grid } from '@mui/material'
+import Loading from '../components/ui/Loading'
+import NotFound from '../components/ui/NotFound'
 import AppButton from '../components/ui/AppButton'
 import HiddenScoresCard from '../components/ui/HiddenScoresCard'
 import SubmissionCard from '../components/SubmissionCard'
@@ -50,8 +52,8 @@ export default function GameHighscore() {
     setTop(data.top || [])
   }
 
-  if (notFound) return <Typography variant="h5" component="h1" role="alert">Game not found</Typography>
-  if (!game) return <div>Loading...</div>
+  if (notFound) return <NotFound message="Game not found" />
+  if (!game) return <Loading />
 
   const currentScoringDay = game?.currentScoringDay ?? ''
 

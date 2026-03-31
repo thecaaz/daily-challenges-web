@@ -5,6 +5,8 @@ import AppButton from '../components/ui/AppButton'
 import api, { getApiRoot } from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import formatNumber from '../utils/formatNumber'
+import Loading from '../components/ui/Loading'
+import NotFound from '../components/ui/NotFound'
 
 export default function SubmissionDetail() {
   const { id } = useParams()
@@ -91,8 +93,8 @@ export default function SubmissionDetail() {
 
   const resetView = () => { setScale(1); setOffset({ x: 0, y: 0 }) }
 
-  if (loading) return <div>Loading...</div>
-  if (!submission) return <div>Not found</div>
+  if (loading) return <Loading />
+  if (!submission) return <NotFound message="Not found" />
 
   const apiRoot = getApiRoot()
 

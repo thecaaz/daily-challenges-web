@@ -6,6 +6,8 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import api, { getApiRoot } from '../api'
 import SubmissionCard from '../components/SubmissionCard'
 import HiddenScoresCard from '../components/ui/HiddenScoresCard'
+import NotFound from '../components/ui/NotFound'
+import Loading from '../components/ui/Loading'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function GameSubmissions() {
@@ -145,8 +147,8 @@ export default function GameSubmissions() {
   const currentScoringDay = game?.currentScoringDay ?? ''
   const isViewingLatest = !selectedDate || selectedDate === currentScoringDay
 
-  if (notFound) return <div role="alert">Game not found</div>
-  if (!game) return <div>Loading...</div>
+  if (notFound) return <NotFound message="Game not found" />
+  if (!game) return <Loading />
 
   return (
     <div>
