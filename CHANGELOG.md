@@ -1,3 +1,10 @@
+### [1.5.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.5.0...v1.5.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* docker tag not matching release build tag ([048994e](https://github.com/thecaaz/daily-challenges-web/commit/048994e228616e3b9b1c624cd046a123741769e8))
+
 ## [1.5.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.4.1...v1.5.0) (2026-03-31)
 
 
