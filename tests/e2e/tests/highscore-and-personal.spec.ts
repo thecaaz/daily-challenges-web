@@ -12,8 +12,8 @@ test('highscore list and personal highscores display and order correctly via UI'
   const userA = `e2e-guest-${Date.now()}-${randomUUID()}`
   const userAPass = `Pass-${Date.now() % 10000}`
   await openRegisterViaUI(page)
-  await page.fill('input[placeholder="Username"]', userA)
-  await page.fill('input[placeholder="Password"]', userAPass)
+  await page.getByRole('textbox', { name: 'Username' }).fill(userA)
+  await page.getByRole('textbox', { name: 'Password' }).fill(userAPass)
   await Promise.all([
     page.waitForResponse(r => r.url().endsWith('/api/auth/register') && r.request().method() === 'POST'),
     page.click('button[type="submit"]')
@@ -69,7 +69,7 @@ test('highscore list and personal highscores display and order correctly via UI'
   await expect(header).toBeVisible({ timeout: 15000 })
   const grid = header.locator('xpath=following::div[contains(@class,"MuiGrid-container")][1]')
   await expect(grid).toBeVisible({ timeout: 15000 })
-  const cards = grid.locator('div.card')
+  const cards = grid.locator('a')
   const cardCount = await cards.count()
   expect(cardCount).toBeGreaterThanOrEqual(3)
 
@@ -78,15 +78,15 @@ test('highscore list and personal highscores display and order correctly via UI'
   const topN = Math.min(3, cardCount)
   const hrefs: string[] = []
   for (let i = 0; i < topN; i++) {
-    const link = cards.nth(i).locator('xpath=ancestor::a[1]').first()
+    const link = cards.nth(i)
     const href = await link.getAttribute('href')
     if (!href) throw new Error('could not determine submission link href')
     hrefs.push(href)
   }
 
   for (let i = 0; i < hrefs.length; i++) {
-    // Click the submission link to open detail via UI
-    const link = cards.nth(i).locator('xpath=ancestor::a[1]').first()
+    // Click the submission anchor to open detail via UI
+    const link = cards.nth(i)
     await link.click()
     const scoreLocator = page.locator('text=/Score:\\s*-?\\d+(?:[.,]\\d+)?/').first()
     await expect(scoreLocator).toBeVisible()
@@ -112,7 +112,7 @@ test('highscore list and personal highscores display and order correctly via UI'
   await expect(pHeader).toBeVisible({ timeout: 15000 })
   const pGrid = pHeader.locator('xpath=following::div[contains(@class,"MuiGrid-container")][1]')
   await expect(pGrid).toBeVisible({ timeout: 15000 })
-  const pCards = pGrid.locator('div.card')
+  const pCards = pGrid.locator('a')
   const pCount = await pCards.count()
   expect(pCount).toBeGreaterThanOrEqual(1)
   // The score is rendered in a Typography variant="h6" element inside the card.

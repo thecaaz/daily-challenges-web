@@ -30,7 +30,23 @@ test('submit a score with screenshot via UI', async ({ page }) => {
 
   // Visit game page and assert the submitted score is present; open the submission and assert screenshot visible
   await openGameByName(page, gameName)
-  await expect(page.locator(`text=${scoreValue}`)).toBeVisible()
-  await page.click(`text=${scoreValue}`)
+  // Match score by digits (ignore locale separators) and click the submission link
+  await page.waitForFunction((sv) => {
+    return Array.from(document.querySelectorAll('a, h6')).some(el => (el.textContent || '').replace(/\D/g, '') === sv)
+  }, scoreValue, { timeout: 5000 })
+  // Click the matching score via its heading element's ancestor link
+  const h6s = page.locator('h6')
+  const h6count = await h6s.count()
+  let clicked = false
+  for (let i = 0; i < h6count; i++) {
+    const txt = (await h6s.nth(i).textContent()) ?? ''
+    if (txt.replace(/\D/g, '') === scoreValue) {
+      const anc = h6s.nth(i).locator('xpath=ancestor::a[1]').first()
+      await anc.click()
+      clicked = true
+      break
+    }
+  }
+  if (!clicked) throw new Error(`Could not find submission link for score ${scoreValue}`)
   await expect(page.locator('img')).toBeVisible()
 })

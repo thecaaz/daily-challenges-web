@@ -89,8 +89,8 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
   await page.getByRole('option', { name: 'All' }).click()
 
   // Assert initial page items (page 1) are visible within submission cards after selecting 'All'
-  await expect(page.locator('div.card:has-text("10")').first()).toBeVisible()
-  await expect(page.locator('div.card:has-text("20")').first()).toBeVisible()
+  await expect(page.locator('h6', { hasText: '10' }).first()).toBeVisible()
+  await expect(page.locator('h6', { hasText: '20' }).first()).toBeVisible()
 
   // Click 'Load more' to fetch page 2 and assert appended items are visible
   const [loadResp] = await Promise.all([
@@ -98,8 +98,8 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
     page.click('button:has-text("Load more")')
   ])
   expect(loadResp.status()).toBeGreaterThanOrEqual(200)
-  await expect(page.locator('div.card:has-text("30")').first()).toBeVisible()
-  await expect(page.locator('div.card:has-text("40")').first()).toBeVisible()
+  await expect(page.locator('h6', { hasText: '30' }).first()).toBeVisible()
+  await expect(page.locator('h6', { hasText: '40' }).first()).toBeVisible()
 
   // After loading page 2, the Load more button should no longer be present
   await expect(page.locator('button:has-text("Load more")')).toHaveCount(0)
@@ -107,6 +107,6 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
   // Now filter by the older date and assert only that day's items are shown
   await page.getByRole('combobox', { name: 'Day' }).click()
   await page.getByRole('option', { name: '2026-03-26' }).click()
-  await expect(page.locator('div.card:has-text("30")').first()).toBeVisible()
-  await expect(page.locator('div.card:has-text("10")')).toHaveCount(0)
+  await expect(page.locator('h6', { hasText: '30' }).first()).toBeVisible()
+  await expect(page.locator('h6', { hasText: '10' })).toHaveCount(0)
 })
