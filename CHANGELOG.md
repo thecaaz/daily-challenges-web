@@ -1,3 +1,10 @@
+### [1.4.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.4.0...v1.4.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* fix image upload button to use the button component ([a93c5fd](https://github.com/thecaaz/daily-challenges-web/commit/a93c5fdde8c1c59e0f983000882bc4a7587e91e9))
+
 ## [1.4.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.3.0...v1.4.0) (2026-03-31)
 
 
