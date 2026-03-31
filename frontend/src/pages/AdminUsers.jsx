@@ -5,6 +5,10 @@ import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import AdminUserAuditModal from '../components/AdminUserAuditModal'
+import useConfirm from '../hooks/useConfirm'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import usePrompt from '../hooks/usePrompt'
+import PromptDialog from '../components/ui/PromptDialog'
 
 export default function AdminUsers() {
   const { user, loading } = useAuth()
@@ -19,6 +23,8 @@ export default function AdminUsers() {
   const [auditUserId, setAuditUserId] = useState(null)
   const [auditUsername, setAuditUsername] = useState(null)
   const [auditOpen, setAuditOpen] = useState(false)
+  const { confirm, dialogProps } = useConfirm()
+  const { prompt, dialogProps: promptDialogProps } = usePrompt()
 
   const [setPasswordUserId, setSetPasswordUserId] = useState(null)
   const [setPasswordValue, setSetPasswordValue] = useState('')
@@ -42,7 +48,8 @@ export default function AdminUsers() {
   }
 
   const adjust = async (id, delta) => {
-    const reason = window.prompt('Reason for adjustment (optional):') || ''
+    const reason = await prompt({ title: 'XP Adjustment', message: `${delta >= 0 ? 'Adding' : 'Deducting'} ${Math.abs(delta)} XP`, label: 'Reason (optional)', confirmText: 'Apply' })
+    if (reason === null) return
     try {
       const res = await api.post(`/admin/users/${id}/xp`, { delta, reason })
       showSnackbar('XP adjusted', 'success')
@@ -80,7 +87,8 @@ export default function AdminUsers() {
   }
 
   const deleteUser = async (id) => {
-    if (!window.confirm('Delete this user? This cannot be undone.')) return
+    const ok = await confirm({ title: 'Delete user?', message: 'This will permanently delete this user. This cannot be undone.' })
+    if (!ok) return
     try {
       await api.delete(`/admin/users/${id}`)
       showSnackbar('User deleted', 'success')
@@ -159,6 +167,8 @@ export default function AdminUsers() {
       </Dialog>
 
       <AdminUserAuditModal open={auditOpen} onClose={() => setAuditOpen(false)} userId={auditUserId} username={auditUsername} />
+      <ConfirmDialog {...dialogProps} />
+      <PromptDialog {...promptDialogProps} />
     </>
   )
 }
