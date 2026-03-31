@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Button, TextField } from '@mui/material'
+import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
 import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -19,6 +19,10 @@ export default function AdminUsers() {
   const [auditUserId, setAuditUserId] = useState(null)
   const [auditUsername, setAuditUsername] = useState(null)
   const [auditOpen, setAuditOpen] = useState(false)
+
+  const [setPasswordUserId, setSetPasswordUserId] = useState(null)
+  const [setPasswordValue, setSetPasswordValue] = useState('')
+  const [setPasswordError, setSetPasswordError] = useState('')
 
   useEffect(() => { fetchUsers() }, [])
 
@@ -49,6 +53,43 @@ export default function AdminUsers() {
     }
   }
 
+  const openSetPassword = (id) => {
+    setSetPasswordUserId(id)
+    setSetPasswordValue('')
+    setSetPasswordError('')
+  }
+
+  const closeSetPassword = () => {
+    setSetPasswordUserId(null)
+    setSetPasswordValue('')
+    setSetPasswordError('')
+  }
+
+  const confirmSetPassword = async () => {
+    if (!setPasswordValue) {
+      setSetPasswordError('Password cannot be empty')
+      return
+    }
+    try {
+      await api.post(`/admin/users/${setPasswordUserId}/password`, { newPassword: setPasswordValue })
+      showSnackbar('Password updated', 'success')
+      closeSetPassword()
+    } catch (err) {
+      setSetPasswordError(err?.response?.data?.message || 'Failed to set password')
+    }
+  }
+
+  const deleteUser = async (id) => {
+    if (!window.confirm('Delete this user? This cannot be undone.')) return
+    try {
+      await api.delete(`/admin/users/${id}`)
+      showSnackbar('User deleted', 'success')
+      setUsers(users.filter(u => u.id !== id))
+    } catch (err) {
+      showSnackbar(err?.response?.data?.message || 'Failed to delete user', 'error')
+    }
+  }
+
   return (
     <>
       <h2>Admin — Manage Users</h2>
@@ -74,7 +115,7 @@ export default function AdminUsers() {
                 <TableCell>{u.level}</TableCell>
                 <TableCell>{u.xpToNextLevel}</TableCell>
                 <TableCell>{u.streak}</TableCell>
-                <TableCell>
+                <TableCell style={{ whiteSpace: 'nowrap' }}>
                   <TextField
                     type="number"
                     size="small"
@@ -85,12 +126,38 @@ export default function AdminUsers() {
                   <Button variant="contained" onClick={() => adjust(u.id, Math.abs(Number(deltaById[u.id] || 0)))}>Add</Button>
                   <Button variant="outlined" color="error" onClick={() => adjust(u.id, -Math.abs(Number(deltaById[u.id] || 0)))} style={{ marginLeft: 8 }}>Deduct</Button>
                   <Button variant="text" onClick={() => { setAuditUserId(u.id); setAuditUsername(u.username); setAuditOpen(true) }} style={{ marginLeft: 8 }}>Audit</Button>
+                  <Button variant="outlined" onClick={() => openSetPassword(u.id)} style={{ marginLeft: 8 }}>Set Password</Button>
+                  {!u.isAdmin && u.id !== user?.id && (
+                    <Button variant="outlined" color="error" onClick={() => deleteUser(u.id)} style={{ marginLeft: 8 }}>Delete</Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={setPasswordUserId !== null} onClose={closeSetPassword}>
+        <DialogTitle>Set Password</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            label="New Password"
+            type="password"
+            fullWidth
+            value={setPasswordValue}
+            onChange={e => { setSetPasswordValue(e.target.value); setSetPasswordError('') }}
+            error={!!setPasswordError}
+            helperText={setPasswordError}
+            style={{ marginTop: 8 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeSetPassword}>Cancel</Button>
+          <Button variant="contained" onClick={confirmSetPassword}>Confirm</Button>
+        </DialogActions>
+      </Dialog>
+
       <AdminUserAuditModal open={auditOpen} onClose={() => setAuditOpen(false)} userId={auditUserId} username={auditUsername} />
     </>
   )
