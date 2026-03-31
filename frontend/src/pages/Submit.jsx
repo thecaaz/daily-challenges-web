@@ -9,6 +9,8 @@ import { useAuth } from '../contexts/AuthContext'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
 import useGame from '../hooks/useGame'
+import useImageUpload from '../hooks/useImageUpload'
+import ImagePreview from '../components/ui/ImagePreview'
 
 export default function Submit() {
   const { gameId } = useParams()
@@ -16,10 +18,9 @@ export default function Submit() {
   const [notFound, setNotFound] = useState(false)
   const [username, setUsername] = useState('')
   const [score, setScore] = useState('')
-  const [screenshot, setScreenshot] = useState(null)
   const { showSnackbar } = useSnackbar()
 
-  const [previewUrl, setPreviewUrl] = useState(null)
+  const { screenshot, previewUrl, setScreenshot, onFileChange, clear } = useImageUpload(showSnackbar)
 
   // Use centralized hook to load game overview
   const { game: hookGame, hasSubmittedForLatest: hookHasSubmittedForLatest, notFound: hookNotFound } = useGame(gameId)
@@ -104,43 +105,7 @@ export default function Submit() {
     }
   }
 
-  // create/revoke preview URL when screenshot changes
-  useEffect(() => {
-    if (!screenshot) {
-      setPreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(screenshot)
-    setPreviewUrl(url)
-    return () => { URL.revokeObjectURL(url) }
-  }, [screenshot])
-
-  // handle paste events (Ctrl+V) to accept images from clipboard
-  useEffect(() => {
-    const handler = (e) => {
-      try {
-        const items = e.clipboardData?.items
-        if (!items) return
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i]
-          if (item && item.type && item.type.startsWith('image/')) {
-            const blob = item.getAsFile ? item.getAsFile() : null
-            if (blob) {
-              const file = new File([blob], 'clipboard.png', { type: blob.type })
-              setScreenshot(file)
-              showSnackbar('Image pasted from clipboard', 'success')
-              e.preventDefault()
-              return
-            }
-          }
-        }
-      } catch (err) {
-        // ignore
-      }
-    }
-    window.addEventListener('paste', handler)
-    return () => window.removeEventListener('paste', handler)
-  }, [showSnackbar])   
+  // image upload and paste handling managed by useImageUpload(showSnackbar)
 
   if (notFound) return <NotFound message="Game not found" />
   if (!game) return <Loading />
@@ -160,15 +125,12 @@ export default function Submit() {
               <TextField label="Username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
             )}
             <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
-            <input type="file" accept="image/*" onChange={e => setScreenshot(e.target.files?.[0] ?? null)} />
+            <input type="file" accept="image/*" onChange={onFileChange} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <div style={{ fontSize: 12, color: '#666' }}>You can paste an image from clipboard (Ctrl+V).</div>
             </div>
             {previewUrl && (
-              <div style={{ marginTop: 8 }}>
-                <img src={previewUrl} alt="preview" style={{ maxWidth: 320, display: 'block', marginBottom: 6 }} />
-                <Button onClick={() => setScreenshot(null)} size="small">Remove</Button>
-              </div>
+              <ImagePreview previewUrl={previewUrl} onRemove={clear} />
             )}
             <AppButton type="submit">Submit</AppButton>
           </Stack>
