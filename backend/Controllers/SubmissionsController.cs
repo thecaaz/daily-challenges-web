@@ -41,6 +41,13 @@ namespace DailyChallenges.Controllers
             return Ok(new { hasSubmittedForLatest = has });
         }
 
+        [HttpGet("game/{gameId}/today-submitters")]
+        public async Task<IActionResult> GetTodaySubmitters(int gameId)
+        {
+            var result = await _subs.GetTodaySubmittersAsync(gameId);
+            return Ok(result);
+        }
+
         [HttpGet("game/{gameId}/winner")]
         public async Task<IActionResult> GetWinner(int gameId, [FromQuery] string? scoringDay = null)
         {
