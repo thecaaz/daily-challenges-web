@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Typography, Grid } from '@mui/material'
+import { Typography } from '@mui/material'
+import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 import AppButton from '../components/ui/AppButton'
@@ -67,13 +68,7 @@ export default function GameHighscore() {
           (top.length === 0) ? (
             <div className="muted">No highscores yet.</div>
           ) : (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              {top.map(s => (
-                <Grid item xs={12} sm={6} md={4} key={s.id}>
-                  <SubmissionCard submission={s} />
-                </Grid>
-              ))}
-            </Grid>
+            <SubmissionGrid items={top} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
           )
         )}
       </div>

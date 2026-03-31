@@ -10,7 +10,7 @@ import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
 import useGame from '../hooks/useGame'
 import useImageUpload from '../hooks/useImageUpload'
-import ImagePreview from '../components/ui/ImagePreview'
+import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 
 export default function Submit() {
   const { gameId } = useParams()
@@ -125,13 +125,7 @@ export default function Submit() {
               <TextField label="Username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
             )}
             <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
-            <input type="file" accept="image/*" onChange={onFileChange} />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div style={{ fontSize: 12, color: '#666' }}>You can paste an image from clipboard (Ctrl+V).</div>
-            </div>
-            {previewUrl && (
-              <ImagePreview previewUrl={previewUrl} onRemove={clear} />
-            )}
+            <ImageUpload onFileChange={onFileChange} previewUrl={previewUrl} onRemove={clear} />
             <AppButton type="submit">Submit</AppButton>
           </Stack>
         </form>

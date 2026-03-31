@@ -4,6 +4,7 @@ import { Grid, Stack, MenuItem, Select, FormControl, InputLabel, Box } from '@mu
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import SubmissionCard from '../components/SubmissionCard'
+import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
 import HiddenScoresCard from '../components/ui/HiddenScoresCard'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
@@ -194,13 +195,7 @@ export default function GameSubmissions() {
             <HiddenScoresCard gameId={game.id} search={location.search || ''} />
           ) : (
             <>
-            <Grid container spacing={2}>
-              {filtered.map(s => (
-                <Grid item xs={12} sm={6} md={4} key={s.id}>
-                  <SubmissionCard submission={s} />
-                </Grid>
-              ))}
-            </Grid>
+              <SubmissionGrid items={filtered} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
             {hasMore && (
               <div style={{ marginTop: 16, textAlign: 'center' }}>
                 <AppButton onClick={loadMore}>Load more</AppButton>
