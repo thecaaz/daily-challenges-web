@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { Grid, Stack, MenuItem, Select, FormControl, InputLabel, Box } from '@mui/material'
+import { useParams, Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom'
+import { Grid, Stack, MenuItem, Select, FormControl, InputLabel, Box, Fab, Tooltip, Badge } from '@mui/material'
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows'
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import SubmissionCard from '../components/SubmissionCard'
@@ -23,12 +24,35 @@ export default function GameSubmissions() {
   const [selectedDate, setSelectedDate] = useState('')
   const [availableDates, setAvailableDates] = useState([])
   const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareSelection, setCompareSelection] = useState([])
 
   // Centralized game overview (adds availableDates and hasSubmitted info)
   const { game: hookGame, availableDates: hookAvailableDates, hasSubmittedForLatest: hookHasSubmittedForLatest, notFound: hookNotFound } = useGame(gameId)
 
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+
+  const toggleCompareMode = () => {
+    setCompareMode(prev => !prev)
+    setCompareSelection([])
+  }
+
+  const handleToggleCompare = (submission) => {
+    setCompareSelection(prev => {
+      const exists = prev.find(s => s.id === submission.id)
+      if (exists) return prev.filter(s => s.id !== submission.id)
+      if (prev.length >= 2) return [prev[1], submission]
+      return [...prev, submission]
+    })
+  }
+
+  const goToCompare = () => {
+    if (compareSelection.length === 2) {
+      navigate(`/compare/${compareSelection[0].id}/${compareSelection[1].id}`)
+    }
+  }
 
   // Sync overview data from the hook into local state and run the submissions load
   useEffect(() => {
@@ -174,6 +198,12 @@ export default function GameSubmissions() {
           </FormControl>
         </Box>
         <div>
+          <AppButton
+            onClick={toggleCompareMode}
+            sx={{ mr: 1, ...(compareMode ? {} : { background: 'white', color: '#444', boxShadow: 'none' }) }}
+          >
+            {compareMode ? 'Cancel Compare' : 'Compare'}
+          </AppButton>
           <AppButton to="/" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</AppButton>
           {(() => {
             const submitDisabled = isViewingLatest && hasSubmittedForLatest
@@ -195,7 +225,16 @@ export default function GameSubmissions() {
             <HiddenScoresCard gameId={game.id} search={location.search || ''} />
           ) : (
             <>
-              <SubmissionGrid items={filtered} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
+              <SubmissionGrid
+                items={filtered}
+                ItemComponent={SubmissionCard}
+                containerSx={{ mt: 1 }}
+                itemProps={(item) => ({
+                  compareMode,
+                  selected: compareSelection.some(s => s.id === item.id),
+                  onToggleCompare: handleToggleCompare,
+                })}
+              />
             {hasMore && (
               <div style={{ marginTop: 16, textAlign: 'center' }}>
                 <AppButton onClick={loadMore}>Load more</AppButton>
@@ -203,6 +242,18 @@ export default function GameSubmissions() {
             )}
             </>
           )}
+
+      {compareMode && compareSelection.length === 2 && (
+        <Tooltip title="Compare selected submissions">
+          <Fab
+            color="primary"
+            onClick={goToCompare}
+            sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1300 }}
+          >
+            <CompareArrowsIcon />
+          </Fab>
+        </Tooltip>
+      )}
     </div>
   )
 }

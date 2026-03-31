@@ -6,6 +6,7 @@ import Admin from './pages/Admin'
 import AdminUsers from './pages/AdminUsers'
 import Submit from './pages/Submit'
 import SubmissionDetail from './pages/SubmissionDetail'
+import CompareSubmissions from './pages/CompareSubmissions'
 import GameSubmissions from './pages/GameSubmissions'
 import GameHighscore from './pages/GameHighscore'
 import PersonalHighscore from './pages/PersonalHighscore'
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/submit/:gameId" element={<Submit />} />
           <Route path="/submission/:id" element={<SubmissionDetail />} />
+          <Route path="/compare/:id1/:id2" element={<CompareSubmissions />} />
           <Route path="/games/:gameId" element={<GameSubmissions />} />
           <Route path="/games/:gameId/highscore" element={<GameHighscore />} />
           <Route path="/games/:gameId/personal-highscore" element={<PersonalHighscore />} />
