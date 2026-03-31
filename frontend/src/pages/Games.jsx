@@ -13,7 +13,7 @@ export default function Games() {
     const res = await api.get('/games')
     setGames(res.data)
     setLoading(false)
-    const fetchGames = async () => {
+  }
 
   if (loading) {
     return (
@@ -56,19 +56,12 @@ export default function Games() {
       </Box>
 
       <Grid container spacing={3}>
-        {games.map(g => (
-          <Grid item xs={12} sm={6} md={4} key={g.id}>
-            <GameCard game={g} />
+        {games.map(game => (
+          <Grid item xs={12} sm={6} md={4} key={game.id}>
+            <GameCard game={game} />
           </Grid>
         ))}
       </Grid>
-              <Card sx={{ p: 2 }}>
-                <div className="content">
-                  <Typography variant="h6">{game.name}</Typography>
-                  <div className="meta">{game.tags?.join(', ')}</div>
-                </div>
-                <div className="actions">
-                  <Link to={`/games/${game.id}`}>Details</Link>
-                  <AppButton onClick={() => navigate(`/games/${game.id}`)}>Play</AppButton>
-                </div>
-              </Card>
+    </>
+  )
+}
