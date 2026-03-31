@@ -198,12 +198,14 @@ export default function GameSubmissions() {
           </FormControl>
         </Box>
         <div>
-          <AppButton
-            onClick={toggleCompareMode}
-            sx={{ mr: 1, ...(compareMode ? {} : { background: 'white', color: '#444', boxShadow: 'none' }) }}
-          >
-            {compareMode ? 'Cancel Compare' : 'Compare'}
-          </AppButton>
+          {filtered.filter(s => s.screenshotUrl).length >= 2 && (
+            <AppButton
+              onClick={toggleCompareMode}
+              sx={{ mr: 1, ...(compareMode ? {} : { background: 'white', color: '#444', boxShadow: 'none' }) }}
+            >
+              {compareMode ? 'Cancel Compare' : 'Compare'}
+            </AppButton>
+          )}
           <AppButton to="/" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</AppButton>
           {(() => {
             const submitDisabled = isViewingLatest && hasSubmittedForLatest
