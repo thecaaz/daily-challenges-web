@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom'
 import AdminUserAuditModal from '../components/AdminUserAuditModal'
 import useConfirm from '../hooks/useConfirm'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
+import usePrompt from '../hooks/usePrompt'
+import PromptDialog from '../components/ui/PromptDialog'
 
 export default function AdminUsers() {
   const { user, loading } = useAuth()
@@ -22,6 +24,7 @@ export default function AdminUsers() {
   const [auditUsername, setAuditUsername] = useState(null)
   const [auditOpen, setAuditOpen] = useState(false)
   const { confirm, dialogProps } = useConfirm()
+  const { prompt, dialogProps: promptDialogProps } = usePrompt()
 
   const [setPasswordUserId, setSetPasswordUserId] = useState(null)
   const [setPasswordValue, setSetPasswordValue] = useState('')
@@ -45,7 +48,8 @@ export default function AdminUsers() {
   }
 
   const adjust = async (id, delta) => {
-    const reason = window.prompt('Reason for adjustment (optional):') || ''
+    const reason = await prompt({ title: 'XP Adjustment', message: `${delta >= 0 ? 'Adding' : 'Deducting'} ${Math.abs(delta)} XP`, label: 'Reason (optional)', confirmText: 'Apply' })
+    if (reason === null) return
     try {
       const res = await api.post(`/admin/users/${id}/xp`, { delta, reason })
       showSnackbar('XP adjusted', 'success')
@@ -164,6 +168,7 @@ export default function AdminUsers() {
 
       <AdminUserAuditModal open={auditOpen} onClose={() => setAuditOpen(false)} userId={auditUserId} username={auditUsername} />
       <ConfirmDialog {...dialogProps} />
+      <PromptDialog {...promptDialogProps} />
     </>
   )
 }
