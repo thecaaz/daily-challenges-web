@@ -44,18 +44,20 @@ export default function GameHeader({ game }) {
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <AppButton
               to={`/games/${game.id}/highscore`}
-              variant="text"
+              variant="outlined"
               size="small"
-              sx={{ p: 0, minWidth: 'auto', textTransform: 'none', color: 'white' }}
+              color="primary"
+              sx={{ textTransform: 'none' }}
               dataTest="game-highscores-link"
             >
               Highscores
             </AppButton>
             <AppButton
               to={`/games/${game.id}/personal-highscore`}
-              variant="text"
+              variant="outlined"
               size="small"
-              sx={{ p: 0, minWidth: 'auto', textTransform: 'none', color: 'white' }}
+              color="primary"
+              sx={{ textTransform: 'none' }}
               dataTest="game-personal-highscores-link"
             >
               Your Highscores
