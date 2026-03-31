@@ -13,6 +13,8 @@ import useGame from '../hooks/useGame'
 import useImageUpload from '../hooks/useImageUpload'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 import parseScore from '../utils/parseScore'
+import useConfirm from '../hooks/useConfirm'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 export default function Submit() {
   const { gameId } = useParams()
@@ -21,6 +23,7 @@ export default function Submit() {
   const [username, setUsername] = useState('')
   const [score, setScore] = useState('')
   const { showSnackbar } = useSnackbar()
+  const { confirm, dialogProps } = useConfirm()
 
   const { screenshot, previewUrl, setScreenshot, onFileChange, clear } = useImageUpload(showSnackbar)
 
@@ -62,6 +65,10 @@ export default function Submit() {
     const fd = new FormData()
     fd.append('gameId', gameId)
     const parsed = parseScore(score)
+    if (isNaN(parsed)) {
+      const ok = await confirm({ title: 'Non-numeric score', message: 'This score is not a number and may not show up correctly on leaderboards. Submit anyway?', confirmText: 'Submit', confirmColor: 'primary' })
+      if (!ok) return
+    }
     fd.append('score', isNaN(parsed) ? score : String(parsed))
     // if authenticated, server will use identity (do not allow spoofing)
     if (!user || !user.id) {
@@ -149,7 +156,7 @@ export default function Submit() {
           </Stack>
         </form>
       </Card>
-      
+      <ConfirmDialog {...dialogProps} />
     </div>
   )
 }
