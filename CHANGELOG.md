@@ -1,3 +1,11 @@
+## [1.8.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.7.0...v1.8.0) (2026-03-31)
+
+
+### Features
+
+* enhance submission comparison feature with conditional button rendering ([edb7aae](https://github.com/thecaaz/daily-challenges-web/commit/edb7aaed0380bcaf41db1f496f7caca9b8d78af1))
+* implement submission comparison feature with pan and zoom functionality ([daaed6d](https://github.com/thecaaz/daily-challenges-web/commit/daaed6d1b5bce57c86e06d2b3559deb130b72607))
+
 ## [1.7.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.6.0...v1.7.0) (2026-03-31)
 
 
