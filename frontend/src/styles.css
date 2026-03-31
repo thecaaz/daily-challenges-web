@@ -130,3 +130,60 @@ input:focus, textarea:focus, select:focus {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
+/* ── Game submissions header ───────────────────────────────── */
+.game-header {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(34,34,34,0.08);
+}
+
+.game-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.0) 30%, rgba(0,0,0,0.45) 100%);
+  z-index: 1;
+}
+
+.game-header__overlay {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  color: white;
+  z-index: 2;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+
+.game-header__fallback {
+  background: linear-gradient(135deg, rgba(255,122,182,0.12), rgba(255,209,102,0.12));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(34,34,34,0.8);
+}
+
+/* Background for overlay content to improve contrast */
+.game-header__content {
+  background: rgba(0,0,0,0.48);
+  padding: 12px 16px;
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: inline-block;
+}
+
+@media (max-width: 600px) {
+  .game-header__overlay {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
+  .game-header__content {
+    display: block;
+    width: auto;
+    padding: 10px 12px;
+    max-width: calc(100% - 24px);
+  }
+}
+

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
+import { Typography, Grid, Card, CardContent, CardMedia, Button, Stack, MenuItem, Select, FormControl, InputLabel, Box } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
-import api from '../api'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import api, { getApiRoot } from '../api'
 import SubmissionCard from '../components/SubmissionCard'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -148,46 +149,75 @@ export default function GameSubmissions() {
 
   return (
     <div>
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <div>
-          <Typography variant="h5">Submissions — {game.name}</Typography>
-          {game.url && (
-            <div style={{ marginTop: 6 }}>
+      <div className="game-header" style={{ marginBottom: 16 }}>
+        {game.imageUrl ? (
+          <CardMedia
+            component="img"
+            image={`${getApiRoot()}${game.imageUrl}`}
+            alt={game.name}
+            loading="lazy"
+            className="game-image"
+            style={{ width: '100%', height: 260, objectFit: 'cover' }}
+          />
+        ) : (
+          <div className="game-header__fallback" style={{ height: 260 }} />
+        )}
+        <div className="game-header__overlay">
+          <Box className="game-header__content" sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: '70ch' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <Typography variant="h5" sx={{ color: 'white' }}>Submissions — {game.name}</Typography>
+              {game.url && (
+                <AppButton
+                  href={game.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="outlined"
+                  size="small"
+                  color="primary"
+                  endIcon={<OpenInNewIcon />}
+                  dataTest="game-play-link"
+                >
+                  Play
+                </AppButton>
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <AppButton
-                href={game.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                to={`/games/${game.id}/highscore`}
                 variant="text"
                 size="small"
-                sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
-                dataTest="game-play-link"
+                sx={{ p: 0, minWidth: 'auto', textTransform: 'none', color: 'white' }}
+                dataTest="game-highscores-link"
               >
-                Play
+                Highscores
               </AppButton>
-            </div>
-          )}
-          <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
-            <AppButton
-              to={`/games/${game.id}/highscore`}
-              variant="text"
-              size="small"
-              sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
-              dataTest="game-highscores-link"
-            >
-              Highscores
-            </AppButton>
-            <AppButton
-              to={`/games/${game.id}/personal-highscore`}
-              variant="text"
-              size="small"
-              sx={{ p: 0, minWidth: 'auto', textTransform: 'none' }}
-              dataTest="game-personal-highscores-link"
-            >
-              Your Highscores
-            </AppButton>
-          </div>
-          <div className="muted">Compete on daily challenges — climb the leaderboard!</div>
+              <AppButton
+                to={`/games/${game.id}/personal-highscore`}
+                variant="text"
+                size="small"
+                sx={{ p: 0, minWidth: 'auto', textTransform: 'none', color: 'white' }}
+                dataTest="game-personal-highscores-link"
+              >
+                Your Highscores
+              </AppButton>
+            </Box>
+
+            <div className="muted" style={{ color: 'rgba(255,255,255,0.9)' }}>Compete on daily challenges — climb the leaderboard!</div>
+          </Box>
         </div>
+      </div>
+
+      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="date-select-label">Day</InputLabel>
+            <Select labelId="date-select-label" value={selectedDate} label="Day" onChange={e => handleDateChange(e.target.value)}>
+              <MenuItem value="">All</MenuItem>
+              {availableDates.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
+            </Select>
+          </FormControl>
+        </Box>
         <div>
           <AppButton to="/" sx={{ mr: 1, background: 'white', color: '#444', boxShadow: 'none' }}>Back</AppButton>
           {(() => {
@@ -205,14 +235,6 @@ export default function GameSubmissions() {
           })()}
         </div>
       </Stack>
-
-      <FormControl sx={{ mb: 2, minWidth: 200 }}>
-        <InputLabel id="date-select-label">Day</InputLabel>
-        <Select labelId="date-select-label" value={selectedDate} label="Day" onChange={e => handleDateChange(e.target.value)}>
-          <MenuItem value="">All</MenuItem>
-          {availableDates.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
-        </Select>
-      </FormControl>
 
           {isViewingLatest && !hasSubmittedForLatest ? (
             <div className="card" style={{ padding: 24 }}>
