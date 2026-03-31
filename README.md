@@ -1,14 +1,28 @@
 # Disclaimer: This project is intended as a way to learn how to work with AI in a good and productive way.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/thecaaz/daily-challenges-web/ci.yml?branch=main&label=CI&logo=github&style=flat-square)](https://github.com/thecaaz/daily-challenges-web/actions/workflows/ci.yml)
+[![Backend](https://img.shields.io/docker/v/caaz/daily-challenge-web-backend?sort=semver&label=backend&logo=docker&style=flat-square)](https://hub.docker.com/r/caaz/daily-challenge-web-backend)
+[![Frontend](https://img.shields.io/docker/v/caaz/daily-challenge-web-frontend?sort=semver&label=frontend&logo=docker&style=flat-square)](https://hub.docker.com/r/caaz/daily-challenge-web-frontend)
 
-# Daily Challenges — MVP
+# Daily Challenges
 
-This repository contains a minimal full-stack MVP for submitting daily challenge scores.
+A full-stack web application for submitting and tracking daily challenge scores with leaderboards, personal history, and an XP/level system.
+
+## Features
+
+- **Submit scores** for daily challenges, with optional screenshot uploads
+- **Leaderboards** — per-game highscores and personal highscore history
+- **XP and levels** — earn XP for each submission; level up as you accumulate points
+- **Submission detail** — view individual submission scores and screenshots
+- **Admin panel** — create/edit/delete games, manage and score submissions with date filtering
+- **Admin user management** — promote or demote users to admin, manage accounts
+- **Authentication** — register and log in with username/password
+
+## Stack
 
 Backend (C# / ASP.NET Core)
 - Folder: `backend`
-- Uses EF Core with SQLite (app.db) and serves uploaded images from `wwwroot`.
+- Uses EF Core with SQLite (app.db)
 
 Frontend (React + Vite)
 - Folder: `frontend`
@@ -67,3 +81,20 @@ dotnet ef database update --project backend/DailyChallenges.csproj --startup-pro
 ```
 
 The migration files are created under [backend/Migrations](backend/Migrations). After running `migrations add`, review the generated migration before applying it.
+
+## E2E Tests (Playwright)
+
+End-to-end tests live in [`tests/e2e/`](tests/e2e/). See [`tests/e2e/README.md`](tests/e2e/README.md) for full setup and usage instructions.
+
+**Quick start (PowerShell):**
+
+```powershell
+cd tests/e2e
+npm ci
+npm run install-playwright
+
+# Start services, run headless tests, and stop services:
+npm run run:ci
+```
+
+Tests run against an isolated SQLite database at `tests/e2e/.data/test.db` and do not affect any other data.
