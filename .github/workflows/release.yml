@@ -47,6 +47,12 @@ jobs:
       - name: Fetch tags
         run: git fetch --tags
 
+      - name: Ensure branch head and tags
+        run: |
+          git fetch origin main --tags
+          git checkout origin/main
+          git reset --hard origin/main
+
       - name: Get release version
         id: version
         run: |
