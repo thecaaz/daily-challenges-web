@@ -1,3 +1,10 @@
+### [1.5.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.5.1...v1.5.2) (2026-03-31)
+
+
+### Bug Fixes
+
+* update GitHub Actions and Docker configurations ([8b743b5](https://github.com/thecaaz/daily-challenges-web/commit/8b743b502fe23f0f4377a2afb30563193dfa2e39))
+
 ### [1.5.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.5.0...v1.5.1) (2026-03-31)
 
 
