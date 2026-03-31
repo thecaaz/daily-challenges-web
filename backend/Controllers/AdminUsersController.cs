@@ -61,5 +61,43 @@ namespace DailyChallenges.Controllers
             var (data, filename) = await _adminService.ExportXpEventsCsvAsync(id, from, to, eventType);
             return File(data, "text/csv; charset=utf-8", filename);
         }
+
+        [HttpPost("{id}/password")]
+        public async Task<IActionResult> SetPassword(int id, [FromBody] DailyChallenges.DTOs.AdminSetPasswordDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
+                return BadRequest(new { message = "NewPassword is required" });
+
+            try
+            {
+                await _adminService.SetPasswordAsync(id, dto.NewPassword);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var requestingAdminId = User.GetUserId();
+            if (requestingAdminId == null) return Unauthorized();
+
+            try
+            {
+                await _adminService.DeleteUserAsync(id, requestingAdminId.Value);
+                return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
     }
 }

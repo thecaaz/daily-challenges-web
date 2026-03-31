@@ -87,5 +87,23 @@ namespace DailyChallenges.Services
             var filename = $"xp-events-user-{userId}.csv";
             return (bytes, filename);
         }
+
+        public async Task SetPasswordAsync(int userId, string newPassword)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) throw new KeyNotFoundException($"User {userId} not found");
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task DeleteUserAsync(int userId, int requestingAdminId)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) throw new KeyNotFoundException($"User {userId} not found");
+            if (user.IsAdmin) throw new InvalidOperationException("Cannot delete an admin account");
+            if (userId == requestingAdminId) throw new InvalidOperationException("Cannot delete your own account");
+            _db.Users.Remove(user);
+            await _db.SaveChangesAsync();
+        }
     }
 }
