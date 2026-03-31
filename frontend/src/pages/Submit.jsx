@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { TextField, Stack, Typography, Card } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
@@ -116,7 +117,18 @@ export default function Submit() {
         <Typography variant="h5">Submit for {game.name}</Typography>
         {game.url && (
           <div style={{ marginTop: 6 }}>
-            <a href={game.url} target="_blank" rel="noreferrer">Play</a>
+            <AppButton
+              href={game.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outlined"
+              size="small"
+              color="primary"
+              endIcon={<OpenInNewIcon />}
+              dataTest="game-play-link"
+            >
+              Play
+            </AppButton>
           </div>
         )}
         <form onSubmit={submit}>
