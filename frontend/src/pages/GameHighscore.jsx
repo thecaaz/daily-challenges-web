@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Typography, Grid } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
+import HiddenScoresCard from '../components/ui/HiddenScoresCard'
 import SubmissionCard from '../components/SubmissionCard'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
@@ -59,13 +60,7 @@ export default function GameHighscore() {
       <Typography variant="h5">Highscores — {game.name}</Typography>
       <div style={{ marginTop: 12 }}>
         {currentScoringDay && !hasSubmittedForLatest ? (
-          <div className="card" style={{ padding: 24 }}>
-            <Typography variant="h6">Today's scores are hidden.</Typography>
-            <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
-            <div style={{ marginTop: 12 }}>
-              <AppButton to={`/submit/${game.id}`}>Submit Score</AppButton>
-            </div>
-          </div>
+          <HiddenScoresCard gameId={game.id} />
         ) : (
           (top.length === 0) ? (
             <div className="muted">No highscores yet.</div>

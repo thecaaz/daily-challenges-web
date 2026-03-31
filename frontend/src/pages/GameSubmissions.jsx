@@ -5,6 +5,7 @@ import AppButton from '../components/ui/AppButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import api, { getApiRoot } from '../api'
 import SubmissionCard from '../components/SubmissionCard'
+import HiddenScoresCard from '../components/ui/HiddenScoresCard'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function GameSubmissions() {
@@ -237,13 +238,7 @@ export default function GameSubmissions() {
       </Stack>
 
           {isViewingLatest && !hasSubmittedForLatest ? (
-            <div className="card" style={{ padding: 24 }}>
-              <Typography variant="h6">Today's scores are hidden.</Typography>
-              <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
-              <div style={{ marginTop: 12 }}>
-                <AppButton to={`/submit/${game.id}${location.search || ''}`}>Submit Score</AppButton>
-              </div>
-            </div>
+            <HiddenScoresCard gameId={game.id} search={location.search || ''} />
           ) : (
             <>
             <Grid container spacing={2}>
