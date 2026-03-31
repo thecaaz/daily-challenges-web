@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { TextField, Button, Stack, Typography } from '@mui/material'
+import { TextField, Stack, Typography, Card } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
@@ -112,7 +112,7 @@ export default function Submit() {
 
   return (
     <div>
-      <div className="card">
+      <Card sx={{ p: 2 }}>
         <Typography variant="h5">Submit for {game.name}</Typography>
         {game.url && (
           <div style={{ marginTop: 6 }}>
@@ -129,7 +129,7 @@ export default function Submit() {
             <AppButton type="submit">Submit</AppButton>
           </Stack>
         </form>
-      </div>
+      </Card>
       
     </div>
   )

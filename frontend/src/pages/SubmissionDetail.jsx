@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Typography, Button } from '@mui/material'
+import { Typography, Button, Card } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import api, { getApiRoot } from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
@@ -148,9 +148,9 @@ export default function SubmissionDetail() {
           />
         </div>
       ) : (
-        <div className="card">
+        <Card sx={{ p: 2 }}>
           <Typography variant="body1">No screenshot attached.</Typography>
-        </div>
+        </Card>
       )}
 
     </div>
