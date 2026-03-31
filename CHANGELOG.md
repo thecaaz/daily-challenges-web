@@ -1,3 +1,10 @@
+## [1.4.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.3.0...v1.4.0) (2026-03-31)
+
+
+### Features
+
+* add Docker build and push steps to release workflow ([7f0aed3](https://github.com/thecaaz/daily-challenges-web/commit/7f0aed3b19b9977d33d35efd0b519ba0adccacae))
+
 ## [1.3.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.2.0...v1.3.0) (2026-03-31)
 
 
