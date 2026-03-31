@@ -1,3 +1,12 @@
+## [1.6.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.5.3...v1.6.0) (2026-03-31)
+
+
+### Features
+
+* add confirmation dialog for non-numeric score submission in Submit component ([526e720](https://github.com/thecaaz/daily-challenges-web/commit/526e720551b4ee28697da663eba1109c84dae37b))
+* add ConfirmDialog component and useConfirm hook for confirmation dialogs ([0e2e909](https://github.com/thecaaz/daily-challenges-web/commit/0e2e909d60cfddb90241c4a2074693818aeaea96))
+* add PromptDialog component and usePrompt hook for custom prompt functionality ([6f75f54](https://github.com/thecaaz/daily-challenges-web/commit/6f75f54397f34c9f4134c4fee5020de649a69889))
+
 ### [1.5.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.5.2...v1.5.3) (2026-03-31)
 
 
