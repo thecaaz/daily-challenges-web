@@ -15,8 +15,9 @@ export default function SubmissionDetail() {
   const imgRef = useRef(null)
   const containerRef = useRef(null)
 
-  const [scale, setScale] = useState(1)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const scaleRef = useRef(1)
+  const offsetRef = useRef({ x: 0, y: 0 })
+  const [, forceRender] = useState(0)
   const dragging = useRef(false)
   const lastPos = useRef({ x: 0, y: 0 })
 
@@ -35,68 +36,78 @@ export default function SubmissionDetail() {
     }
   }
 
-  const onWheel = (e) => {
-      if (!submission?.screenshotUrl) return
-      const el = containerRef.current
-      if (!el) return
+  // All pan/zoom via native listeners to avoid stale closure issues
+  // Must depend on submission so listeners attach after conditional render
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const handleWheel = (e) => {
+      e.preventDefault()
       const rect = el.getBoundingClientRect()
       const mouseX = e.clientX - rect.left
       const mouseY = e.clientY - rect.top
       const centerX = rect.width / 2
       const centerY = rect.height / 2
-
       const delta = -e.deltaY
       const factor = delta > 0 ? 1.1 : 0.9
 
-      setScale(prevScale => {
-        const newScale = Math.max(0.1, Math.min(10, +(prevScale * factor).toFixed(3)))
-        setOffset(prevOff => {
-          const dx = mouseX - centerX - prevOff.x
-          const dy = mouseY - centerY - prevOff.y
-          const scaleChange = newScale / prevScale
-          const newX = prevOff.x - dx * (scaleChange - 1)
-          const newY = prevOff.y - dy * (scaleChange - 1)
-          return { x: newX, y: newY }
-        })
-        return newScale
-      })
-  }
-
-  // Attach a non-passive native wheel listener so we can reliably call
-  // preventDefault() and stop the page from scrolling while zooming.
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const handler = (e) => {
-      if (!submission?.screenshotUrl) return
-      e.preventDefault()
-      onWheel(e)
+      const prev = scaleRef.current
+      const next = Math.max(0.1, Math.min(10, +(prev * factor).toFixed(3)))
+      const off = offsetRef.current
+      const dx = mouseX - centerX - off.x
+      const dy = mouseY - centerY - off.y
+      const sc = next / prev
+      offsetRef.current = { x: off.x - dx * (sc - 1), y: off.y - dy * (sc - 1) }
+      scaleRef.current = next
+      forceRender(n => n + 1)
     }
-    el.addEventListener('wheel', handler, { passive: false })
-    return () => el.removeEventListener('wheel', handler, { passive: false })
+
+    const handleMouseDown = (e) => {
+      dragging.current = true
+      lastPos.current = { x: e.clientX, y: e.clientY }
+      e.preventDefault()
+    }
+
+    const handleMouseMove = (e) => {
+      if (!dragging.current) return
+      const dx = e.clientX - lastPos.current.x
+      const dy = e.clientY - lastPos.current.y
+      lastPos.current = { x: e.clientX, y: e.clientY }
+      const off = offsetRef.current
+      offsetRef.current = { x: off.x + dx, y: off.y + dy }
+      forceRender(n => n + 1)
+    }
+
+    const handleMouseUp = () => {
+      dragging.current = false
+    }
+
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    el.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      el.removeEventListener('wheel', handleWheel)
+      el.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
   }, [submission])
 
-  const onMouseDown = (e) => {
-    if (!submission?.screenshotUrl) return
-    dragging.current = true
-    lastPos.current = { x: e.clientX, y: e.clientY }
-    e.preventDefault()
+  const resetView = () => {
+    scaleRef.current = 1
+    offsetRef.current = { x: 0, y: 0 }
+    forceRender(n => n + 1)
   }
-  const onMouseMove = (e) => {
-    if (!dragging.current) return
-    const dx = e.clientX - lastPos.current.x
-    const dy = e.clientY - lastPos.current.y
-    lastPos.current = { x: e.clientX, y: e.clientY }
-    setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
-  }
-  const onMouseUp = () => { dragging.current = false }
-
-  const resetView = () => { setScale(1); setOffset({ x: 0, y: 0 }) }
 
   if (loading) return <Loading />
   if (!submission) return <NotFound message="Not found" />
 
   const apiRoot = getApiRoot()
+  const scale = scaleRef.current
+  const offset = offsetRef.current
 
   return (
     <div>
@@ -121,10 +132,6 @@ export default function SubmissionDetail() {
       {submission.screenshotUrl ? (
         <div
           ref={containerRef}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
           style={{ width: '100%', maxWidth: 1000, height: 600, border: '1px solid #ddd', overflow: 'hidden', position: 'relative', cursor: 'grab' }}>
           <img
             ref={imgRef}

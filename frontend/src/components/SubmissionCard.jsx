@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Card, CardContent, CardMedia, Typography, Tooltip, Box, Chip } from '@mui/material'
+import { Card, CardContent, CardMedia, Typography, Tooltip, Box, Chip, Checkbox } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PersonIcon from '@mui/icons-material/Person'
 import api, { getApiRoot } from '../api'
@@ -8,15 +8,34 @@ import parseUtcDate from '../utils/parseUtcDate'
 import formatNumber from '../utils/formatNumber'
 import { useAuth } from '../contexts/AuthContext'
 
-export default function SubmissionCard({ submission }) {
+export default function SubmissionCard({ submission, compareMode, selected, onToggleCompare }) {
   if (!submission) return null
   const { user } = useAuth()
   const apiRoot = getApiRoot()
   const location = useLocation()
 
-  return (
-    <Link to={`/submission/${submission.id}${location.search || ''}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-      <Card sx={{ height: '100%' }}>
+  const handleCompareClick = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onToggleCompare) onToggleCompare(submission)
+  }
+
+  const cardContent = (
+    <Card sx={{
+      height: '100%',
+      position: 'relative',
+      ...(compareMode && selected ? { outline: '3px solid', outlineColor: 'primary.main', outlineOffset: -3 } : {}),
+      ...(compareMode ? { cursor: 'pointer' } : {}),
+    }}
+    onClick={compareMode ? handleCompareClick : undefined}
+    >
+        {compareMode && (
+          <Checkbox
+            checked={!!selected}
+            sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1 }}
+            onClick={handleCompareClick}
+          />
+        )}
         {submission.screenshotUrl && (
           <CardMedia
             component="img"
@@ -65,6 +84,15 @@ export default function SubmissionCard({ submission }) {
           </Typography>
         </CardContent>
       </Card>
+  )
+
+  if (compareMode) {
+    return <div style={{ display: 'block' }}>{cardContent}</div>
+  }
+
+  return (
+    <Link to={`/submission/${submission.id}${location.search || ''}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+      {cardContent}
     </Link>
   )
 }
