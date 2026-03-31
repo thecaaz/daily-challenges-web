@@ -1,26 +1,27 @@
 import { createTheme } from '@mui/material/styles'
+import tokens from './styles/tokens'
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#ff7ab6',
+      main: tokens.accent,
       light: '#ffaad4',
       dark: '#e05090',
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#ffd166',
+      main: tokens.accent2,
       light: '#ffe299',
       dark: '#c9a23d',
       contrastText: '#222222',
     },
     background: {
-      default: '#fef6f0',
+      default: tokens.bg1,
       paper: 'rgba(255,255,255,0.95)',
     },
     text: {
       primary: '#222222',
-      secondary: '#6b6b6b',
+      secondary: tokens.muted,
     },
     error: { main: '#f44336' },
     success: { main: '#66bb6a' },
@@ -92,7 +93,7 @@ const theme = createTheme({
           },
         },
         containedPrimary: {
-          background: 'linear-gradient(90deg, #ff7ab6, #ffd166)',
+          background: `linear-gradient(90deg, ${tokens.accent}, ${tokens.accent2})`,
           color: '#fff',
           boxShadow: '0 6px 18px rgba(255,122,182,0.22)',
           '&:hover': {
@@ -102,7 +103,7 @@ const theme = createTheme({
           textShadow: '0 1px 0 rgba(0,0,0,0.18)',
         },
         containedSecondary: {
-          background: '#ffd166',
+          background: tokens.accent2,
           color: '#222',
           boxShadow: '0 6px 18px rgba(255,209,102,0.3)',
           '&:hover': {
@@ -112,8 +113,8 @@ const theme = createTheme({
           textShadow: '0 1px 0 rgba(0,0,0,0.08)',
         },
         outlinedPrimary: {
-          borderColor: '#ff7ab6',
-          color: '#ff7ab6',
+          borderColor: tokens.accent,
+          color: tokens.accent,
           '&:hover': {
             background: 'rgba(255,122,182,0.06)',
             borderColor: '#e05090',
@@ -176,10 +177,10 @@ const theme = createTheme({
             borderRadius: 12,
             background: 'rgba(255,255,255,0.9)',
             '& fieldset': { borderColor: 'rgba(0,0,0,0.1)' },
-            '&:hover fieldset': { borderColor: '#ff7ab6' },
-            '&.Mui-focused fieldset': { borderColor: '#ff7ab6', borderWidth: 2 },
+            '&:hover fieldset': { borderColor: tokens.accent },
+            '&.Mui-focused fieldset': { borderColor: tokens.accent, borderWidth: 2 },
           },
-          '& .MuiInputLabel-root.Mui-focused': { color: '#ff7ab6' },
+          '& .MuiInputLabel-root.Mui-focused': { color: tokens.accent },
         },
       },
     },
@@ -190,8 +191,8 @@ const theme = createTheme({
           borderRadius: 12,
           background: 'rgba(255,255,255,0.9)',
           '& fieldset': { borderColor: 'rgba(0,0,0,0.1)' },
-          '&:hover fieldset': { borderColor: '#ff7ab6' },
-          '&.Mui-focused fieldset': { borderColor: '#ff7ab6', borderWidth: 2 },
+          '&:hover fieldset': { borderColor: tokens.accent },
+          '&.Mui-focused fieldset': { borderColor: tokens.accent, borderWidth: 2 },
         },
       },
     },
@@ -281,7 +282,7 @@ const theme = createTheme({
         },
         bar: {
           borderRadius: 999,
-          background: 'linear-gradient(90deg,#ffd166,#ff7ab6)',
+          background: `linear-gradient(90deg, ${tokens.accent2}, ${tokens.accent})`,
         },
       },
     },
