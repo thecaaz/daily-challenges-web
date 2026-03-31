@@ -1,3 +1,10 @@
+## [1.3.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.2.0...v1.3.0) (2026-03-31)
+
+
+### Features
+
+* implement user password management and deletion in Admin panel ([f5a71a9](https://github.com/thecaaz/daily-challenges-web/commit/f5a71a9e7a87f7e6ab18038f5ae36621e8c7ba55))
+
 ## [1.2.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.1.0...v1.2.0) (2026-03-31)
 
 
