@@ -11,6 +11,8 @@ namespace DailyChallenges.Data
         public DbSet<Submission> Submissions => Set<Submission>();
         public DbSet<User> Users => Set<User>();
         public DbSet<Models.XpEvent> XpEvents => Set<Models.XpEvent>();
+        public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<ScoringDayResult> ScoringDayResults => Set<ScoringDayResult>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -61,6 +63,39 @@ namespace DailyChallenges.Data
             // Index for fetching all XP history for a user efficiently
             modelBuilder.Entity<Models.XpEvent>()
                 .HasIndex(e => new { e.UserId, e.CreatedAt });
+
+            // Notifications: FK to User (required), FK to Game (optional)
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Game)
+                .WithMany()
+                .HasForeignKey(n => n.GameId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Notification>()
+                .HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
+
+            // ScoringDayResults: FK to Game (cascade), FK to WinnerUser (set null)
+            modelBuilder.Entity<ScoringDayResult>()
+                .HasOne(r => r.Game)
+                .WithMany()
+                .HasForeignKey(r => r.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ScoringDayResult>()
+                .HasOne(r => r.WinnerUser)
+                .WithMany()
+                .HasForeignKey(r => r.WinnerUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ScoringDayResult>()
+                .HasIndex(r => new { r.GameId, r.ScoringDay })
+                .IsUnique();
         }
     }
 }

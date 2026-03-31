@@ -5,6 +5,7 @@ import { AppBar, Toolbar, Box, Button, Typography, Chip, LinearProgress, Tooltip
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import { useAuth } from '../contexts/AuthContext'
+import NotificationBell from './NotificationBell'
 
 export default function GameBar() {
   const { user, logout, fetchMe } = useAuth()
@@ -138,6 +139,7 @@ export default function GameBar() {
         {/* Nav actions */}
         {user ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <NotificationBell />
             {user.isAdmin && (
               <Button
                 component={Link}

@@ -14,6 +14,8 @@ namespace DailyChallenges.Services
         public double MaxStreakBonus { get; set; } = 0.30;
         public double LevelBase { get; set; } = 100;
         public double LevelExponent { get; set; } = 1.5;
+        /// <summary>XP awarded for winning a scoring day (default 100).</summary>
+        public int WinXp { get; set; } = 100;
     }
 
     public class XpService : IXpService
@@ -128,6 +130,32 @@ namespace DailyChallenges.Services
 
             await _db.SaveChangesAsync();
             return delta;
+        }
+
+        public async Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay)
+        {
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return 0;
+
+            var scoringDate = scoringDay.Date;
+            int xpAwarded = _cfg.WinXp;
+
+            user.TotalXp += xpAwarded;
+            user.Level = _levelCalc.GetLevelFromTotalXp(user.TotalXp);
+
+            _db.XpEvents.Add(new XpEvent
+            {
+                UserId = userId,
+                GameId = gameId,
+                ScoringDay = scoringDate,
+                Amount = xpAwarded,
+                EventType = "day_win",
+                Details = $"win_xp={xpAwarded}",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _db.SaveChangesAsync();
+            return xpAwarded;
         }
     }
 }

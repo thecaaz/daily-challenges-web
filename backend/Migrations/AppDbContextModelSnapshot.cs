@@ -48,6 +48,75 @@ namespace DailyChallenges.Migrations
                     b.ToTable("Games");
                 });
 
+            modelBuilder.Entity("DailyChallenges.Models.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Rank")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ScoringDay")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.ScoringDayResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ProcessedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ScoringDay")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("WinnerUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WinnerUserId");
+
+                    b.HasIndex("GameId", "ScoringDay")
+                        .IsUnique();
+
+                    b.ToTable("ScoringDayResults");
+                });
+
             modelBuilder.Entity("DailyChallenges.Models.Submission", b =>
                 {
                     b.Property<int>("Id")
@@ -172,6 +241,42 @@ namespace DailyChallenges.Migrations
                     b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("XpEvents");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.Notification", b =>
+                {
+                    b.HasOne("DailyChallenges.Models.Game", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("DailyChallenges.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.ScoringDayResult", b =>
+                {
+                    b.HasOne("DailyChallenges.Models.Game", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DailyChallenges.Models.User", "WinnerUser")
+                        .WithMany()
+                        .HasForeignKey("WinnerUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Game");
+
+                    b.Navigation("WinnerUser");
                 });
 
             modelBuilder.Entity("DailyChallenges.Models.Submission", b =>

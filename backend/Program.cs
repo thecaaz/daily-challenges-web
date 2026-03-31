@@ -46,6 +46,8 @@ builder.Services.AddCors(options => options.AddPolicy("DefaultCors", b =>
 builder.Services.AddScoped<DailyChallenges.Repositories.IGameRepository, DailyChallenges.Repositories.EfGameRepository>();
 builder.Services.AddScoped<DailyChallenges.Repositories.ISubmissionRepository, DailyChallenges.Repositories.EfSubmissionRepository>();
 builder.Services.AddScoped<DailyChallenges.Repositories.IXpEventRepository, DailyChallenges.Repositories.EfXpEventRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.INotificationRepository, DailyChallenges.Repositories.EfNotificationRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.IScoringDayResultRepository, DailyChallenges.Repositories.EfScoringDayResultRepository>();
 // Helper services
 builder.Services.AddScoped<DailyChallenges.Services.IUserSubmissionChecker, DailyChallenges.Services.UserSubmissionChecker>();
 
@@ -67,6 +69,10 @@ builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenge
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
 builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionService, DailyChallenges.Services.SubmissionService>();
+
+// Scoring day finalization
+builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
+builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundService>();
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? string.Empty;

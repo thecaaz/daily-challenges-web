@@ -15,5 +15,10 @@ namespace DailyChallenges.Services
         /// Admin-level manual XP adjustment. Always inserts an audit XpEvent.
         /// </summary>
         Task<int> AdjustXpAsync(int userId, int delta, string reason, int? adminUserId = null);
+
+        /// <summary>
+        /// Awards win XP to the user for winning a scoring day on a game.
+        /// </summary>
+        Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay);
     }
 }
