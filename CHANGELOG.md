@@ -1,3 +1,10 @@
+## [1.7.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.6.0...v1.7.0) (2026-03-31)
+
+
+### Features
+
+* add notifications and scoring day results functionality ([e9b87cc](https://github.com/thecaaz/daily-challenges-web/commit/e9b87ccc2b9699aa5fd1d22eea88f7351d34a037))
+
 ## [1.6.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.5.3...v1.6.0) (2026-03-31)
 
 
