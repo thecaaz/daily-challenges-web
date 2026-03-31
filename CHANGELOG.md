@@ -1,3 +1,10 @@
+## [1.5.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.4.1...v1.5.0) (2026-03-31)
+
+
+### Features
+
+* show users who have already submitted as core for the current scoring day ([4614527](https://github.com/thecaaz/daily-challenges-web/commit/46145271f22985eaa8c5f02f8a360832123c8687))
+
 ### [1.4.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.4.0...v1.4.1) (2026-03-31)
 
 
