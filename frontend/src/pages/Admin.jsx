@@ -6,14 +6,18 @@ import useImageUpload from '../hooks/useImageUpload'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
+import parseScore from '../utils/parseScore'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import useConfirm from '../hooks/useConfirm'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 export default function Admin() {
   const [name, setName] = useState('')
   const { showSnackbar } = useSnackbar()
+  const { confirm, dialogProps } = useConfirm()
   const {
     screenshot: createImageFile,
     previewUrl: createPreviewUrl,
@@ -109,7 +113,8 @@ export default function Admin() {
   }
 
   const removeGame = async (id) => {
-    if (!confirm('Delete game? This will remove submissions.')) return
+    const ok = await confirm({ title: 'Delete game?', message: 'This will permanently remove the game and all its submissions.' })
+    if (!ok) return
     try {
       await api.delete(`/games/${id}`)
       showSnackbar('Game deleted', 'success')
@@ -131,7 +136,8 @@ export default function Admin() {
 
   const updateSubmission = async (s) => {
     try {
-      await api.put(`/submissions/${s.id}`, { score: s.score })
+      const parsed = parseScore(s.score)
+      await api.put(`/submissions/${s.id}`, { score: isNaN(parsed) ? s.score : String(parsed) })
       showSnackbar('Submission updated', 'success')
       manageSubs(selectedGameId)
     } catch (err) {
@@ -140,7 +146,8 @@ export default function Admin() {
   }
 
   const deleteSubmission = async (id) => {
-    if (!confirm('Delete submission?')) return
+    const ok = await confirm({ title: 'Delete submission?', message: 'This submission will be permanently removed.' })
+    if (!ok) return
     try {
       await api.delete(`/submissions/${id}`)
       showSnackbar('Submission deleted', 'success')
@@ -232,6 +239,9 @@ export default function Admin() {
                 <TableCell>{s.username ?? ''}</TableCell>
                 <TableCell>
                   <input value={s.score ?? ''} onChange={e => setSubmissions(submissions.map(x => x.id === s.id ? { ...x, score: e.target.value } : x))} />
+                  {s.score !== '' && s.score != null && isNaN(parseScore(s.score)) && (
+                    <div style={{ color: '#ed6c02', fontSize: '0.75rem', marginTop: 2 }}>Not a number</div>
+                  )}
                 </TableCell>
                 <TableCell>{parseUtcDate(s.createdAt).toLocaleString()}</TableCell>
                 <TableCell>
@@ -244,6 +254,7 @@ export default function Admin() {
         </Table>
       </Paper>
     )}
+    <ConfirmDialog {...dialogProps} />
     </>
   )
 }

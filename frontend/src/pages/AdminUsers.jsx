@@ -5,6 +5,8 @@ import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import AdminUserAuditModal from '../components/AdminUserAuditModal'
+import useConfirm from '../hooks/useConfirm'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 export default function AdminUsers() {
   const { user, loading } = useAuth()
@@ -19,6 +21,7 @@ export default function AdminUsers() {
   const [auditUserId, setAuditUserId] = useState(null)
   const [auditUsername, setAuditUsername] = useState(null)
   const [auditOpen, setAuditOpen] = useState(false)
+  const { confirm, dialogProps } = useConfirm()
 
   const [setPasswordUserId, setSetPasswordUserId] = useState(null)
   const [setPasswordValue, setSetPasswordValue] = useState('')
@@ -80,7 +83,8 @@ export default function AdminUsers() {
   }
 
   const deleteUser = async (id) => {
-    if (!window.confirm('Delete this user? This cannot be undone.')) return
+    const ok = await confirm({ title: 'Delete user?', message: 'This will permanently delete this user. This cannot be undone.' })
+    if (!ok) return
     try {
       await api.delete(`/admin/users/${id}`)
       showSnackbar('User deleted', 'success')
@@ -159,6 +163,7 @@ export default function AdminUsers() {
       </Dialog>
 
       <AdminUserAuditModal open={auditOpen} onClose={() => setAuditOpen(false)} userId={auditUserId} username={auditUsername} />
+      <ConfirmDialog {...dialogProps} />
     </>
   )
 }

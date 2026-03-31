@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { TextField, Stack, Typography, Card } from '@mui/material'
+import { TextField, Stack, Typography, Card, Alert } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import api from '../api'
@@ -12,6 +12,7 @@ import Loading from '../components/ui/Loading'
 import useGame from '../hooks/useGame'
 import useImageUpload from '../hooks/useImageUpload'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
+import parseScore from '../utils/parseScore'
 
 export default function Submit() {
   const { gameId } = useParams()
@@ -60,7 +61,8 @@ export default function Submit() {
 
     const fd = new FormData()
     fd.append('gameId', gameId)
-    fd.append('score', score)
+    const parsed = parseScore(score)
+    fd.append('score', isNaN(parsed) ? score : String(parsed))
     // if authenticated, server will use identity (do not allow spoofing)
     if (!user || !user.id) {
       if (username) fd.append('username', username)
@@ -137,6 +139,11 @@ export default function Submit() {
               <TextField label="Username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
             )}
             <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
+            {score !== '' && isNaN(parseScore(score)) && (
+              <Alert severity="warning" sx={{ py: 0 }}>
+                This score is not a number and may not show up correctly on leaderboards.
+              </Alert>
+            )}
             <ImageUpload onFileChange={onFileChange} previewUrl={previewUrl} onRemove={clear} />
             <AppButton type="submit">Submit</AppButton>
           </Stack>
