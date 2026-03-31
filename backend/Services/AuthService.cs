@@ -14,14 +14,12 @@ namespace DailyChallenges.Services
     {
         private readonly AppDbContext _db;
         private readonly IConfiguration _config;
-        private readonly IWebHostEnvironment _env;
         private readonly LevelCalculator _levelCalc;
 
-        public AuthService(AppDbContext db, IConfiguration config, IWebHostEnvironment env, LevelCalculator levelCalc)
+        public AuthService(AppDbContext db, IConfiguration config, LevelCalculator levelCalc)
         {
             _db = db;
             _config = config;
-            _env = env;
             _levelCalc = levelCalc;
         }
 
@@ -50,10 +48,7 @@ namespace DailyChallenges.Services
 
             var expiresDays = int.Parse(_config["Jwt:ExpiresDays"] ?? "7");
 
-            // Per user request: force insecure cookie
-            // This unconditionally disables the Secure flag so the cookie can be set
-            // over plain HTTP.
-            // This is needed cause i cant be asked to pay for https for this shit.
+            // Force insecure cookie so it can be set over plain HTTP.
             var cookieSecure = false;
 
             response.Cookies.Append("access_token", token, new CookieOptions

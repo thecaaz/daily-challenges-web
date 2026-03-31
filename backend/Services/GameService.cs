@@ -122,7 +122,7 @@ namespace DailyChallenges.Services
             else
             {
                 topDtos = subs
-                    .Select(s => new { Sub = s, Num = DailyChallenges.Services.ScoreParser.ParseScore(s.Score) })
+                    .Select(s => new { Sub = s, Num = ScoreParser.ParseScore(s.Score) })
                     .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
                     .ThenBy(x => x.Sub.CreatedAt)
                     .Take(50)
@@ -154,7 +154,7 @@ namespace DailyChallenges.Services
             else
             {
                 topDtos = userSubs
-                    .Select(s => new { Sub = s, Num = DailyChallenges.Services.ScoreParser.ParseScore(s.Score) })
+                    .Select(s => new { Sub = s, Num = ScoreParser.ParseScore(s.Score) })
                     .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
                     .ThenBy(x => x.Sub.CreatedAt)
                     .Take(50)

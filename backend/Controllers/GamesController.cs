@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using DailyChallenges.Mapping;
+using DailyChallenges.Services;
 
 namespace DailyChallenges.Controllers
 {
@@ -8,13 +9,11 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class GamesController : ControllerBase
     {
-        private readonly Services.IGameService _games;
-        private readonly Services.IFileValidator _validator;
+        private readonly IGameService _games;
 
-        public GamesController(Services.IGameService games, Services.IFileValidator validator)
+        public GamesController(IGameService games)
         {
             _games = games;
-            _validator = validator;
         }
 
         [HttpGet]
@@ -67,7 +66,7 @@ namespace DailyChallenges.Controllers
         [Authorize]
         public async Task<IActionResult> GetPersonalHighscore(int id)
         {
-            var userId = Services.ClaimsPrincipalExtensions.GetUserId(User);
+            var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
             try
             {

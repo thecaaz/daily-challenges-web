@@ -1,5 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Globalization;
 using DailyChallenges.Services;
 
 namespace DailyChallenges.Controllers
@@ -8,10 +8,10 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class SubmissionsController : ControllerBase
     {
-        private readonly Services.ISubmissionService _subs;
-        private readonly Services.IFileValidator _validator;
+        private readonly ISubmissionService _subs;
+        private readonly IFileValidator _validator;
 
-        public SubmissionsController(Services.ISubmissionService subs, Services.IFileValidator validator)
+        public SubmissionsController(ISubmissionService subs, IFileValidator validator)
         {
             _subs = subs;
             _validator = validator;
@@ -60,7 +60,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpGet("game/{gameId}/unfiltered")]
-        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUnfilteredByGame(int gameId)
         {
             var list = await _subs.GetUnfilteredByGameAsync(gameId);
@@ -68,7 +68,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost]
-        [Microsoft.AspNetCore.Authorization.Authorize]
+        [Authorize]
         public async Task<IActionResult> Create([FromForm] int gameId, [FromForm] string score, [FromForm] string? username, [FromForm] IFormFile? screenshot)
         {
             try
@@ -104,7 +104,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPut("{id}")]
-        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] SubmissionUpdateModel model)
         {
             try
@@ -119,7 +119,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             await _subs.DeleteAsync(id);

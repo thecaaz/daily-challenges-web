@@ -19,7 +19,7 @@ namespace DailyChallenges.Services
                 if (local.TimeOfDay < resetTime) day = day.AddDays(-1);
                 return day;
             }
-            catch
+            catch (TimeZoneNotFoundException)
             {
                 // Fall back to server local time if timezone id is invalid
                 var local = utcTimestamp.ToLocalTime();
@@ -50,7 +50,7 @@ namespace DailyChallenges.Services
                 var utcEnd = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(localEnd, DateTimeKind.Unspecified), tz);
                 return (utcStart, utcEnd);
             }
-            catch
+            catch (TimeZoneNotFoundException)
             {
                 var localStart = scoringDay.Date + resetTime;
                 var localEnd = localStart.AddDays(1);
