@@ -36,10 +36,24 @@ test('clicking a score navigates to submission detail', async ({ page }) => {
 
   // Visit the game's page via UI-only navigation and ensure the score appears
   await openGameByName(page, gameName)
-  await expect(page.locator(`text=${scoreValue}`)).toBeVisible()
-
-  // Click the score and assert navigation to /submission/:id
-  await page.click(`text=${scoreValue}`)
+  // Wait for the score to appear by matching digits (ignore locale separators)
+  await page.waitForFunction((sv) => {
+    return Array.from(document.querySelectorAll('a, h6')).some(el => (el.textContent || '').replace(/\D/g, '') === sv)
+  }, scoreValue, { timeout: 5000 })
+  // Click the matching score via its heading element's ancestor link
+  const h6s = page.locator('h6')
+  const h6count = await h6s.count()
+  let clicked = false
+  for (let i = 0; i < h6count; i++) {
+    const txt = (await h6s.nth(i).textContent()) ?? ''
+    if (txt.replace(/\D/g, '') === scoreValue) {
+      const anc = h6s.nth(i).locator('xpath=ancestor::a[1]').first()
+      await anc.click()
+      clicked = true
+      break
+    }
+  }
+  if (!clicked) throw new Error(`Could not find submission link for score ${scoreValue}`)
   await page.waitForFunction(() => location.pathname.includes('/submission/'), null, { timeout: 15000 })
   const match = page.url().match(/\/submission\/(\d+)/)
   expect(match).not.toBeNull()

@@ -16,8 +16,9 @@ test('duplicate submission attempt via UI shows an error/notification', async ({
   // Log out the admin user so the Register link is visible, then open the register form
   await page.click('button:has-text("Logout")').catch(() => {})
   await openRegisterViaUI(page)
-  await page.fill('input[placeholder="Username"]', username)
-  await page.fill('input[placeholder="Password"]', password)
+  // Fill registration form via accessible labels
+  await page.getByRole('textbox', { name: 'Username' }).fill(username)
+  await page.getByRole('textbox', { name: 'Password' }).fill(password)
   const [regResp] = await Promise.all([
     page.waitForResponse(r => r.url().endsWith('/api/auth/register') && (r.status() >= 200 && r.status() < 400)),
     page.click('button[type="submit"]')
@@ -27,7 +28,7 @@ test('duplicate submission attempt via UI shows an error/notification', async ({
   // Ensure the public games listing is visible for the normal user before attempting to open the submit flow
   await openHomeViaUI(page)
   // Wait until the created game's card appears in the public listing
-  await page.locator(`.card:has-text("${gameName}")`).first().waitFor({ timeout: 15000 })
+  await page.locator(`a:has-text("${gameName}")`).first().waitFor({ timeout: 15000 })
   await openSubmitForGame(page, gameName)
   await expect(page.locator('text=Submit for')).toBeVisible()
 
