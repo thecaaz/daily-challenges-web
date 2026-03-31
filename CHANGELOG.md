@@ -1,3 +1,11 @@
+## [1.2.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.1.0...v1.2.0) (2026-03-31)
+
+
+### Features
+
+* add formatNumber utility and update score display in SubmissionCard and SubmissionDetail components ([c01eb9c](https://github.com/thecaaz/daily-challenges-web/commit/c01eb9cec58f0c26d975a2dd52673157f91c5b39))
+* rework game submissions header with new layout and styles ([2c557fd](https://github.com/thecaaz/daily-challenges-web/commit/2c557fd7530371f0f2bec82740cc38921fe70c4c))
+
 ## [1.1.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.0.1...v1.1.0) (2026-03-30)
 
 
