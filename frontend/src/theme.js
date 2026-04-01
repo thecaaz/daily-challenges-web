@@ -5,6 +5,16 @@ export default function createAppTheme(mode = 'light') {
   const tokens = getTokens(mode)
   const isDark = mode === 'dark'
 
+  function hexToRgb(hex) {
+    if (!hex) return '0,0,0'
+    const h = hex.replace('#', '')
+    const bigint = parseInt(h, 16)
+    const r = (bigint >> 16) & 255
+    const g = (bigint >> 8) & 255
+    const b = bigint & 255
+    return `${r}, ${g}, ${b}`
+  }
+
   const cardBg = isDark
     ? 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))'
     : 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,250,250,0.82))'
@@ -116,6 +126,13 @@ export default function createAppTheme(mode = 'light') {
               boxShadow: '0 10px 24px rgba(255,122,182,0.30)',
             },
             textShadow: '0 1px 0 rgba(0,0,0,0.18)',
+            '&.Mui-disabled': {
+              // Keep readable contrast while indicating disabled state
+              background: `linear-gradient(90deg, rgba(${hexToRgb(tokens.accent)},0.36), rgba(${hexToRgb(tokens.accent2)},0.36))`,
+              color: 'rgba(255,255,255,0.95)',
+              boxShadow: 'none',
+              textShadow: 'none',
+            },
           },
           containedSecondary: {
             background: tokens.accent2,
@@ -126,6 +143,12 @@ export default function createAppTheme(mode = 'light') {
               boxShadow: '0 10px 24px rgba(255,209,102,0.4)',
             },
             textShadow: '0 1px 0 rgba(0,0,0,0.08)',
+            '&.Mui-disabled': {
+              background: `linear-gradient(90deg, rgba(${hexToRgb(tokens.accent2)},0.36), rgba(${hexToRgb(tokens.accent)},0.18))`,
+              color: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(34,34,34,0.9)',
+              boxShadow: 'none',
+              textShadow: 'none',
+            },
           },
           outlinedPrimary: {
             borderColor: tokens.accent,

@@ -95,6 +95,17 @@ h1, h2, h3, h4, h5, h6 {
 .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(255,122,182,0.30); }
 .btn:active { transform: translateY(1px) scale(0.997); }
 
+/* Ensure legacy .btn remains readable when disabled */
+.btn:disabled,
+.btn[disabled] {
+  opacity: 1;
+  filter: grayscale(12%) saturate(85%);
+  cursor: not-allowed;
+  box-shadow: none;
+  background: linear-gradient(90deg, rgba(255,122,182,0.45), rgba(255,209,102,0.45));
+  color: rgba(255,255,255,0.95);
+}
+
 /* ── Badge / rank pill ─────────────────────────────────────── */
 .badge {
   display: inline-block;
