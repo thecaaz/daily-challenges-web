@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using System.Security.Claims;
 using DailyChallenges.Repositories;
 using DailyChallenges.Models;

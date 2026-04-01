@@ -1,6 +1,5 @@
 using DailyChallenges.Data;
 using DailyChallenges.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace DailyChallenges.Services

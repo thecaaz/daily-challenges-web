@@ -2,9 +2,7 @@ using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
-using System.Globalization;
 using System.Security.Claims;
-using System.Text.RegularExpressions;
 
 namespace DailyChallenges.Services
 {

@@ -1,10 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.IO;
 using System.Text.Json;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DailyChallenges.Controllers
 {
@@ -89,25 +84,8 @@ namespace DailyChallenges.Controllers
                 }
                 catch
                 {
-                    // ignore remote fetch errors and fall through to fallback behavior
+                    // ignore remote fetch errors and return empty string
                 }
-
-                // Fallback: try local copies (do not cache fallback results)
-                try
-                {
-                    var candidate = Path.GetFullPath(Path.Combine(_env.ContentRootPath, "..", "CHANGELOG.md"));
-                    if (System.IO.File.Exists(candidate))
-                    {
-                        return await System.IO.File.ReadAllTextAsync(candidate);
-                    }
-
-                    var alt = Path.Combine(_env.ContentRootPath, "CHANGELOG.md");
-                    if (System.IO.File.Exists(alt))
-                    {
-                        return await System.IO.File.ReadAllTextAsync(alt);
-                    }
-                }
-                catch { }
 
                 return string.Empty;
             }

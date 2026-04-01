@@ -1,5 +1,3 @@
-using System;
-
 namespace DailyChallenges.DTOs
 {
     public class XpEventDto
