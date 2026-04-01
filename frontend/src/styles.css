@@ -17,6 +17,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Dark mode: prefer a single uniform background color and tuned contrast */
+[data-theme="dark"] body {
+  background: var(--bg-1);
+  color: #edf2f7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 #root { min-height: 100vh; }
 
 /* Ensure headings use the display font */
@@ -40,6 +48,31 @@ h1, h2, h3, h4, h5, h6 {
 .card:hover {
   transform: translateY(-6px);
   box-shadow: 0 16px 32px rgba(34,34,34,0.13);
+}
+
+/* Legacy card adjustments for dark theme */
+[data-theme="dark"] .card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+  border-radius: var(--radius-card);
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Native inputs in dark mode */
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #edf2f7;
+}
+
+/* Badge contrast in dark mode */
+[data-theme="dark"] .badge {
+  background: rgba(255,255,255,0.04);
+  color: var(--accent);
+  box-shadow: none;
 }
 
 /* ── legacy .btn — kept for pages still using the class ─────── */
