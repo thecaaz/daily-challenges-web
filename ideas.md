@@ -1,5 +1,6 @@
 - Live updates
-- Add admin pages to list/administrate users
 - Comments for a specific day
-- indicator on player count (how many people have played today)
-- Allow editing of your own score
+- Dark mode with toggle and remembering
+- day selector into datepicker with highlights on which days have submissions
+- show all submissions should show everything but the current day, at the moment shows none
+- improve level and xp spacing

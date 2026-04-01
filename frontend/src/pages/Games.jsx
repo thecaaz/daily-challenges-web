@@ -46,7 +46,7 @@ export default function Games() {
   return (
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-        <Typography variant="h5" component="h1">Today's Challenges</Typography>
+        <Typography variant="h5" component="h1">Todays Challenges</Typography>
         <Chip
           label={`${games.length} game${games.length !== 1 ? 's' : ''}`}
           size="small"
