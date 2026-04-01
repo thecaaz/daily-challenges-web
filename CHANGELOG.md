@@ -1,3 +1,10 @@
+## [1.10.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.9.0...v1.10.0) (2026-04-01)
+
+
+### Features
+
+* add changelog modal and version badge to display application version and changelog ([5e5730c](https://github.com/thecaaz/daily-challenges-web/commit/5e5730cdf3a62b4db7e8e2d15aee6b32bcdb81da))
+
 ## [1.9.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.8.3...v1.9.0) (2026-04-01)
 
 
