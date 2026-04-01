@@ -75,5 +75,21 @@ namespace DailyChallenges.Controllers
             await _notifications.MarkAllReadAsync(userId.Value);
             return NoContent();
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var userId = User.GetUserId();
+            if (!userId.HasValue) return Forbid();
+
+            var n = await _notifications.GetByIdAsync(id);
+            if (n == null) return NotFound();
+
+            // allow owner or admin
+            if (n.UserId != userId.Value && !User.IsInRole("Admin")) return Forbid();
+
+            await _notifications.DeleteAsync(id);
+            return NoContent();
+        }
     }
 }

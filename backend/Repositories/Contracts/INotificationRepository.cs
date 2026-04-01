@@ -9,5 +9,7 @@ namespace DailyChallenges.Repositories
         Task MarkReadAsync(int id, int userId);
         Task MarkAllReadAsync(int userId);
         Task CreateBatchAsync(List<Notification> notifications);
+        Task<Notification?> GetByIdAsync(int id);
+        Task DeleteAsync(int id);
     }
 }
