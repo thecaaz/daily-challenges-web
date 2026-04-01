@@ -347,11 +347,12 @@ export default function createAppTheme(mode = 'light') {
           root: {
             borderRadius: 999,
             height: 10,
-            background: 'rgba(0,0,0,0.06)',
+            background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
           },
           bar: {
             borderRadius: 999,
             background: `linear-gradient(90deg, ${tokens.accent2}, ${tokens.accent})`,
+            boxShadow: isDark ? `0 6px 18px rgba(${hexToRgb(tokens.accent)},0.14)` : undefined,
           },
         },
       },
