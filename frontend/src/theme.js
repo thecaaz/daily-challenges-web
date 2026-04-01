@@ -19,7 +19,8 @@ export default function createAppTheme(mode = 'light') {
     ? 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))'
     : 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,250,250,0.82))'
 
-  const paperBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.95)'
+  // Use solid paper background for dark mode to avoid layered translucency artifacts
+  const paperBg = isDark ? tokens.bg1 : 'rgba(255,255,255,0.95)'
   const textPrimary = isDark ? '#edf2f7' : '#222222'
   const appBarBg = isDark ? 'rgba(8,10,12,0.68)' : 'rgba(255,255,255,0.88)'
   const appBarBorder = isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)'
@@ -273,6 +274,36 @@ export default function createAppTheme(mode = 'light') {
             borderRadius: 12,
           },
         },
+      },
+
+      /* ── Menu / MenuItem (dropdowns) ── */
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            borderRadius: 12,
+            background: isDark ? tokens.bg1 : paperBg,
+            boxShadow: isDark ? '0 12px 36px rgba(0,0,0,0.6)' : undefined,
+            color: textPrimary,
+            padding: '6px 0',
+          },
+        },
+      },
+
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            color: textPrimary,
+            borderRadius: 8,
+            paddingTop: 8,
+            paddingBottom: 8,
+            '&.Mui-selected': {
+              backgroundColor: isDark ? 'rgba(255,122,182,0.08)' : 'rgba(255,122,182,0.08)'
+            },
+            '&:hover': {
+              backgroundColor: isDark ? 'rgba(255,122,182,0.06)' : 'rgba(255,122,182,0.06)'
+            }
+          }
+        }
       },
 
       /* ── Table ── */
