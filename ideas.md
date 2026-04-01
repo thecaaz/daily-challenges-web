@@ -4,3 +4,4 @@
 - day selector into datepicker with highlights on which days have submissions
 - show all submissions should show everything but the current day, at the moment shows none
 - improve level and xp spacing
+- play button on the same line as the others in game detail
