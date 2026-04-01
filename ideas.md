@@ -1,3 +1,2 @@
 - Live updates
 - Comments for a specific day
-- day selector into datepicker with highlights on which days have submissions
