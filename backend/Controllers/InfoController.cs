@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Hosting;
+using System;
 using System.IO;
 using System.Text.Json;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DailyChallenges.Controllers
 {
@@ -10,6 +13,13 @@ namespace DailyChallenges.Controllers
     public class InfoController : ControllerBase
     {
         private readonly IWebHostEnvironment _env;
+        private static readonly HttpClient _httpClient = new HttpClient();
+        private const string ChangelogUrl = "https://raw.githubusercontent.com/thecaaz/daily-challenges-web/refs/heads/main/CHANGELOG.md";
+
+        private static string? _cachedChangelog;
+        private static DateTimeOffset _cachedChangelogFetchedAt = DateTimeOffset.MinValue;
+        private static readonly TimeSpan _changelogCacheDuration = TimeSpan.FromHours(2);
+        private static readonly SemaphoreSlim _changelogLock = new SemaphoreSlim(1, 1);
 
         public InfoController(IWebHostEnvironment env)
         {
@@ -17,62 +27,102 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
-            // Only source the version from CI-produced `release-info.json` placed into the backend content root.
-            // If absent (local dev), return a sensible default of "dev".
-            string version = "dev";
-            string rawVersion = null;
-            string commit = null;
-            string timestamp = null;
+            var release = await ReadReleaseInfoAsync();
+            var changelog = await FetchChangelogAsync();
 
-            // If the pipeline wrote a release-info.json into the backend content root, prefer it.
+            return Ok(new
+            {
+                version = release?.Version ?? "dev",
+                rawVersion = release?.RawVersion,
+                commit = release?.Commit,
+                timestamp = release?.Timestamp,
+                changelog
+            });
+        }
+
+        private async Task<ReleaseInfo?> ReadReleaseInfoAsync()
+        {
+            var path = Path.Combine(_env.ContentRootPath, "release-info.json");
+            if (!System.IO.File.Exists(path)) return null;
             try
             {
-                var releasePath = Path.Combine(_env.ContentRootPath, "release-info.json");
-                if (System.IO.File.Exists(releasePath))
-                {
-                    var txt = System.IO.File.ReadAllText(releasePath);
-                    using var doc = JsonDocument.Parse(txt);
-                    var root = doc.RootElement;
-                    if (root.TryGetProperty("rawVersion", out var rv) && !string.IsNullOrWhiteSpace(rv.GetString()))
-                    {
-                        version = rv.GetString();
-                    }
-                    else if (root.TryGetProperty("version", out var v) && !string.IsNullOrWhiteSpace(v.GetString()))
-                    {
-                        version = v.GetString();
-                    }
-
-                    if (root.TryGetProperty("commit", out var c)) commit = c.GetString();
-                    if (root.TryGetProperty("timestamp", out var t)) timestamp = t.GetString();
-                }
-            }
-            catch { /* non-fatal */ }
-            // No other fallbacks: only the CI-provided `release-info.json` determines the version.
-
-            string changelog = string.Empty;
-            try
-            {
-                // Try repo-root CHANGELOG.md relative to content root (repo layout)
-                var candidate = Path.GetFullPath(Path.Combine(_env.ContentRootPath, "..", "CHANGELOG.md"));
-                if (System.IO.File.Exists(candidate))
-                {
-                    changelog = System.IO.File.ReadAllText(candidate);
-                }
-                else
-                {
-                    // fallback to content root
-                    var alt = Path.Combine(_env.ContentRootPath, "CHANGELOG.md");
-                    if (System.IO.File.Exists(alt)) changelog = System.IO.File.ReadAllText(alt);
-                }
+                var txt = await System.IO.File.ReadAllTextAsync(path);
+                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                return JsonSerializer.Deserialize<ReleaseInfo>(txt, opts);
             }
             catch
             {
-                changelog = string.Empty;
+                return null;
+            }
+        }
+
+        private async Task<string> FetchChangelogAsync()
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (_cachedChangelog != null && (now - _cachedChangelogFetchedAt) < _changelogCacheDuration)
+            {
+                return _cachedChangelog;
             }
 
-            return Ok(new { version, rawVersion, commit, timestamp, changelog });
+            await _changelogLock.WaitAsync();
+            try
+            {
+                // Re-check after acquiring lock
+                now = DateTimeOffset.UtcNow;
+                if (_cachedChangelog != null && (now - _cachedChangelogFetchedAt) < _changelogCacheDuration)
+                {
+                    return _cachedChangelog;
+                }
+
+                try
+                {
+                    var resp = await _httpClient.GetAsync(ChangelogUrl);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var content = await resp.Content.ReadAsStringAsync();
+                        _cachedChangelog = content;
+                        _cachedChangelogFetchedAt = DateTimeOffset.UtcNow;
+                        return content;
+                    }
+                }
+                catch
+                {
+                    // ignore remote fetch errors and fall through to fallback behavior
+                }
+
+                // Fallback: try local copies (do not cache fallback results)
+                try
+                {
+                    var candidate = Path.GetFullPath(Path.Combine(_env.ContentRootPath, "..", "CHANGELOG.md"));
+                    if (System.IO.File.Exists(candidate))
+                    {
+                        return await System.IO.File.ReadAllTextAsync(candidate);
+                    }
+
+                    var alt = Path.Combine(_env.ContentRootPath, "CHANGELOG.md");
+                    if (System.IO.File.Exists(alt))
+                    {
+                        return await System.IO.File.ReadAllTextAsync(alt);
+                    }
+                }
+                catch { }
+
+                return string.Empty;
+            }
+            finally
+            {
+                _changelogLock.Release();
+            }
+        }
+
+        private class ReleaseInfo
+        {
+            public string Version { get; set; }
+            public string RawVersion { get; set; }
+            public string Commit { get; set; }
+            public string Timestamp { get; set; }
         }
     }
 }
