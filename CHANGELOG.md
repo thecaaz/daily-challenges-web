@@ -1,3 +1,10 @@
+## [1.11.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.10.0...v1.11.0) (2026-04-01)
+
+
+### Features
+
+* implement changelog fetching and caching in InfoController ([f673465](https://github.com/thecaaz/daily-challenges-web/commit/f673465fc878d849ef12b3d726a3220f03bcd2b9))
+
 ## [1.10.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.9.0...v1.10.0) (2026-04-01)
 
 
