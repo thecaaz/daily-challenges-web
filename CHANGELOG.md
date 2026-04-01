@@ -1,3 +1,18 @@
+## [1.9.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.8.3...v1.9.0) (2026-04-01)
+
+
+### Features
+
+* enhance styling for level display in GameBar component ([5c8cb14](https://github.com/thecaaz/daily-challenges-web/commit/5c8cb1403dd6a5569945134125507a2ee378131c))
+* implement dark mode support with theme toggle and styling adjustments ([8b94624](https://github.com/thecaaz/daily-challenges-web/commit/8b946243749c3fcdaa006968371e70bf01a42e79))
+
+
+### Bug Fixes
+
+* disabled buttons not readable in dark mode ([d8aefe0](https://github.com/thecaaz/daily-challenges-web/commit/d8aefe0dc7b9e8236793932fa8e91aa83112f878))
+* enhance dark mode styling for Menu and MenuItem components ([cd30ed7](https://github.com/thecaaz/daily-challenges-web/commit/cd30ed73d14e323272773a308df936a80476d89e))
+* improve layout of GameHeader component for better readability ([154445f](https://github.com/thecaaz/daily-challenges-web/commit/154445f0ed1f7c2e4d73465265d9d09ac8644fb4))
+
 ### [1.8.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.8.2...v1.8.3) (2026-04-01)
 
 
