@@ -60,7 +60,7 @@ test('highscore list and personal highscores display and order correctly via UI'
   ])
   expect([200, 201]).toContain(adminResp.status())
 
-  // Finally, view the highscores as the logged-in normal user (so today's scores are visible)
+  // Finally, view the highscores as the logged-in normal user (so todays scores are visible)
   await page.click('button:has-text("Logout")').catch(() => {})
   await loginAsUser(page)
   await openHighscoresForGame(page, gameName)

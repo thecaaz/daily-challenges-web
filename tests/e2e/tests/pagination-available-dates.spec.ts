@@ -23,7 +23,7 @@ test('pagination, available dates, and page metadata in UI', async ({ page }) =>
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['2026-03-27', '2026-03-26']) })
   })
 
-  // Respond to lightweight has-submitted check used by the UI so the page shows today's scores
+  // Respond to lightweight has-submitted check used by the UI so the page shows todays scores
   await page.route(`**/api/submissions/game/${gameId}/has-submitted*`, async route => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hasSubmittedForLatest: true }) })
   })

@@ -37,7 +37,7 @@ test('admin can submit a score and it appears for today', async ({ page }) => {
   // After submission, visit the game's submissions page via UI and assert the submitted score is visible
   await openGameByName(page, createdName)
   // Ensure hidden message is not present
-  await expect(page.locator("text=Today's scores are hidden.")).toHaveCount(0)
+  await expect(page.locator("text=Todays scores are hidden.")).toHaveCount(0)
   // Assert the score appears (match digits ignoring locale-specific separators)
   await page.waitForFunction((sv) => {
     return Array.from(document.querySelectorAll('a, h6')).some(el => (el.textContent || '').replace(/\D/g, '') === sv)

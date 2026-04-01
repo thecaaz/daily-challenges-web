@@ -8,7 +8,7 @@ test('admin cannot see today\'s scores if he has not submitted yet', async ({ pa
   const providedName = `e2e-hide-today-${Date.now()}`
   const { gameId, gameName } = await createGame(page, providedName)
 
-  // Ensure we're on the game's page and assert today's scores are hidden
+  // Ensure we're on the game's page and assert todays scores are hidden
   await openGameByName(page, gameName)
-  await expect(page.locator("text=Today's scores are hidden.")).toBeVisible()
+  await expect(page.locator("text=Todays scores are hidden.")).toBeVisible()
 })

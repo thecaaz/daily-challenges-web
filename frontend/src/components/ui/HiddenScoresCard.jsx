@@ -50,7 +50,7 @@ export default function HiddenScoresCard({ gameId, search = '' }) {
 
   return (
     <Card sx={{ p: 3 }}>
-      <Typography variant="h6">Today's scores are hidden.</Typography>
+      <Typography variant="h6">Todays scores are hidden.</Typography>
       <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
       {renderSubmitters()}
       <div style={{ marginTop: 12 }}>
