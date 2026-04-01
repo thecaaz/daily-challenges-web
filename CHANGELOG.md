@@ -1,3 +1,11 @@
+### [1.11.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.11.2...v1.11.3) (2026-04-01)
+
+
+### Bug Fixes
+
+* **DatePicker:** replace dropdown with date picker component and integrate date selection ([3dffe1f](https://github.com/thecaaz/daily-challenges-web/commit/3dffe1f7e415db33e3c6f22a88821c1baf0efe1c))
+* **favicon:** add missing favicon ([268bfd9](https://github.com/thecaaz/daily-challenges-web/commit/268bfd95f84867f79812b53f88e140be428cf0f5))
+
 ### [1.11.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.11.1...v1.11.2) (2026-04-01)
 
 
