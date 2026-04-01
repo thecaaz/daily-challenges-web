@@ -1,3 +1,10 @@
+### [1.8.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.8.0...v1.8.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* add delete notification functionality and corresponding API integration ([e540d69](https://github.com/thecaaz/daily-challenges-web/commit/e540d697ddc32b6e0fd9a4484cd4c4930e214cfc))
+
 ## [1.8.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.7.0...v1.8.0) (2026-03-31)
 
 
