@@ -1,3 +1,10 @@
+### [1.8.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.8.1...v1.8.2) (2026-04-01)
+
+
+### Bug Fixes
+
+* correct typo in header text and update ideas for new features ([c73ed04](https://github.com/thecaaz/daily-challenges-web/commit/c73ed04dda584d054cba2792fa68161ca75d6579))
+
 ### [1.8.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.8.0...v1.8.1) (2026-04-01)
 
 
