@@ -25,20 +25,18 @@ export default function GameHighscore() {
   if (notFound) return <NotFound message="Game not found" />
   if (loading || !game) return <Loading />
 
-  const currentScoringDay = game?.currentScoringDay ?? ''
-
   return (
     <div>
       <Typography variant="h5">Highscores — {game.name}</Typography>
       <div style={{ marginTop: 12 }}>
-        {currentScoringDay && !hasSubmittedForLatest ? (
+        {!hasSubmittedForLatest && (
           <HiddenScoresCard gameId={game.id} />
+        )}
+
+        {top.length === 0 ? (
+          <div className="muted">No highscores yet.</div>
         ) : (
-          (top.length === 0) ? (
-            <div className="muted">No highscores yet.</div>
-          ) : (
-            <SubmissionGrid items={top} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
-          )
+          <SubmissionGrid items={top} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
         )}
       </div>
     </div>
