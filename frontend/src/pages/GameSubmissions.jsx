@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useLocation, useSearchParams, useNavigate } from 'react-router-dom'
-import { Stack, MenuItem, Select, FormControl, InputLabel, Box, Fab, Tooltip, Badge } from '@mui/material'
+import { Stack, Box, Fab, Tooltip } from '@mui/material'
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows'
 import AppButton from '../components/ui/AppButton'
+import DatePickerButton from '../components/DatePickerButton'
 import api from '../api'
 import SubmissionCard from '../components/SubmissionCard'
 import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
@@ -20,7 +21,7 @@ export default function GameSubmissions() {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(50)
   const [hasMore, setHasMore] = useState(true)
-  const [selectedDate, setSelectedDate] = useState('')
+  const [selectedDate, setSelectedDate] = useState(null)
   const [availableDates, setAvailableDates] = useState([])
   const [hasSubmittedForLatest, setHasSubmittedForLatest] = useState(false)
   const [compareMode, setCompareMode] = useState(false)
@@ -71,13 +72,27 @@ export default function GameSubmissions() {
 
   // respond to browser back/forward changes to the scoringDay query param
   useEffect(() => {
-    const paramDay = searchParams.get('scoringDay') || ''
+    const paramDay = searchParams.get('scoringDay')
+    // If the param is absent (null), default to the current scoring day only when
+    // the selection hasn't been initialized yet (selectedDate === null).
+    if (paramDay === null) {
+      if (selectedDate === null) {
+        const currentDay = game?.currentScoringDay ?? hookGame?.currentScoringDay ?? ''
+        if (currentDay) {
+          // select the current scoring day (even if it has no submissions)
+          // do not modify the URL (keep it absent)
+          handleDateChange(currentDay, false)
+        }
+      }
+      return
+    }
+
     if (paramDay !== selectedDate) {
       // if param changed externally (history navigation), load that day
       handleDateChange(paramDay)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  }, [searchParams, selectedDate, game?.currentScoringDay, hookGame, availableDates])
 
   const buildSubmissionsUrl = (pageNum, scoringDay) => {
     let url = `/submissions/game/${gameId}?page=${pageNum}&pageSize=${pageSize}`
@@ -102,7 +117,7 @@ export default function GameSubmissions() {
       const currentDay = gameData?.currentScoringDay ?? ''
       let initialSelected = ''
       if (preferred && dates.includes(preferred)) initialSelected = preferred
-      else if (currentDay && dates.includes(currentDay)) initialSelected = currentDay
+      else if (currentDay) initialSelected = currentDay
       else initialSelected = ''
 
       setSelectedDate(initialSelected)
@@ -149,10 +164,12 @@ export default function GameSubmissions() {
     else setHasMore(pageResult.hasMore === true)
   }
 
-  const handleDateChange = async (value) => {
-    // update url param
-    if (value) setSearchParams({ scoringDay: value })
-    else setSearchParams({})
+  const handleDateChange = async (value, updateUrl = true) => {
+    // update url param (only when requested)
+    if (updateUrl) {
+      if (value) setSearchParams({ scoringDay: value })
+      else setSearchParams({})
+    }
 
     setSelectedDate(value)
     setPage(1)
@@ -187,13 +204,7 @@ export default function GameSubmissions() {
 
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <FormControl sx={{ minWidth: 200 }}>
-            <InputLabel id="date-select-label">Day</InputLabel>
-            <Select labelId="date-select-label" value={selectedDate} label="Day" onChange={e => handleDateChange(e.target.value)}>
-              <MenuItem value="">All</MenuItem>
-              {availableDates.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
-            </Select>
-          </FormControl>
+          <DatePickerButton availableDates={availableDates} selectedDate={selectedDate} onChange={handleDateChange} />
         </Box>
         <div>
           {filtered.filter(s => s.screenshotUrl).length >= 2 && (
