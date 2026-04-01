@@ -1,3 +1,10 @@
+## [1.12.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.11.3...v1.12.0) (2026-04-01)
+
+
+### Features
+
+* **games:** add description to games ([09616cd](https://github.com/thecaaz/daily-challenges-web/commit/09616cd871b03c9c6b50347baeb2dbe3baf097e7))
+
 ### [1.11.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.11.2...v1.11.3) (2026-04-01)
 
 
