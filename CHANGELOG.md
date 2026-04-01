@@ -1,3 +1,10 @@
+### [1.11.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.11.0...v1.11.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* **xp-bar:** xp-bar visible in dark mode ([3a0b107](https://github.com/thecaaz/daily-challenges-web/commit/3a0b10707d2c874d617f67f40d7264842665a449))
+
 ## [1.11.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.10.0...v1.11.0) (2026-04-01)
 
 
