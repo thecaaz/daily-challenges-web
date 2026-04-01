@@ -1,11 +1,18 @@
 import React from 'react'
-import { CardMedia, Box, Typography } from '@mui/material'
+import { CardMedia, Box, Typography, Tooltip } from '@mui/material'
 import AppButton from './ui/AppButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { getApiRoot } from '../api'
 
 export default function GameHeader({ game }) {
   if (!game) return null
+
+  const desc = (game.description ?? '').trim()
+  const fallback = 'Compete on daily challenges — climb the leaderboard!'
+  const hasDesc = desc.length > 0
+  const maxLen = 300
+  const isLong = hasDesc && desc.length > maxLen
+  const displayText = hasDesc ? (isLong ? `${desc.slice(0, maxLen)}…` : desc) : fallback
 
   return (
     <div className="game-header" style={{ marginBottom: 16 }}>
@@ -65,7 +72,13 @@ export default function GameHeader({ game }) {
             </AppButton>
           </Box>
 
-          <div className="muted" style={{ color: 'rgba(255,255,255,0.9)' }}>Compete on daily challenges — climb the leaderboard!</div>
+          {isLong ? (
+            <Tooltip title={desc} arrow>
+              <div className="muted" style={{ color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-line', cursor: 'help' }}>{displayText}</div>
+            </Tooltip>
+          ) : (
+            <div className="muted" style={{ color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-line' }}>{displayText}</div>
+          )}
         </Box>
       </div>
     </div>

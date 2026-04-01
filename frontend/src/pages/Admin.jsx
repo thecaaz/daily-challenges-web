@@ -33,6 +33,7 @@ export default function Admin() {
   } = useImageUpload(showSnackbar)
   const [resetTime, setResetTime] = useState('00:00')
   const [url, setUrl] = useState('')
+  const [description, setDescription] = useState('')
   const [detectedTimezone, setDetectedTimezone] = useState(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -46,12 +47,14 @@ export default function Admin() {
     const fd = new FormData()
     fd.append('name', name)
     if (url) fd.append('url', url)
+    if (description) fd.append('description', description)
     fd.append('resetTime', resetTime)
     fd.append('resetTimezoneId', detectedTimezone)
     if (createImageFile) fd.append('image', createImageFile)
     try {
       await api.post('/games', fd)
       setName('')
+      setDescription('')
       clearCreateImage()
       setResetTime('00:00')
       showSnackbar('Game created', 'success')
@@ -99,6 +102,7 @@ export default function Admin() {
       if (editingGame.resetTimezoneId) fd.append('resetTimezoneId', editingGame.resetTimezoneId)
       if (editImageFile) fd.append('image', editImageFile)
       else if (editingGame.imageFile) fd.append('image', editingGame.imageFile)
+      if (editingGame.description !== undefined) fd.append('description', editingGame.description ?? '')
       await api.put(`/games/${editingGame.id}`, fd)
       showSnackbar('Game updated', 'success')
       setEditingGame(null)
@@ -201,6 +205,7 @@ export default function Admin() {
         <Stack spacing={2} maxWidth={600}>
           <TextField label="Name" value={editingGame.name} onChange={e => setEditingGame({ ...editingGame, name: e.target.value })} />
           <TextField label="URL" value={editingGame.url ?? ''} onChange={e => setEditingGame({ ...editingGame, url: e.target.value })} />
+          <TextField label="Description" value={editingGame.description ?? ''} onChange={e => setEditingGame({ ...editingGame, description: e.target.value })} multiline rows={3} />
           <div>
             <label>Reset time: </label>
             <input type="time" value={editingGame.resetTime ?? '00:00'} onChange={e => setEditingGame({ ...editingGame, resetTime: e.target.value })} />

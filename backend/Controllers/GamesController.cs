@@ -25,12 +25,12 @@ namespace DailyChallenges.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url)
+        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url, [FromForm] string? description)
         {
             if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
             try
             {
-                var created = await _games.CreateAsync(name, image, resetTime, resetTimezoneId, url);
+                var created = await _games.CreateAsync(name, image, resetTime, resetTimezoneId, url, description);
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
             catch (ArgumentException ex)
@@ -81,11 +81,11 @@ namespace DailyChallenges.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url)
+        public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url, [FromForm] string? description)
         {
             try
             {
-                var updated = await _games.UpdateAsync(id, name, image, resetTime, resetTimezoneId, url);
+                var updated = await _games.UpdateAsync(id, name, image, resetTime, resetTimezoneId, url, description);
                 return Ok(updated);
             }
             catch (KeyNotFoundException)
