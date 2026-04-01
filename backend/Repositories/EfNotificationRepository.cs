@@ -54,5 +54,18 @@ namespace DailyChallenges.Repositories
             _db.Notifications.AddRange(notifications);
             await _db.SaveChangesAsync();
         }
+
+        public async Task<Notification?> GetByIdAsync(int id)
+        {
+            return await _db.Notifications.FirstOrDefaultAsync(n => n.Id == id);
+        }
+
+        public async Task DeleteAsync(int id)
+        {
+            var n = await _db.Notifications.FirstOrDefaultAsync(n => n.Id == id);
+            if (n == null) return;
+            _db.Notifications.Remove(n);
+            await _db.SaveChangesAsync();
+        }
     }
 }

@@ -6,6 +6,7 @@ import {
 } from '@mui/material'
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import api from '../api'
 import timeAgo from '../utils/timeAgo'
 import { useAuth } from '../contexts/AuthContext'
@@ -80,6 +81,17 @@ export default function NotificationBell() {
     } catch { /* ignore */ }
   }
 
+  const handleDeleteNotification = async (e, n) => {
+    e.stopPropagation()
+    try {
+      setNotifications(prev => prev.filter(x => x.id !== n.id))
+      if (!n.isRead) setUnreadCount(prev => Math.max(0, prev - 1))
+      await api.delete(`/notifications/${n.id}`)
+    } catch {
+      // ignore
+    }
+  }
+
   const open = Boolean(anchorEl)
 
   if (!user) return null
@@ -125,6 +137,8 @@ export default function NotificationBell() {
                   py: 1, px: 1.5,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
+                  display: 'flex',
+                  alignItems: 'center'
                 }}
               >
                 <Box sx={{ mr: 1, flexShrink: 0 }}>
@@ -133,12 +147,22 @@ export default function NotificationBell() {
                     : <Chip label={`#${n.rank ?? '—'}`} size="small" sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
                   }
                 </Box>
+
                 <ListItemText
                   primary={n.message}
                   secondary={timeAgo(n.createdAt)}
                   primaryTypographyProps={{ variant: 'body2', fontWeight: n.isRead ? 400 : 600, lineHeight: 1.3 }}
                   secondaryTypographyProps={{ variant: 'caption' }}
+                  sx={{ mr: 1 }}
                 />
+
+                <IconButton
+                  aria-label="Remove notification"
+                  size="small"
+                  onClick={(e) => handleDeleteNotification(e, n)}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
               </ListItemButton>
             ))}
           </List>
