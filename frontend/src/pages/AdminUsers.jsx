@@ -3,7 +3,6 @@ import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Button, TextFi
 import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import useRequireAdmin from '../hooks/useRequireAdmin'
-import { useNavigate } from 'react-router-dom'
 import AdminUserAuditModal from '../components/AdminUserAuditModal'
 import useConfirm from '../hooks/useConfirm'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -13,7 +12,6 @@ import PromptDialog from '../components/ui/PromptDialog'
 export default function AdminUsers() {
   const { user, isAuthorized } = useRequireAdmin()
   const { showSnackbar } = useSnackbar()
-  const navigate = useNavigate()
 
   const [users, setUsers] = useState([])
   const [page, setPage] = useState(1)

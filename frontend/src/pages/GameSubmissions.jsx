@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useLocation, useSearchParams, useNavigate } from 'react-router-dom'
-import { Grid, Stack, MenuItem, Select, FormControl, InputLabel, Box, Fab, Tooltip, Badge } from '@mui/material'
+import { Stack, MenuItem, Select, FormControl, InputLabel, Box, Fab, Tooltip, Badge } from '@mui/material'
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows'
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
@@ -26,7 +26,6 @@ export default function GameSubmissions() {
   const [compareMode, setCompareMode] = useState(false)
   const [compareSelection, setCompareSelection] = useState([])
 
-  // Centralized game overview (adds availableDates and hasSubmitted info)
   const { game: hookGame, availableDates: hookAvailableDates, hasSubmittedForLatest: hookHasSubmittedForLatest, notFound: hookNotFound } = useGame(gameId)
 
   const location = useLocation()

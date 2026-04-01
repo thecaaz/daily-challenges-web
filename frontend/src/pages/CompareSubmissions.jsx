@@ -17,7 +17,7 @@ function SubmissionPanel({ submission }) {
       <Box sx={{ mb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            {submission.username ?? 'Anonymous'}
+            {submission.username}
           </Typography>
           {submission.isDayWinner && (
             <Tooltip title={submission.scoringDay ? `Winner for ${submission.scoringDay}` : 'Winner'}>

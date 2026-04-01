@@ -39,7 +39,7 @@ export default function SubmissionDetail() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
-          <Typography variant="h5">Submission — {submission.username ?? 'Anonymous'}</Typography>
+          <Typography variant="h5">Submission — {submission.username}</Typography>
           <Typography variant="caption">Score: {formatNumber(submission.score)} — {formatDateTime(submission.createdAt)}</Typography>
         </div>
         <AppButton onClick={() => {
