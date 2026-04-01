@@ -25,6 +25,9 @@ export default function GameHeader({ game }) {
         <Box className="game-header__content" sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: '70ch' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Typography variant="h5" sx={{ color: 'white' }}>Submissions — {game.name}</Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             {game.url && (
               <AppButton
                 href={game.url}
@@ -35,13 +38,11 @@ export default function GameHeader({ game }) {
                 color="primary"
                 endIcon={<OpenInNewIcon />}
                 dataTest="game-play-link"
+                sx={{ textTransform: 'none' }}
               >
                 Play
               </AppButton>
             )}
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <AppButton
               to={`/games/${game.id}/highscore`}
               variant="outlined"
