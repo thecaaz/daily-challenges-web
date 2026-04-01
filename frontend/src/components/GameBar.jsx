@@ -120,11 +120,11 @@ export default function GameBar() {
               sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: '4px', flexWrap: 'wrap' }}
             >
               <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
-                Level <strong>{level}</strong> &nbsp;•&nbsp; {xpInto.toLocaleString()}/{xpForLevel.toLocaleString()} XP
+                Level <Box component="strong" sx={{ ml: 0.5, fontWeight: 700 }}>{level}</Box> &nbsp;•&nbsp; {xpInto.toLocaleString()}/{xpForLevel.toLocaleString()} XP
               </Typography>
 
               <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>
-                Lvl <strong>{level}</strong>
+                Lvl <Box component="strong" sx={{ ml: 0.5, fontWeight: 700 }}>{level}</Box>
               </Typography>
 
               {streak > 1 && (
