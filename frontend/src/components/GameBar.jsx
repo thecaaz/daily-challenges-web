@@ -9,6 +9,7 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import { useAuth } from '../contexts/AuthContext'
 import { useThemeMode } from '../contexts/ThemeContext'
 import NotificationBell from './NotificationBell'
+import VersionBadge from './VersionBadge'
 
 export default function GameBar() {
   const { user, logout, fetchMe } = useAuth()
@@ -94,8 +95,10 @@ export default function GameBar() {
           </Box>
         </Box>
 
-        {/* Spacer */}
-        <Box sx={{ flexGrow: 1 }} />
+        {/* Spacer (center area) */}
+        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+          <VersionBadge />
+        </Box>
 
         {/* XP bar (only when logged in) */}
         {user && (
