@@ -1,4 +1,5 @@
 - Live updates
 - Comments for a specific day
-- add game descriptions for how a score should be entered or screenshot should be taken
-- profiles? friends?
+- profiles
+- friends
+- username/trophy/profile customization
