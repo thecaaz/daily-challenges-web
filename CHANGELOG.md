@@ -1,3 +1,10 @@
+### [1.11.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.11.1...v1.11.2) (2026-04-01)
+
+
+### Bug Fixes
+
+* **GameHighscore:** simplify conditional rendering for hidden scores and highscores display ([f493e85](https://github.com/thecaaz/daily-challenges-web/commit/f493e858d88f255ec1b3067dc6f9c982f3fc93a7))
+
 ### [1.11.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.11.0...v1.11.1) (2026-04-01)
 
 
