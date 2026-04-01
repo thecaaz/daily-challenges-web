@@ -1,41 +1,30 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { Typography } from '@mui/material'
 import SubmissionCard from '../components/SubmissionCard'
 import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
+import useGame from '../hooks/useGame'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
 
 export default function PersonalHighscore() {
   const { gameId } = useParams()
-  const [game, setGame] = useState(null)
-  const [notFound, setNotFound] = useState(false)
   const [top, setTop] = useState([])
-  const { user, loading } = useRequireAuth()
+  const { user, loading: authLoading } = useRequireAuth()
+  const { game, notFound, loading: gameLoading } = useGame(gameId)
 
-  useEffect(() => { fetchData() }, [loading, user])
-
-  const fetchData = async () => {
-    if (loading || !user) return
-    try {
-      const gres = await api.get(`/games/${gameId}`)
-      setGame(gres.data)
-    } catch (err) {
-      if (err?.response?.status === 404) {
-        setNotFound(true)
-        return
-      }
-      throw err
-    }
-    const res = await api.get(`/games/${gameId}/personal-highscore`)
-    const data = res.data || { top: [] }
-    setTop(data.top || [])
-  }
+  useEffect(() => {
+    if (authLoading || !user || !game) return
+    api.get(`/games/${gameId}/personal-highscore`).then(res => {
+      const data = res.data || { top: [] }
+      setTop(data.top || [])
+    })
+  }, [authLoading, user, game, gameId])
 
   if (notFound) return <NotFound message="Game not found" />
-  if (!game) return <Loading />
+  if (authLoading || gameLoading || !game) return <Loading />
 
   return (
     <div>

@@ -3,8 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { Card, CardContent, CardMedia, Typography, Tooltip, Box, Chip, Checkbox } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PersonIcon from '@mui/icons-material/Person'
-import api, { getApiRoot } from '../api'
-import parseUtcDate from '../utils/parseUtcDate'
+import { getApiRoot } from '../api'
+import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -80,7 +80,7 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
             {formatNumber(submission.score)}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {parseUtcDate(submission.createdAt).toLocaleString()}
+            {formatDateTime(submission.createdAt)}
           </Typography>
         </CardContent>
       </Card>

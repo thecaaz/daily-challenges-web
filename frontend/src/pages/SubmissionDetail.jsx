@@ -4,7 +4,7 @@ import { Typography, Card } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import PanZoomImage from '../components/ui/PanZoomImage'
 import api, { getApiRoot } from '../api'
-import parseUtcDate from '../utils/parseUtcDate'
+import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
@@ -40,7 +40,7 @@ export default function SubmissionDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Typography variant="h5">Submission — {submission.username ?? 'Anonymous'}</Typography>
-          <Typography variant="caption">Score: {formatNumber(submission.score)} — {parseUtcDate(submission.createdAt).toLocaleString()}</Typography>
+          <Typography variant="caption">Score: {formatNumber(submission.score)} — {formatDateTime(submission.createdAt)}</Typography>
         </div>
         <AppButton onClick={() => {
           if (window.history.length > 1) navigate(-1)

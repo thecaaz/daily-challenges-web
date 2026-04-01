@@ -5,7 +5,7 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
 import PanZoomImage from '../components/ui/PanZoomImage'
 import api, { getApiRoot } from '../api'
-import parseUtcDate from '../utils/parseUtcDate'
+import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
@@ -30,7 +30,7 @@ function SubmissionPanel({ submission }) {
         </Box>
         <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{formatNumber(submission.score)}</Typography>
         <Typography variant="caption" color="text.secondary">
-          {parseUtcDate(submission.createdAt).toLocaleString()}
+          {formatDateTime(submission.createdAt)}
           {submission.scoringDay && ` · Day: ${submission.scoringDay}`}
         </Typography>
       </Box>
