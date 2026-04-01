@@ -27,7 +27,7 @@ namespace DailyChallenges.Services
             return games.Select(g => DtoMapper.ToDto(g)).ToList();
         }
 
-        public async Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url)
+        public async Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description)
         {
             var game = new Game { Name = name };
             if (!string.IsNullOrWhiteSpace(resetTime))
@@ -37,6 +37,7 @@ namespace DailyChallenges.Services
             }
             if (!string.IsNullOrWhiteSpace(resetTimezoneId)) game.ResetTimezoneId = resetTimezoneId;
             if (!string.IsNullOrWhiteSpace(url)) game.Url = url;
+            if (!string.IsNullOrWhiteSpace(description)) game.Description = description;
 
             if (image != null && image.Length > 0)
             {
@@ -51,7 +52,7 @@ namespace DailyChallenges.Services
 
         public async Task<Game?> GetByIdAsync(int id) => await _games.GetByIdAsync(id);
 
-        public async Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url)
+        public async Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description)
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
@@ -63,6 +64,7 @@ namespace DailyChallenges.Services
                 else if (TimeSpan.TryParseExact(resetTime, "hh\\:mm", null, out var ts2)) g.ResetTime = ts2;
             }
             if (!string.IsNullOrWhiteSpace(resetTimezoneId)) g.ResetTimezoneId = resetTimezoneId;
+            if (description != null) g.Description = description;
 
             if (image != null && image.Length > 0)
             {

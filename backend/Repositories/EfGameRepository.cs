@@ -34,6 +34,7 @@ namespace DailyChallenges.Repositories
             existing.Url = game.Url;
             existing.ResetTime = game.ResetTime;
             existing.ResetTimezoneId = game.ResetTimezoneId;
+            existing.Description = game.Description;
             if (game.ScreenshotData != null && game.ScreenshotData.Length > 0)
             {
                 existing.ScreenshotData = game.ScreenshotData;

@@ -24,5 +24,7 @@ namespace DailyChallenges.Models
 
         // Optional URL where the game can be played or viewed
         public string? Url { get; set; }
+        // Optional description for game detail page
+        public string? Description { get; set; }
     }
 }
