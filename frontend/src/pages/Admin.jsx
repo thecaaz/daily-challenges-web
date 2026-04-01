@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { TextField, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton } from '@mui/material'
+import { TextField, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, Box } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import AppButton from '../components/ui/AppButton'
 import useImageUpload from '../hooks/useImageUpload'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 import api from '../api'
-import parseUtcDate from '../utils/parseUtcDate'
+import { formatDateTime } from '../utils/dateFormat'
 import parseScore from '../utils/parseScore'
 import { useSnackbar } from '../contexts/SnackbarContext'
-import { useAuth } from '../contexts/AuthContext'
+import useRequireAdmin from '../hooks/useRequireAdmin'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import useConfirm from '../hooks/useConfirm'
@@ -64,14 +64,11 @@ export default function Admin() {
   }
 
   const navigate = useNavigate()
-  const { user, loading } = useAuth()
+  const { isAuthorized } = useRequireAdmin()
 
   const goUsers = () => navigate('/admin/users')
 
-  if (!loading && (!user || !user.isAdmin)) {
-    navigate('/')
-    return null
-  }
+  if (!isAuthorized) return null
 
   const [games, setGames] = useState([])
   const [editingGame, setEditingGame] = useState(null)
@@ -159,9 +156,9 @@ export default function Admin() {
 
   return (
     <>
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
       <AppButton onClick={goUsers} sx={{ mb: 2 }}>Manage Users</AppButton>
-    </div>
+    </Box>
     <form onSubmit={submit}>
       <Stack spacing={2} maxWidth={400}>
         <TextField label="Game name" value={name} onChange={e => setName(e.target.value)} required />
@@ -180,11 +177,11 @@ export default function Admin() {
       
     </form>
 
-    <h2 style={{ marginTop: 24 }}>Manage Games</h2>
+    <Typography variant="h5" sx={{ mt: 3, mb: 1 }}>Manage Games</Typography>
     <div>
       {games.map(g => (
-        <Paper key={g.id} style={{ padding: 12, marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Paper key={g.id} sx={{ p: 1.5, mb: 1.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <strong>{g.name}</strong> {g.url ? <a href={g.url} target="_blank" rel="noreferrer">(link)</a> : null}
             </div>
@@ -193,14 +190,14 @@ export default function Admin() {
               <IconButton onClick={() => removeGame(g.id)} title="Delete"><DeleteIcon /></IconButton>
               <AppButton onClick={() => manageSubs(g.id)} sx={{ ml: 1 }}>Manage Submissions</AppButton>
             </div>
-          </div>
+          </Box>
         </Paper>
       ))}
     </div>
 
     {editingGame && (
-      <Paper style={{ padding: 12, marginTop: 12 }}>
-        <h3>Edit Game</h3>
+      <Paper sx={{ p: 1.5, mt: 1.5 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>Edit Game</Typography>
         <Stack spacing={2} maxWidth={600}>
           <TextField label="Name" value={editingGame.name} onChange={e => setEditingGame({ ...editingGame, name: e.target.value })} />
           <TextField label="URL" value={editingGame.url ?? ''} onChange={e => setEditingGame({ ...editingGame, url: e.target.value })} />
@@ -220,8 +217,8 @@ export default function Admin() {
     )}
 
     {selectedGameId && (
-      <Paper style={{ padding: 12, marginTop: 12 }}>
-        <h3>Submissions</h3>
+      <Paper sx={{ p: 1.5, mt: 1.5 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>Submissions</Typography>
         <Table>
           <TableHead>
             <TableRow>
@@ -243,7 +240,7 @@ export default function Admin() {
                     <div style={{ color: '#ed6c02', fontSize: '0.75rem', marginTop: 2 }}>Not a number</div>
                   )}
                 </TableCell>
-                <TableCell>{parseUtcDate(s.createdAt).toLocaleString()}</TableCell>
+                <TableCell>{formatDateTime(s.createdAt)}</TableCell>
                 <TableCell>
                   <AppButton onClick={() => updateSubmission(s)}>Save</AppButton>
                   <AppButton color="error" onClick={() => deleteSubmission(s.id)}>Delete</AppButton>

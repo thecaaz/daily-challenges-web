@@ -6,7 +6,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import api from '../api'
 import parseUtcDate from '../utils/parseUtcDate'
 import { useSnackbar } from '../contexts/SnackbarContext'
-import { useAuth } from '../contexts/AuthContext'
+import useRequireAuth from '../hooks/useRequireAuth'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
 import useGame from '../hooks/useGame'
@@ -20,14 +20,12 @@ export default function Submit() {
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
   const [notFound, setNotFound] = useState(false)
-  const [username, setUsername] = useState('')
   const [score, setScore] = useState('')
   const { showSnackbar } = useSnackbar()
   const { confirm, dialogProps } = useConfirm()
 
-  const { screenshot, previewUrl, setScreenshot, onFileChange, clear } = useImageUpload(showSnackbar)
+  const { screenshot, previewUrl, onFileChange, clear } = useImageUpload(showSnackbar)
 
-  // Use centralized hook to load game overview
   const { game: hookGame, hasSubmittedForLatest: hookHasSubmittedForLatest, notFound: hookNotFound } = useGame(gameId)
 
   useEffect(() => {
@@ -37,15 +35,10 @@ export default function Submit() {
     }
     if (hookGame) setGame(hookGame)
   }, [hookGame, hookNotFound])
-  const { user, loading, fetchMe } = useAuth()
+  const { user, loading, fetchMe } = useRequireAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login')
-    }
-  }, [loading, user, navigate])
   const [hasSubmitted, setHasSubmitted] = useState(false)
 
   // sync has-submitted state for authenticated users
@@ -70,10 +63,6 @@ export default function Submit() {
       if (!ok) return
     }
     fd.append('score', isNaN(parsed) ? score : String(parsed))
-    // if authenticated, server will use identity (do not allow spoofing)
-    if (!user || !user.id) {
-      if (username) fd.append('username', username)
-    }
     if (screenshot) fd.append('screenshot', screenshot)
     try {
       const res = await api.post('/submissions', fd)
@@ -115,8 +104,6 @@ export default function Submit() {
     }
   }
 
-  // image upload and paste handling managed by useImageUpload(showSnackbar)
-
   if (notFound) return <NotFound message="Game not found" />
   if (!game) return <Loading />
 
@@ -142,9 +129,6 @@ export default function Submit() {
         )}
         <form onSubmit={submit}>
           <Stack spacing={2} maxWidth={480} sx={{ mt: 2 }}>
-            {(!user || !user.id) && (
-              <TextField label="Username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
-            )}
             <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
             {score !== '' && isNaN(parseScore(score)) && (
               <Alert severity="warning" sx={{ py: 0 }}>

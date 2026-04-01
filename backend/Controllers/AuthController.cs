@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using DailyChallenges.DTOs;
+using DailyChallenges.Services;
 
 namespace DailyChallenges.Controllers
 {
@@ -7,9 +8,9 @@ namespace DailyChallenges.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly Services.IAuthService _auth;
+        private readonly IAuthService _auth;
 
-        public AuthController(Services.IAuthService auth)
+        public AuthController(IAuthService auth)
         {
             _auth = auth;
         }

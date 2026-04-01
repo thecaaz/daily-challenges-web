@@ -71,7 +71,7 @@ namespace DailyChallenges.Services
             {
                 var day = s.ScoringDay.Date;
                 var isWinner = winnersByDay.TryGetValue(day, out var w) && w.Id == s.Id;
-                return DailyChallenges.Mapping.SubmissionDtoHelper.ToDtoWithScoringDay(s, day, isWinner);
+                return SubmissionDtoHelper.ToDtoWithScoringDay(s, day, isWinner);
             }).ToList();
 
             // If the caller requested a specific scoring day, populate 1-based ranks for scored submissions on that day.

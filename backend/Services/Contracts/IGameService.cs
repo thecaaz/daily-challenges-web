@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DailyChallenges.DTOs;
 
 namespace DailyChallenges.Services
@@ -10,9 +11,9 @@ namespace DailyChallenges.Services
         Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url);
         Task DeleteAsync(int id);
         Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id);
-        Task<HighscoreResult> GetHighscoreAsync(int id, System.Security.Claims.ClaimsPrincipal? user);
+        Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user);
         Task<HighscoreResult> GetPersonalHighscoreAsync(int id, int userId);
-        Task<GameOverviewDto> GetOverviewAsync(int gameId, System.Security.Claims.ClaimsPrincipal? user, string? include = null, int top = 0);
+        Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null, int top = 0);
     }
 
     public class HighscoreResult

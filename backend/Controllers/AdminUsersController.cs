@@ -1,12 +1,6 @@
-using System.Linq;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Text;
-using DailyChallenges.Data;
 using DailyChallenges.Services;
-using DailyChallenges.Mapping;
 
 namespace DailyChallenges.Controllers
 {

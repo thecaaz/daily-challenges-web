@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Table, TableHead, TableRow, TableCell, TableBody, TextField, MenuItem, IconButton } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import api from '../api'
+import { formatDateTimeUtc } from '../utils/dateFormat'
 import { useSnackbar } from '../contexts/SnackbarContext'
 
 export default function AdminUserAuditModal({ open, onClose, userId, username }) {
@@ -93,7 +94,7 @@ export default function AdminUserAuditModal({ open, onClose, userId, username })
           <TableBody>
             {items.map(it => (
               <TableRow key={it.id}>
-                <TableCell>{new Date(it.createdAt).toLocaleString(undefined, { timeZone: 'UTC' })}</TableCell>
+                <TableCell>{formatDateTimeUtc(it.createdAt)}</TableCell>
                 <TableCell>{it.amount}</TableCell>
                 <TableCell>{it.eventType}</TableCell>
                 <TableCell style={{ maxWidth: 300, whiteSpace: 'pre-wrap' }}>{it.details}</TableCell>

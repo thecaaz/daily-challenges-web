@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
+import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Typography } from '@mui/material'
 import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
-import { useAuth } from '../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import useRequireAdmin from '../hooks/useRequireAdmin'
 import AdminUserAuditModal from '../components/AdminUserAuditModal'
 import useConfirm from '../hooks/useConfirm'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
@@ -11,9 +10,8 @@ import usePrompt from '../hooks/usePrompt'
 import PromptDialog from '../components/ui/PromptDialog'
 
 export default function AdminUsers() {
-  const { user, loading } = useAuth()
+  const { user, isAuthorized } = useRequireAdmin()
   const { showSnackbar } = useSnackbar()
-  const navigate = useNavigate()
 
   const [users, setUsers] = useState([])
   const [page, setPage] = useState(1)
@@ -32,10 +30,7 @@ export default function AdminUsers() {
 
   useEffect(() => { fetchUsers() }, [])
 
-  if (!loading && (!user || !user.isAdmin)) {
-    navigate('/')
-    return null
-  }
+  if (!isAuthorized) return null
 
   const fetchUsers = async () => {
     try {
@@ -100,8 +95,8 @@ export default function AdminUsers() {
 
   return (
     <>
-      <h2>Admin — Manage Users</h2>
-      <Paper style={{ padding: 12 }}>
+      <Typography variant="h5" sx={{ mb: 2 }}>Admin — Manage Users</Typography>
+      <Paper sx={{ p: 1.5 }}>
         <Table>
           <TableHead>
             <TableRow>
