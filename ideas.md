@@ -1,4 +1,3 @@
 - Live updates
 - Comments for a specific day
 - day selector into datepicker with highlights on which days have submissions
-- show all submissions should show everything but the current day, at the moment shows none
