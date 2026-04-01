@@ -9,6 +9,8 @@ RUN dotnet restore
 # copy rest and publish
 COPY . /src
 RUN dotnet publish -c Release -o /app
+# If the release pipeline provided a release-info.json in backend/, copy it into the published app
+RUN if [ -f /src/backend/release-info.json ]; then cp /src/backend/release-info.json /app/release-info.json; fi
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app

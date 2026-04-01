@@ -37,6 +37,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: npm run release
 
+      - name: Create release-info.json
+        if: ${{ always() }}
+        run: |
+          # Ensure we have tags available
+          git fetch --tags
+          TAG=$(git describe --tags --abbrev=0 || echo "")
+          # Fallback to npm package version
+          if [ -z "$TAG" ] && [ -f package.json ]; then
+            TAG="v$(node -p "require('./package.json').version")"
+          fi
+          VERSION=${TAG#v}
+          RAW="${TAG}+${GITHUB_SHA}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          COMMIT=${GITHUB_SHA}
+          printf '%s\n' '{' \
+            "  \"version\": \"${VERSION}\"," \
+            "  \"rawVersion\": \"${RAW}\"," \
+            "  \"commit\": \"${COMMIT}\"," \
+            "  \"timestamp\": \"${TIMESTAMP}\"" \
+            '}' > release-info.json
+
+      - name: Upload release-info artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-info
+          path: release-info.json
+
   docker:
     name: Build & push Docker images
     needs: release
@@ -56,6 +83,18 @@ jobs:
           git fetch origin main --tags
           git checkout origin/main
           git reset --hard origin/main
+
+      - name: Download release-info artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-info
+          path: .
+
+      - name: Place release-info.json into backend/
+        run: |
+          if [ -f release-info.json ]; then
+            mv release-info.json backend/release-info.json
+          fi
 
       - name: Get release version
         id: version
