@@ -1,14 +1,18 @@
 import React, { useRef, useState, useEffect } from 'react'
 import './gamebar.css'
 import { Link, useNavigate } from 'react-router-dom'
-import { AppBar, Toolbar, Box, Button, Typography, Chip, LinearProgress, Tooltip } from '@mui/material'
+import { AppBar, Toolbar, Box, Button, Typography, Chip, LinearProgress, Tooltip, IconButton } from '@mui/material'
+import DarkModeIcon from '@mui/icons-material/DarkMode'
+import LightModeIcon from '@mui/icons-material/LightMode'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import { useAuth } from '../contexts/AuthContext'
+import { useThemeMode } from '../contexts/ThemeContext'
 import NotificationBell from './NotificationBell'
 
 export default function GameBar() {
   const { user, logout, fetchMe } = useAuth()
+  const { mode, toggleMode } = useThemeMode()
   const navigate = useNavigate()
 
   // Real XP data from the authenticated user object
@@ -139,6 +143,9 @@ export default function GameBar() {
         {/* Nav actions */}
         {user ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <IconButton aria-label="Toggle color scheme" size="small" onClick={toggleMode} sx={{ color: 'inherit' }}>
+              {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
             <NotificationBell />
             {user.isAdmin && (
               <Button

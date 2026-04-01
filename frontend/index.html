@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Daily Challenges</title>
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;700&family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+    <script>
+      // Set data-theme early to avoid flash-of-unstyled content
+      (function(){
+        try {
+          var m = localStorage.getItem('themeMode');
+          if (!m) {
+            m = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', m);
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
