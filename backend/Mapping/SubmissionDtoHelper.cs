@@ -1,4 +1,3 @@
-using System;
 using DailyChallenges.DTOs;
 using DailyChallenges.Models;
 
