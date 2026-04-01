@@ -1,3 +1,10 @@
+### [1.8.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.8.2...v1.8.3) (2026-04-01)
+
+
+### Bug Fixes
+
+* correct typo in "today's" to "todays" in various components and tests ([0c020ff](https://github.com/thecaaz/daily-challenges-web/commit/0c020ffee8b015887069ed60602d894a21b0913f))
+
 ### [1.8.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.8.1...v1.8.2) (2026-04-01)
 
 
