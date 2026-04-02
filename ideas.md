@@ -3,3 +3,4 @@
 - profiles
 - friends
 - username/trophy/profile customization
+- indicator on game overview site which games have been completed currently
