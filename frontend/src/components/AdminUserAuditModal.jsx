@@ -4,6 +4,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import api from '../api'
 import { formatDateTimeUtc } from '../utils/dateFormat'
 import { useSnackbar } from '../contexts/SnackbarContext'
+import downloadBlob from '../utils/downloadBlob'
 
 export default function AdminUserAuditModal({ open, onClose, userId, username }) {
   const { showSnackbar } = useSnackbar()
@@ -44,14 +45,7 @@ export default function AdminUserAuditModal({ open, onClose, userId, username })
       if (to) params.to = to
       if (eventType) params.eventType = eventType
       const res = await api.get(`/admin/users/${userId}/xp-events/export`, { params, responseType: 'blob' })
-      const url = window.URL.createObjectURL(new Blob([res.data]))
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `xp-events-user-${userId}.csv`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      window.URL.revokeObjectURL(url)
+      downloadBlob(`xp-events-user-${userId}.csv`, new Blob([res.data]))
     } catch (err) {
       showSnackbar('Failed to export CSV', 'error')
     }

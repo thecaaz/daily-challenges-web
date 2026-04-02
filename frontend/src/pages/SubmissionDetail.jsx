@@ -3,7 +3,9 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Typography, Card } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import PanZoomImage from '../components/ui/PanZoomImage'
-import api, { getApiRoot } from '../api'
+import api from '../api'
+import imageUrl from '../utils/imageUrl'
+import goBackOrRoute from '../utils/navigation'
 import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import Loading from '../components/ui/Loading'
@@ -33,8 +35,6 @@ export default function SubmissionDetail() {
   if (loading) return <Loading />
   if (!submission) return <NotFound message="Not found" />
 
-  const apiRoot = getApiRoot()
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -42,18 +42,12 @@ export default function SubmissionDetail() {
           <Typography variant="h5">Submission — {submission.username}</Typography>
           <Typography variant="caption">Score: {formatNumber(submission.score)} — {formatDateTime(submission.createdAt)}</Typography>
         </div>
-        <AppButton onClick={() => {
-          if (window.history.length > 1) navigate(-1)
-          else {
-            const qs = location.search || (submission?.scoringDay ? `?scoringDay=${submission.scoringDay}` : '')
-            navigate(`/games/${submission.gameId}${qs}`)
-          }
-        }}>Back</AppButton>
+        <AppButton onClick={() => goBackOrRoute(navigate, `/games/${submission.gameId}`, { locationSearch: location.search, scoringDay: submission?.scoringDay })}>Back</AppButton>
       </div>
 
       {submission.screenshotUrl ? (
         <PanZoomImage
-          src={`${apiRoot}${submission.screenshotUrl}`}
+          src={imageUrl(submission.screenshotUrl)}
           alt="screenshot"
           height={600}
           containerStyle={{ maxWidth: 1000 }}

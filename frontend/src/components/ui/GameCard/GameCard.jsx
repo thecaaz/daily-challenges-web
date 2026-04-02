@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Button, Box } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
-import { getApiRoot } from '../../../api'
+import imageUrl from '../../../utils/imageUrl'
 
 export default function GameCard({ game, sx, showSubmit = true }) {
-  const apiRoot = getApiRoot()
+  // use imageUrl helper to build absolute image URLs
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', ...(sx || {}) }}>
@@ -14,7 +14,7 @@ export default function GameCard({ game, sx, showSubmit = true }) {
         {game.imageUrl ? (
           <CardMedia
             component="img"
-            image={`${apiRoot}${game.imageUrl}`}
+            image={imageUrl(game.imageUrl)}
             alt={game.name}
             height={180}
             loading="lazy"
