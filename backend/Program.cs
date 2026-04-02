@@ -70,6 +70,10 @@ builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChal
 builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionService, DailyChallenges.Services.SubmissionService>();
 
+// Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, DailyChallenges.Services.InfoService>();
+
 // Scoring day finalization
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
 builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundService>();

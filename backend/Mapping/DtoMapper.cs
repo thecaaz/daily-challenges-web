@@ -61,7 +61,7 @@ namespace DailyChallenges.Mapping
             try
             {
                 // Compute current scoring day on the server side so frontend can rely on it
-                dto.CurrentScoringDay = Services.ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).ToString("yyyy-MM-dd");
+                dto.CurrentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).ToString("yyyy-MM-dd");
             }
             catch
             {
@@ -71,9 +71,9 @@ namespace DailyChallenges.Mapping
             return dto;
         }
 
-        public static DailyChallenges.DTOs.XpEventDto ToDto(XpEvent e)
+        public static XpEventDto ToDto(XpEvent e)
         {
-            return new DailyChallenges.DTOs.XpEventDto
+            return new XpEventDto
             {
                 Id = e.Id,
                 UserId = e.UserId,

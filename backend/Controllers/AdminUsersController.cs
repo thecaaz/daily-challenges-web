@@ -24,7 +24,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost("{id}/xp")]
-        public async Task<IActionResult> AdjustXp(int id, [FromBody] DailyChallenges.DTOs.AdminAdjustXpDto dto)
+        public async Task<IActionResult> AdjustXp(int id, [FromBody] DTOs.AdminAdjustXpDto dto)
         {
             if (dto == null) return BadRequest();
             if (dto.Delta == 0) return BadRequest(new { message = "Delta must be non-zero" });
@@ -57,7 +57,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost("{id}/password")]
-        public async Task<IActionResult> SetPassword(int id, [FromBody] DailyChallenges.DTOs.AdminSetPasswordDto dto)
+        public async Task<IActionResult> SetPassword(int id, [FromBody] DTOs.AdminSetPasswordDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
                 return BadRequest(new { message = "NewPassword is required" });

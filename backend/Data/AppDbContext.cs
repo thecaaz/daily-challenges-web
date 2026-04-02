@@ -10,7 +10,7 @@ namespace DailyChallenges.Data
         public DbSet<Game> Games => Set<Game>();
         public DbSet<Submission> Submissions => Set<Submission>();
         public DbSet<User> Users => Set<User>();
-        public DbSet<Models.XpEvent> XpEvents => Set<Models.XpEvent>();
+        public DbSet<XpEvent> XpEvents => Set<XpEvent>();
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<ScoringDayResult> ScoringDayResults => Set<ScoringDayResult>();
 
@@ -42,26 +42,26 @@ namespace DailyChallenges.Data
                 .HasIndex(s => new { s.GameId, s.ScoringDay });
 
             // XpEvents: FK to User (required), FK to Submission and Game (optional)
-            modelBuilder.Entity<Models.XpEvent>()
+            modelBuilder.Entity<XpEvent>()
                 .HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Models.XpEvent>()
+            modelBuilder.Entity<XpEvent>()
                 .HasOne(e => e.Submission)
                 .WithMany()
                 .HasForeignKey(e => e.SubmissionId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            modelBuilder.Entity<Models.XpEvent>()
+            modelBuilder.Entity<XpEvent>()
                 .HasOne(e => e.Game)
                 .WithMany()
                 .HasForeignKey(e => e.GameId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             // Index for fetching all XP history for a user efficiently
-            modelBuilder.Entity<Models.XpEvent>()
+            modelBuilder.Entity<XpEvent>()
                 .HasIndex(e => new { e.UserId, e.CreatedAt });
 
             // Notifications: FK to User (required), FK to Game (optional)

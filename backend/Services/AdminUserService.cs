@@ -45,7 +45,7 @@ namespace DailyChallenges.Services
             return DtoMapper.ToDto(user, _levelCalc);
         }
 
-        public async Task<(List<DailyChallenges.DTOs.XpEventDto> Items, int TotalCount)> GetXpEventsAsync(int userId, int page = 1, int pageSize = 20, DateTime? from = null, DateTime? to = null, string? eventType = null)
+        public async Task<(List<XpEventDto> Items, int TotalCount)> GetXpEventsAsync(int userId, int page = 1, int pageSize = 20, DateTime? from = null, DateTime? to = null, string? eventType = null)
         {
             var (items, total) = await _xpEventRepository.GetByUserPagedAsync(userId, page, pageSize, from, to, eventType);
             var dtos = items.Select(e => DtoMapper.ToDto(e)).ToList();
