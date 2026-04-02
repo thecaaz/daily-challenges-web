@@ -18,7 +18,7 @@ export default function UserGameStatCard({ game }) {
           <MuiLink component={Link} to={`/games/${id}`} underline="hover">
             <Typography variant="subtitle1">{name}</Typography>
           </MuiLink>
-          <Typography variant="caption" color="text.secondary">Plays: {plays}</Typography>
+          <Typography variant="caption" color="text.secondary">Plays: {formatNumber(plays)}</Typography>
         </Box>
         <Box sx={{ mt: 1 }}>
           <Typography variant="body2">Highest: {highest != null ? formatNumber(highest) : '—'}</Typography>

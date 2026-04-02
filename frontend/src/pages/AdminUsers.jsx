@@ -10,6 +10,7 @@ import useConfirm from '../hooks/useConfirm'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import usePrompt from '../hooks/usePrompt'
 import PromptDialog from '../components/ui/PromptDialog'
+import formatNumber from '../utils/formatNumber'
 
 export default function AdminUsers() {
   const { user, isAuthorized } = useRequireAdmin()
@@ -45,7 +46,7 @@ export default function AdminUsers() {
   }
 
   const adjust = async (id, delta) => {
-    const reason = await prompt({ title: 'XP Adjustment', message: `${delta >= 0 ? 'Adding' : 'Deducting'} ${Math.abs(delta)} XP`, label: 'Reason (optional)', confirmText: 'Apply' })
+    const reason = await prompt({ title: 'XP Adjustment', message: `${delta >= 0 ? 'Adding' : 'Deducting'} ${formatNumber(Math.abs(delta))} XP`, label: 'Reason (optional)', confirmText: 'Apply' })
     if (reason === null) return
     try {
       const res = await api.post(`/admin/users/${id}/xp`, { delta, reason })
@@ -116,9 +117,9 @@ export default function AdminUsers() {
               <TableRow key={u.id}>
                 <TableCell>{u.id}</TableCell>
                 <TableCell>{u.id ? <Box component={Link} to={`/users/${u.id}`} sx={{ textDecoration: 'none', color: 'inherit' }}>{u.username}</Box> : u.username}</TableCell>
-                <TableCell>{u.totalXp}</TableCell>
+                <TableCell>{formatNumber(u.totalXp)}</TableCell>
                 <TableCell>{u.level}</TableCell>
-                <TableCell>{u.xpToNextLevel}</TableCell>
+                <TableCell>{formatNumber(u.xpToNextLevel)}</TableCell>
                 <TableCell>{u.streak}</TableCell>
                 <TableCell style={{ whiteSpace: 'nowrap' }}>
                   <TextField

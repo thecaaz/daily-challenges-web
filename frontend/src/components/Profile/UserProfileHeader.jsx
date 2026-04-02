@@ -2,6 +2,7 @@ import React from 'react'
 import { Box, Avatar, Typography, LinearProgress, Grid, Chip } from '@mui/material'
 import { Link } from 'react-router-dom'
 import timeAgo from '../../utils/timeAgo'
+import formatNumber from '../../utils/formatNumber'
 
 export default function UserProfileHeader({ profile }) {
   const username = profile.username || profile.Username || 'user'
@@ -32,14 +33,14 @@ export default function UserProfileHeader({ profile }) {
           )}
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1 }}>
             <Chip label={`Level ${level}`} size="small" />
-            <Typography variant="body2" color="text.secondary">{totalXp} XP</Typography>
+            <Typography variant="body2" color="text.secondary">{formatNumber(totalXp)} XP</Typography>
             <Typography variant="body2" color="text.secondary">Streak: {streak}</Typography>
             {last ? <Typography variant="body2" color="text.secondary">Last: {timeAgo(last)}</Typography> : null}
           </Box>
 
           <Box sx={{ mt: 1 }}>
             <LinearProgress variant="determinate" value={percent} sx={{ height: 8, borderRadius: 1 }} />
-            <Typography variant="caption" color="text.secondary">{xpInto}/{totalForLevel} XP ({xpToNext} to go) — {percent}%</Typography>
+            <Typography variant="caption" color="text.secondary">{formatNumber(xpInto)}/{formatNumber(totalForLevel)} XP ({formatNumber(xpToNext)} to go) — {percent}%</Typography>
           </Box>
         </Grid>
       </Grid>
