@@ -1,5 +1,6 @@
 using DailyChallenges.Data;
 using DailyChallenges.Models;
+using DailyChallenges.Services.Ranking;
 using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Repositories
@@ -27,25 +28,31 @@ namespace DailyChallenges.Repositories
             return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).Take(top).AsNoTracking().ToListAsync();
         }
 
-        public async Task<List<Submission>> GetTopByGameByScoreValueAsync(int gameId, int top)
+        public async Task<List<Submission>> GetTopByGameByScoreValueAsync(int gameId, int top, IRankingStrategy strategy)
         {
             if (top < 1) top = 10;
-            return await _db.Submissions
-                .Where(s => s.GameId == gameId && s.ScoreValue.HasValue)
-                .OrderByDescending(s => s.ScoreValue)
-                .ThenBy(s => s.CreatedAt)
+            return await strategy
+                .ApplyOrdering(_db.Submissions.Where(s => s.GameId == gameId && s.ScoreValue.HasValue))
                 .Take(top)
                 .AsNoTracking()
                 .ToListAsync();
         }
 
-        public async Task<List<Submission>> GetByGameAndDayByScoreValueAsync(int gameId, DateTime scoringDay)
+        public async Task<List<Submission>> GetTopByGameByUserByScoreValueAsync(int gameId, int userId, int top, IRankingStrategy strategy)
+        {
+            if (top < 1) top = 10;
+            return await strategy
+                .ApplyOrdering(_db.Submissions.Where(s => s.GameId == gameId && s.UserId == userId && s.ScoreValue.HasValue))
+                .Take(top)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<List<Submission>> GetByGameAndDayByScoreValueAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy)
         {
             var target = scoringDay.Date;
-            return await _db.Submissions
-                .Where(s => s.GameId == gameId && s.ScoringDay == target && s.ScoreValue.HasValue)
-                .OrderByDescending(s => s.ScoreValue)
-                .ThenBy(s => s.CreatedAt)
+            return await strategy
+                .ApplyOrdering(_db.Submissions.Where(s => s.GameId == gameId && s.ScoringDay == target && s.ScoreValue.HasValue))
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -109,28 +116,31 @@ namespace DailyChallenges.Repositories
             return (items, total, availableDates);
         }
 
-        public async Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay)
+        public async Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy)
         {
             var target = scoringDay.Date;
             var numericSubs = _db.Submissions.Where(s => s.GameId == gameId && s.ScoringDay == target && s.ScoreValue.HasValue);
             if (!await numericSubs.AnyAsync()) return null;
-            var maxScore = await numericSubs.MaxAsync(s => s.ScoreValue!.Value);
-            var winner = await numericSubs.Where(s => s.ScoreValue == maxScore).OrderBy(s => s.CreatedAt).FirstOrDefaultAsync();
+            var winner = await strategy.ApplyOrdering(numericSubs).FirstOrDefaultAsync();
             return winner;
         }
 
-        public async Task<List<Submission>> GetWinnersForGameAndDaysAsync(int gameId, List<DateTime> days)
+        public async Task<List<Submission>> GetWinnersForGameAndDaysAsync(int gameId, List<DateTime> days, IRankingStrategy strategy)
         {
             if (days == null || days.Count == 0) return new List<Submission>();
 
-            var winners = await _db.Submissions
+            var submissions = await _db.Submissions
                 .Where(s => s.GameId == gameId && days.Contains(s.ScoringDay) && s.ScoreValue.HasValue)
-                .GroupBy(s => s.ScoringDay)
-                .Select(g => g.OrderByDescending(s => s.ScoreValue).ThenBy(s => s.CreatedAt).FirstOrDefault())
                 .AsNoTracking()
                 .ToListAsync();
 
-            return winners.Where(w => w != null).ToList()!;
+            var winners = submissions
+                .GroupBy(s => s.ScoringDay)
+                .Select(g => strategy.ApplyOrdering(g.AsQueryable()).FirstOrDefault())
+                .Where(w => w != null)
+                .ToList();
+
+            return winners!;
         }
 
         public async Task<Submission?> GetByGameAndUserAsync(int gameId, int userId)

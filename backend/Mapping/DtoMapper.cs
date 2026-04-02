@@ -52,6 +52,7 @@ namespace DailyChallenges.Mapping
                 // ResetTime is exported as HH:mm and timezone id as provided
                 ResetTime = g.ResetTime.ToString(@"hh\:mm"),
                 ResetTimezoneId = g.ResetTimezoneId,
+                RankingMode = g.RankingMode.ToString().ToLowerInvariant(),
                 Submissions = includeSubmissions && g.Submissions != null
                     ? g.Submissions.Select(ToDto).ToList()
                     : null
