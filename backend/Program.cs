@@ -52,6 +52,9 @@ builder.Services.AddScoped<DailyChallenges.Repositories.IScoringDayResultReposit
 // Helper services
 builder.Services.AddScoped<DailyChallenges.Services.IUserSubmissionChecker, DailyChallenges.Services.UserSubmissionChecker>();
 
+// User profile repository
+builder.Services.AddScoped<DailyChallenges.Repositories.IUserProfileRepository, DailyChallenges.Repositories.EfUserProfileRepository>();
+
 // XP system
 builder.Services.Configure<DailyChallenges.Services.XpConfig>(builder.Configuration.GetSection("Xp"));
 builder.Services.AddSingleton(sp =>
@@ -59,6 +62,8 @@ builder.Services.AddSingleton(sp =>
     var cfg = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<DailyChallenges.Services.XpConfig>>().Value;
     return new DailyChallenges.Services.LevelCalculator(cfg.LevelBase, cfg.LevelExponent);
 });
+// Memory cache for short-lived caches (user profile, etc.)
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<DailyChallenges.Services.IXpService, DailyChallenges.Services.XpService>();
 
 // Admin users service
@@ -71,6 +76,9 @@ builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChal
 builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionService, DailyChallenges.Services.SubmissionService>();
 builder.Services.AddScoped<DailyChallenges.Services.INotificationService, DailyChallenges.Services.NotificationService>();
+
+// User profile service
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IUserProfileService, DailyChallenges.Services.UserProfileService>();
 
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
 builder.Services.AddHttpClient();

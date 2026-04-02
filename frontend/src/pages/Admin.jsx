@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { TextField, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, Box } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import AppButton from '../components/ui/AppButton'
 import useImageUpload from '../hooks/useImageUpload'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
@@ -257,7 +257,7 @@ export default function Admin() {
             {submissions.map(s => (
               <TableRow key={s.id}>
                 <TableCell>{s.id}</TableCell>
-                <TableCell>{s.username ?? ''}</TableCell>
+                <TableCell>{s.userId ? <Box component={Link} to={`/users/${s.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>{s.username ?? ''}</Box> : (s.username ?? '')}</TableCell>
                 <TableCell>
                   <input value={s.score ?? ''} onChange={e => setSubmissions(submissions.map(x => x.id === s.id ? { ...x, score: e.target.value } : x))} />
                   {s.score !== '' && s.score != null && isNaN(parseScore(s.score)) && (

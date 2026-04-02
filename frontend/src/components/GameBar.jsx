@@ -156,9 +156,11 @@ export default function GameBar() {
                 Admin
               </AppButton>
             )}
-            <Typography variant="body2" color="text.secondary" sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }}>
-              {user.username}
-            </Typography>
+            <Box component={Link} to={`/users/${user.id}`} sx={{ textDecoration: 'none', color: 'inherit', mx: 1, display: { xs: 'none', sm: 'block' } }}>
+              <Typography variant="body2" color="text.secondary">
+                {user.username}
+              </Typography>
+            </Box>
             <AppButton variant="contained" color="primary" size="small" onClick={() => { logout(); navigate('/') }}>
               Logout
             </AppButton>

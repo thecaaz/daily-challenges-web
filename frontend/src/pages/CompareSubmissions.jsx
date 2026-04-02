@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Typography, Card, Box, Chip, Tooltip, Divider } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
@@ -17,9 +17,17 @@ function SubmissionPanel({ submission }) {
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Box sx={{ mb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            {submission.username}
-          </Typography>
+          {submission.userId ? (
+            <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {submission.username}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {submission.username}
+            </Typography>
+          )}
           {submission.isDayWinner && (
             <Tooltip title={submission.scoringDay ? `Winner for ${submission.scoringDay}` : 'Winner'}>
               <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Typography, Card } from '@mui/material'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
+import { Typography, Card, Box } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import PanZoomImage from '../components/ui/PanZoomImage'
 import api from '../api'
@@ -39,7 +39,13 @@ export default function SubmissionDetail() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
-          <Typography variant="h5">Submission — {submission.username}</Typography>
+          <Typography variant="h5">
+            Submission — {submission.userId ? (
+              <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+                {submission.username}
+              </Box>
+            ) : submission.username}
+          </Typography>
           <Typography variant="caption">Score: {formatNumber(submission.score)} — {formatDateTime(submission.createdAt)}</Typography>
         </div>
         <AppButton onClick={() => goBackOrRoute(navigate, `/games/${submission.gameId}`, { locationSearch: location.search, scoringDay: submission?.scoringDay })}>Back</AppButton>

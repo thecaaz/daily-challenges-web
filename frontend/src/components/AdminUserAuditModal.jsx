@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Table, TableHead, TableRow, TableCell, TableBody, TextField, MenuItem, IconButton } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Table, TableHead, TableRow, TableCell, TableBody, TextField, MenuItem, IconButton, Box } from '@mui/material'
+import { Link } from 'react-router-dom'
 import AppButton from './ui/AppButton'
 import CloseIcon from '@mui/icons-material/Close'
 import api from '../api'
@@ -55,7 +56,9 @@ export default function AdminUserAuditModal({ open, onClose, userId, username })
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
       <DialogTitle>
-        XP Audit — {username ?? `User ${userId}`}
+        XP Audit — {username ? (
+          <Box component={Link} to={`/users/${userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>{username}</Box>
+        ) : `User ${userId}`}
         <IconButton aria-label="close" onClick={onClose} sx={{ position: 'absolute', right: 8, top: 8 }}>
           <CloseIcon />
         </IconButton>

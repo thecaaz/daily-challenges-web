@@ -101,5 +101,22 @@ namespace DailyChallenges.Mapping
                 CreatedAt = n.CreatedAt
             };
         }
+
+        public static UserProfileDto ToUserProfileDto(User u, List<UserGameStatDto> topGames, LevelCalculator levelCalc)
+        {
+            var (level, xpInto, xpToNext) = levelCalc.GetLevelInfo(u.TotalXp);
+            return new UserProfileDto
+            {
+                UserId = u.Id,
+                Username = u.Username,
+                TotalXp = u.TotalXp,
+                Level = level,
+                XpIntoLevel = xpInto,
+                XpToNextLevel = xpToNext,
+                Streak = u.Streak,
+                LastSubmissionAt = u.LastSubmissionAt,
+                TopGames = topGames
+            };
+        }
     }
 }
