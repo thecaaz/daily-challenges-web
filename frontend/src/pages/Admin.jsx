@@ -171,6 +171,7 @@ export default function Admin() {
       <Stack spacing={2} maxWidth={400}>
         <TextField label="Game name" value={name} onChange={e => setName(e.target.value)} required />
         <TextField label="Game URL (optional)" value={url} onChange={e => setUrl(e.target.value)} />
+        <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} multiline rows={3} />
           <ImageUpload onFileChange={onCreateFileChange} previewUrl={createPreviewUrl} onRemove={clearCreateImage} />
           <div>
             <label>Reset time (day boundary): </label>
