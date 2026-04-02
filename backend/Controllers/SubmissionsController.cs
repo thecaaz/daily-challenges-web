@@ -71,20 +71,9 @@ namespace DailyChallenges.Controllers
         [Authorize]
         public async Task<IActionResult> Create([FromForm] int gameId, [FromForm] string score, [FromForm] string? username, [FromForm] IFormFile? screenshot)
         {
-            try
-            {
-                var (submissionDto, xpGain) = await _subs.CreateAsync(gameId, score, username, screenshot, User);
-                var response = new { submission = submissionDto, xpGain };
-                return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, response);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return ex.Message.Contains("already submitted") ? Conflict(new { message = ex.Message }) : BadRequest(new { message = ex.Message });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var (submissionDto, xpGain) = await _subs.CreateAsync(gameId, score, username, screenshot, User);
+            var response = new { submission = submissionDto, xpGain };
+            return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, response);
         }
 
         [HttpGet("{id}/screenshot")]
@@ -107,15 +96,8 @@ namespace DailyChallenges.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] SubmissionUpdateModel model)
         {
-            try
-            {
-                var updated = await _subs.UpdateAsync(id, model.Score);
-                return Ok(updated);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var updated = await _subs.UpdateAsync(id, model.Score);
+            return Ok(updated);
         }
 
         [HttpDelete("{id}")]

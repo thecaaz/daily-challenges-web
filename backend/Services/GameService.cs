@@ -33,8 +33,7 @@ namespace DailyChallenges.Services
             var game = new Game { Name = name };
             if (!string.IsNullOrWhiteSpace(resetTime))
             {
-                if (TimeSpan.TryParse(resetTime, out var ts)) game.ResetTime = ts;
-                else if (TimeSpan.TryParseExact(resetTime, "hh\\:mm", null, out var ts2)) game.ResetTime = ts2;
+                if (TryParseResetTime(resetTime, out var ts)) game.ResetTime = ts;
             }
             if (!string.IsNullOrWhiteSpace(resetTimezoneId)) game.ResetTimezoneId = resetTimezoneId;
             if (!string.IsNullOrWhiteSpace(url)) game.Url = url;
@@ -62,8 +61,7 @@ namespace DailyChallenges.Services
             if (!string.IsNullOrWhiteSpace(url)) g.Url = url;
             if (!string.IsNullOrWhiteSpace(resetTime))
             {
-                if (TimeSpan.TryParse(resetTime, out var ts)) g.ResetTime = ts;
-                else if (TimeSpan.TryParseExact(resetTime, "hh\\:mm", null, out var ts2)) g.ResetTime = ts2;
+                if (TryParseResetTime(resetTime, out var ts)) g.ResetTime = ts;
             }
             if (!string.IsNullOrWhiteSpace(resetTimezoneId)) g.ResetTimezoneId = resetTimezoneId;
             if (description != null) g.Description = description;
@@ -255,6 +253,24 @@ namespace DailyChallenges.Services
                     dto.Rank = null;
                 }
             }
+        }
+
+        private static bool TryParseResetTime(string input, out TimeSpan result)
+        {
+            if (TimeSpan.TryParse(input, out var ts))
+            {
+                result = ts;
+                return true;
+            }
+
+            if (TimeSpan.TryParseExact(input, @"hh\:mm", null, out var ts2))
+            {
+                result = ts2;
+                return true;
+            }
+
+            result = default;
+            return false;
         }
     }
 }

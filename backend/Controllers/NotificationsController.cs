@@ -67,10 +67,6 @@ namespace DailyChallenges.Controllers
                 await _notificationService.DeleteAsync(id, userId.Value, User.IsInRole("Admin"));
                 return NoContent();
             }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
             catch (InvalidOperationException)
             {
                 return Forbid();

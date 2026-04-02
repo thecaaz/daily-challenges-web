@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using DailyChallenges.Data;
+using DailyChallenges.Middleware;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -119,6 +120,7 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 app.UseCors("DefaultCors");
+app.UseExceptionToHttpResponse();
 
 if (app.Environment.IsDevelopment())
 {

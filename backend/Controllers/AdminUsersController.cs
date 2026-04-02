@@ -31,15 +31,8 @@ namespace DailyChallenges.Controllers
 
             var adminId = User.GetUserId();
 
-            try
-            {
-                var updated = await _adminService.AdjustXpAsync(id, dto.Delta, dto.Reason, adminId);
-                return Ok(updated);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var updated = await _adminService.AdjustXpAsync(id, dto.Delta, dto.Reason, adminId);
+            return Ok(updated);
         }
 
         [HttpGet("{id}/xp-events")]
@@ -62,15 +55,8 @@ namespace DailyChallenges.Controllers
             if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
                 return BadRequest(new { message = "NewPassword is required" });
 
-            try
-            {
-                await _adminService.SetPasswordAsync(id, dto.NewPassword);
-                return NoContent();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            await _adminService.SetPasswordAsync(id, dto.NewPassword);
+            return NoContent();
         }
 
         [HttpDelete("{id}")]
@@ -79,19 +65,8 @@ namespace DailyChallenges.Controllers
             var requestingAdminId = User.GetUserId();
             if (requestingAdminId == null) return Unauthorized();
 
-            try
-            {
-                await _adminService.DeleteUserAsync(id, requestingAdminId.Value);
-                return NoContent();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            await _adminService.DeleteUserAsync(id, requestingAdminId.Value);
+            return NoContent();
         }
     }
 }
