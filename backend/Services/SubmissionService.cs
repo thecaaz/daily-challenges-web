@@ -37,7 +37,6 @@ namespace DailyChallenges.Services
         {
             var game = await _games.GetByIdAsync(gameId);
             var strategy = RankingStrategyFactory.GetStrategy(game?.RankingMode ?? RankingMode.Highest);
-            var result = new SubmissionPageDto { Page = page, PageSize = pageSize };
 
             var currentDay = GetCurrentScoringDay(game);
 
@@ -94,13 +93,7 @@ namespace DailyChallenges.Services
                 }
             }
 
-            result.Items = mapped;
-            result.HasSubmittedForLatest = hasSubmittedForLatest;
-            result.TotalCount = totalCount;
-            result.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-            result.HasMore = page < result.TotalPages;
-
-            return result;
+            return SubmissionDtoHelper.ToPageDto(mapped, page, pageSize, hasSubmittedForLatest, totalCount);
         }
 
         public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user)
@@ -124,7 +117,7 @@ namespace DailyChallenges.Services
             var game = await _games.GetByIdAsync(gameId);
             var currentDay = GetCurrentScoringDay(game);
             var usernames = await _subs.GetUsernamesForDayAsync(gameId, currentDay);
-            return new TodaySubmittersDto { Count = usernames.Count, Usernames = usernames };
+            return SubmissionDtoHelper.ToTodaySubmittersDto(usernames);
         }
 
 

@@ -69,6 +69,7 @@ builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenge
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
 builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionService, DailyChallenges.Services.SubmissionService>();
+builder.Services.AddScoped<DailyChallenges.Services.INotificationService, DailyChallenges.Services.NotificationService>();
 
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
 builder.Services.AddHttpClient();

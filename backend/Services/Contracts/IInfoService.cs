@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 namespace DailyChallenges.Services.Contracts
 {
     public interface IInfoService

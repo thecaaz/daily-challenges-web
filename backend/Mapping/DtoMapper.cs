@@ -86,5 +86,20 @@ namespace DailyChallenges.Mapping
                 CreatedAt = e.CreatedAt
             };
         }
+        
+        public static NotificationDto ToDto(Notification n)
+        {
+            return new NotificationDto
+            {
+                Id = n.Id,
+                Message = n.Message,
+                Type = n.Type,
+                GameId = n.GameId,
+                ScoringDay = ScoringDayHelper.FormatScoringDay(n.ScoringDay),
+                Rank = n.Rank,
+                IsRead = n.IsRead,
+                CreatedAt = n.CreatedAt
+            };
+        }
     }
 }

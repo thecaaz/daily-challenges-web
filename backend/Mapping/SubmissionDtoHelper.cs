@@ -16,5 +16,26 @@ namespace DailyChallenges.Mapping
             dto.IsDayWinner = isDayWinner;
             return dto;
         }
+
+        public static SubmissionPageDto ToPageDto(List<SubmissionDto> items, int page, int pageSize, bool hasSubmittedForLatest, int totalCount)
+        {
+            var result = new SubmissionPageDto
+            {
+                Items = items,
+                HasSubmittedForLatest = hasSubmittedForLatest,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
+
+            result.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            result.HasMore = page < result.TotalPages;
+            return result;
+        }
+
+        public static TodaySubmittersDto ToTodaySubmittersDto(List<string> usernames)
+        {
+            return new TodaySubmittersDto { Count = usernames.Count, Usernames = usernames };
+        }
     }
 }
