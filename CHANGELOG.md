@@ -1,3 +1,12 @@
+### [1.14.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.14.0...v1.14.1) (2026-04-02)
+
+
+### Bug Fixes
+
+* numerical values to be unformly formatted ([c9918d4](https://github.com/thecaaz/daily-challenges-web/commit/c9918d4ee45b983d0671e9acffe5161693ac4328))
+* **profile:** update game statistics to include MaxScore and MinScore for accurate ranking ([3afa7fe](https://github.com/thecaaz/daily-challenges-web/commit/3afa7fe078ed1c5d5fab43bf19c9f7bd4e08e0d9))
+* **profile:** update LastSubmissionAt and ensure TopGames is always initialized ([1cc0424](https://github.com/thecaaz/daily-challenges-web/commit/1cc0424590487cc1ff30afc28bc782f41656436f))
+
 ## [1.14.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.13.0...v1.14.0) (2026-04-02)
 
 
