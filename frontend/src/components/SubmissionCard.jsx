@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Card, CardContent, CardMedia, Typography, Tooltip, Box, Chip, Checkbox } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PersonIcon from '@mui/icons-material/Person'
-import { getApiRoot } from '../api'
+import imageUrl from '../utils/imageUrl'
 import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,7 +11,6 @@ import { useAuth } from '../contexts/AuthContext'
 export default function SubmissionCard({ submission, compareMode, selected, onToggleCompare }) {
   if (!submission) return null
   const { user } = useAuth()
-  const apiRoot = getApiRoot()
   const location = useLocation()
 
   const handleCompareClick = (e) => {
@@ -39,7 +38,7 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
         {submission.screenshotUrl && (
           <CardMedia
             component="img"
-            image={`${apiRoot}${submission.screenshotUrl}`}
+            image={imageUrl(submission.screenshotUrl)}
             alt="screenshot"
             height={160}
             loading="lazy"

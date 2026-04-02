@@ -4,14 +4,15 @@ import { Typography, Card, Box, Chip, Tooltip, Divider } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
 import PanZoomImage from '../components/ui/PanZoomImage'
-import api, { getApiRoot } from '../api'
+import api from '../api'
 import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
+import imageUrl from '../utils/imageUrl'
+import goBackOrRoute from '../utils/navigation'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 
 function SubmissionPanel({ submission }) {
-  const apiRoot = getApiRoot()
   return (
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Box sx={{ mb: 1 }}>
@@ -35,7 +36,7 @@ function SubmissionPanel({ submission }) {
         </Typography>
       </Box>
       {submission.screenshotUrl ? (
-        <PanZoomImage src={`${apiRoot}${submission.screenshotUrl}`} alt={`${submission.username ?? 'Anonymous'} screenshot`} />
+        <PanZoomImage src={imageUrl(submission.screenshotUrl)} alt={`${submission.username ?? 'Anonymous'} screenshot`} />
       ) : (
         <Card sx={{ p: 3, textAlign: 'center', height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Typography color="text.secondary">No screenshot attached</Typography>
@@ -79,10 +80,7 @@ export default function CompareSubmissions() {
     <div>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Compare Submissions</Typography>
-        <AppButton onClick={() => {
-          if (window.history.length > 1) navigate(-1)
-          else navigate(sub1.gameId ? `/games/${sub1.gameId}` : '/')
-        }}>Back</AppButton>
+        <AppButton onClick={() => goBackOrRoute(navigate, sub1.gameId ? `/games/${sub1.gameId}` : '/', {})}>Back</AppButton>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>

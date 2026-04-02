@@ -59,10 +59,10 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(255,255,255,0.04);
 }
 
-/* Native inputs in dark mode */
-[data-theme="dark"] input,
-[data-theme="dark"] textarea,
-[data-theme="dark"] select {
+/* Native inputs in dark mode (exclude MUI inputs) */
+[data-theme="dark"] input:not(.MuiInputBase-input):not(.MuiOutlinedInput-input),
+[data-theme="dark"] textarea:not(.MuiInputBase-input):not(.MuiOutlinedInput-input),
+[data-theme="dark"] select:not(.MuiInputBase-input):not(.MuiOutlinedInput-input) {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);
   color: #edf2f7;
@@ -143,7 +143,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── Native inputs (pages not yet on MUI TextField) ─────────── */
-input, textarea, select {
+/* Exclude MUI input elements so MUI theme controls appearance */
+input:not(.MuiInputBase-input):not(.MuiOutlinedInput-input),
+textarea:not(.MuiInputBase-input):not(.MuiOutlinedInput-input),
+select:not(.MuiInputBase-input):not(.MuiOutlinedInput-input) {
   font-family: inherit;
   padding: 10px 12px;
   border-radius: 12px;
@@ -152,7 +155,9 @@ input, textarea, select {
   outline: none;
   font-size: 1rem;
 }
-input:focus, textarea:focus, select:focus {
+input:not(.MuiInputBase-input):not(.MuiOutlinedInput-input):focus,
+textarea:not(.MuiInputBase-input):not(.MuiOutlinedInput-input):focus,
+select:not(.MuiInputBase-input):not(.MuiOutlinedInput-input):focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255,122,182,0.15);
 }

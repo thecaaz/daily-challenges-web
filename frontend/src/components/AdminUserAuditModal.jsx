@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Table, TableHead, TableRow, TableCell, TableBody, TextField, MenuItem, IconButton } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Table, TableHead, TableRow, TableCell, TableBody, TextField, MenuItem, IconButton } from '@mui/material'
+import AppButton from './ui/AppButton'
 import CloseIcon from '@mui/icons-material/Close'
 import api from '../api'
 import { formatDateTimeUtc } from '../utils/dateFormat'
 import { useSnackbar } from '../contexts/SnackbarContext'
+import downloadBlob from '../utils/downloadBlob'
 
 export default function AdminUserAuditModal({ open, onClose, userId, username }) {
   const { showSnackbar } = useSnackbar()
@@ -44,14 +46,7 @@ export default function AdminUserAuditModal({ open, onClose, userId, username })
       if (to) params.to = to
       if (eventType) params.eventType = eventType
       const res = await api.get(`/admin/users/${userId}/xp-events/export`, { params, responseType: 'blob' })
-      const url = window.URL.createObjectURL(new Blob([res.data]))
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `xp-events-user-${userId}.csv`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      window.URL.revokeObjectURL(url)
+      downloadBlob(`xp-events-user-${userId}.csv`, new Blob([res.data]))
     } catch (err) {
       showSnackbar('Failed to export CSV', 'error')
     }
@@ -75,8 +70,8 @@ export default function AdminUserAuditModal({ open, onClose, userId, username })
             <MenuItem value="streak_bonus">Streak Bonus</MenuItem>
             <MenuItem value="admin_adjustment">Admin Adjustment</MenuItem>
           </TextField>
-          <Button variant="outlined" onClick={() => fetchPage(1)}>Apply</Button>
-          <Button variant="text" onClick={() => { setFrom(''); setTo(''); setEventType(''); fetchPage(1) }}>Reset</Button>
+          <AppButton variant="outlined" onClick={() => fetchPage(1)}>Apply</AppButton>
+          <AppButton variant="text" onClick={() => { setFrom(''); setTo(''); setEventType(''); fetchPage(1) }}>Reset</AppButton>
         </div>
 
         <Table size="small">
@@ -109,14 +104,14 @@ export default function AdminUserAuditModal({ open, onClose, userId, username })
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
           <div>Showing {items.length} of {totalCount}</div>
           <div>
-            <Button disabled={page <= 1} onClick={() => fetchPage(page - 1)}>Prev</Button>
-            <Button disabled={page * pageSize >= totalCount} onClick={() => fetchPage(page + 1)}>Next</Button>
+            <AppButton variant="text" disabled={page <= 1} onClick={() => fetchPage(page - 1)}>Prev</AppButton>
+            <AppButton variant="text" disabled={page * pageSize >= totalCount} onClick={() => fetchPage(page + 1)}>Next</AppButton>
           </div>
         </div>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleExport}>Export CSV</Button>
-        <Button onClick={onClose}>Close</Button>
+        <AppButton variant="text" onClick={handleExport}>Export CSV</AppButton>
+        <AppButton variant="text" onClick={onClose}>Close</AppButton>
       </DialogActions>
     </Dialog>
   )

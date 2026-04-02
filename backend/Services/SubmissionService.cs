@@ -3,6 +3,7 @@ using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
+using DailyChallenges.Services.Ranking;
 using System.Security.Claims;
 
 namespace DailyChallenges.Services
@@ -35,7 +36,7 @@ namespace DailyChallenges.Services
         public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, DateTime? scoringDay = null, int page = 1, int pageSize = 50)
         {
             var game = await _games.GetByIdAsync(gameId);
-            var result = new SubmissionPageDto { Page = page, PageSize = pageSize };
+            var strategy = RankingStrategyFactory.GetStrategy(game?.RankingMode ?? RankingMode.Highest);
 
             var currentDay = GetCurrentScoringDay(game);
 
@@ -57,7 +58,7 @@ namespace DailyChallenges.Services
             var winnersByDay = new Dictionary<DateTime, Submission>();
             if (daysInPage.Count > 0)
             {
-                var winners = await _subs.GetWinnersForGameAndDaysAsync(gameId, daysInPage);
+                var winners = await _subs.GetWinnersForGameAndDaysAsync(gameId, daysInPage, strategy);
                 if (winners != null)
                 {
                     foreach (var w in winners)
@@ -77,7 +78,7 @@ namespace DailyChallenges.Services
             // If the caller requested a specific scoring day, populate 1-based ranks for scored submissions on that day.
             if (scoringDay.HasValue)
             {
-                var scoredOrdered = await _subs.GetByGameAndDayByScoreValueAsync(gameId, scoringDay.Value.Date);
+                var scoredOrdered = await _subs.GetByGameAndDayByScoreValueAsync(gameId, scoringDay.Value.Date, strategy);
                 var rankMap = new Dictionary<int, int>();
                 int r = 1;
                 foreach (var s in scoredOrdered)
@@ -92,13 +93,7 @@ namespace DailyChallenges.Services
                 }
             }
 
-            result.Items = mapped;
-            result.HasSubmittedForLatest = hasSubmittedForLatest;
-            result.TotalCount = totalCount;
-            result.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-            result.HasMore = page < result.TotalPages;
-
-            return result;
+            return SubmissionDtoHelper.ToPageDto(mapped, page, pageSize, hasSubmittedForLatest, totalCount);
         }
 
         public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user)
@@ -122,7 +117,7 @@ namespace DailyChallenges.Services
             var game = await _games.GetByIdAsync(gameId);
             var currentDay = GetCurrentScoringDay(game);
             var usernames = await _subs.GetUsernamesForDayAsync(gameId, currentDay);
-            return new TodaySubmittersDto { Count = usernames.Count, Usernames = usernames };
+            return SubmissionDtoHelper.ToTodaySubmittersDto(usernames);
         }
 
 
@@ -172,12 +167,13 @@ namespace DailyChallenges.Services
         {
             var game = await _games.GetByIdAsync(gameId);
             if (game == null) return null;
+            var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
 
             DateTime day;
             if (scoringDay.HasValue) day = scoringDay.Value;
             else day = GetCurrentScoringDay(game);
 
-            var winner = await _subs.GetWinnerForGameAndDayAsync(gameId, day);
+            var winner = await _subs.GetWinnerForGameAndDayAsync(gameId, day, strategy);
             if (winner == null) return null;
 
             var dto = DtoMapper.ToDto(winner);

@@ -52,6 +52,7 @@ namespace DailyChallenges.Mapping
                 // ResetTime is exported as HH:mm and timezone id as provided
                 ResetTime = g.ResetTime.ToString(@"hh\:mm"),
                 ResetTimezoneId = g.ResetTimezoneId,
+                RankingMode = g.RankingMode.ToString().ToLowerInvariant(),
                 Submissions = includeSubmissions && g.Submissions != null
                     ? g.Submissions.Select(ToDto).ToList()
                     : null
@@ -60,7 +61,7 @@ namespace DailyChallenges.Mapping
             try
             {
                 // Compute current scoring day on the server side so frontend can rely on it
-                dto.CurrentScoringDay = Services.ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).ToString("yyyy-MM-dd");
+                dto.CurrentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).ToString("yyyy-MM-dd");
             }
             catch
             {
@@ -70,9 +71,9 @@ namespace DailyChallenges.Mapping
             return dto;
         }
 
-        public static DailyChallenges.DTOs.XpEventDto ToDto(XpEvent e)
+        public static XpEventDto ToDto(XpEvent e)
         {
-            return new DailyChallenges.DTOs.XpEventDto
+            return new XpEventDto
             {
                 Id = e.Id,
                 UserId = e.UserId,
@@ -83,6 +84,21 @@ namespace DailyChallenges.Mapping
                 EventType = e.EventType,
                 Details = e.Details,
                 CreatedAt = e.CreatedAt
+            };
+        }
+        
+        public static NotificationDto ToDto(Notification n)
+        {
+            return new NotificationDto
+            {
+                Id = n.Id,
+                Message = n.Message,
+                Type = n.Type,
+                GameId = n.GameId,
+                ScoringDay = ScoringDayHelper.FormatScoringDay(n.ScoringDay),
+                Rank = n.Rank,
+                IsRead = n.IsRead,
+                CreatedAt = n.CreatedAt
             };
         }
     }

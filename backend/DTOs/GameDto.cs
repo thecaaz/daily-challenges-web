@@ -16,5 +16,7 @@ namespace DailyChallenges.DTOs
         // Current scoring day computed on server (YYYY-MM-DD) based on ResetTime/ResetTimezoneId
         public string? CurrentScoringDay { get; set; }
         public List<SubmissionDto>? Submissions { get; set; }
+        // How the daily winner is determined: "highest" or "lowest"
+        public string RankingMode { get; set; } = "highest";
     }
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button } from '@mui/material'
+import AppButton from './AppButton'
 
 export default function ImagePreview({ previewUrl, onRemove, alt = 'preview', maxWidth = 320 }) {
   if (!previewUrl) return null
@@ -7,7 +7,7 @@ export default function ImagePreview({ previewUrl, onRemove, alt = 'preview', ma
   return (
     <div style={{ marginTop: 8 }}>
       <img src={previewUrl} alt={alt} style={{ maxWidth, display: 'block', marginBottom: 6 }} />
-      <Button onClick={onRemove} size="small">Remove</Button>
+      <AppButton variant="text" onClick={onRemove} size="small">Remove</AppButton>
     </div>
   )
 }

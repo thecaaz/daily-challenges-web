@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using DailyChallenges.Repositories;
-using DailyChallenges.DTOs;
 using DailyChallenges.Services;
 
 namespace DailyChallenges.Controllers
@@ -11,11 +9,11 @@ namespace DailyChallenges.Controllers
     [Authorize]
     public class NotificationsController : ControllerBase
     {
-        private readonly INotificationRepository _notifications;
+        private readonly INotificationService _notificationService;
 
-        public NotificationsController(INotificationRepository notifications)
+        public NotificationsController(INotificationService notificationService)
         {
-            _notifications = notifications;
+            _notificationService = notificationService;
         }
 
         [HttpGet]
@@ -24,25 +22,7 @@ namespace DailyChallenges.Controllers
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
 
-            var (items, total, unread) = await _notifications.GetByUserPagedAsync(userId.Value, page, pageSize);
-
-            var dto = new NotificationPageDto
-            {
-                Items = items.Select(n => new NotificationDto
-                {
-                    Id = n.Id,
-                    Message = n.Message,
-                    Type = n.Type,
-                    GameId = n.GameId,
-                    ScoringDay = ScoringDayHelper.FormatScoringDay(n.ScoringDay),
-                    Rank = n.Rank,
-                    IsRead = n.IsRead,
-                    CreatedAt = n.CreatedAt
-                }).ToList(),
-                TotalCount = total,
-                UnreadCount = unread
-            };
-
+            var dto = await _notificationService.GetNotificationsAsync(userId.Value, page, pageSize);
             return Ok(dto);
         }
 
@@ -52,7 +32,7 @@ namespace DailyChallenges.Controllers
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
 
-            var count = await _notifications.GetUnreadCountAsync(userId.Value);
+            var count = await _notificationService.GetUnreadCountAsync(userId.Value);
             return Ok(new { unreadCount = count });
         }
 
@@ -62,7 +42,7 @@ namespace DailyChallenges.Controllers
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
 
-            await _notifications.MarkReadAsync(id, userId.Value);
+            await _notificationService.MarkReadAsync(id, userId.Value);
             return NoContent();
         }
 
@@ -72,7 +52,7 @@ namespace DailyChallenges.Controllers
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
 
-            await _notifications.MarkAllReadAsync(userId.Value);
+            await _notificationService.MarkAllReadAsync(userId.Value);
             return NoContent();
         }
 
@@ -82,14 +62,15 @@ namespace DailyChallenges.Controllers
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
 
-            var n = await _notifications.GetByIdAsync(id);
-            if (n == null) return NotFound();
-
-            // allow owner or admin
-            if (n.UserId != userId.Value && !User.IsInRole("Admin")) return Forbid();
-
-            await _notifications.DeleteAsync(id);
-            return NoContent();
+            try
+            {
+                await _notificationService.DeleteAsync(id, userId.Value, User.IsInRole("Admin"));
+                return NoContent();
+            }
+            catch (InvalidOperationException)
+            {
+                return Forbid();
+            }
         }
     }
 }

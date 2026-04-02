@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react'
 import './gamebar.css'
 import { Link, useNavigate } from 'react-router-dom'
-import { AppBar, Toolbar, Box, Button, Typography, Chip, LinearProgress, Tooltip, IconButton } from '@mui/material'
+import { AppBar, Toolbar, Box, Typography, Chip, LinearProgress, Tooltip, IconButton } from '@mui/material'
+import AppButton from './ui/AppButton'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
@@ -151,37 +152,21 @@ export default function GameBar() {
             </IconButton>
             <NotificationBell />
             {user.isAdmin && (
-              <Button
-                component={Link}
-                to="/admin"
-                variant="outlined"
-                color="primary"
-                size="small"
-                startIcon={<AdminPanelSettingsIcon />}
-              >
+              <AppButton to="/admin" variant="outlined" color="primary" size="small" startIcon={<AdminPanelSettingsIcon />}>
                 Admin
-              </Button>
+              </AppButton>
             )}
             <Typography variant="body2" color="text.secondary" sx={{ mx: 1, display: { xs: 'none', sm: 'block' } }}>
               {user.username}
             </Typography>
-            <Button
-              variant="contained"
-              color="primary"
-              size="small"
-              onClick={() => { logout(); navigate('/') }}
-            >
+            <AppButton variant="contained" color="primary" size="small" onClick={() => { logout(); navigate('/') }}>
               Logout
-            </Button>
+            </AppButton>
           </Box>
         ) : (
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button component={Link} to="/login" variant="outlined" color="primary" size="small">
-              Login
-            </Button>
-            <Button component={Link} to="/register" variant="contained" color="primary" size="small">
-              Register
-            </Button>
+            <AppButton to="/login" variant="outlined" color="primary" size="small">Login</AppButton>
+            <AppButton to="/register" variant="contained" color="primary" size="small">Register</AppButton>
           </Box>
         )}
       </Toolbar>

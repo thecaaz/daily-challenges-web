@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using DailyChallenges.Data;
+using DailyChallenges.Middleware;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -69,6 +70,11 @@ builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenge
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
 builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionService, DailyChallenges.Services.SubmissionService>();
+builder.Services.AddScoped<DailyChallenges.Services.INotificationService, DailyChallenges.Services.NotificationService>();
+
+// Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, DailyChallenges.Services.InfoService>();
 
 // Scoring day finalization
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
@@ -114,6 +120,7 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 app.UseCors("DefaultCors");
+app.UseExceptionToHttpResponse();
 
 if (app.Environment.IsDevelopment())
 {

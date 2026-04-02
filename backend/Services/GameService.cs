@@ -2,6 +2,7 @@ using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
+using DailyChallenges.Services.Ranking;
 using System.Security.Claims;
 
 namespace DailyChallenges.Services
@@ -27,17 +28,17 @@ namespace DailyChallenges.Services
             return games.Select(g => DtoMapper.ToDto(g)).ToList();
         }
 
-        public async Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description)
+        public async Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null)
         {
             var game = new Game { Name = name };
             if (!string.IsNullOrWhiteSpace(resetTime))
             {
-                if (TimeSpan.TryParse(resetTime, out var ts)) game.ResetTime = ts;
-                else if (TimeSpan.TryParseExact(resetTime, "hh\\:mm", null, out var ts2)) game.ResetTime = ts2;
+                if (TryParseResetTime(resetTime, out var ts)) game.ResetTime = ts;
             }
             if (!string.IsNullOrWhiteSpace(resetTimezoneId)) game.ResetTimezoneId = resetTimezoneId;
             if (!string.IsNullOrWhiteSpace(url)) game.Url = url;
             if (!string.IsNullOrWhiteSpace(description)) game.Description = description;
+            if (Enum.TryParse<RankingMode>(rankingMode, ignoreCase: true, out var mode)) game.RankingMode = mode;
 
             if (image != null && image.Length > 0)
             {
@@ -52,7 +53,7 @@ namespace DailyChallenges.Services
 
         public async Task<Game?> GetByIdAsync(int id) => await _games.GetByIdAsync(id);
 
-        public async Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description)
+        public async Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null)
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
@@ -60,11 +61,11 @@ namespace DailyChallenges.Services
             if (!string.IsNullOrWhiteSpace(url)) g.Url = url;
             if (!string.IsNullOrWhiteSpace(resetTime))
             {
-                if (TimeSpan.TryParse(resetTime, out var ts)) g.ResetTime = ts;
-                else if (TimeSpan.TryParseExact(resetTime, "hh\\:mm", null, out var ts2)) g.ResetTime = ts2;
+                if (TryParseResetTime(resetTime, out var ts)) g.ResetTime = ts;
             }
             if (!string.IsNullOrWhiteSpace(resetTimezoneId)) g.ResetTimezoneId = resetTimezoneId;
             if (description != null) g.Description = description;
+            if (!string.IsNullOrWhiteSpace(rankingMode) && Enum.TryParse<RankingMode>(rankingMode, ignoreCase: true, out var mode)) g.RankingMode = mode;
 
             if (image != null && image.Length > 0)
             {
@@ -92,6 +93,7 @@ namespace DailyChallenges.Services
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
+            var strategy = RankingStrategyFactory.GetStrategy(g.RankingMode);
             // Determine whether the current user has already submitted today
             var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId);
             bool hasSubmittedToday = false;
@@ -101,7 +103,7 @@ namespace DailyChallenges.Services
             }
 
             // Prefer numeric ScoreValue ordering (handled in the DB) to avoid heavy in-memory parsing/sorts.
-            var numericCandidates = (await _subsRepo.GetTopByGameByScoreValueAsync(id, 2000)) ?? new List<Submission>();
+            var numericCandidates = (await _subsRepo.GetTopByGameByScoreValueAsync(id, 2000, strategy)) ?? new List<Submission>();
             var usedNumeric = numericCandidates.Count > 0;
 
             List<Submission> subs = usedNumeric
@@ -121,13 +123,27 @@ namespace DailyChallenges.Services
             }
             else
             {
-                topDtos = subs
-                    .Select(s => new { Sub = s, Num = ScoreParser.ParseScore(s.Score) })
-                    .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
-                    .ThenBy(x => x.Sub.CreatedAt)
-                    .Take(50)
-                    .Select(x => DtoMapper.ToDto(x.Sub))
-                    .ToList();
+                // Fallback: in-memory sort for non-numeric scores respecting ranking mode
+                if (g.RankingMode == RankingMode.Lowest)
+                {
+                    topDtos = subs
+                        .Select(s => new { Sub = s, Num = ScoreParser.ParseScore(s.Score) })
+                        .OrderBy(x => double.IsNaN(x.Num) ? double.MaxValue : x.Num)
+                        .ThenBy(x => x.Sub.CreatedAt)
+                        .Take(50)
+                        .Select(x => DtoMapper.ToDto(x.Sub))
+                        .ToList();
+                }
+                else
+                {
+                    topDtos = subs
+                        .Select(s => new { Sub = s, Num = ScoreParser.ParseScore(s.Score) })
+                        .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
+                        .ThenBy(x => x.Sub.CreatedAt)
+                        .Take(50)
+                        .Select(x => DtoMapper.ToDto(x.Sub))
+                        .ToList();
+                }
             }
 
             AssignSequentialRanks(topDtos);
@@ -138,29 +154,9 @@ namespace DailyChallenges.Services
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
-            // Prefer numeric ScoreValue ordering when available
-            var numericCandidates = (await _subsRepo.GetTopByGameByScoreValueAsync(id, 2000)) ?? new List<Submission>();
-            var usedNumeric = numericCandidates.Count > 0;
-
-            List<Submission> userSubs = usedNumeric
-                ? numericCandidates.Where(s => s.UserId == userId).ToList()
-                : ((await _subsRepo.GetTopByGameAsync(id, 2000)) ?? new List<Submission>()).Where(s => s.UserId == userId).ToList();
-
-            List<SubmissionDto> topDtos;
-            if (usedNumeric)
-            {
-                topDtos = userSubs.Take(50).Select(s => DtoMapper.ToDto(s)).ToList();
-            }
-            else
-            {
-                topDtos = userSubs
-                    .Select(s => new { Sub = s, Num = ScoreParser.ParseScore(s.Score) })
-                    .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
-                    .ThenBy(x => x.Sub.CreatedAt)
-                    .Take(50)
-                    .Select(x => DtoMapper.ToDto(x.Sub))
-                    .ToList();
-            }
+            var strategy = RankingStrategyFactory.GetStrategy(g.RankingMode);
+            var userSubs = (await _subsRepo.GetTopByGameByUserByScoreValueAsync(id, userId, 50, strategy)) ?? new List<Submission>();
+            var topDtos = userSubs.Select(s => DtoMapper.ToDto(s)).ToList();
 
             AssignSequentialRanks(topDtos);
             return new HighscoreResult { Highscore = topDtos.FirstOrDefault(), Top = topDtos };
@@ -257,6 +253,24 @@ namespace DailyChallenges.Services
                     dto.Rank = null;
                 }
             }
+        }
+
+        private static bool TryParseResetTime(string input, out TimeSpan result)
+        {
+            if (TimeSpan.TryParse(input, out var ts))
+            {
+                result = ts;
+                return true;
+            }
+
+            if (TimeSpan.TryParseExact(input, @"hh\:mm", null, out var ts2))
+            {
+                result = ts2;
+                return true;
+            }
+
+            result = default;
+            return false;
         }
     }
 }

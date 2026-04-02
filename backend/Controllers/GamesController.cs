@@ -25,18 +25,11 @@ namespace DailyChallenges.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url, [FromForm] string? description)
+        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url, [FromForm] string? description, [FromForm] string? rankingMode)
         {
             if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
-            try
-            {
-                var created = await _games.CreateAsync(name, image, resetTime, resetTimezoneId, url, description);
-                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var created = await _games.CreateAsync(name, image, resetTime, resetTimezoneId, url, description, rankingMode);
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }
 
         [HttpGet("{id}/image")]
@@ -51,15 +44,8 @@ namespace DailyChallenges.Controllers
         [HttpGet("{id}/highscore")]
         public async Task<IActionResult> GetHighscore(int id)
         {
-            try
-            {
-                var res = await _games.GetHighscoreAsync(id, User);
-                return Ok(new { highscore = res.Highscore, top = res.Top });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var res = await _games.GetHighscoreAsync(id, User);
+            return Ok(new { highscore = res.Highscore, top = res.Top });
         }
 
         [HttpGet("{id}/personal-highscore")]
@@ -68,34 +54,16 @@ namespace DailyChallenges.Controllers
         {
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
-            try
-            {
-                var res = await _games.GetPersonalHighscoreAsync(id, userId.Value);
-                return Ok(new { personalHighscore = res.Highscore, top = res.Top });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var res = await _games.GetPersonalHighscoreAsync(id, userId.Value);
+            return Ok(new { personalHighscore = res.Highscore, top = res.Top });
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url, [FromForm] string? description)
+        public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url, [FromForm] string? description, [FromForm] string? rankingMode)
         {
-            try
-            {
-                var updated = await _games.UpdateAsync(id, name, image, resetTime, resetTimezoneId, url, description);
-                return Ok(updated);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var updated = await _games.UpdateAsync(id, name, image, resetTime, resetTimezoneId, url, description, rankingMode);
+            return Ok(updated);
         }
 
         [HttpDelete("{id}")]
@@ -117,15 +85,8 @@ namespace DailyChallenges.Controllers
         [HttpGet("{id}/overview")]
         public async Task<IActionResult> GetOverview(int id, [FromQuery] string? include, [FromQuery] int? top)
         {
-            try
-            {
-                var dto = await _games.GetOverviewAsync(id, User, include, top ?? 0);
-                return Ok(dto);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            var dto = await _games.GetOverviewAsync(id, User, include, top ?? 0);
+            return Ok(dto);
         }
     }
 }

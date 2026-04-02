@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Typography } from '@mui/material'
+import { Paper, Table, TableHead, TableRow, TableCell, TableBody, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Typography } from '@mui/material'
+import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import useRequireAdmin from '../hooks/useRequireAdmin'
@@ -126,12 +127,12 @@ export default function AdminUsers() {
                     onChange={e => setDeltaById({ ...deltaById, [u.id]: e.target.value })}
                     style={{ width: 100, marginRight: 8 }}
                   />
-                  <Button variant="contained" onClick={() => adjust(u.id, Math.abs(Number(deltaById[u.id] || 0)))}>Add</Button>
-                  <Button variant="outlined" color="error" onClick={() => adjust(u.id, -Math.abs(Number(deltaById[u.id] || 0)))} style={{ marginLeft: 8 }}>Deduct</Button>
-                  <Button variant="text" onClick={() => { setAuditUserId(u.id); setAuditUsername(u.username); setAuditOpen(true) }} style={{ marginLeft: 8 }}>Audit</Button>
-                  <Button variant="outlined" onClick={() => openSetPassword(u.id)} style={{ marginLeft: 8 }}>Set Password</Button>
+                  <AppButton variant="contained" onClick={() => adjust(u.id, Math.abs(Number(deltaById[u.id] || 0)))}>Add</AppButton>
+                  <AppButton variant="outlined" color="error" onClick={() => adjust(u.id, -Math.abs(Number(deltaById[u.id] || 0)))} style={{ marginLeft: 8 }}>Deduct</AppButton>
+                  <AppButton variant="text" onClick={() => { setAuditUserId(u.id); setAuditUsername(u.username); setAuditOpen(true) }} style={{ marginLeft: 8 }}>Audit</AppButton>
+                  <AppButton variant="outlined" onClick={() => openSetPassword(u.id)} style={{ marginLeft: 8 }}>Set Password</AppButton>
                   {!u.isAdmin && u.id !== user?.id && (
-                    <Button variant="outlined" color="error" onClick={() => deleteUser(u.id)} style={{ marginLeft: 8 }}>Delete</Button>
+                    <AppButton variant="outlined" color="error" onClick={() => deleteUser(u.id)} style={{ marginLeft: 8 }}>Delete</AppButton>
                   )}
                 </TableCell>
               </TableRow>
@@ -156,8 +157,8 @@ export default function AdminUsers() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeSetPassword}>Cancel</Button>
-          <Button variant="contained" onClick={confirmSetPassword}>Confirm</Button>
+          <AppButton variant="text" onClick={closeSetPassword}>Cancel</AppButton>
+          <AppButton variant="contained" onClick={confirmSetPassword}>Confirm</AppButton>
         </DialogActions>
       </Dialog>
 

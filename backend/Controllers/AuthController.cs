@@ -18,29 +18,15 @@ namespace DailyChallenges.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            try
-            {
-                var u = await _auth.RegisterAsync(dto.Username, dto.Password);
-                return Ok(u);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var u = await _auth.RegisterAsync(dto.Username, dto.Password);
+            return Ok(u);
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            try
-            {
-                var u = await _auth.LoginAsync(dto.Username, dto.Password, Response);
-                return Ok(u);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized(new { message = "Invalid credentials" });
-            }
+            var u = await _auth.LoginAsync(dto.Username, dto.Password, Response);
+            return Ok(u);
         }
 
         [HttpPost("logout")]

@@ -1,5 +1,6 @@
 import React from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Typography, Box } from '@mui/material'
+import AppButton from './ui/AppButton'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -41,7 +42,7 @@ export default function ChangelogModal({ open, onClose, version, rawVersion, cha
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="primary">Close</Button>
+        <AppButton variant="text" onClick={onClose} color="primary">Close</AppButton>
       </DialogActions>
     </Dialog>
   )

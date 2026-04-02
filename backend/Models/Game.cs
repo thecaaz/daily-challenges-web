@@ -26,5 +26,7 @@ namespace DailyChallenges.Models
         public string? Url { get; set; }
         // Optional description for game detail page
         public string? Description { get; set; }
+        // Determines how ranks are calculated
+        public RankingMode RankingMode { get; set; } = RankingMode.Highest;
     }
 }

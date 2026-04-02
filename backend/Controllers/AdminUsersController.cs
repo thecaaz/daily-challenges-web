@@ -24,22 +24,15 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost("{id}/xp")]
-        public async Task<IActionResult> AdjustXp(int id, [FromBody] DailyChallenges.DTOs.AdminAdjustXpDto dto)
+        public async Task<IActionResult> AdjustXp(int id, [FromBody] DTOs.AdminAdjustXpDto dto)
         {
             if (dto == null) return BadRequest();
             if (dto.Delta == 0) return BadRequest(new { message = "Delta must be non-zero" });
 
             var adminId = User.GetUserId();
 
-            try
-            {
-                var updated = await _adminService.AdjustXpAsync(id, dto.Delta, dto.Reason, adminId);
-                return Ok(updated);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var updated = await _adminService.AdjustXpAsync(id, dto.Delta, dto.Reason, adminId);
+            return Ok(updated);
         }
 
         [HttpGet("{id}/xp-events")]
@@ -57,20 +50,13 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost("{id}/password")]
-        public async Task<IActionResult> SetPassword(int id, [FromBody] DailyChallenges.DTOs.AdminSetPasswordDto dto)
+        public async Task<IActionResult> SetPassword(int id, [FromBody] DTOs.AdminSetPasswordDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
                 return BadRequest(new { message = "NewPassword is required" });
 
-            try
-            {
-                await _adminService.SetPasswordAsync(id, dto.NewPassword);
-                return NoContent();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            await _adminService.SetPasswordAsync(id, dto.NewPassword);
+            return NoContent();
         }
 
         [HttpDelete("{id}")]
@@ -79,19 +65,8 @@ namespace DailyChallenges.Controllers
             var requestingAdminId = User.GetUserId();
             if (requestingAdminId == null) return Unauthorized();
 
-            try
-            {
-                await _adminService.DeleteUserAsync(id, requestingAdminId.Value);
-                return NoContent();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            await _adminService.DeleteUserAsync(id, requestingAdminId.Value);
+            return NoContent();
         }
     }
 }

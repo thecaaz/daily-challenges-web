@@ -2,7 +2,7 @@ import React from 'react'
 import { CardMedia, Box, Typography, Tooltip } from '@mui/material'
 import AppButton from './ui/AppButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
-import { getApiRoot } from '../api'
+import imageUrl from '../utils/imageUrl'
 
 export default function GameHeader({ game }) {
   if (!game) return null
@@ -19,7 +19,7 @@ export default function GameHeader({ game }) {
       {game.imageUrl ? (
         <CardMedia
           component="img"
-          image={`${getApiRoot()}${game.imageUrl}`}
+          image={imageUrl(game.imageUrl)}
           alt={game.name}
           loading="lazy"
           className="game-image"
