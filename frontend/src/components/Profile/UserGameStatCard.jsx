@@ -2,6 +2,7 @@ import React from 'react'
 import { Card, CardContent, Typography, Box, Link as MuiLink } from '@mui/material'
 import { Link } from 'react-router-dom'
 import timeAgo from '../../utils/timeAgo'
+import formatNumber from '../../utils/formatNumber'
 
 export default function UserGameStatCard({ game }) {
   const id = game.gameId ?? game.GameId
@@ -20,7 +21,7 @@ export default function UserGameStatCard({ game }) {
           <Typography variant="caption" color="text.secondary">Plays: {plays}</Typography>
         </Box>
         <Box sx={{ mt: 1 }}>
-          <Typography variant="body2">Highest: {highest ?? '—'}</Typography>
+          <Typography variant="body2">Highest: {highest != null ? formatNumber(highest) : '—'}</Typography>
           {last ? <Typography variant="body2" color="text.secondary">Last played: {timeAgo(last)}</Typography> : null}
         </Box>
       </CardContent>

@@ -13,7 +13,8 @@ export default function UserProfileHeader({ profile }) {
   const streak = profile.streak ?? profile.Streak ?? 0
   const last = profile.lastSubmissionAt ?? profile.LastSubmissionAt
 
-  const percent = xpToNext > 0 ? Math.round((xpInto / xpToNext) * 100) : 0
+  const totalForLevel = xpInto + xpToNext
+  const percent = totalForLevel > 0 ? Math.round((xpInto / totalForLevel) * 100) : 0
 
   return (
     <Box>
@@ -38,7 +39,7 @@ export default function UserProfileHeader({ profile }) {
 
           <Box sx={{ mt: 1 }}>
             <LinearProgress variant="determinate" value={percent} sx={{ height: 8, borderRadius: 1 }} />
-            <Typography variant="caption" color="text.secondary">{xpInto}/{xpToNext} XP to next level ({percent}%)</Typography>
+            <Typography variant="caption" color="text.secondary">{xpInto}/{totalForLevel} XP ({xpToNext} to go) — {percent}%</Typography>
           </Box>
         </Grid>
       </Grid>
