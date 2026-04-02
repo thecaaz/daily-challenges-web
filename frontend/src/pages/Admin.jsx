@@ -34,6 +34,7 @@ export default function Admin() {
   const [resetTime, setResetTime] = useState('00:00')
   const [url, setUrl] = useState('')
   const [description, setDescription] = useState('')
+  const [rankingMode, setRankingMode] = useState('highest')
   const [detectedTimezone, setDetectedTimezone] = useState(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -50,11 +51,13 @@ export default function Admin() {
     if (description) fd.append('description', description)
     fd.append('resetTime', resetTime)
     fd.append('resetTimezoneId', detectedTimezone)
+    fd.append('rankingMode', rankingMode)
     if (createImageFile) fd.append('image', createImageFile)
     try {
       await api.post('/games', fd)
       setName('')
       setDescription('')
+      setRankingMode('highest')
       clearCreateImage()
       setResetTime('00:00')
       showSnackbar('Game created', 'success')
@@ -103,6 +106,7 @@ export default function Admin() {
       if (editImageFile) fd.append('image', editImageFile)
       else if (editingGame.imageFile) fd.append('image', editingGame.imageFile)
       if (editingGame.description !== undefined) fd.append('description', editingGame.description ?? '')
+      fd.append('rankingMode', editingGame.rankingMode ?? 'highest')
       await api.put(`/games/${editingGame.id}`, fd)
       showSnackbar('Game updated', 'success')
       setEditingGame(null)
@@ -176,6 +180,13 @@ export default function Admin() {
             <label>Reset timezone (detected): </label>
             <input type="text" value={detectedTimezone} readOnly />
           </div>
+        <div>
+            <label>Ranking mode: </label>
+            <select value={rankingMode} onChange={e => setRankingMode(e.target.value)}>
+              <option value="highest">Highest (higher score wins)</option>
+              <option value="lowest">Lowest (lower score wins)</option>
+            </select>
+          </div>
         <AppButton type="submit">Create Game</AppButton>
       </Stack>
       
@@ -209,6 +220,13 @@ export default function Admin() {
           <div>
             <label>Reset time: </label>
             <input type="time" value={editingGame.resetTime ?? '00:00'} onChange={e => setEditingGame({ ...editingGame, resetTime: e.target.value })} />
+          </div>
+          <div>
+            <label>Ranking mode: </label>
+            <select value={editingGame.rankingMode ?? 'highest'} onChange={e => setEditingGame({ ...editingGame, rankingMode: e.target.value })}>
+              <option value="highest">Highest (higher score wins)</option>
+              <option value="lowest">Lowest (lower score wins)</option>
+            </select>
           </div>
           <div>
             <ImageUpload onFileChange={onEditFileChange} previewUrl={editPreviewUrl} onRemove={clearEditImage} />

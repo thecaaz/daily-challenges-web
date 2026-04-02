@@ -6,9 +6,9 @@ namespace DailyChallenges.Services
     public interface IGameService
     {
         Task<List<GameDto>> GetAllAsync();
-        Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description);
+        Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null);
         Task<Models.Game?> GetByIdAsync(int id);
-        Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description);
+        Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null);
         Task DeleteAsync(int id);
         Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id);
         Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user);

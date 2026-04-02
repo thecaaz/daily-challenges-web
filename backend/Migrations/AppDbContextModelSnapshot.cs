@@ -30,6 +30,9 @@ namespace DailyChallenges.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("RankingMode")
+                        .HasColumnType("INTEGER");
+
                     b.Property<TimeSpan>("ResetTime")
                         .HasColumnType("TEXT");
 

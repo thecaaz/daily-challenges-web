@@ -1,5 +1,6 @@
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
+using DailyChallenges.Services.Ranking;
 using Microsoft.Extensions.Options;
 
 namespace DailyChallenges.Services
@@ -50,8 +51,9 @@ namespace DailyChallenges.Services
                 return;
             }
 
-            // Get all scored submissions for this game+day, ranked by ScoreValue desc then CreatedAt asc
-            var rankedSubmissions = await _subs.GetByGameAndDayByScoreValueAsync(gameId, day);
+            // Get all scored submissions for this game+day, ranked by the game's ranking strategy
+            var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
+            var rankedSubmissions = await _subs.GetByGameAndDayByScoreValueAsync(gameId, day, strategy);
 
             if (rankedSubmissions.Count == 0)
             {
