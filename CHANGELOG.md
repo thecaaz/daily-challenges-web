@@ -1,3 +1,10 @@
+### [1.14.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.14.1...v1.14.2) (2026-04-02)
+
+
+### Bug Fixes
+
+* **profile:** rename highestScore to best for clarity in UserGameStatCard ([c87231a](https://github.com/thecaaz/daily-challenges-web/commit/c87231ae17068fc589a8059340c1caab0a50a1d0))
+
 ### [1.14.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.14.0...v1.14.1) (2026-04-02)
 
 
