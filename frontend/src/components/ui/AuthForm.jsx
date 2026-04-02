@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import { Box, Button, Paper, Stack, TextField, Typography } from '@mui/material'
+import { Box, Paper, Stack, TextField, Typography } from '@mui/material'
+import AppButton from './AppButton'
 
 export default function AuthForm({
   icon,
@@ -55,7 +56,7 @@ export default function AuthForm({
               required
               autoComplete={passwordAutoComplete}
             />
-            <Button
+            <AppButton
               type="submit"
               variant="contained"
               color="primary"
@@ -64,7 +65,7 @@ export default function AuthForm({
               sx={{ mt: 1 }}
             >
               {loading ? submitLoadingLabel : submitLabel}
-            </Button>
+            </AppButton>
           </Stack>
         </Box>
 

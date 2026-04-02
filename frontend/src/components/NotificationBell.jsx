@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IconButton, Badge, Popover, List, ListItemButton, ListItemText,
-  Typography, Box, Button, Divider, Chip
+  Typography, Box, Divider, Chip
 } from '@mui/material'
+import AppButton from './ui/AppButton'
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
@@ -115,9 +116,9 @@ export default function NotificationBell() {
         <Box sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Notifications</Typography>
           {unreadCount > 0 && (
-            <Button size="small" onClick={handleMarkAllRead} sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
+            <AppButton variant="text" size="small" onClick={handleMarkAllRead} sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
               Mark all read
-            </Button>
+            </AppButton>
           )}
         </Box>
         <Divider />

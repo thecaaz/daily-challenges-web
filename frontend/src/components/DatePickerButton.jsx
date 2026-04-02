@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Popover, Box, Typography, Button } from '@mui/material'
+import { Popover, Box, Typography } from '@mui/material'
 import AppButton from './ui/AppButton'
 import DateCalendar from './DateCalendar'
 
@@ -31,9 +31,9 @@ export default function DatePickerButton({ availableDates = [], selectedDate = '
         <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Day</Typography>
           {selectedDate ? (
-            <Button size="small" onClick={() => { if (onChange) onChange(''); handleClose() }} sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
+            <AppButton variant="text" size="small" onClick={() => { if (onChange) onChange(''); handleClose() }} sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
               All
-            </Button>
+            </AppButton>
           ) : null}
         </Box>
 

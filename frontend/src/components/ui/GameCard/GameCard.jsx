@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Button, Box } from '@mui/material'
+import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Box } from '@mui/material'
+import AppButton from '../AppButton'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import imageUrl from '../../../utils/imageUrl'
@@ -43,29 +44,14 @@ export default function GameCard({ game, sx, showSubmit = true }) {
 
       <CardActions sx={{ px: 2, pb: 2, pt: 0, gap: 1 }}>
         {showSubmit && (
-          <Button
-            component={Link}
-            to={`/submit/${game.id}`}
-            variant="contained"
-            color="primary"
-            size="small"
-            startIcon={<EmojiEventsIcon />}
-          >
+          <AppButton to={`/submit/${game.id}`} variant="contained" color="primary" size="small" startIcon={<EmojiEventsIcon />}>
             Submit Score
-          </Button>
+          </AppButton>
         )}
         {game.url && (
-          <Button
-            href={game.url}
-            target="_blank"
-            rel="noreferrer"
-            variant="outlined"
-            color="primary"
-            size="small"
-            endIcon={<OpenInNewIcon />}
-          >
+          <AppButton href={game.url} target="_blank" rel="noreferrer" variant="outlined" color="primary" size="small" endIcon={<OpenInNewIcon />}>
             Play
-          </Button>
+          </AppButton>
         )}
       </CardActions>
     </Card>
