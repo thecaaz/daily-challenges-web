@@ -1,3 +1,19 @@
+## [1.14.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.13.0...v1.14.0) (2026-04-02)
+
+
+### Features
+
+* **profile:** add user profile page with header and top games list ([fc6dfe4](https://github.com/thecaaz/daily-challenges-web/commit/fc6dfe44bbc7c9cef65e10ae23a251ce5df8749c))
+* **profile:** enhance user links in various components for better navigation ([e2289d6](https://github.com/thecaaz/daily-challenges-web/commit/e2289d6cb0d675e46ee7d52388923ed86f909d45))
+* **profile:** implement user profile retrieval and statistics ([68e5e51](https://github.com/thecaaz/daily-challenges-web/commit/68e5e51b56ce653ba7ba6416acbd9849f70a9b3d))
+
+
+### Bug Fixes
+
+* **profile:** fix efcore query ([34b85d9](https://github.com/thecaaz/daily-challenges-web/commit/34b85d9f513af0a9850d67fea7df02c4b5cfd7fc))
+* **profile:** format highest score and update XP display in user profile ([3ca5c97](https://github.com/thecaaz/daily-challenges-web/commit/3ca5c97f21a4d84a0a46794cb73f67cc2a8c585d))
+* **styles:** enhance native input styles for light mode ([bb5910f](https://github.com/thecaaz/daily-challenges-web/commit/bb5910f13d3eee0ad4fdbce4d8fbd65fd25c6530))
+
 ## [1.13.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.12.0...v1.13.0) (2026-04-02)
 
 
