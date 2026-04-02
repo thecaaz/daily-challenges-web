@@ -1,3 +1,16 @@
+## [1.13.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.12.0...v1.13.0) (2026-04-02)
+
+
+### Features
+
+* **games:** implement variable scoring system (highest,lowest) ([cea173c](https://github.com/thecaaz/daily-challenges-web/commit/cea173c9500462f0058438b9b156d8d546ac398e))
+
+
+### Bug Fixes
+
+* **admin-page:** add missing description field to game creation ([f6a8457](https://github.com/thecaaz/daily-challenges-web/commit/f6a8457d47b3fa4baf664393ab43af462a9fc727))
+* **textboxes:** dark mode ugly display ([33c13a3](https://github.com/thecaaz/daily-challenges-web/commit/33c13a3f04db0da642fdd9961becc791a28722d9))
+
 ## [1.12.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.11.3...v1.12.0) (2026-04-01)
 
 
