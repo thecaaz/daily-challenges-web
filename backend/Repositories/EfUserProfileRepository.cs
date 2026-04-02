@@ -19,21 +19,30 @@ namespace DailyChallenges.Repositories
         {
             if (topGames < 1) topGames = 10;
 
-            var q = from s in _db.Submissions
-                    where s.UserId == userId
-                    group s by s.GameId into g
-                    join gm in _db.Games on g.Key equals gm.Id
+            var grouped = _db.Submissions
+                .Where(s => s.UserId == userId)
+                .GroupBy(s => s.GameId)
+                .Select(g => new
+                {
+                    GameId = g.Key,
+                    Plays = g.Count(),
+                    HighestScore = g.Max(x => x.ScoreValue),
+                    LastPlayed = g.Max(x => x.CreatedAt)
+                });
+
+            var q = from g in grouped
+                    join gm in _db.Games.AsNoTracking() on g.GameId equals gm.Id
                     select new UserGameStatDto
                     {
-                        GameId = g.Key,
+                        GameId = g.GameId,
                         Name = gm.Name,
                         Url = gm.Url,
-                        Plays = g.Count(),
-                        HighestScore = g.Max(x => x.ScoreValue),
-                        LastPlayed = g.Max(x => x.CreatedAt)
+                        Plays = g.Plays,
+                        HighestScore = g.HighestScore,
+                        LastPlayed = g.LastPlayed
                     };
 
-            var list = await q.OrderByDescending(x => x.Plays).Take(topGames).AsNoTracking().ToListAsync();
+            var list = await q.OrderByDescending(x => x.Plays).Take(topGames).ToListAsync();
             return list;
         }
     }
