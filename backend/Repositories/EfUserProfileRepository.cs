@@ -26,7 +26,8 @@ namespace DailyChallenges.Repositories
                 {
                     GameId = g.Key,
                     Plays = g.Count(),
-                    HighestScore = g.Max(x => x.ScoreValue),
+                    MaxScore = g.Max(x => x.ScoreValue),
+                    MinScore = g.Min(x => x.ScoreValue),
                     LastPlayed = g.Max(x => x.CreatedAt)
                 });
 
@@ -38,7 +39,8 @@ namespace DailyChallenges.Repositories
                         Name = gm.Name,
                         Url = gm.Url,
                         Plays = g.Plays,
-                        HighestScore = g.HighestScore,
+                        // WARNING: Will need to be adjusted if we add more ranking modes in the future
+                        HighestScore = gm.RankingMode == RankingMode.Highest ? g.MaxScore : g.MinScore,
                         LastPlayed = g.LastPlayed
                     };
 
