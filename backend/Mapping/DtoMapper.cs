@@ -114,8 +114,8 @@ namespace DailyChallenges.Mapping
                 XpIntoLevel = xpInto,
                 XpToNextLevel = xpToNext,
                 Streak = u.Streak,
-                LastSubmissionAt = u.LastSubmissionAt,
-                TopGames = topGames
+                LastSubmissionAt = topGames?.Max(g => g.LastPlayed) ?? u.LastSubmissionAt,
+                TopGames = topGames ?? []
             };
         }
     }
