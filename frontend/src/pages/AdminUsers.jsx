@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Paper, Table, TableHead, TableRow, TableCell, TableBody, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Typography } from '@mui/material'
+import { Paper, Table, TableHead, TableRow, TableCell, TableBody, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Typography, Box } from '@mui/material'
+import { Link } from 'react-router-dom'
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
@@ -114,7 +115,7 @@ export default function AdminUsers() {
             {users.map(u => (
               <TableRow key={u.id}>
                 <TableCell>{u.id}</TableCell>
-                <TableCell>{u.username}</TableCell>
+                <TableCell>{u.id ? <Box component={Link} to={`/users/${u.id}`} sx={{ textDecoration: 'none', color: 'inherit' }}>{u.username}</Box> : u.username}</TableCell>
                 <TableCell>{u.totalXp}</TableCell>
                 <TableCell>{u.level}</TableCell>
                 <TableCell>{u.xpToNextLevel}</TableCell>

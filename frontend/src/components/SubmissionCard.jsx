@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardMedia, Typography, Tooltip, Box, Chip, Checkbox } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PersonIcon from '@mui/icons-material/Person'
@@ -12,6 +12,7 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
   if (!submission) return null
   const { user } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const handleCompareClick = (e) => {
     e.preventDefault()
@@ -49,9 +50,23 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
           {/* Rank badge + winner icon */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-                {submission.username ?? 'Anonymous'}
-              </Typography>
+              {submission.userId ? (
+                <Typography
+                  component="span"
+                  variant="subtitle1"
+                  sx={{ fontWeight: 700, lineHeight: 1.2, cursor: 'pointer', color: 'primary.main', textDecoration: 'underline' }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/users/${submission.userId}`) }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); navigate(`/users/${submission.userId}`) } }}
+                  tabIndex={0}
+                  role="link"
+                >
+                  {submission.username ?? 'Anonymous'}
+                </Typography>
+              ) : (
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                  {submission.username ?? 'Anonymous'}
+                </Typography>
+              )}
               {submission.isDayWinner && (
                 <Tooltip title={submission.scoringDay ? `Winner for ${submission.scoringDay}` : 'Winner'}>
                   <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.1rem' }} />
