@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Typography, Card, Tooltip, CircularProgress } from '@mui/material'
 import AppButton from './AppButton'
 import api from '../../api'
+import formatNumber from '../../utils/formatNumber'
 
 function formatUsernames(names) {
   if (names.length === 1) return `${names[0]} has already submitted`
@@ -40,8 +41,8 @@ export default function HiddenScoresCard({ gameId, search = '' }) {
     return (
       <div className="muted" style={{ marginTop: 8 }}>
         <Tooltip title={submitters.usernames.join(', ')} arrow>
-          <span style={{ cursor: 'default', textDecoration: 'underline dotted' }}>
-            {submitters.count} players have already submitted
+            <span style={{ cursor: 'default', textDecoration: 'underline dotted' }}>
+            {formatNumber(submitters.count)} players have already submitted
           </span>
         </Tooltip>
       </div>

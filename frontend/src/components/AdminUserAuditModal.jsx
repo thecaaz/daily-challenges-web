@@ -7,6 +7,7 @@ import api from '../api'
 import { formatDateTimeUtc } from '../utils/dateFormat'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import downloadBlob from '../utils/downloadBlob'
+import formatNumber from '../utils/formatNumber'
 
 export default function AdminUserAuditModal({ open, onClose, userId, username }) {
   const { showSnackbar } = useSnackbar()
@@ -93,7 +94,7 @@ export default function AdminUserAuditModal({ open, onClose, userId, username })
             {items.map(it => (
               <TableRow key={it.id}>
                 <TableCell>{formatDateTimeUtc(it.createdAt)}</TableCell>
-                <TableCell>{it.amount}</TableCell>
+                <TableCell>{formatNumber(it.amount)}</TableCell>
                 <TableCell>{it.eventType}</TableCell>
                 <TableCell style={{ maxWidth: 300, whiteSpace: 'pre-wrap' }}>{it.details}</TableCell>
                 <TableCell>{it.submissionId ?? ''}</TableCell>
@@ -105,7 +106,7 @@ export default function AdminUserAuditModal({ open, onClose, userId, username })
         </Table>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-          <div>Showing {items.length} of {totalCount}</div>
+          <div>Showing {formatNumber(items.length)} of {formatNumber(totalCount)}</div>
           <div>
             <AppButton variant="text" disabled={page <= 1} onClick={() => fetchPage(page - 1)}>Prev</AppButton>
             <AppButton variant="text" disabled={page * pageSize >= totalCount} onClick={() => fetchPage(page + 1)}>Next</AppButton>

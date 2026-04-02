@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useThemeMode } from '../contexts/ThemeContext'
 import NotificationBell from './NotificationBell'
 import VersionBadge from './VersionBadge'
+import formatNumber from '../utils/formatNumber'
 
 export default function GameBar() {
   const { user, logout, fetchMe } = useAuth()
@@ -106,17 +107,17 @@ export default function GameBar() {
           <Box className="xp" sx={{ minWidth: { xs: 140, sm: 220 }, mr: 1 }}>
             <Box className="xp-bar-wrapper">
               <Tooltip
-                title={`${xpInto.toLocaleString()} / ${xpForLevel.toLocaleString()} XP`}
+                title={`${formatNumber(xpInto)} / ${formatNumber(xpForLevel)} XP`}
                 placement="bottom"
               >
                 <LinearProgress
                   variant="determinate"
                   value={progress}
-                  aria-label={`XP progress: ${xpInto} of ${xpForLevel}`}
+                  aria-label={`XP progress: ${formatNumber(xpInto)} of ${formatNumber(xpForLevel)}`}
                 />
               </Tooltip>
               {gainDisplay && (
-                <span className="xp-gain" key={gainDisplay + Date.now()}>+{gainDisplay} XP</span>
+                <span className="xp-gain" key={gainDisplay + Date.now()}>+{formatNumber(gainDisplay)} XP</span>
               )}
             </Box>
             <Box
@@ -124,7 +125,7 @@ export default function GameBar() {
               sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: '4px', flexWrap: 'wrap' }}
             >
               <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
-                Level <Box component="strong" sx={{ ml: 0.5, fontWeight: 700 }}>{level}</Box> &nbsp;•&nbsp; {xpInto.toLocaleString()}/{xpForLevel.toLocaleString()} XP
+                Level <Box component="strong" sx={{ ml: 0.5, fontWeight: 700 }}>{level}</Box> &nbsp;•&nbsp; {formatNumber(xpInto)}/{formatNumber(xpForLevel)} XP
               </Typography>
 
               <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>
