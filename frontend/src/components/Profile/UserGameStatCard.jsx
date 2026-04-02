@@ -8,7 +8,7 @@ export default function UserGameStatCard({ game }) {
   const id = game.gameId ?? game.GameId
   const name = game.name ?? game.Name ?? 'Game'
   const plays = game.plays ?? game.Plays ?? 0
-  const highest = game.highestScore ?? game.HighestScore
+  const best = game.highestScore ?? game.HighestScore
   const last = game.lastPlayed ?? game.LastPlayed
 
   return (
@@ -21,7 +21,7 @@ export default function UserGameStatCard({ game }) {
           <Typography variant="caption" color="text.secondary">Plays: {formatNumber(plays)}</Typography>
         </Box>
         <Box sx={{ mt: 1 }}>
-          <Typography variant="body2">Highest: {highest != null ? formatNumber(highest) : '—'}</Typography>
+          <Typography variant="body2">Best: {best != null ? formatNumber(best) : '—'}</Typography>
           {last ? <Typography variant="body2" color="text.secondary">Last played: {timeAgo(last)}</Typography> : null}
         </Box>
       </CardContent>
