@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Typography, Card, Tooltip, CircularProgress } from '@mui/material'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from './AppButton'
 import api from '../../api'
 import formatNumber from '../../utils/formatNumber'
@@ -55,7 +56,16 @@ export default function HiddenScoresCard({ gameId, search = '' }) {
       <div className="muted" style={{ marginTop: 8 }}>Submit your score to view the leaderboard for today.</div>
       {renderSubmitters()}
       <div style={{ marginTop: 12 }}>
-        <AppButton to={`/submit/${gameId}${search}`}>Submit Score</AppButton>
+        <AppButton
+          to={`/submit/${gameId}${search}`}
+          variant="contained"
+          color="primary"
+          size="small"
+          startIcon={<EmojiEventsIcon />}
+          aria-label="Submit score"
+        >
+          Submit Score
+        </AppButton>
       </div>
     </Card>
   )

@@ -4,11 +4,10 @@ import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, 
 import AppButton from '../AppButton'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import CheckIcon from '@mui/icons-material/Check'
 import imageUrl from '../../../utils/imageUrl'
 
 export default function GameCard({ game, sx, showSubmit = true }) {
-  // use imageUrl helper to build absolute image URLs
-
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', ...(sx || {}) }}>
       <CardActionArea component={Link} to={`/games/${game.id}`} sx={{ flexGrow: 1 }}>
@@ -36,17 +35,36 @@ export default function GameCard({ game, sx, showSubmit = true }) {
           </Box>
         )}
         <CardContent sx={{ pb: 1 }}>
-          <Typography variant="h6" gutterBottom sx={{ lineHeight: 1.3 }}>
-            {game.name}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="h6" sx={{ lineHeight: 1.3, m: 0, alignSelf: 'center' }}>
+              {game.name}
+            </Typography>
+            {game.hasSubmittedForLatest && (
+              <CheckIcon color="primary" fontSize="small" aria-label="submitted" />
+            )}
+          </Box>
         </CardContent>
       </CardActionArea>
 
       <CardActions sx={{ px: 2, pb: 2, pt: 0, gap: 1 }}>
         {showSubmit && (
-          <AppButton to={`/submit/${game.id}`} variant="contained" color="primary" size="small" startIcon={<EmojiEventsIcon />}>
-            Submit Score
-          </AppButton>
+          (() => {
+            const disabled = Boolean(game.hasSubmittedForLatest);
+            const to = disabled ? undefined : `/submit/${game.id}`;
+            return (
+              <AppButton
+                to={to}
+                variant="contained"
+                color="primary"
+                size="small"
+                startIcon={<EmojiEventsIcon />}
+                disabled={disabled}
+                aria-label={disabled ? 'Already submitted today' : 'Submit score'}
+              >
+                {disabled ? 'Submitted' : 'Submit Score'}
+              </AppButton>
+            )
+          })()
         )}
         {game.url && (
           <AppButton href={game.url} target="_blank" rel="noreferrer" variant="outlined" color="primary" size="small" endIcon={<OpenInNewIcon />}>

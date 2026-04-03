@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useLocation, useSearchParams, useNavigate } from 'react-router-dom'
 import { Stack, Box, Fab, Tooltip } from '@mui/material'
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
 import DatePickerButton from '../components/DatePickerButton'
 import api from '../api'
@@ -224,8 +225,13 @@ export default function GameSubmissions() {
                 to={submitDisabled ? undefined : `/submit/${game.id}${location.search || ''}`}
                 disabled={submitDisabled}
                 title={submitDisabled ? "You've already submitted for today" : undefined}
+                variant="contained"
+                color="primary"
+                size="small"
+                startIcon={<EmojiEventsIcon />}
+                aria-label={submitDisabled ? 'Already submitted today' : 'Submit score'}
               >
-                Submit Score
+                {submitDisabled ? 'Submitted' : 'Submit Score'}
               </AppButton>
             )
           })()}

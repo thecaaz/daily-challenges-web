@@ -22,10 +22,30 @@ namespace DailyChallenges.Services
             _submissionService = submissionService;
         }
 
-        public async Task<List<GameDto>> GetAllAsync()
+        public async Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user = null)
         {
             var games = await _games.GetAllAsync();
-            return games.Select(g => DtoMapper.ToDto(g)).ToList();
+            var dtos = games.Select(g => DtoMapper.ToDto(g)).ToList();
+
+            var userId = user.GetUserId();
+            if (!userId.HasValue) return dtos;
+
+            var gameDays = games.Select(g => new { g.Id, Day = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).Date }).ToList();
+
+            var distinctDays = gameDays.Select(x => x.Day).Distinct().ToList();
+            var gameIds = gameDays.Select(x => x.Id).ToList();
+
+            var userSubs = await _subsRepo.GetByUserAndGamesAndDaysAsync(userId.Value, gameIds, distinctDays);
+
+            var submittedSet = new HashSet<(int, DateTime)>(userSubs.Select(s => (s.GameId, s.ScoringDay.Date)));
+
+            foreach (var dto in dtos)
+            {
+                var day = gameDays.First(x => x.Id == dto.Id).Day;
+                dto.HasSubmittedForLatest = submittedSet.Contains((dto.Id, day));
+            }
+
+            return dtos;
         }
 
         public async Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null)
