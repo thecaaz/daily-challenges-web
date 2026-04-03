@@ -1,3 +1,17 @@
+## [1.15.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.14.3...v1.15.0) (2026-04-03)
+
+
+### Features
+
+* **games:** enhance game card by showing if score is submitted already ([955de08](https://github.com/thecaaz/daily-challenges-web/commit/955de08dbd52710288fff54909a791707093ae98))
+
+### [1.14.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.14.2...v1.14.3) (2026-04-03)
+
+
+### Bug Fixes
+
+* **profile:** add best submission as a link ([21c6751](https://github.com/thecaaz/daily-challenges-web/commit/21c6751e071297e9c991aafac3e07927124dbaeb))
+
 ### [1.14.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.14.1...v1.14.2) (2026-04-02)
 
 
