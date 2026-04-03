@@ -19,7 +19,7 @@ namespace DailyChallenges.Controllers
         [HttpGet]
         public async Task<IActionResult> Get()
         {
-            var dtos = await _games.GetAllAsync();
+            var dtos = await _games.GetAllAsync(User);
             return Ok(dtos);
         }
 

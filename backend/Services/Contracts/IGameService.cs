@@ -5,7 +5,7 @@ namespace DailyChallenges.Services
 {
     public interface IGameService
     {
-        Task<List<GameDto>> GetAllAsync();
+        Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user = null);
         Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null);
         Task<Models.Game?> GetByIdAsync(int id);
         Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null);

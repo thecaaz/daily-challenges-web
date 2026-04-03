@@ -143,6 +143,19 @@ namespace DailyChallenges.Repositories
             return winners!;
         }
 
+        public async Task<List<Submission>> GetByUserAndGamesAndDaysAsync(int userId, List<int> gameIds, List<DateTime> scoringDays)
+        {
+            if (gameIds == null || gameIds.Count == 0 || scoringDays == null || scoringDays.Count == 0)
+                return new List<Submission>();
+
+            var targetDates = scoringDays.Select(d => d.Date).ToList();
+
+            return await _db.Submissions
+                .Where(s => s.UserId == userId && gameIds.Contains(s.GameId) && targetDates.Contains(s.ScoringDay))
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
         public async Task<Submission?> GetByGameAndUserAsync(int gameId, int userId)
         {
             // return the most recent submission for the user in this game
