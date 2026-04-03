@@ -19,8 +19,9 @@ A full-stack web application for submitting and tracking daily challenge scores 
 - **XP and levels** — earn XP for each submission; level up as you accumulate points
 - **Submission detail** — view individual submission scores and screenshots
 - **Admin panel** — create/edit/delete games, manage and score submissions with date filtering
-- **Admin user management** — promote or demote users to admin, manage accounts
+- **Admin user management** — manage users, audit xp, add/remove xp
 - **Authentication** — register and log in with username/password
+- **Profile** - show last active date, show active games, submission counts, best scores
 
 ## Stack
 
