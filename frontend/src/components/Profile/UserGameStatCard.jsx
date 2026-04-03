@@ -9,6 +9,7 @@ export default function UserGameStatCard({ game }) {
   const name = game.name ?? game.Name ?? 'Game'
   const plays = game.plays ?? game.Plays ?? 0
   const best = game.highestScore ?? game.HighestScore
+  const bestId = game.bestSubmissionId ?? game.BestSubmissionId
   const last = game.lastPlayed ?? game.LastPlayed
 
   return (
@@ -21,7 +22,15 @@ export default function UserGameStatCard({ game }) {
           <Typography variant="caption" color="text.secondary">Plays: {formatNumber(plays)}</Typography>
         </Box>
         <Box sx={{ mt: 1 }}>
-          <Typography variant="body2">Best: {best != null ? formatNumber(best) : '—'}</Typography>
+          <Typography variant="body2">
+            Best: {best != null ? (
+              bestId != null ? (
+                <MuiLink component={Link} to={`/submission/${bestId}`} underline="hover">{formatNumber(best)}</MuiLink>
+              ) : (
+                formatNumber(best)
+              )
+            ) : '—'}
+          </Typography>
           {last ? <Typography variant="body2" color="text.secondary">Last played: {timeAgo(last)}</Typography> : null}
         </Box>
       </CardContent>

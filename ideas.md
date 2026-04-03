@@ -1,6 +1,5 @@
 - Live updates
 - Comments for a specific day
-- link to best score in profile instead of just number
 - friends
 - username/trophy/profile customization
 - indicator on game overview site which games have been completed currently

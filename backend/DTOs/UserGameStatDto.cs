@@ -7,6 +7,7 @@ namespace DailyChallenges.DTOs
         public string? Url { get; set; }
         public int Plays { get; set; }
         public int? HighestScore { get; set; }
+        public int? BestSubmissionId { get; set; }
         public DateTime? LastPlayed { get; set; }
     }
 }

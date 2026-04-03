@@ -45,7 +45,40 @@ namespace DailyChallenges.Repositories
                     };
 
             var list = await q.OrderByDescending(x => x.Plays).Take(topGames).ToListAsync();
+
+            await PopulateBestSubmissionIdAsync(userId, list);
+
             return list;
         }
+
+        private async Task PopulateBestSubmissionIdAsync(int userId, List<UserGameStatDto> list)
+        {
+            var gameIdsWithScore = list.Where(x => x.HighestScore.HasValue).Select(x => x.GameId).ToList();
+
+            if (gameIdsWithScore.Count <= 0) return;
+            
+            var scoreLookup = await _db.Submissions
+                .Where(s => s.UserId == userId && gameIdsWithScore.Contains(s.GameId) && s.ScoreValue != null)
+                .GroupBy(s => new { s.GameId, s.ScoreValue })
+                .Select(g => new
+                {
+                    g.Key.GameId,
+                    g.Key.ScoreValue,
+                    SubmissionId = g.OrderByDescending(x => x.CreatedAt).Select(x => x.Id).FirstOrDefault()
+                })
+                .ToListAsync();
+
+            var dict = scoreLookup.ToDictionary(x => (x.GameId, x.ScoreValue), x => (int?)x.SubmissionId);
+
+            foreach (var item in list)
+            {
+                if (!item.HighestScore.HasValue) continue;
+
+                dict.TryGetValue((item.GameId, item.HighestScore), out var submissionId);
+                item.BestSubmissionId = submissionId;
+
+            }
+        }
+
     }
 }
