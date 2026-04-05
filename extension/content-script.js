@@ -10,6 +10,11 @@
       match: host => /timeguessr/.test(host) || host.includes('timeguessr'),
       // selectors to try for readScore / capture element
       selectors: ['#totalText'],
+      // optional init hook — runs when this adapter matches and the content script loads
+      onInit: function (doc, ctx) {
+        console.debug('TimeGuessr adapter onInit', { host: ctx.host, href: ctx.href, inIframe: ctx.inIframe });
+        document.querySelector('#tg-embed-continue').click();
+      },
       readScore: function (doc) {
         for (const s of this.selectors) {
           const el = doc.querySelector(s);
@@ -28,6 +33,19 @@
   function findAdapter(host) {
     return ADAPTERS.find(a => a.match(host));
   }
+
+  // Call adapter onInit if present
+  (function runAdapterInit() {
+    try {
+      const adapter = findAdapter(location.hostname);
+      if (!adapter || typeof adapter.onInit !== 'function') return;
+      const ctx = { host: location.hostname, href: location.href, inIframe: window.top !== window };
+      const res = adapter.onInit(document, ctx);
+      if (res && typeof res.then === 'function') res.catch(err => console.error('ScoreBridge: adapter onInit async error', err));
+    } catch (err) {
+      console.error('ScoreBridge: adapter onInit error', err);
+    }
+  })();
 
   // Capture functionality removed for PoC focus on score reading.
 
