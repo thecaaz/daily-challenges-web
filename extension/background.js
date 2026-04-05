@@ -23,20 +23,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'INJECT_HTML2CANVAS') {
     // Attempt to inject the packaged vendor/html2canvas.min.js into the sender's tab/frame
     try {
+      console.debug('ScoreBridge: INJECT_HTML2CANVAS handler invoked', { sender });
       if (!sender || !sender.tab || typeof sender.tab.id === 'undefined') {
         sendResponse({ ok: false, error: 'no sender tab available' });
         return true;
       }
       const tabId = sender.tab.id;
       const frameId = sender.frameId;
+      console.debug('ScoreBridge: executing chrome.tabs.executeScript', { tabId, frameId, file: 'vendor/html2canvas.min.js' });
       chrome.tabs.executeScript(tabId, { file: 'vendor/html2canvas.min.js', frameId, runAt: 'document_idle' }, () => {
         const err = chrome.runtime.lastError;
+        console.debug('ScoreBridge: executeScript callback, chrome.runtime.lastError', err);
         if (err) {
           console.error('ScoreBridge: chrome.tabs.executeScript error', err);
-          sendResponse({ ok: false, error: err.message });
+          try { sendResponse({ ok: false, error: err.message }); } catch (e) { console.error('ScoreBridge: sendResponse failed', e); }
         } else {
           console.debug('ScoreBridge: injected vendor/html2canvas.min.js via tabs.executeScript');
-          sendResponse({ ok: true });
+          try { sendResponse({ ok: true }); console.debug('ScoreBridge: sendResponse(ok:true) called'); } catch (e) { console.error('ScoreBridge: sendResponse failed', e); }
         }
       });
     } catch (ex) {
