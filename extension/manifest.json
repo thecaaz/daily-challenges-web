@@ -3,12 +3,18 @@
   "name": "ScoreBridge-PoC",
   "version": "0.1.0",
   "description": "PoC extension to bridge game scores into a parent page (element capture via html2canvas).",
-  "permissions": ["storage", "activeTab", "<all_urls>"],
+  "permissions": ["storage", "activeTab", "tabs", "<all_urls>"],
   "background": { "scripts": ["background.js"] },
   "web_accessible_resources": [
     "vendor/html2canvas.min.js"
   ],
   "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["preload-webgl.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
     {
       "matches": ["<all_urls>"],
       "js": ["vendor/html2canvas.min.js", "content-script.js"],

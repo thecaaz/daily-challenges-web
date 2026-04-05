@@ -171,7 +171,210 @@
           if (!document.querySelector('script[data-scorebridge-bridge]')) {
             const bridge = document.createElement('script')
             bridge.dataset.scorebridgeBridge = '1'
-            bridge.textContent = "(function(){if(window.__scorebridge_bridge_installed)return;window.__scorebridge_bridge_installed=true;window.addEventListener('message',function(ev){try{if(!ev.data)return;if(ev.data.type==='SCOREBRIDGE_PAGE_CAPTURE_REQUEST'){var nonce=ev.data.nonce,selector=ev.data.selector,options=ev.data.options;function respond(obj){try{window.postMessage(Object.assign({type:'SCOREBRIDGE_PAGE_CAPTURE_RESPONSE',nonce:nonce},obj),'*');}catch(e){}}var el=document.querySelector(selector)||document.body;try{var canvases=[];if(el&&el.nodeName==='CANVAS'){canvases=[el];}else if(el){canvases=Array.prototype.slice.call(el.querySelectorAll('canvas'));}if(canvases.length===1){try{var dataUrl=canvases[0].toDataURL('image/png');respond({dataUrl:dataUrl,fallback:'canvas-toDataURL'});return;}catch(e){} } else if(canvases.length>1){try{var elRect=el.getBoundingClientRect();var out=document.createElement('canvas');out.width=Math.ceil(elRect.width);out.height=Math.ceil(elRect.height);var ctx=out.getContext('2d');canvases.forEach(function(c){try{var r=c.getBoundingClientRect();var x=Math.round(r.left-elRect.left);var y=Math.round(r.top-elRect.top);ctx.drawImage(c,x,y,Math.round(r.width),Math.round(r.height));}catch(e2){try{var tmpUrl=c.toDataURL('image/png');var img=new Image();img.src=tmpUrl;ctx.drawImage(img,x,y);}catch(e3){}}});var final=out.toDataURL('image/png');respond({dataUrl:final,fallback:'composite-canvases'});return;}catch(e){}}}catch(e){}if(!window.html2canvas||typeof window.html2canvas!=='function'){respond({error:'html2canvas not available'});return;}try{window.html2canvas(el,options).then(function(canvas){try{var dataUrl=canvas.toDataURL('image/png');respond({dataUrl:dataUrl});}catch(e){respond({error:String(e)});}}).catch(function(err){respond({error:String(err)});});}catch(e){respond({error:String(e)});} } else if(ev.data.type==='SCOREBRIDGE_BRIDGE_PING'){try{window.postMessage({type:'SCOREBRIDGE_BRIDGE_PONG'},'*');}catch(e){}} }catch(e){try{window.postMessage({ type: 'SCOREBRIDGE_PAGE_CAPTURE_RESPONSE', error:String(e) }, '*');}catch(e){} }},false);try{window.postMessage({ type: 'SCOREBRIDGE_HTML2CANVAS_PONG', source: 'bridge_init', exists: typeof html2canvas !== 'undefined', typeOf: typeof html2canvas }, '*');}catch(e){};})();"
+            bridge.textContent = `(function(){
+  if(window.__scorebridge_bridge_installed) return;
+  window.__scorebridge_bridge_installed = true;
+
+  function _sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  function _tryToDataURL(canvas){
+    return new Promise(async (resolve, reject) => {
+      try {
+        // fast path: toDataURL
+        try {
+          const url = canvas.toDataURL('image/png');
+          return resolve(url);
+        } catch(e){}
+
+        // try drawImage onto a 2D canvas
+        try {
+          const out = document.createElement('canvas');
+          out.width = canvas.width || Math.max(1, Math.round(canvas.clientWidth));
+          out.height = canvas.height || Math.max(1, Math.round(canvas.clientHeight));
+          const ctx = out.getContext('2d');
+          ctx.drawImage(canvas, 0, 0, out.width, out.height);
+          return resolve(out.toDataURL('image/png'));
+        } catch(e){}
+
+        // try WebGL readPixels fallback
+        try {
+          const gl = canvas.getContext('webgl') || canvas.getContext('webgl2') || canvas.getContext('experimental-webgl');
+          if (!gl) throw new Error('no-webgl-context');
+          const width = canvas.width || Math.max(1, Math.round(canvas.clientWidth));
+          const height = canvas.height || Math.max(1, Math.round(canvas.clientHeight));
+          const pixels = new Uint8Array(width * height * 4);
+          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          const out = document.createElement('canvas');
+          out.width = width; out.height = height;
+          const ctx = out.getContext('2d');
+          const imageData = ctx.createImageData(width, height);
+          for (let y = 0; y < height; y++){
+            const srcRow = height - 1 - y;
+            for (let x = 0; x < width; x++){
+              const srcIndex = (srcRow * width + x) * 4;
+              const dstIndex = (y * width + x) * 4;
+              imageData.data[dstIndex] = pixels[srcIndex];
+              imageData.data[dstIndex+1] = pixels[srcIndex+1];
+              imageData.data[dstIndex+2] = pixels[srcIndex+2];
+              imageData.data[dstIndex+3] = pixels[srcIndex+3];
+            }
+          }
+          ctx.putImageData(imageData, 0, 0);
+          return resolve(out.toDataURL('image/png'));
+        } catch(e){}
+
+        reject(new Error('all-capture-methods-failed'));
+      } catch (ex) { reject(ex); }
+    });
+  }
+
+  function _isDataUrlBlank(dataUrl){
+    return new Promise((resolve) => {
+      try {
+        const img = new Image();
+        img.onload = function(){
+          try {
+            const w = Math.max(1, Math.floor(img.width / 10));
+            const h = Math.max(1, Math.floor(img.height / 10));
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            try {
+              const d = ctx.getImageData(0,0,w,h).data;
+              let s = 0;
+              for (let i = 0; i < d.length; i += 4){ s += d[i] + d[i+1] + d[i+2] + d[i+3]; if (s > 0) break; }
+              resolve(s === 0);
+            } catch (e) { resolve(false); }
+          } catch (e) { resolve(false); }
+        };
+        img.onerror = function(){ resolve(true); };
+        img.src = dataUrl;
+      } catch (e) { resolve(true); }
+    });
+  }
+
+  async function captureCanvasWithRetries(canvas, tries, delay){
+    let last = null;
+    for (let i = 0; i < tries; i++){
+      try {
+        const dataUrl = await _tryToDataURL(canvas);
+        if (dataUrl){
+          const blank = await _isDataUrlBlank(dataUrl);
+          if (!blank) return dataUrl;
+          last = dataUrl;
+        }
+      } catch (e) {}
+      // let the page render more frames
+      await new Promise(r => requestAnimationFrame(r));
+      if (delay) await _sleep(delay);
+    }
+    return last;
+  }
+
+  window.addEventListener('message', async function (ev) {
+    try {
+      if (!ev.data) return;
+      if (ev.data.type === 'SCOREBRIDGE_PAGE_CAPTURE_REQUEST'){
+        const nonce = ev.data.nonce;
+        const selector = ev.data.selector;
+        const options = ev.data.options || {};
+        function respond(obj){ try { window.postMessage(Object.assign({ type: 'SCOREBRIDGE_PAGE_CAPTURE_RESPONSE', nonce: nonce }, obj), '*'); } catch(e) {} }
+        const el = document.querySelector(selector) || document.body;
+        try {
+          const canvases = el && el.nodeName === 'CANVAS' ? [el] : (el ? Array.prototype.slice.call(el.querySelectorAll('canvas')) : []);
+          for (const c of canvases) { try { c.dataset.scorebridgeCanvasId = c.dataset.scorebridgeCanvasId || Math.random().toString(36).slice(2); } catch (e) {} }
+
+          const snapshots = {};
+          if (canvases.length > 0) {
+            await Promise.all(canvases.map(async (c) => {
+              try {
+                const url = await captureCanvasWithRetries(c, 6, 50);
+                if (url) snapshots[c.dataset.scorebridgeCanvasId] = url;
+              } catch (e) {}
+            }));
+
+            if (Object.keys(snapshots).length > 0) {
+              try {
+                const rect = el.getBoundingClientRect();
+                const out = document.createElement('canvas');
+                out.width = Math.max(1, Math.ceil(rect.width));
+                out.height = Math.max(1, Math.ceil(rect.height));
+                const ctx = out.getContext('2d');
+                for (const c of canvases) {
+                  try {
+                    const r = c.getBoundingClientRect();
+                    const x = Math.round(r.left - rect.left);
+                    const y = Math.round(r.top - rect.top);
+                    const id = c.dataset.scorebridgeCanvasId;
+                    const src = snapshots[id];
+                    if (src) {
+                      const img = new Image();
+                      img.src = src;
+                      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+                      ctx.drawImage(img, x, y, Math.round(r.width), Math.round(r.height));
+                    } else {
+                      try { ctx.drawImage(c, x, y, Math.round(r.width), Math.round(r.height)); } catch (e2) {}
+                    }
+                  } catch (e) {}
+                }
+                const final = out.toDataURL('image/png');
+                respond({ dataUrl: final, fallback: 'composite-snapshots' });
+                return;
+              } catch (e) {}
+            }
+          }
+        } catch (e) {}
+
+        if (!window.html2canvas || typeof window.html2canvas !== 'function') { respond({ error: 'html2canvas not available' }); return; }
+
+        try {
+          const allCanvases = el && el.nodeName === 'CANVAS' ? [el] : (el ? Array.prototype.slice.call(el.querySelectorAll('canvas')) : []);
+          const snapshots2 = {};
+          await Promise.all(allCanvases.map(async (c) => {
+            try {
+              const id = c.dataset.scorebridgeCanvasId || (c.dataset.scorebridgeCanvasId = Math.random().toString(36).slice(2));
+              const url = await captureCanvasWithRetries(c, 6, 50);
+              if (url) snapshots2[id] = url;
+            } catch (e) {}
+          }));
+
+          const opts = Object.assign({}, options, { onclone: function (clonedDoc) {
+            try {
+              const nodes = clonedDoc.querySelectorAll('canvas[data-scorebridge-canvas-id]');
+              nodes.forEach(function (n) {
+                try {
+                  const id = n.getAttribute('data-scorebridge-canvas-id');
+                  const src = snapshots2[id];
+                  if (src) {
+                    const img = clonedDoc.createElement('img');
+                    img.src = src;
+                    img.style.width = n.style.width || (n.width ? (n.width + 'px') : '');
+                    img.style.height = n.style.height || (n.height ? (n.height + 'px') : '');
+                    n.parentNode.replaceChild(img, n);
+                  }
+                } catch (e) {}
+              });
+            } catch (e) {}
+          } });
+          const canvas = await window.html2canvas(el, opts);
+          const dataUrl = canvas.toDataURL('image/png');
+          respond({ dataUrl: dataUrl });
+          return;
+        } catch (err) {
+          respond({ error: String(err) });
+          return;
+        }
+      } else if (ev.data.type === 'SCOREBRIDGE_BRIDGE_PING') {
+        try { window.postMessage({ type: 'SCOREBRIDGE_BRIDGE_PONG' }, '*'); } catch (e) {}
+      }
+    } catch (e) {
+      try { window.postMessage({ type: 'SCOREBRIDGE_PAGE_CAPTURE_RESPONSE', error: String(e) }, '*'); } catch (o) {}
+    }
+  }, false);
+
+  try { window.postMessage({ type: 'SCOREBRIDGE_HTML2CANVAS_PONG', source: 'bridge_init', exists: typeof html2canvas !== 'undefined', typeOf: typeof html2canvas }, '*'); } catch (e) {}
+})();`
             ;(document.head || document.documentElement).appendChild(bridge)
             setTimeout(() => {
               try {
@@ -302,6 +505,111 @@
         // Bridge handshake pong (explicit response to BRIDGE_PING)
         if (ev.data.type === 'SCOREBRIDGE_BRIDGE_PONG') {
           bridgePong = true
+          return
+        }
+
+        // Parent -> child asks the child to request a visible-tab capture from top
+        if (ev.data.type === 'REQUEST_VISIBLE_TAB_FROM_PARENT') {
+          try {
+            // Only forward from within a frame (child)
+            if (window.top === window) return
+            const selector = ev.data.selector || null
+            const nonce = ev.data.nonce
+            let el = null
+            try { el = selector ? document.querySelector(selector) : null } catch (e) { el = null }
+            let rect
+            if (el) {
+              const r = el.getBoundingClientRect()
+              rect = { left: r.left, top: r.top, width: r.width, height: r.height }
+            } else {
+              const w = document.documentElement.clientWidth || window.innerWidth || 0
+              const h = document.documentElement.clientHeight || window.innerHeight || 0
+              rect = { left: 0, top: 0, width: w, height: h }
+            }
+            try { window.top.postMessage({ type: 'SCOREBRIDGE_VISIBLE_TAB_CAPTURE', nonce, rect }, '*') } catch (e) {}
+          } catch (e) {}
+          return
+        }
+
+        // Visible-tab capture request from an inner frame: only the top frame should handle
+        if (ev.data.type === 'SCOREBRIDGE_VISIBLE_TAB_CAPTURE') {
+          try {
+            if (window.top !== window) return
+            const nonce = ev.data.nonce
+            const childRect = ev.data.rect || { left: 0, top: 0, width: 0, height: 0 }
+            // Identify the iframe element that corresponds to ev.source
+            let iframeEl = null
+            try {
+              const iframes = document.querySelectorAll('iframe')
+              for (const f of iframes) {
+                try {
+                  if (f.contentWindow === ev.source) {
+                    iframeEl = f
+                    break
+                  }
+                } catch (e) {}
+              }
+            } catch (e) {}
+
+            if (!iframeEl) {
+              try { ev.source && ev.source.postMessage && ev.source.postMessage({ type: 'CAPTURE_RESPONSE', nonce, error: 'iframe element not found' }, ev.origin || '*') } catch (e) {}
+              return
+            }
+
+            const iframeRect = iframeEl.getBoundingClientRect()
+            const abs = {
+              left: iframeRect.left + (childRect.left || 0),
+              top: iframeRect.top + (childRect.top || 0),
+              width: childRect.width || iframeRect.width,
+              height: childRect.height || iframeRect.height
+            }
+            const dpr = window.devicePixelRatio || 1
+
+            try {
+              chrome.runtime.sendMessage({ type: 'CAPTURE_VISIBLE_TAB', rect: abs, dpr }, resp => {
+                try {
+                  if (!resp || !resp.ok || !resp.dataUrl) {
+                    const payloadErr = { type: 'CAPTURE_RESPONSE', nonce, error: resp && resp.error ? resp.error : 'capture failed' }
+                    try { window.postMessage(payloadErr, '*') } catch (e) {}
+                    try { iframeEl.contentWindow.postMessage(payloadErr, ev.origin || '*') } catch (e) {}
+                    return
+                  }
+                  const img = new Image()
+                  img.onload = function () {
+                    try {
+                      const sx = Math.round(abs.left * dpr)
+                      const sy = Math.round(abs.top * dpr)
+                      const sw = Math.max(1, Math.round(abs.width * dpr))
+                      const sh = Math.max(1, Math.round(abs.height * dpr))
+                      const out = document.createElement('canvas')
+                      out.width = sw
+                      out.height = sh
+                      const ctx = out.getContext('2d')
+                      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
+                      const final = out.toDataURL('image/png')
+                      const payloadOk = { type: 'CAPTURE_RESPONSE', nonce, dataUrl: final }
+                      try { window.postMessage(payloadOk, '*') } catch (e) {}
+                      try { iframeEl.contentWindow.postMessage(payloadOk, ev.origin || '*') } catch (e) {}
+                    } catch (err) {
+                      const payloadErr2 = { type: 'CAPTURE_RESPONSE', nonce, error: String(err) }
+                      try { window.postMessage(payloadErr2, '*') } catch (e) {}
+                      try { iframeEl.contentWindow.postMessage(payloadErr2, ev.origin || '*') } catch (e) {}
+                    }
+                  }
+                  img.onerror = function () { try { window.postMessage({ type: 'CAPTURE_RESPONSE', nonce, error: 'image load error' }, '*') } catch (e) {} ; try { iframeEl.contentWindow.postMessage({ type: 'CAPTURE_RESPONSE', nonce, error: 'image load error' }, ev.origin || '*') } catch (e) {} }
+                  img.src = resp.dataUrl
+                } catch (e) {
+                  const payloadErr3 = { type: 'CAPTURE_RESPONSE', nonce, error: String(e) }
+                  try { window.postMessage(payloadErr3, '*') } catch (o) {}
+                  try { iframeEl.contentWindow.postMessage(payloadErr3, ev.origin || '*') } catch (o) {}
+                }
+              })
+            } catch (e) {
+              const payloadErr4 = { type: 'CAPTURE_RESPONSE', nonce, error: String(e) }
+              try { window.postMessage(payloadErr4, '*') } catch (o) {}
+              try { iframeEl.contentWindow.postMessage(payloadErr4, ev.origin || '*') } catch (o) {}
+            }
+          } catch (e) {}
           return
         }
         // message received

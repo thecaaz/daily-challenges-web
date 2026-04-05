@@ -13,12 +13,13 @@
   <h1>ScoreBridge PoC — Test Harness</h1>
   <p>Uses a local sample game in <code>frontend/sample-game.html</code> to demonstrate <code>postMessage</code> GET_SCORE flow.</p>
 
-  <iframe id="gameFrame" src="https://timeguessr.com/roundonedaily"></iframe>
-
   <div style="margin-top:12px">
     <button id="getScore">Request Score</button>
     <button id="captureBtn">Request Capture</button>
+    <button id="visibleCaptureBtn">Visible-tab Capture</button>
   </div>
+
+  <iframe id="gameFrame" src="https://timeguessr.com/roundonedaily"></iframe>
 
   <div class="results">
     <h3>Result</h3>
@@ -69,6 +70,14 @@
       console.debug('TestHarness: sending REQUEST_IFRAME_CAPTURE', { nonce, origin });
       document.getElementById('captureInfo').textContent = 'Waiting for capture...';
       iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_IFRAME_CAPTURE', nonce, selector: '#resultsContainer' }, origin);
+    });
+
+    document.getElementById('visibleCaptureBtn').addEventListener('click', () => {
+      const nonce = genNonce();
+      const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
+      console.debug('TestHarness: sending REQUEST_VISIBLE_TAB_FROM_PARENT', { nonce, origin });
+      document.getElementById('captureInfo').textContent = 'Waiting for visible-tab capture...';
+      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce, selector: '#resultsContainer' }, origin);
     });
   </script>
 </body>
