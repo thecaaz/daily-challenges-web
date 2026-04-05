@@ -68,7 +68,7 @@
       const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
       console.debug('TestHarness: sending REQUEST_IFRAME_CAPTURE', { nonce, origin });
       document.getElementById('captureInfo').textContent = 'Waiting for capture...';
-      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_IFRAME_CAPTURE', nonce, selector: '#totalText' }, origin);
+      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_IFRAME_CAPTURE', nonce, selector: '#resultsContainer' }, origin);
     });
   </script>
 </body>
