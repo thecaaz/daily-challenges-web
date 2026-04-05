@@ -17,11 +17,17 @@
 
   <div style="margin-top:12px">
     <button id="getScore">Request Score</button>
+    <button id="captureBtn">Request Capture</button>
   </div>
 
   <div class="results">
     <h3>Result</h3>
     <pre id="result">(no result yet)</pre>
+    <div class="preview">
+      <h4>Capture Preview</h4>
+      <img id="previewImg" alt="capture preview" style="max-width:480px; display:block; border:1px solid #ddd; padding:4px;" />
+      <div id="captureInfo"></div>
+    </div>
   </div>
 
   <script>
@@ -38,15 +44,32 @@
         console.debug('TestHarness: SCORE_RESPONSE', ev.data);
         result.textContent = 'Score: ' + JSON.stringify(ev.data.score);
       }
+      if (ev.data.type === 'CAPTURE_RESPONSE' || ev.data.type === 'IFRAME_CAPTURE_RESPONSE') {
+        console.debug('TestHarness: CAPTURE_RESPONSE/IFRAME_CAPTURE_RESPONSE', ev.data);
+        if (ev.data.error) {
+          document.getElementById('captureInfo').textContent = 'Capture error: ' + ev.data.error;
+          document.getElementById('previewImg').src = '';
+        } else if (ev.data.dataUrl) {
+          document.getElementById('previewImg').src = ev.data.dataUrl;
+          document.getElementById('captureInfo').textContent = 'Captured image size: ' + (ev.data.dataUrl.length || 0) + ' bytes (base64)';
+        }
+      }
     });
 
     document.getElementById('getScore').addEventListener('click', () => {
       const nonce = genNonce();
       console.debug('TestHarness: sending GET_SCORE', { nonce });
-      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce }, '*');
+      const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
+      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce }, origin);
     });
 
-    // capture flow removed for PoC; focus on reliable score retrieval across iframes
+    document.getElementById('captureBtn').addEventListener('click', () => {
+      const nonce = genNonce();
+      const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
+      console.debug('TestHarness: sending REQUEST_IFRAME_CAPTURE', { nonce, origin });
+      document.getElementById('captureInfo').textContent = 'Waiting for capture...';
+      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_IFRAME_CAPTURE', nonce, selector: '#totalText' }, origin);
+    });
   </script>
 </body>
 </html>

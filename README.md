@@ -1,12 +1,9 @@
-# Disclaimer: This project is intended as a way to learn how to work with AI in a good and productive way.
+# Daily Challenges
 
 [![Release](https://img.shields.io/github/v/release/thecaaz/daily-challenges-web?style=flat-square)](https://github.com/thecaaz/daily-challenges-web/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/thecaaz/daily-challenges-web/ci.yml?branch=main&label=CI&logo=github&style=flat-square)](https://github.com/thecaaz/daily-challenges-web/actions/workflows/ci.yml)
 [![Backend](https://img.shields.io/docker/v/caaz/daily-challenge-web-backend?sort=semver&label=backend&logo=docker&style=flat-square)](https://hub.docker.com/r/caaz/daily-challenge-web-backend)
 [![Frontend](https://img.shields.io/docker/v/caaz/daily-challenge-web-frontend?sort=semver&label=frontend&logo=docker&style=flat-square)](https://hub.docker.com/r/caaz/daily-challenge-web-frontend)
-
-# Daily Challenges
-
 [![Repo size](https://img.shields.io/github/repo-size/thecaaz/daily-challenges-web?style=flat-square)](https://github.com/thecaaz/daily-challenges-web)
 [![Top language](https://img.shields.io/github/languages/top/thecaaz/daily-challenges-web?style=flat-square)](https://github.com/thecaaz/daily-challenges-web)
 
