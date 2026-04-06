@@ -61,33 +61,19 @@
           try {
             // Only forward from within a frame (child)
             if (window.top === window) return
-            const selector = ev.data.selector || null
-            const nonce = ev.data.nonce
-            let el = null
-            try {
-              el = selector ? document.querySelector(selector) : null
-            } catch (e) {
-              el = null
-            }
             let rect
-            if (el) {
-              const r = el.getBoundingClientRect()
-              rect = {
-                left: r.left,
-                top: r.top,
-                width: r.width,
-                height: r.height
-              }
-            } else {
-              const w =
-                document.documentElement.clientWidth || window.innerWidth || 0
-              const h =
-                document.documentElement.clientHeight || window.innerHeight || 0
-              rect = { left: 0, top: 0, width: w, height: h }
-            }
+            const w =
+              document.documentElement.clientWidth || window.innerWidth || 0
+            const h =
+              document.documentElement.clientHeight || window.innerHeight || 0
+            rect = { left: 0, top: 0, width: w, height: h }
             try {
               window.top.postMessage(
-                { type: 'SCOREBRIDGE_VISIBLE_TAB_CAPTURE', nonce, rect },
+                {
+                  type: 'SCOREBRIDGE_VISIBLE_TAB_CAPTURE',
+                  nonce: ev.data.nonce,
+                  rect
+                },
                 '*'
               )
             } catch (e) {}
@@ -97,42 +83,31 @@
 
         // Visible-tab capture request from an inner frame: only the top frame should handle
         if (ev.data.type === 'SCOREBRIDGE_VISIBLE_TAB_CAPTURE') {
+          if (window.top !== window) return
           try {
-            if (window.top !== window) return
             const nonce = ev.data.nonce
-            const childRect = ev.data.rect || {
-              left: 0,
-              top: 0,
-              width: 0,
-              height: 0
-            }
+            const childRect = ev.data.rect
             // Identify the iframe element that corresponds to ev.source
             let iframeEl = null
-            try {
-              const iframes = document.querySelectorAll('iframe')
-              for (const f of iframes) {
-                try {
-                  if (f.contentWindow === ev.source) {
-                    iframeEl = f
-                    break
-                  }
-                } catch (e) {}
+            const iframes = document.querySelectorAll('iframe')
+            for (const f of iframes) {
+              if (f.contentWindow === ev.source) {
+                iframeEl = f
+                break
               }
-            } catch (e) {}
+            }
 
             if (!iframeEl) {
-              try {
-                ev.source &&
-                  ev.source.postMessage &&
-                  ev.source.postMessage(
-                    {
-                      type: 'CAPTURE_RESPONSE',
-                      nonce,
-                      error: 'iframe element not found'
-                    },
-                    ev.origin || '*'
-                  )
-              } catch (e) {}
+              ev.source &&
+                ev.source.postMessage &&
+                ev.source.postMessage(
+                  {
+                    type: 'CAPTURE_RESPONSE',
+                    nonce,
+                    error: 'iframe element not found'
+                  },
+                  ev.origin || '*'
+                )
               return
             }
 
@@ -159,12 +134,6 @@
                       }
                       try {
                         window.postMessage(payloadErr, '*')
-                      } catch (e) {}
-                      try {
-                        iframeEl.contentWindow.postMessage(
-                          payloadErr,
-                          ev.origin || '*'
-                        )
                       } catch (e) {}
                       return
                     }
@@ -223,16 +192,6 @@
                           '*'
                         )
                       } catch (e) {}
-                      try {
-                        iframeEl.contentWindow.postMessage(
-                          {
-                            type: 'CAPTURE_RESPONSE',
-                            nonce,
-                            error: 'image load error'
-                          },
-                          ev.origin || '*'
-                        )
-                      } catch (e) {}
                     }
                     img.src = resp.dataUrl
                   } catch (e) {
@@ -243,12 +202,6 @@
                     }
                     try {
                       window.postMessage(payloadErr3, '*')
-                    } catch (o) {}
-                    try {
-                      iframeEl.contentWindow.postMessage(
-                        payloadErr3,
-                        ev.origin || '*'
-                      )
                     } catch (o) {}
                   }
                 }
@@ -262,20 +215,13 @@
               try {
                 window.postMessage(payloadErr4, '*')
               } catch (o) {}
-              try {
-                iframeEl.contentWindow.postMessage(
-                  payloadErr4,
-                  ev.origin || '*'
-                )
-              } catch (o) {}
             }
           } catch (e) {}
           return
         }
-        // message received
-        const adapter = findAdapter(location.hostname) || null
 
         if (ev.data.type === 'GET_SCORE') {
+          const adapter = findAdapter(location.hostname) || null
           const nonce = ev.data.nonce
           const score = adapter ? adapter.readScore(document) : null
           const payload = { type: 'SCORE_RESPONSE', nonce, score }

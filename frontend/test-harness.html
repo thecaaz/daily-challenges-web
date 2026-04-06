@@ -79,7 +79,20 @@
           document.getElementById('previewImg').src = '';
         } else if (ev.data.dataUrl) {
           document.getElementById('previewImg').src = ev.data.dataUrl;
-          document.getElementById('captureInfo').textContent = 'Captured image size: ' + (ev.data.dataUrl.length || 0) + ' bytes (base64)';
+          // compute size in KB from base64 data URL
+          (function () {
+            try {
+              const parts = ev.data.dataUrl.split(',');
+              const base64 = parts[1] || '';
+              const padding = base64.endsWith('==') ? 2 : (base64.endsWith('=') ? 1 : 0);
+              const base64Length = base64.length;
+              const bytes = Math.max(0, (base64Length * 3) / 4 - padding);
+              const kb = bytes / 1024;
+              document.getElementById('captureInfo').textContent = 'Captured image size: ' + kb.toFixed(1) + ' KB';
+            } catch (e) {
+              document.getElementById('captureInfo').textContent = 'Captured image size: (unknown)';
+            }
+          })();
         }
       }
     });
@@ -105,7 +118,7 @@
       setTimeout(() => {
         const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
         document.getElementById('captureInfo').textContent = 'Waiting for visible-tab capture...';
-        iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce, selector: '#resultsContainer' }, origin);
+        iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce }, origin);
 
         // Fallback: restore after 1s if no response
         captureState.timeoutId = setTimeout(() => {
@@ -113,7 +126,7 @@
             restoreIframeFromFullscreen();
           }
         }, 1000);
-      }, 200);
+      }, 100); // slight delay to ensure styles are applied before capture request
     }
   </script>
 </body>
