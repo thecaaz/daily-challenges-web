@@ -1,11 +1,30 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { CardMedia, Box, Typography, Tooltip } from '@mui/material'
 import AppButton from './ui/AppButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import ExtensionIcon from '@mui/icons-material/Extension'
 import imageUrl from '../utils/imageUrl'
+import { getAdapterForUrl } from '../utils/adapters'
 
 export default function GameHeader({ game }) {
   if (!game) return null
+
+  const [adapter, setAdapter] = useState(null)
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      if (!game?.url) return
+      try {
+        const a = await getAdapterForUrl(game.url)
+        if (mounted) setAdapter(a)
+      } catch (e) {
+        if (mounted) setAdapter(null)
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [game?.url])
 
   const desc = (game.description ?? '').trim()
   const fallback = 'Compete on daily challenges — climb the leaderboard!'
@@ -31,7 +50,14 @@ export default function GameHeader({ game }) {
       <div className="game-header__overlay">
         <Box className="game-header__content" sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: '70ch' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Typography variant="h5" sx={{ color: 'white' }}>Submissions — {game.name}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h5" sx={{ color: 'white' }}>Submissions — {game.name}</Typography>
+              {adapter && (
+                <Tooltip title="Extension Supported" arrow>
+                  <ExtensionIcon sx={{ color: 'white' }} fontSize="small" />
+                </Tooltip>
+              )}
+            </Box>
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -68,6 +94,7 @@ export default function GameHeader({ game }) {
             >
               Your Highscores
             </AppButton>
+            
           </Box>
 
           {isLong ? (

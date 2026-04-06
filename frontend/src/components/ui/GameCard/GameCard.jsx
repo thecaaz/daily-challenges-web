@@ -1,13 +1,32 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Box } from '@mui/material'
+import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Box, Tooltip } from '@mui/material'
 import AppButton from '../AppButton'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import CheckIcon from '@mui/icons-material/Check'
+import ExtensionIcon from '@mui/icons-material/Extension'
+import { getAdapterForUrl } from '../../../utils/adapters'
 import imageUrl from '../../../utils/imageUrl'
 
 export default function GameCard({ game, sx, showSubmit = true }) {
+  const [adapter, setAdapter] = useState(null)
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      if (!game?.url) return
+      try {
+        const a = await getAdapterForUrl(game.url)
+        if (mounted) setAdapter(a)
+      } catch (e) {
+        if (mounted) setAdapter(null)
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [game?.url])
+
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', ...(sx || {}) }}>
       <CardActionArea component={Link} to={`/games/${game.id}`} sx={{ flexGrow: 1 }}>
@@ -36,8 +55,13 @@ export default function GameCard({ game, sx, showSubmit = true }) {
         )}
         <CardContent sx={{ pb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="h6" sx={{ lineHeight: 1.3, m: 0, alignSelf: 'center' }}>
+            <Typography variant="h6" sx={{ lineHeight: 1.3, m: 0, alignSelf: 'center', display: 'flex', alignItems: 'center', gap: 1 }}>
               {game.name}
+              {adapter && (
+                <Tooltip title={adapter.name ? `Adapter: ${adapter.name}` : 'Extension Supported'} arrow>
+                  <ExtensionIcon color="action" fontSize="small" aria-label="extension-supported" />
+                </Tooltip>
+              )}
             </Typography>
             {game.hasSubmittedForLatest && (
               <CheckIcon color="primary" fontSize="small" aria-label="submitted" />
