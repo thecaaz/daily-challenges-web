@@ -1,133 +1,216 @@
 <!doctype html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <title>ScoreBridge PoC Test Harness</title>
-  <style>
-    body { font-family: system-ui, Arial; padding: 20px; }
-    iframe { width: 100%; height: 800px; border: 1px solid #ddd; }
-    .preview { margin-top: 12px; }
-  </style>
-</head>
-<body>
-  <div style="margin-top:12px">
-    <button id="getScore">Request Score</button>
-    <button id="visibleCaptureBtn">Request Capture</button>
-  </div>
-
-  <iframe id="gameFrame" src="https://timeguessr.com/roundonedaily"></iframe>
-
-  <div class="results">
-    <h3>Result</h3>
-    <pre id="result">(no result yet)</pre>
-    <div class="preview">
-      <h4>Capture Preview</h4>
-      <img id="previewImg" alt="capture preview" style="max-width:480px; display:block; border:1px solid #ddd; padding:4px;" />
-      <div id="captureInfo"></div>
+  <head>
+    <meta charset="utf-8" />
+    <title>ScoreBridge PoC Test Harness</title>
+    <style>
+      body {
+        font-family: system-ui, Arial;
+        padding: 20px;
+      }
+      iframe {
+        width: 100%;
+        height: 800px;
+        border: 1px solid #ddd;
+      }
+      .preview {
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="margin-top: 12px">
+      <button id="getScore">Request Score</button>
+      <button id="visibleCaptureBtn">Request Capture</button>
     </div>
-  </div>
 
-  <script>
-    const iframe = document.getElementById('gameFrame');
-    const previewImg = document.getElementById('previewImg');
-    const result = document.getElementById('result');
+    <iframe id="gameFrame" src="https://timeguessr.com/roundonedaily"></iframe>
 
-    function genNonce() { return Math.random().toString(36).slice(2); }
+    <div class="results">
+      <h3>Result</h3>
+      <pre id="result">(no result yet)</pre>
+      <div class="preview">
+        <h4>Capture Preview</h4>
+        <img
+          id="previewImg"
+          alt="capture preview"
+          style="
+            max-width: 480px;
+            display: block;
+            border: 1px solid #ddd;
+            padding: 4px;
+          "
+        />
+        <div id="captureInfo"></div>
+      </div>
+    </div>
 
-    // State used when temporarily making the iframe fullscreen during capture
-    const captureState = { prevStyle: null, nonce: null, timeoutId: null };
+    <script>
+      const iframe = document.getElementById('gameFrame')
+      const previewImg = document.getElementById('previewImg')
+      const result = document.getElementById('result')
 
-    function applyIframeFullscreenOverlay() {
-      if (captureState.prevStyle !== null) return;
-      captureState.prevStyle = iframe.getAttribute('style') || '';
-      iframe.style.position = 'fixed';
-      iframe.style.top = '0';
-      iframe.style.left = '0';
-      iframe.style.width = '100vw';
-      iframe.style.height = '100vh';
-      iframe.style.margin = '0';
-      iframe.style.zIndex = '2147483647';
-    }
-
-    function restoreIframeFromFullscreen() {
-      if (captureState.prevStyle === null) return;
-      iframe.setAttribute('style', captureState.prevStyle);
-      captureState.prevStyle = null;
-      captureState.nonce = null;
-      if (captureState.timeoutId) {
-        clearTimeout(captureState.timeoutId);
-        captureState.timeoutId = null;
+      function genNonce() {
+        return Math.random().toString(36).slice(2)
       }
-    }
 
-    window.addEventListener('message', ev => {
-      if (!ev.data || typeof ev.data.type !== 'string') return;
-      if (ev.data.type === 'SCORE_RESPONSE') {
-        result.textContent = 'Score: ' + JSON.stringify(ev.data.score);
+      // State used when temporarily making the iframe fullscreen during capture
+      const captureState = { prevStyle: null, nonce: null, timeoutId: null }
+
+      function applyIframeFullscreenOverlay() {
+        if (captureState.prevStyle !== null) return
+        captureState.prevStyle = iframe.getAttribute('style') || ''
+        iframe.style.position = 'fixed'
+        iframe.style.top = '0'
+        iframe.style.left = '0'
+        iframe.style.width = '100vw'
+        iframe.style.height = '100vh'
+        iframe.style.margin = '0'
+        iframe.style.zIndex = '2147483647'
       }
-      if (ev.data.type === 'CAPTURE_RESPONSE') {
-        // If this capture corresponds to our request, restore the iframe overlay
-        if (ev.data.nonce && ev.data.nonce === captureState.nonce) {
-          restoreIframeFromFullscreen();
-        } else if (!ev.data.nonce && captureState.prevStyle !== null) {
-          // best-effort restore if we still have the overlay
-          restoreIframeFromFullscreen();
-        }
 
-        if (ev.data.error) {
-          document.getElementById('captureInfo').textContent = 'Capture error: ' + ev.data.error;
-          document.getElementById('previewImg').src = '';
-        } else if (ev.data.dataUrl) {
-          document.getElementById('previewImg').src = ev.data.dataUrl;
-          // compute size in KB from base64 data URL
-          (function () {
-            try {
-              const parts = ev.data.dataUrl.split(',');
-              const base64 = parts[1] || '';
-              const padding = base64.endsWith('==') ? 2 : (base64.endsWith('=') ? 1 : 0);
-              const base64Length = base64.length;
-              const bytes = Math.max(0, (base64Length * 3) / 4 - padding);
-              const kb = bytes / 1024;
-              document.getElementById('captureInfo').textContent = 'Captured image size: ' + kb.toFixed(1) + ' KB';
-            } catch (e) {
-              document.getElementById('captureInfo').textContent = 'Captured image size: (unknown)';
-            }
-          })();
+      function restoreIframeFromFullscreen() {
+        if (captureState.prevStyle === null) return
+        iframe.setAttribute('style', captureState.prevStyle)
+        captureState.prevStyle = null
+        captureState.nonce = null
+        if (captureState.timeoutId) {
+          clearTimeout(captureState.timeoutId)
+          captureState.timeoutId = null
         }
       }
-    });
 
-    document.getElementById('getScore').addEventListener('click', () => {
-      getScore();
-    });
-
-    document.getElementById('visibleCaptureBtn').addEventListener('click', () => {
-      visibleTabCapture();
-    });
-
-    function getScore() {
-      const nonce = genNonce();
-      const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
-      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce }, origin);
-    }
-
-    function visibleTabCapture() {
-      const nonce = genNonce();
-      captureState.nonce = nonce;
-      applyIframeFullscreenOverlay();
-      setTimeout(() => {
-        const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
-        document.getElementById('captureInfo').textContent = 'Waiting for visible-tab capture...';
-        iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce }, origin);
-
-        // Fallback: restore after 1s if no response
-        captureState.timeoutId = setTimeout(() => {
-          if (captureState.prevStyle !== null) {
-            restoreIframeFromFullscreen();
+      window.addEventListener('message', ev => {
+        if (!ev.data || typeof ev.data.type !== 'string') return
+        if (ev.data.type === 'SCORE_RESPONSE') {
+          result.textContent = 'Score: ' + JSON.stringify(ev.data.score)
+        }
+        if (ev.data.type === 'CAPTURE_RESPONSE') {
+          // If this capture corresponds to our request, restore the iframe overlay
+          if (ev.data.nonce && ev.data.nonce === captureState.nonce) {
+            restoreIframeFromFullscreen()
+          } else if (!ev.data.nonce && captureState.prevStyle !== null) {
+            // best-effort restore if we still have the overlay
+            restoreIframeFromFullscreen()
           }
-        }, 1000);
-      }, 100); // slight delay to ensure styles are applied before capture request
-    }
-  </script>
-</body>
+
+          if (ev.data.error) {
+            document.getElementById('captureInfo').textContent =
+              'Capture error: ' + ev.data.error
+            document.getElementById('previewImg').src = ''
+            return
+          }
+          if (ev.data.dataUrl && ev.data.rect) {
+            const img = new Image()
+            img.onload = function () {
+              try {
+                const dpr = ev.data.dpr || 1
+                const sx = Math.round((ev.data.rect.left || 0) * dpr)
+                const sy = Math.round((ev.data.rect.top || 0) * dpr)
+                const sw = Math.max(
+                  1,
+                  Math.round((ev.data.rect.width || 0) * dpr)
+                )
+                const sh = Math.max(
+                  1,
+                  Math.round((ev.data.rect.height || 0) * dpr)
+                )
+                const out = document.createElement('canvas')
+                out.width = sw
+                out.height = sh
+                const ctx = out.getContext('2d')
+                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
+                const final = out.toDataURL('image/png')
+                previewImg.src = final
+                try {
+                  const parts = final.split(',')
+                  const base64 = parts[1] || ''
+                  const padding = base64.endsWith('==')
+                    ? 2
+                    : base64.endsWith('=')
+                      ? 1
+                      : 0
+                  const base64Length = base64.length
+                  const bytes = Math.max(0, (base64Length * 3) / 4 - padding)
+                  const kb = bytes / 1024
+                  document.getElementById('captureInfo').textContent =
+                    'Captured image size: ' + kb.toFixed(1) + ' KB'
+                } catch (e) {
+                  document.getElementById('captureInfo').textContent =
+                    'Captured image size: (unknown)'
+                }
+              } catch (err) {
+                document.getElementById('captureInfo').textContent =
+                  'Render error: ' + String(err)
+                previewImg.src = ''
+              }
+            }
+            img.onerror = function () {
+              document.getElementById('captureInfo').textContent =
+                'Image load error'
+              previewImg.src = ''
+            }
+            img.src = ev.data.dataUrl
+          }
+        }
+      })
+
+      document.getElementById('getScore').addEventListener('click', () => {
+        getScore()
+      })
+
+      document
+        .getElementById('visibleCaptureBtn')
+        .addEventListener('click', () => {
+          visibleTabCapture()
+        })
+
+      function getScore() {
+        const nonce = genNonce()
+        const origin = (function () {
+          try {
+            return new URL(iframe.src).origin
+          } catch (e) {
+            return '*'
+          }
+        })()
+        iframe.contentWindow.postMessage(
+          { source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce },
+          origin
+        )
+      }
+
+      function visibleTabCapture() {
+        const nonce = genNonce()
+        captureState.nonce = nonce
+        applyIframeFullscreenOverlay()
+        setTimeout(() => {
+          const origin = (function () {
+            try {
+              return new URL(iframe.src).origin
+            } catch (e) {
+              return '*'
+            }
+          })()
+          document.getElementById('captureInfo').textContent =
+            'Waiting for visible-tab capture...'
+          iframe.contentWindow.postMessage(
+            {
+              source: 'ScoreBridgeParent',
+              type: 'REQUEST_VISIBLE_TAB_FROM_PARENT',
+              nonce
+            },
+            origin
+          )
+
+          // Fallback: restore after 1s if no response
+          captureState.timeoutId = setTimeout(() => {
+            if (captureState.prevStyle !== null) {
+              restoreIframeFromFullscreen()
+            }
+          }, 1000)
+        }, 100) // slight delay to ensure styles are applied before capture request
+      }
+    </script>
+  </body>
 </html>

@@ -137,63 +137,22 @@
                       } catch (e) {}
                       return
                     }
-                    const img = new Image()
-                    img.onload = function () {
-                      try {
-                        const sx = Math.round(abs.left * dpr)
-                        const sy = Math.round(abs.top * dpr)
-                        const sw = Math.max(1, Math.round(abs.width * dpr))
-                        const sh = Math.max(1, Math.round(abs.height * dpr))
-                        const out = document.createElement('canvas')
-                        out.width = sw
-                        out.height = sh
-                        const ctx = out.getContext('2d')
-                        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
-                        const final = out.toDataURL('image/png')
-                        const payloadOk = {
-                          type: 'CAPTURE_RESPONSE',
-                          nonce,
-                          dataUrl: final
-                        }
-                        try {
-                          window.postMessage(payloadOk, '*')
-                        } catch (e) {}
-                        try {
-                          iframeEl.contentWindow.postMessage(
-                            payloadOk,
-                            ev.origin || '*'
-                          )
-                        } catch (e) {}
-                      } catch (err) {
-                        const payloadErr2 = {
-                          type: 'CAPTURE_RESPONSE',
-                          nonce,
-                          error: String(err)
-                        }
-                        try {
-                          window.postMessage(payloadErr2, '*')
-                        } catch (e) {}
-                        try {
-                          iframeEl.contentWindow.postMessage(
-                            payloadErr2,
-                            ev.origin || '*'
-                          )
-                        } catch (e) {}
-                      }
+                    const payloadOk = {
+                      type: 'CAPTURE_RESPONSE',
+                      nonce,
+                      dataUrl: resp.dataUrl,
+                      rect: abs,
+                      dpr
                     }
-                    img.onerror = function () {
-                      try {
-                        window.postMessage(
-                          {
-                            type: 'CAPTURE_RESPONSE',
-                            nonce,
-                            error: 'image load error'
-                          },
-                          '*'
-                        )
-                      } catch (e) {}
-                    }
-                    img.src = resp.dataUrl
+                    try {
+                      window.postMessage(payloadOk, '*')
+                    } catch (e) {}
+                    try {
+                      iframeEl.contentWindow.postMessage(
+                        payloadOk,
+                        ev.origin || '*'
+                      )
+                    } catch (e) {}
                   } catch (e) {
                     const payloadErr3 = {
                       type: 'CAPTURE_RESPONSE',
