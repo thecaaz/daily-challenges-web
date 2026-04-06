@@ -76,8 +76,12 @@
                 },
                 '*'
               )
-            } catch (e) {}
-          } catch (e) {}
+            } catch (e) {
+              console.error('Error posting SCOREBRIDGE_VISIBLE_TAB_CAPTURE', e)
+            }
+          } catch (e) {
+            console.error('Error handling REQUEST_VISIBLE_TAB_FROM_PARENT', e)
+          }
           return
         }
 
@@ -108,6 +112,9 @@
                   },
                   ev.origin || '*'
                 )
+              console.error(
+                'Iframe element not found for SCOREBRIDGE_VISIBLE_TAB_CAPTURE'
+              )
               return
             }
 
@@ -120,62 +127,32 @@
             }
             const dpr = window.devicePixelRatio || 1
 
-            try {
-              chrome.runtime.sendMessage(
-                { type: 'CAPTURE_VISIBLE_TAB', rect: abs, dpr },
-                resp => {
-                  try {
-                    if (!resp || !resp.ok || !resp.dataUrl) {
-                      const payloadErr = {
-                        type: 'CAPTURE_RESPONSE',
-                        nonce,
-                        error:
-                          resp && resp.error ? resp.error : 'capture failed'
-                      }
-                      try {
-                        window.postMessage(payloadErr, '*')
-                      } catch (e) {}
-                      return
-                    }
-                    const payloadOk = {
-                      type: 'CAPTURE_RESPONSE',
-                      nonce,
-                      dataUrl: resp.dataUrl,
-                      rect: abs,
-                      dpr
-                    }
-                    try {
-                      window.postMessage(payloadOk, '*')
-                    } catch (e) {}
-                    try {
-                      iframeEl.contentWindow.postMessage(
-                        payloadOk,
-                        ev.origin || '*'
-                      )
-                    } catch (e) {}
-                  } catch (e) {
-                    const payloadErr3 = {
-                      type: 'CAPTURE_RESPONSE',
-                      nonce,
-                      error: String(e)
-                    }
-                    try {
-                      window.postMessage(payloadErr3, '*')
-                    } catch (o) {}
+            chrome.runtime.sendMessage(
+              { type: 'CAPTURE_VISIBLE_TAB', rect: abs, dpr },
+              resp => {
+                if (!resp || !resp.ok || !resp.dataUrl) {
+                  const payloadErr = {
+                    type: 'CAPTURE_RESPONSE',
+                    nonce,
+                    error: resp && resp.error ? resp.error : 'capture failed'
                   }
+                  window.postMessage(payloadErr, '*')
+                  return
                 }
-              )
-            } catch (e) {
-              const payloadErr4 = {
-                type: 'CAPTURE_RESPONSE',
-                nonce,
-                error: String(e)
+                const payloadOk = {
+                  type: 'CAPTURE_RESPONSE',
+                  nonce,
+                  dataUrl: resp.dataUrl,
+                  rect: abs,
+                  dpr
+                }
+                window.postMessage(payloadOk, '*')
+                iframeEl.contentWindow.postMessage(payloadOk, ev.origin || '*')
               }
-              try {
-                window.postMessage(payloadErr4, '*')
-              } catch (o) {}
-            }
-          } catch (e) {}
+            )
+          } catch (e) {
+            console.error('Error handling CAPTURE_VISIBLE_TAB', e)
+          }
           return
         }
 
