@@ -12,3 +12,7 @@
     - adapters for sites?
         -  security, cant access iframes: custom browser extension?
         -  automatic screenshots???
+- actually kind of works now
+- todos now:
+    - games cant be an entity anymore, theyll need to be static
+        - do they?, maybe possible to configure what element to get score from, and load adapter code from game?
