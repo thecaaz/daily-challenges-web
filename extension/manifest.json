@@ -11,13 +11,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["preload-webgl.js"],
-      "run_at": "document_start",
-      "all_frames": true
-    },
-    {
-      "matches": ["<all_urls>"],
-      "js": ["vendor/html2canvas.min.js", "content-script.js"],
+      "js": ["content-script.js"],
       "run_at": "document_idle",
       "all_frames": true
     }

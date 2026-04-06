@@ -10,13 +10,11 @@
   </style>
 </head>
 <body>
-  <h1>ScoreBridge PoC — Test Harness</h1>
   <p>Uses a local sample game in <code>frontend/sample-game.html</code> to demonstrate <code>postMessage</code> GET_SCORE flow.</p>
 
   <div style="margin-top:12px">
     <button id="getScore">Request Score</button>
-    <button id="captureBtn">Request Capture</button>
-    <button id="visibleCaptureBtn">Visible-tab Capture</button>
+    <button id="visibleCaptureBtn">Request Capture</button>
   </div>
 
   <iframe id="gameFrame" src="https://timeguessr.com/roundonedaily"></iframe>
@@ -33,20 +31,16 @@
 
   <script>
     const iframe = document.getElementById('gameFrame');
-    const result = document.getElementById('result');
     const previewImg = document.getElementById('previewImg');
 
     function genNonce() { return Math.random().toString(36).slice(2); }
 
     window.addEventListener('message', ev => {
-      console.debug('TestHarness: message received', { data: ev.data, origin: ev.origin });
       if (!ev.data || typeof ev.data.type !== 'string') return;
       if (ev.data.type === 'SCORE_RESPONSE') {
-        console.debug('TestHarness: SCORE_RESPONSE', ev.data);
         result.textContent = 'Score: ' + JSON.stringify(ev.data.score);
       }
-      if (ev.data.type === 'CAPTURE_RESPONSE' || ev.data.type === 'IFRAME_CAPTURE_RESPONSE') {
-        console.debug('TestHarness: CAPTURE_RESPONSE/IFRAME_CAPTURE_RESPONSE', ev.data);
+      if (ev.data.type === 'CAPTURE_RESPONSE') {
         if (ev.data.error) {
           document.getElementById('captureInfo').textContent = 'Capture error: ' + ev.data.error;
           document.getElementById('previewImg').src = '';
@@ -58,27 +52,30 @@
     });
 
     document.getElementById('getScore').addEventListener('click', () => {
-      const nonce = genNonce();
-      console.debug('TestHarness: sending GET_SCORE', { nonce });
-      const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
-      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce }, origin);
-    });
-
-    document.getElementById('captureBtn').addEventListener('click', () => {
-      const nonce = genNonce();
-      const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
-      console.debug('TestHarness: sending REQUEST_IFRAME_CAPTURE', { nonce, origin });
-      document.getElementById('captureInfo').textContent = 'Waiting for capture...';
-      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_IFRAME_CAPTURE', nonce, selector: '#resultsContainer' }, origin);
+      getScore();
     });
 
     document.getElementById('visibleCaptureBtn').addEventListener('click', () => {
+      visibleTabCapture();
+    });
+
+    function getScore() {
       const nonce = genNonce();
       const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
-      console.debug('TestHarness: sending REQUEST_VISIBLE_TAB_FROM_PARENT', { nonce, origin });
+      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce }, origin);
+    }
+
+    function visibleTabCapture() {
+      const nonce = genNonce();
+      const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
       document.getElementById('captureInfo').textContent = 'Waiting for visible-tab capture...';
       iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce, selector: '#resultsContainer' }, origin);
-    });
+    }
+
+    setTimeout(() => {
+      getScore();
+      visibleTabCapture();
+    }, 2000);
   </script>
 </body>
 </html>
