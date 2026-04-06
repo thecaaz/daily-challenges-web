@@ -1,30 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { TextField, Stack, Typography, Card, Alert } from '@mui/material'
+import { Box, Typography } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
-import api from '../api'
-import parseUtcDate from '../utils/parseUtcDate'
-import { useSnackbar } from '../contexts/SnackbarContext'
 import useRequireAuth from '../hooks/useRequireAuth'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
 import useGame from '../hooks/useGame'
-import useImageUpload from '../hooks/useImageUpload'
-import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
-import parseScore from '../utils/parseScore'
-import useConfirm from '../hooks/useConfirm'
-import ConfirmDialog from '../components/ui/ConfirmDialog'
+import SubmissionForm from '../components/SubmissionForm/SubmissionForm'
 
 export default function Submit() {
   const { gameId } = useParams()
   const [game, setGame] = useState(null)
   const [notFound, setNotFound] = useState(false)
-  const [score, setScore] = useState('')
-  const { showSnackbar } = useSnackbar()
-  const { confirm, dialogProps } = useConfirm()
-
-  const { screenshot, previewUrl, onFileChange, clear } = useImageUpload(showSnackbar)
+  
 
   const { game: hookGame, hasSubmittedForLatest: hookHasSubmittedForLatest, notFound: hookNotFound } = useGame(gameId)
 
@@ -36,8 +25,6 @@ export default function Submit() {
     if (hookGame) setGame(hookGame)
   }, [hookGame, hookNotFound])
   const { user, loading, fetchMe } = useRequireAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
 
   const [hasSubmitted, setHasSubmitted] = useState(false)
 
@@ -48,97 +35,34 @@ export default function Submit() {
     }
   }, [hookHasSubmittedForLatest, user])
 
-  const submit = async (e) => {
-    e.preventDefault()
-    if (user && user.id && hasSubmitted) {
-      showSnackbar('You have already submitted for this game', 'error')
-      return
-    }
-
-    const fd = new FormData()
-    fd.append('gameId', gameId)
-    const parsed = parseScore(score)
-    if (isNaN(parsed)) {
-      const ok = await confirm({ title: 'Non-numeric score', message: 'This score is not a number and may not show up correctly on leaderboards. Submit anyway?', confirmText: 'Submit', confirmColor: 'primary' })
-      if (!ok) return
-    }
-    fd.append('score', isNaN(parsed) ? score : String(parsed))
-    if (screenshot) fd.append('screenshot', screenshot)
-    try {
-      const res = await api.post('/submissions', fd)
-      const { submission, xpGain } = res.data
-
-      // Capture current level before refreshing, so we can detect a level-up.
-      const prevLevel = user?.level ?? 1
-
-      // Refresh user context so GameBar reflects the new XP/level immediately.
-      const updatedUser = await fetchMe()
-
-      const leveledUp = updatedUser && updatedUser.level > prevLevel
-
-      if (leveledUp) {
-        // Re-fetch once more to ensure xpIntoLevel / xpToNextLevel reflect the new
-        // level's range after the level-up boundary was crossed.
-        await fetchMe()
-        showSnackbar(
-          xpGain > 0
-            ? `Submitted! +${xpGain} XP ⬆️ Level ${updatedUser.level}!`
-            : `Level ${updatedUser.level}!`,
-          'success'
-        )
-      } else if (xpGain > 0) {
-        showSnackbar(`Submitted! +${xpGain} XP`, 'success')
-      } else {
-        showSnackbar('Submitted!', 'success')
-      }
-
-      // Navigate to the game's submissions filtered by the new submission's scoring day.
-      const date = submission?.createdAt
-        ? parseUtcDate(submission.createdAt).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0]
-      navigate(`/games/${gameId}?scoringDay=${date}`)
-    } catch (err) {
-      // Prefer backend-provided message when available
-      const msg = err?.response?.data?.message || err?.response?.data || err?.message || 'Failed to submit'
-      showSnackbar(String(msg), 'error')
-    }
-  }
+  
 
   if (notFound) return <NotFound message="Game not found" />
   if (!game) return <Loading />
 
   return (
     <div>
-      <Card sx={{ p: 2 }}>
-        <Typography variant="h5">Submit for {game.name}</Typography>
-        {game.url && (
-          <div style={{ marginTop: 6 }}>
-            <AppButton
-              to={`/play/${gameId}`}
-              variant="outlined"
-              size="small"
-              color="primary"
-              endIcon={<OpenInNewIcon />}
-              dataTest="game-play-link"
-            >
-              Play
-            </AppButton>
-          </div>
-        )}
-        <form onSubmit={submit}>
-          <Stack spacing={2} maxWidth={480} sx={{ mt: 2 }}>
-            <TextField label="Score" value={score} onChange={e => setScore(e.target.value)} required />
-            {score !== '' && isNaN(parseScore(score)) && (
-              <Alert severity="warning" sx={{ py: 0 }}>
-                This score is not a number and may not show up correctly on leaderboards.
-              </Alert>
-            )}
-            <ImageUpload onFileChange={onFileChange} previewUrl={previewUrl} onRemove={clear} />
-            <AppButton type="submit">Submit</AppButton>
-          </Stack>
-        </form>
-      </Card>
-      <ConfirmDialog {...dialogProps} />
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2 }}>
+          <Typography variant="h5">Submit for {game.name}</Typography>
+          {game.url && (
+            <div style={{ marginTop: 6 }}>
+              <AppButton
+                to={`/play/${gameId}`}
+                variant="outlined"
+                size="small"
+                color="primary"
+                endIcon={<OpenInNewIcon />}
+                dataTest="game-play-link"
+              >
+                Play
+              </AppButton>
+            </div>
+          )}
+        </Box>
+
+        <SubmissionForm gameId={gameId} hasSubmitted={hasSubmitted} />
+      </Box>
     </div>
   )
 }
