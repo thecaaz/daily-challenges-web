@@ -10,8 +10,6 @@
   </style>
 </head>
 <body>
-  <p>Uses a local sample game in <code>frontend/sample-game.html</code> to demonstrate <code>postMessage</code> GET_SCORE flow.</p>
-
   <div style="margin-top:12px">
     <button id="getScore">Request Score</button>
     <button id="visibleCaptureBtn">Request Capture</button>
@@ -32,8 +30,35 @@
   <script>
     const iframe = document.getElementById('gameFrame');
     const previewImg = document.getElementById('previewImg');
+    const result = document.getElementById('result');
 
     function genNonce() { return Math.random().toString(36).slice(2); }
+
+    // State used when temporarily making the iframe fullscreen during capture
+    const captureState = { prevStyle: null, nonce: null, timeoutId: null };
+
+    function applyIframeFullscreenOverlay() {
+      if (captureState.prevStyle !== null) return;
+      captureState.prevStyle = iframe.getAttribute('style') || '';
+      iframe.style.position = 'fixed';
+      iframe.style.top = '0';
+      iframe.style.left = '0';
+      iframe.style.width = '100vw';
+      iframe.style.height = '100vh';
+      iframe.style.margin = '0';
+      iframe.style.zIndex = '2147483647';
+    }
+
+    function restoreIframeFromFullscreen() {
+      if (captureState.prevStyle === null) return;
+      iframe.setAttribute('style', captureState.prevStyle);
+      captureState.prevStyle = null;
+      captureState.nonce = null;
+      if (captureState.timeoutId) {
+        clearTimeout(captureState.timeoutId);
+        captureState.timeoutId = null;
+      }
+    }
 
     window.addEventListener('message', ev => {
       if (!ev.data || typeof ev.data.type !== 'string') return;
@@ -41,6 +66,14 @@
         result.textContent = 'Score: ' + JSON.stringify(ev.data.score);
       }
       if (ev.data.type === 'CAPTURE_RESPONSE') {
+        // If this capture corresponds to our request, restore the iframe overlay
+        if (ev.data.nonce && ev.data.nonce === captureState.nonce) {
+          restoreIframeFromFullscreen();
+        } else if (!ev.data.nonce && captureState.prevStyle !== null) {
+          // best-effort restore if we still have the overlay
+          restoreIframeFromFullscreen();
+        }
+
         if (ev.data.error) {
           document.getElementById('captureInfo').textContent = 'Capture error: ' + ev.data.error;
           document.getElementById('previewImg').src = '';
@@ -67,15 +100,21 @@
 
     function visibleTabCapture() {
       const nonce = genNonce();
-      const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
-      document.getElementById('captureInfo').textContent = 'Waiting for visible-tab capture...';
-      iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce, selector: '#resultsContainer' }, origin);
-    }
+      captureState.nonce = nonce;
+      applyIframeFullscreenOverlay();
+      setTimeout(() => {
+        const origin = (function () { try { return new URL(iframe.src).origin; } catch (e) { return '*'; } })();
+        document.getElementById('captureInfo').textContent = 'Waiting for visible-tab capture...';
+        iframe.contentWindow.postMessage({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce, selector: '#resultsContainer' }, origin);
 
-    setTimeout(() => {
-      getScore();
-      visibleTabCapture();
-    }, 2000);
+        // Fallback: restore after 1s if no response
+        captureState.timeoutId = setTimeout(() => {
+          if (captureState.prevStyle !== null) {
+            restoreIframeFromFullscreen();
+          }
+        }, 1000);
+      }, 200);
+    }
   </script>
 </body>
 </html>
