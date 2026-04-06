@@ -88,6 +88,38 @@ Next steps (if PoC successful)
 - Replace CDN loading with bundled `vendor/` files for stability and offline dev.
 - Add per‑site runtime permission requests and a user onboarding flow.
 
+Extension page API
+------------------
+
+The content script exposes a small `postMessage`-based API so pages can query which adapters the extension knows about and ask whether an adapter exists for an arbitrary URL.
+
+- `HAS_ADAPTER` (page → content script)
+  - Payload: `{ type: 'HAS_ADAPTER', url: '<url>', nonce: '<nonce>' }`
+  - Response: `{ type: 'HAS_ADAPTER_RESPONSE', nonce, exists: true|false, adapterName: string|null }
+
+- `GET_ADAPTERS` (page → content script)
+  - Payload: `{ type: 'GET_ADAPTERS', nonce: '<nonce>' }`
+  - Response: `{ type: 'ADAPTERS_RESPONSE', nonce, adapters: [ { name, matchDescriptor } ] }`
+
+Example (page):
+
+```javascript
+const nonce = Date.now() + Math.random();
+window.addEventListener('message', ev => {
+  if (!ev.data || typeof ev.data.type !== 'string') return;
+  if (ev.data.type === 'HAS_ADAPTER_RESPONSE' && ev.data.nonce === nonce) {
+    console.log('has adapter?', ev.data.exists, ev.data.adapterName);
+  }
+  if (ev.data.type === 'ADAPTERS_RESPONSE') {
+    console.log('adapters', ev.data.adapters);
+  }
+});
+window.postMessage({ type: 'HAS_ADAPTER', url: 'https://timeguessr.com', nonce }, '*');
+window.postMessage({ type: 'GET_ADAPTERS', nonce }, '*');
+```
+
+Security note: exposing adapter metadata can make it easier for pages to fingerprint installed extensions. Consider restricting responses (for example only responding to same-origin pages) if this is a concern.
+
 Files to edit when iterating
 ---------------------------
 

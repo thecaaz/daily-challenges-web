@@ -5,6 +5,7 @@
   const ADAPTERS = [
     {
       name: 'TimeGuessr',
+      matchDescriptor: { type: 'includes', value: 'timeguessr' },
       match: host => /timeguessr/.test(host) || host.includes('timeguessr'),
       selectors: ['#totalText', '#totalScoreBreakdownText'],
       onInit: function (doc, ctx) {
@@ -155,6 +156,46 @@
           } catch (e) {
             console.error('Error handling CAPTURE_VISIBLE_TAB', e)
           }
+          return
+        }
+
+        // Page asks whether an adapter exists for a given URL (payload: { url, nonce })
+        if (ev.data.type === 'HAS_ADAPTER') {
+          const nonce = ev.data.nonce
+          let exists = false
+          let adapterName = null
+          try {
+            const urlStr = ev.data.url || ''
+            let host
+            try {
+              host = new URL(urlStr).hostname
+            } catch (e) {
+              host = urlStr || location.hostname
+            }
+            const adapter = findAdapter(host)
+            exists = !!adapter
+            adapterName = adapter ? adapter.name || null : null
+          } catch (e) {
+            exists = false
+          }
+          const payload = { type: 'HAS_ADAPTER_RESPONSE', nonce, exists, adapterName }
+          try {
+            ev.source.postMessage(payload, ev.origin || '*')
+          } catch (e) {}
+          return
+        }
+
+        // Page requests a list of adapters (payload: { nonce })
+        if (ev.data.type === 'GET_ADAPTERS') {
+          const nonce = ev.data.nonce
+          const adapters = ADAPTERS.map(a => ({
+            name: a.name,
+            matchDescriptor: a.matchDescriptor || (a.match ? { type: 'function', value: a.match.toString() } : null)
+          }))
+          const payload = { type: 'ADAPTERS_RESPONSE', nonce, adapters }
+          try {
+            ev.source.postMessage(payload, ev.origin || '*')
+          } catch (e) {}
           return
         }
 
