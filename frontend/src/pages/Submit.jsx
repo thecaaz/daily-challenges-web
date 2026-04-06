@@ -114,9 +114,7 @@ export default function Submit() {
         {game.url && (
           <div style={{ marginTop: 6 }}>
             <AppButton
-              href={game.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              to={`/play/${gameId}`}
               variant="outlined"
               size="small"
               color="primary"

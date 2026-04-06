@@ -37,9 +37,7 @@ export default function GameHeader({ game }) {
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             {game.url && (
               <AppButton
-                href={game.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                to={`/play/${game.id}`}
                 variant="outlined"
                 size="small"
                 color="primary"

@@ -67,7 +67,7 @@ export default function GameCard({ game, sx, showSubmit = true }) {
           })()
         )}
         {game.url && (
-          <AppButton href={game.url} target="_blank" rel="noreferrer" variant="outlined" color="primary" size="small" endIcon={<OpenInNewIcon />}>
+          <AppButton to={`/play/${game.id}`} variant="outlined" color="primary" size="small" endIcon={<OpenInNewIcon />}>
             Play
           </AppButton>
         )}

@@ -200,8 +200,8 @@ export default function Admin() {
       {games.map(g => (
         <Paper key={g.id} sx={{ p: 1.5, mb: 1.5 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <strong>{g.name}</strong> {g.url ? <a href={g.url} target="_blank" rel="noreferrer">(link)</a> : null}
+              <div>
+              <strong>{g.name}</strong> {g.url ? <Link to={`/play/${g.id}` } style={{ textDecoration: 'none' }}>(link)</Link> : null}
             </div>
             <div>
               <IconButton onClick={() => startEdit(g)} title="Edit"><EditIcon /></IconButton>
