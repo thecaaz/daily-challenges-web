@@ -14,6 +14,7 @@ import GameBar from './components/GameBar'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import UserProfile from './pages/UserProfile'
+import TimeguessrDebug from './pages/TimeguessrDebug'
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="/" element={<Games />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/debug/timeguessr" element={<TimeguessrDebug />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/submit/:gameId" element={<Submit />} />

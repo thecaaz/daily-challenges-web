@@ -14,6 +14,8 @@
         } catch (e) {}
       },
       readScore: function (doc) {
+        const breakdownBtn = doc.querySelector('#breakdownButton')
+        if (breakdownBtn) breakdownBtn.click()
         for (const s of this.selectors) {
           const el = doc.querySelector(s)
           if (!el) continue

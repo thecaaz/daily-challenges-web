@@ -73,6 +73,7 @@ export default function Admin() {
   const { isAuthorized } = useRequireAdmin()
 
   const goUsers = () => navigate('/admin/users')
+  const goTimeguessr = () => navigate('/debug/timeguessr')
 
   if (!isAuthorized) return null
 
@@ -165,7 +166,8 @@ export default function Admin() {
   return (
     <>
     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
-      <AppButton onClick={goUsers} sx={{ mb: 2 }}>Manage Users</AppButton>
+      <AppButton onClick={goUsers} sx={{ mb: 2, mr: 1 }}>Manage Users</AppButton>
+      <AppButton onClick={goTimeguessr} sx={{ mb: 2 }}>Debug Timeguessr Test</AppButton>
     </Box>
     <form onSubmit={submit}>
       <Stack spacing={2} maxWidth={400}>
