@@ -86,6 +86,7 @@ The migration files are created under [backend/Migrations](backend/Migrations). 
 
 ## E2E Tests (Playwright)
 
+NOTE: Wildly outdated, might not update them for quite a while.
 End-to-end tests live in [`tests/e2e/`](tests/e2e/). See [`tests/e2e/README.md`](tests/e2e/README.md) for full setup and usage instructions.
 
 **Quick start (PowerShell):**
