@@ -19,6 +19,7 @@ export default function useFavorite(gameId, initial = false) {
 
     const next = !isFavorite
     setIsFavorite(next)
+    window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: next } }))
     setLoading(true)
     try {
       if (next) {
@@ -28,6 +29,7 @@ export default function useFavorite(gameId, initial = false) {
       }
     } catch (err) {
       setIsFavorite(!next)
+      window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: !next } }))
       console.error('Failed to toggle favorite', err)
       showSnackbar('Failed to update favorite', 'error')
     } finally {
