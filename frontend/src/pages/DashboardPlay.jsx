@@ -216,7 +216,7 @@ export default function DashboardPlay() {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2 }}>
         <Typography variant="h5">{current.name}</Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Typography sx={{ alignSelf: 'center' }}>{currentIndex + 1} / {queue.length}</Typography>
           {current.url && (
             <AppButton href={current.url} target="_blank" rel="noreferrer" variant="outlined">Open in new tab</AppButton>
@@ -224,6 +224,8 @@ export default function DashboardPlay() {
           {current.url && (
             <AppButton onClick={submitScore} variant="contained">Submit score</AppButton>
           )}
+          <AppButton color="inherit" variant="outlined" onClick={() => setCurrentIndex(i => i + 1)}>Skip</AppButton>
+          <AppButton to="/dashboard" variant="text">Quit</AppButton>
         </Box>
       </Box>
 
@@ -248,10 +250,7 @@ export default function DashboardPlay() {
         </>
       )}
 
-      <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-        <AppButton color="inherit" variant="outlined" onClick={() => setCurrentIndex(i => i + 1)}>Skip</AppButton>
-        <AppButton to="/dashboard" variant="text">Quit</AppButton>
-      </Box>
+      
     </Box>
   )
 }
