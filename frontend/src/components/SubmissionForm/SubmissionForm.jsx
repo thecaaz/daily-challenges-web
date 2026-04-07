@@ -12,7 +12,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import parseUtcDate from '../../utils/parseUtcDate'
 import { useNavigate } from 'react-router-dom'
 
-export default function SubmissionForm({ gameId, initialScore = '', initialScreenshot = null, hasSubmitted = false, onCancel }) {
+export default function SubmissionForm({ gameId, initialScore = '', initialScreenshot = null, hasSubmitted = false, onCancel, onSubmitted }) {
   const navigate = useNavigate()
   const { showSnackbar } = useSnackbar()
   const { user, fetchMe } = useRequireAuth()
@@ -69,8 +69,30 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
       const date = submission?.createdAt
         ? parseUtcDate(submission.createdAt).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0]
+
+      // If a caller provided an onSubmitted handler, call it instead of navigating
+      if (typeof onSubmitted === 'function') {
+        try {
+          await fetchMe()
+        } catch (e) {
+          // ignore
+        }
+        onSubmitted({ submission, xpGain })
+        return
+      }
+
       navigate(`/games/${gameId}?scoringDay=${date}`)
     } catch (err) {
+      // Treat server-side duplicate-submission (409) as success when caller wants to handle it
+      const status = err?.response?.status
+      if (status === 409 && typeof onSubmitted === 'function') {
+        try {
+          await fetchMe()
+        } catch (e) {}
+        onSubmitted({ submission: err?.response?.data?.submission || null, xpGain: err?.response?.data?.xpGain || 0, duplicate: true })
+        return
+      }
+
       const msg = err?.response?.data?.message || err?.response?.data || err?.message || 'Failed to submit'
       showSnackbar(String(msg), 'error')
     }

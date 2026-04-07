@@ -17,6 +17,7 @@ import Register from './pages/Register'
 import UserProfile from './pages/UserProfile'
 import TimeguessrDebug from './pages/TimeguessrDebug'
 import Play from './pages/Play'
+import DashboardPlay from './pages/DashboardPlay'
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Games />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard/play" element={<DashboardPlay />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/debug/timeguessr" element={<TimeguessrDebug />} />

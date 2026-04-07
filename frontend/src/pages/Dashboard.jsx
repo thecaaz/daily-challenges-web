@@ -3,6 +3,8 @@ import { Grid, Typography, Skeleton, Box, Chip, Card, IconButton, Collapse } fro
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import GameCard from '../components/ui/GameCard/GameCard'
+import AppButton from '../components/ui/AppButton'
+import { hasAdapterForUrl } from '../utils/adapters'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -13,6 +15,7 @@ export default function Dashboard() {
   const [favorites, setFavorites] = useState([])
   const [others, setOthers] = useState([])
   const [otherOpen, setOtherOpen] = useState(false)
+  const [playableCount, setPlayableCount] = useState(0)
   const [loadingState, setLoadingState] = useState(true)
 
   useEffect(() => {
@@ -103,6 +106,31 @@ export default function Dashboard() {
     }
   }
 
+  // Compute how many favorite games are playable (have adapter & not submitted)
+  useEffect(() => {
+    let mounted = true
+    const computePlayable = async () => {
+      try {
+        let count = 0
+        for (const g of favorites || []) {
+          try {
+            if (!g.url) continue
+            if (g.hasSubmittedForLatest) continue
+            const ok = await hasAdapterForUrl(g.url)
+            if (ok) count++
+          } catch (e) {
+            // ignore per-game
+          }
+        }
+        if (mounted) setPlayableCount(count)
+      } catch (e) {
+        if (mounted) setPlayableCount(0)
+      }
+    }
+    computePlayable()
+    return () => { mounted = false }
+  }, [favorites])
+
   if (loading || loadingState) {
     return (
       <>
@@ -140,6 +168,8 @@ export default function Dashboard() {
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <Typography variant="h5" component="h1">Dashboard</Typography>
+        <Box sx={{ flex: 1 }} />
+        <AppButton to="/dashboard/play" variant="contained" disabled={playableCount === 0}>Play</AppButton>
       </Box>
 
       {/* Favorites section */}
