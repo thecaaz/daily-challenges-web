@@ -20,6 +20,7 @@ export default function DashboardPlay() {
   const iframeRef = useRef(null)
   const [score, setScore] = useState('')
   const [showSubmission, setShowSubmission] = useState(false)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
   const [capturedFile, setCapturedFile] = useState(null)
   const lastNonceRef = useRef(null)
   const captureStateRef = useRef({ nonce: null, fauxFullscreen: false })
@@ -181,6 +182,11 @@ export default function DashboardPlay() {
 
   const current = queue[currentIndex]
 
+  useEffect(() => {
+    // reset iframe loaded state whenever we switch to a new game
+    setIframeLoaded(false)
+  }, [current?.id])
+
   const handleSubmitted = ({ submission }) => {
     // mark current as submitted and advance
     setQueue(prev => prev.map((g, i) => i === currentIndex ? { ...g, hasSubmittedForLatest: true } : g))
@@ -234,8 +240,22 @@ export default function DashboardPlay() {
       ) : (
         <>
           {!showSubmission ? (
-            <Box sx={{ width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh' }}>
-              <iframe allowFullScreen allow="fullscreen" ref={iframeRef} src={current.url} title={current.name || 'Play'} style={{ width: '100%', height: '100%', border: 0 }} />
+            <Box sx={{ width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh', position: 'relative' }}>
+              {!iframeLoaded && (
+                <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.paper', zIndex: 0 }}>
+                  <CircularProgress />
+                  <Typography sx={{ mt: 2 }}>Loading game...</Typography>
+                </Box>
+              )}
+              <iframe
+                allowFullScreen
+                allow="fullscreen"
+                ref={iframeRef}
+                src={current.url}
+                title={current.name || 'Play'}
+                onLoad={() => setIframeLoaded(true)}
+                style={{ width: '100%', height: '100%', border: 0, visibility: iframeLoaded ? 'visible' : 'hidden', position: 'relative', zIndex: 1 }}
+              />
             </Box>
           ) : (
             <SubmissionForm
