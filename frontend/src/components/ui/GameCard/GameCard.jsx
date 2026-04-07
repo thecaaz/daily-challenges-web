@@ -4,6 +4,7 @@ import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, 
 import AppButton from '../AppButton'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import PlayButton from '../PlayButton'
 import CheckIcon from '@mui/icons-material/Check'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import StarIcon from '@mui/icons-material/Star'
@@ -113,9 +114,7 @@ export default function GameCard({ game, sx, showSubmit = true }) {
           })()
         )}
         {game.url && (
-          <AppButton to={`/play/${game.id}`} variant="outlined" color="primary" size="small" endIcon={<OpenInNewIcon />}>
-            Play
-          </AppButton>
+          <PlayButton game={game} adapter={adapter} />
         )}
       </CardActions>
     </Card>

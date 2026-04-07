@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Box, Typography } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import PlayButton from '../components/ui/PlayButton'
 import useRequireAuth from '../hooks/useRequireAuth'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
@@ -47,16 +48,7 @@ export default function Submit() {
           <Typography variant="h5">Submit for {game.name}</Typography>
           {game.url && (
             <div style={{ marginTop: 6 }}>
-              <AppButton
-                to={`/play/${gameId}`}
-                variant="outlined"
-                size="small"
-                color="primary"
-                endIcon={<OpenInNewIcon />}
-                dataTest="game-play-link"
-              >
-                Play
-              </AppButton>
+              <PlayButton game={game} />
             </div>
           )}
         </Box>

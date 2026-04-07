@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { TextField, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, Box } from '@mui/material'
 import { useNavigate, Link } from 'react-router-dom'
+import PlayButton from '../components/ui/PlayButton'
 import AppButton from '../components/ui/AppButton'
 import useImageUpload from '../hooks/useImageUpload'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
@@ -201,7 +202,7 @@ export default function Admin() {
         <Paper key={g.id} sx={{ p: 1.5, mb: 1.5 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-              <strong>{g.name}</strong> {g.url ? <Link to={`/play/${g.id}` } style={{ textDecoration: 'none' }}>(link)</Link> : null}
+              <strong>{g.name}</strong> {g.url ? <PlayButton game={g}><span style={{ textDecoration: 'none' }}>(link)</span></PlayButton> : null}
             </div>
             <div>
               <IconButton onClick={() => startEdit(g)} title="Edit"><EditIcon /></IconButton>

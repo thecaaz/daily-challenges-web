@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { CardMedia, Box, Typography, Tooltip, IconButton } from '@mui/material'
 import AppButton from './ui/AppButton'
+import PlayButton from './ui/PlayButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import StarIcon from '@mui/icons-material/Star'
@@ -80,17 +81,7 @@ export default function GameHeader({ game }) {
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             {game.url && (
-              <AppButton
-                to={`/play/${game.id}`}
-                variant="outlined"
-                size="small"
-                color="primary"
-                endIcon={<OpenInNewIcon />}
-                dataTest="game-play-link"
-                sx={{ textTransform: 'none' }}
-              >
-                Play
-              </AppButton>
+              <PlayButton game={game} adapter={adapter} dataTest="game-play-link" sx={{ textTransform: 'none' }} />
             )}
             <AppButton
               to={`/games/${game.id}/highscore`}
