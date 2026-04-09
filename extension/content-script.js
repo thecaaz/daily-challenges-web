@@ -9,10 +9,6 @@
       match: host => /timeguessr/.test(host) || host.includes('timeguessr'),
       selectors: ['#totalText', '#totalScoreBreakdownText'],
       onInit: function (doc, ctx) {
-        try {
-          const btn = doc.querySelector('#tg-embed-continue')
-          if (btn && typeof btn.click === 'function') btn.click()
-        } catch (e) {}
       },
       readScore: function (doc) {
         const breakdownBtn = doc.querySelector('#breakdownButton')
@@ -26,9 +22,25 @@
           return Number.isNaN(n) ? text : n
         }
         return null
+      }
+    },
+    {
+      name: 'MapTap',
+      matchDescriptor: { type: 'includes', value: 'maptap' },
+      match: host => /maptap/.test(host) || host.includes('maptap'),
+      selectors: ['#ui_score'],
+      onInit: function (doc, ctx) {
       },
-      captureSelector: function () {
-        return '#resultsContainer'
+      readScore: function (doc) {
+        for (const s of this.selectors) {
+          const el = doc.querySelector(s)
+          if (!el) continue
+          const text = (el.textContent || '').replace(/[^0-9.\-]/g, '').trim()
+          if (!text) continue
+          const n = Number(text)
+          return Number.isNaN(n) ? text : n
+        }
+        return null
       }
     }
   ]
