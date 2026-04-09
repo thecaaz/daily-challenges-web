@@ -1,7 +1,7 @@
-// ScoreBridge PoC content script
+// ScoreBridge-PoC content script
 ;(function () {
   'use strict'
-  // --- Adapters (PoC built-in) ---
+  // --- Built-in site adapters ---
   const ADAPTERS = [
     {
       name: 'TimeGuessr',
@@ -49,7 +49,7 @@
     return ADAPTERS.find(a => a.match && a.match(host))
   }
 
-  // Call adapter onInit if present
+  // Run the adapter-specific startup hook when the current host matches.
   ;(function runAdapterInit() {
     try {
       const adapter = findAdapter(location.hostname)
@@ -64,7 +64,7 @@
     } catch (err) {}
   })()
 
-  // --- Messaging: respond to parent GET_SCORE and CAPTURE/REQUEST_IFRAME_CAPTURE requests ---
+  // Handle score, capture, and adapter discovery requests sent over window.postMessage.
   window.addEventListener(
     'message',
     async ev => {

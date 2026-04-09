@@ -1,4 +1,4 @@
-// ScoreBridge PoC background service worker
+// ScoreBridge-PoC background script for tab capture requests.
 'use strict'
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

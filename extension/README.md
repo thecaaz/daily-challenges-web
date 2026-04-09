@@ -1,128 +1,116 @@
-# ScoreBridge-PoC — README (Firefox)
+# ScoreBridge-PoC - README
 
 Quick summary
 -------------
 
-This repository contains a small proof‑of‑concept browser extension that demonstrates reading a game's score and capturing a screenshot of the score element from a third‑party page (element render via html2canvas). This README focuses on running and debugging the PoC in Firefox.
+This directory contains a Manifest V2 browser extension that lets a parent page talk to embedded game pages with `window.postMessage`. The extension currently supports four main actions:
+
+- detect whether a built-in adapter exists for a URL
+- list the built-in adapters
+- read a score from a supported game page
+- capture the visible tab from the top frame and return the cropped iframe region
+
+Current built-in adapters:
+
+- `TimeGuessr`: reads `#totalText` or `#totalScoreBreakdownText`, and clicks `#breakdownButton` first when present
+- `MapTap`: reads `#ui_score`
 
 Contents
 --------
 
-- `extension/` — extension source (manifest, content script, background).
-- `frontend/sample-game.html` — simple demo page that exposes a score element.
-- `frontend/test-harness.html` — harness that embeds the sample game and requests the score via `postMessage`.
+- `extension/` - extension source (`manifest.json`, `content-script.js`, `background.js`)
+- `frontend/test-harness.html` - manual harness that embeds a game page and exercises the extension message flow
 
-Install & run (Firefox)
-------------------------
+Install and run (Firefox)
+-------------------------
 
-Option A — Load as a temporary add‑on (quick, no extra tooling):
+Option A - Load as a temporary add-on:
 
-1. Open Firefox on desktop.
+1. Open Firefox.
 2. Navigate to `about:debugging#/runtime/this-firefox`.
-3. Click **Load Temporary Add‑on**.
-4. In the file picker select the `extension/manifest.json` file from this repo (or any file inside `extension/`).
+3. Click **Load Temporary Add-on**.
+4. Select `extension/manifest.json`.
 
 Notes:
-- The add‑on loaded this way is temporary and will be removed when Firefox restarts.
-- After loading, reload any pages you want the content script to run on so the extension injects.
 
-Option B — Use Mozilla `web-ext` for a development runner (recommended for iterative work):
+- This load is temporary and is cleared when Firefox restarts.
+- Reload any already-open target pages after loading the extension so the content script is injected.
+
+Option B - Use `web-ext` for iterative local work:
 
 ```powershell
-# install once (or use npx)
 npm install --global web-ext
-
-# run a temporary Firefox instance with the extension loaded
 npx web-ext run --source-dir extension
 ```
 
-`web-ext run` opens a disposable Firefox profile and reloads the extension automatically when files change.
-
-Serve the frontend test pages
+Serve the frontend test page
 ----------------------------
 
-Serve the `frontend/` folder so the test harness runs reliably (recommended):
+Serve the `frontend/` directory from the repo root:
 
 ```powershell
-# from repo root
 python -m http.server 8000 --directory frontend
-# then open http://localhost:8000/test-harness.html in Firefox
 ```
 
-Notes about html2canvas and offline testing
------------------------------------------
+Then open `http://localhost:8000/test-harness.html` in the same browser profile where the extension is loaded.
 
-- The content script currently injects `html2canvas` from a CDN for quick PoC use. For offline or deterministic behavior, download `html2canvas.min.js` and place it under `extension/vendor/html2canvas.min.js`, then modify the loader in `content-script.js` to use `browser.runtime.getURL('vendor/html2canvas.min.js')` instead of the CDN.
+How the current capture flow works
+----------------------------------
 
-Permissions & compatibility notes
---------------------------------
+1. The parent page posts `GET_SCORE` or `REQUEST_VISIBLE_TAB_FROM_PARENT` into the game iframe.
+2. The iframe content script either reads the score directly or forwards a visible-tab capture request to the top frame.
+3. The top-frame content script asks `background.js` to run `chrome.tabs.captureVisibleTab`.
+4. The extension returns a `CAPTURE_RESPONSE` message with the full tab image as a data URL plus the rectangle and DPR needed to crop the iframe region.
 
-- The PoC manifest requests `activeTab`, `scripting`, and `storage`. Firefox support for some MV3 APIs may vary by release; if you encounter compatibility errors, try Firefox Developer Edition or Nightly, or run via `web-ext` which uses a compatible runtime.
-- If MV3 APIs present issues in your environment, you can test with a manifest v2 background script (not part of this PoC) or run the PoC content script via `scripting.executeScript` from `web-ext` commands.
+Permissions and compatibility notes
+-----------------------------------
 
-Where to look for logs & debugging
----------------------------------
+- The current manifest is Manifest V2.
+- Requested permissions are `storage`, `activeTab`, `tabs`, and `<all_urls>`.
+- The content script runs at `document_idle` in all frames.
+- `background.js` is a background script, not a service worker.
+- If your target browser refuses to load this manifest, test with Firefox using the temporary add-on flow above or update the manifest for that browser.
 
-- Content script logs: open DevTools on the page (the target iframe or test harness) to see console output from the content script.
-- Background/service worker logs: go to `about:debugging#/runtime/this-firefox`, find the loaded extension and click **Inspect** to view the background console.
+Where to look for logs
+----------------------
+
+- Content script logs appear in the page DevTools for the top page or iframe where the script is running.
+- Background script logs appear in the extension inspector opened from `about:debugging#/runtime/this-firefox`.
 
 Troubleshooting
 ---------------
 
-- If the content script appears not to run:
-  - Ensure the extension is loaded and the page is reloaded after loading the temporary add‑on.
-  - Check the `matches` rules in `extension/manifest.json`; for local testing you may need to load the sample game through `http://localhost:8000` as above.
-- If capture fails or html2canvas errors:
-  - Confirm the CDN is reachable or bundle `html2canvas` locally as described above.
-  - Cross‑origin images can taint the canvas and prevent export; for those pages consider a full‑tab capture fallback (requires different permissions).
-
-Privacy & safety (PoC)
-----------------------
-
-- The PoC shows screenshot previews locally and does not upload images by default. If you enable uploads, obtain explicit user consent and document retention policies.
-
-Next steps (if PoC successful)
------------------------------
-
-- Add additional adapters and automated adapter tests (Playwright/Puppeteer snapshots).
-- Replace CDN loading with bundled `vendor/` files for stability and offline dev.
-- Add per‑site runtime permission requests and a user onboarding flow.
+- If the content script does not run, reload the page after loading the extension and confirm `manifest.json` still matches `<all_urls>`.
+- If `GET_SCORE` returns `null`, confirm the page host matches a built-in adapter and the expected score element exists in the DOM.
+- If capture fails, make sure the iframe is visible in the current tab. `captureVisibleTab` only captures what the browser can currently render.
+- If capture returns `iframe element not found`, the top-frame content script could not map the message source back to a DOM `iframe` element.
+- `UPLOAD_IMAGE` is currently a stub message that only returns `{ ok: true }`.
 
 Extension page API
 ------------------
 
-The content script exposes a small `postMessage`-based API so pages can query which adapters the extension knows about and ask whether an adapter exists for an arbitrary URL.
+All extension/page communication uses `window.postMessage`.
 
-- `HAS_ADAPTER` (page → content script)
-  - Payload: `{ type: 'HAS_ADAPTER', url: '<url>', nonce: '<nonce>' }`
-  - Response: `{ type: 'HAS_ADAPTER_RESPONSE', nonce, exists: true|false, adapterName: string|null }
+- `HAS_ADAPTER`
+  Request: `{ type: 'HAS_ADAPTER', url, nonce }`
+  Response: `{ type: 'HAS_ADAPTER_RESPONSE', nonce, exists, adapterName }`
 
-- `GET_ADAPTERS` (page → content script)
-  - Payload: `{ type: 'GET_ADAPTERS', nonce: '<nonce>' }`
-  - Response: `{ type: 'ADAPTERS_RESPONSE', nonce, adapters: [ { name, matchDescriptor } ] }`
+- `GET_ADAPTERS`
+  Request: `{ type: 'GET_ADAPTERS', nonce }`
+  Response: `{ type: 'ADAPTERS_RESPONSE', nonce, adapters }`
 
-Example (page):
+- `GET_SCORE`
+  Request: `{ type: 'GET_SCORE', nonce }`
+  Response: `{ type: 'SCORE_RESPONSE', nonce, score }`
 
-```javascript
-const nonce = Date.now() + Math.random();
-window.addEventListener('message', ev => {
-  if (!ev.data || typeof ev.data.type !== 'string') return;
-  if (ev.data.type === 'HAS_ADAPTER_RESPONSE' && ev.data.nonce === nonce) {
-    console.log('has adapter?', ev.data.exists, ev.data.adapterName);
-  }
-  if (ev.data.type === 'ADAPTERS_RESPONSE') {
-    console.log('adapters', ev.data.adapters);
-  }
-});
-window.postMessage({ type: 'HAS_ADAPTER', url: 'https://timeguessr.com', nonce }, '*');
-window.postMessage({ type: 'GET_ADAPTERS', nonce }, '*');
-```
-
-Security note: exposing adapter metadata can make it easier for pages to fingerprint installed extensions. Consider restricting responses (for example only responding to same-origin pages) if this is a concern.
+- `REQUEST_VISIBLE_TAB_FROM_PARENT`
+  Request: `{ type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce }`
+  Response: `{ type: 'CAPTURE_RESPONSE', nonce, dataUrl, rect, dpr }` or `{ type: 'CAPTURE_RESPONSE', nonce, error }`
 
 Files to edit when iterating
----------------------------
+----------------------------
 
-- `extension/content-script.js` — adapters, capture logic, message handlers.
-- `extension/background.js` — backend forwarding (currently logs requests for PoC).
-- `frontend/test-harness.html` — harness to exercise `postMessage` flows.
+- `extension/content-script.js` - built-in adapters, score reads, and message coordination between iframe and top frame
+- `extension/background.js` - visible-tab capture bridge used by the content script
+- `extension/manifest.json` - permissions and content script injection settings
+- `frontend/test-harness.html` - manual harness for score and capture flows
