@@ -1,6 +1,8 @@
 - Live updates
 - Comments for a specific day
 - friends
+    - friend dashboard
+    - xyz played loldle and timeguessr today
 - username/trophy/profile customization
 
 # Kind of wild speculation for now:
