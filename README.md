@@ -1,12 +1,9 @@
-# Disclaimer: This project is intended as a way to learn how to work with AI in a good and productive way.
+# Daily Challenges
 
 [![Release](https://img.shields.io/github/v/release/thecaaz/daily-challenges-web?style=flat-square)](https://github.com/thecaaz/daily-challenges-web/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/thecaaz/daily-challenges-web/ci.yml?branch=main&label=CI&logo=github&style=flat-square)](https://github.com/thecaaz/daily-challenges-web/actions/workflows/ci.yml)
 [![Backend](https://img.shields.io/docker/v/caaz/daily-challenge-web-backend?sort=semver&label=backend&logo=docker&style=flat-square)](https://hub.docker.com/r/caaz/daily-challenge-web-backend)
 [![Frontend](https://img.shields.io/docker/v/caaz/daily-challenge-web-frontend?sort=semver&label=frontend&logo=docker&style=flat-square)](https://hub.docker.com/r/caaz/daily-challenge-web-frontend)
-
-# Daily Challenges
-
 [![Repo size](https://img.shields.io/github/repo-size/thecaaz/daily-challenges-web?style=flat-square)](https://github.com/thecaaz/daily-challenges-web)
 [![Top language](https://img.shields.io/github/languages/top/thecaaz/daily-challenges-web?style=flat-square)](https://github.com/thecaaz/daily-challenges-web)
 
@@ -19,8 +16,9 @@ A full-stack web application for submitting and tracking daily challenge scores 
 - **XP and levels** — earn XP for each submission; level up as you accumulate points
 - **Submission detail** — view individual submission scores and screenshots
 - **Admin panel** — create/edit/delete games, manage and score submissions with date filtering
-- **Admin user management** — promote or demote users to admin, manage accounts
+- **Admin user management** — manage users, audit xp, add/remove xp
 - **Authentication** — register and log in with username/password
+- **Profile** - show last active date, show active games, submission counts, best scores
 
 ## Stack
 
@@ -88,6 +86,7 @@ The migration files are created under [backend/Migrations](backend/Migrations). 
 
 ## E2E Tests (Playwright)
 
+NOTE: Wildly outdated, might not update them for quite a while.
 End-to-end tests live in [`tests/e2e/`](tests/e2e/). See [`tests/e2e/README.md`](tests/e2e/README.md) for full setup and usage instructions.
 
 **Quick start (PowerShell):**

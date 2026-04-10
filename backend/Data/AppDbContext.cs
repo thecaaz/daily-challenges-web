@@ -8,6 +8,7 @@ namespace DailyChallenges.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         public DbSet<Game> Games => Set<Game>();
+        public DbSet<Favorite> Favorites => Set<Favorite>();
         public DbSet<Submission> Submissions => Set<Submission>();
         public DbSet<User> Users => Set<User>();
         public DbSet<XpEvent> XpEvents => Set<XpEvent>();
@@ -96,6 +97,26 @@ namespace DailyChallenges.Data
             modelBuilder.Entity<ScoringDayResult>()
                 .HasIndex(r => new { r.GameId, r.ScoringDay })
                 .IsUnique();
+
+            // Favorites: per-user favorites for games
+            modelBuilder.Entity<Favorite>()
+                .HasOne(f => f.User)
+                .WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Favorite>()
+                .HasOne(f => f.Game)
+                .WithMany()
+                .HasForeignKey(f => f.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Favorite>()
+                .HasIndex(f => new { f.UserId, f.GameId })
+                .IsUnique();
+
+            modelBuilder.Entity<Favorite>()
+                .HasIndex(f => f.UserId);
         }
     }
 }

@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Container, Box } from '@mui/material'
 import Games from './pages/Games'
+import Dashboard from './pages/Dashboard'
 import Admin from './pages/Admin'
 import AdminUsers from './pages/AdminUsers'
 import Submit from './pages/Submit'
@@ -14,6 +15,9 @@ import GameBar from './components/GameBar'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import UserProfile from './pages/UserProfile'
+import TimeguessrDebug from './pages/TimeguessrDebug'
+import Play from './pages/Play'
+import DashboardPlay from './pages/DashboardPlay'
 
 export default function App() {
   return (
@@ -25,8 +29,12 @@ export default function App() {
           <Container sx={{ mt: 4, mb: 6 }}>
             <Routes>
               <Route path="/" element={<Games />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard/play" element={<DashboardPlay />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/debug/timeguessr" element={<TimeguessrDebug />} />
+              <Route path="/play/:gameId" element={<Play />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/submit/:gameId" element={<Submit />} />

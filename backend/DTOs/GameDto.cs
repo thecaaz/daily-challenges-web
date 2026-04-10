@@ -20,5 +20,7 @@ namespace DailyChallenges.DTOs
         public List<SubmissionDto>? Submissions { get; set; }
         // How the daily winner is determined: "highest" or "lowest"
         public string RankingMode { get; set; } = "highest";
+        // Whether the current authenticated user has favorited this game
+        public bool IsFavorite { get; set; } = false;
     }
 }

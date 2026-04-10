@@ -1,12 +1,13 @@
-import React, { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import './gamebar.css'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppBar, Toolbar, Box, Typography, Chip, LinearProgress, Tooltip, IconButton } from '@mui/material'
 import AppButton from './ui/AppButton'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import LightModeIcon from '@mui/icons-material/LightMode'
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import MenuIcon from '@mui/icons-material/Menu'
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
+import NavDrawer from './NavDrawer'
 import { useAuth } from '../contexts/AuthContext'
 import { useThemeMode } from '../contexts/ThemeContext'
 import NotificationBell from './NotificationBell'
@@ -17,6 +18,12 @@ export default function GameBar() {
   const { user, logout, fetchMe } = useAuth()
   const { mode, toggleMode } = useThemeMode()
   const navigate = useNavigate()
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  const toggleDrawer = (open) => (event) => {
+    if (event && event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) return
+    setDrawerOpen(open)
+  }
 
   // Real XP data from the authenticated user object
   const level = user?.level ?? 1
@@ -58,6 +65,10 @@ export default function GameBar() {
   return (
     <AppBar position="sticky" elevation={0}>
       <Toolbar sx={{ gap: 1, minHeight: { xs: 56, sm: 64 } }}>
+        <IconButton edge="start" color="inherit" aria-label="open navigation" onClick={toggleDrawer(true)} sx={{ mr: 1 }}>
+          <MenuIcon />
+        </IconButton>
+        <NavDrawer open={drawerOpen} onClose={toggleDrawer(false)} user={user} />
         {/* Logo + title */}
         <Box
           component={Link}
@@ -152,11 +163,6 @@ export default function GameBar() {
               {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
             </IconButton>
             <NotificationBell />
-            {user.isAdmin && (
-              <AppButton to="/admin" variant="outlined" color="primary" size="small" startIcon={<AdminPanelSettingsIcon />}>
-                Admin
-              </AppButton>
-            )}
             <Box component={Link} to={`/users/${user.id}`} sx={{ textDecoration: 'none', color: 'inherit', mx: 1, display: { xs: 'none', sm: 'block' } }}>
               <Typography variant="body2" color="text.secondary">
                 {user.username}

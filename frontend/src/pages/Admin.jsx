@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { TextField, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, Box } from '@mui/material'
 import { useNavigate, Link } from 'react-router-dom'
+import PlayButton from '../components/ui/PlayButton'
 import AppButton from '../components/ui/AppButton'
 import useImageUpload from '../hooks/useImageUpload'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
@@ -73,6 +74,7 @@ export default function Admin() {
   const { isAuthorized } = useRequireAdmin()
 
   const goUsers = () => navigate('/admin/users')
+  const goTimeguessr = () => navigate('/debug/timeguessr')
 
   if (!isAuthorized) return null
 
@@ -165,7 +167,8 @@ export default function Admin() {
   return (
     <>
     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
-      <AppButton onClick={goUsers} sx={{ mb: 2 }}>Manage Users</AppButton>
+      <AppButton onClick={goUsers} sx={{ mb: 2, mr: 1 }}>Manage Users</AppButton>
+      <AppButton onClick={goTimeguessr} sx={{ mb: 2 }}>Debug Timeguessr Test</AppButton>
     </Box>
     <form onSubmit={submit}>
       <Stack spacing={2} maxWidth={400}>
@@ -198,8 +201,8 @@ export default function Admin() {
       {games.map(g => (
         <Paper key={g.id} sx={{ p: 1.5, mb: 1.5 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <strong>{g.name}</strong> {g.url ? <a href={g.url} target="_blank" rel="noreferrer">(link)</a> : null}
+              <div>
+              <strong>{g.name}</strong> {g.url ? <PlayButton game={g}><span style={{ textDecoration: 'none' }}>(link)</span></PlayButton> : null}
             </div>
             <div>
               <IconButton onClick={() => startEdit(g)} title="Edit"><EditIcon /></IconButton>
