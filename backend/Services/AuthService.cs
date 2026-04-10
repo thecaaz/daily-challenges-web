@@ -15,12 +15,14 @@ namespace DailyChallenges.Services
         private readonly AppDbContext _db;
         private readonly IConfiguration _config;
         private readonly LevelCalculator _levelCalc;
+        private readonly IWebHostEnvironment _env;
 
-        public AuthService(AppDbContext db, IConfiguration config, LevelCalculator levelCalc)
+        public AuthService(AppDbContext db, IConfiguration config, LevelCalculator levelCalc, IWebHostEnvironment env)
         {
             _db = db;
             _config = config;
             _levelCalc = levelCalc;
+            _env = env;
         }
 
         public async Task<UserDto> RegisterAsync(string username, string password)
@@ -48,8 +50,8 @@ namespace DailyChallenges.Services
 
             var expiresDays = int.Parse(_config["Jwt:ExpiresDays"] ?? "7");
 
-            // Force insecure cookie so it can be set over plain HTTP.
-            var cookieSecure = false;
+            // Force insecure cookie so it can be set over plain HTTP in Development only.
+            var cookieSecure = !_env.IsDevelopment();
 
             response.Cookies.Append("access_token", token, new CookieOptions
             {
