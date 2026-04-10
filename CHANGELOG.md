@@ -1,3 +1,30 @@
+## [1.16.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.15.0...v1.16.0) (2026-04-10)
+
+
+### Features
+
+* add favorites ([e858b30](https://github.com/thecaaz/daily-challenges-web/commit/e858b303cba843d9a491f0f774a591729605f2c5))
+* add initial implementation of ScoreBridge PoC extension with background and content scripts, README, and test harness ([c7ef9a2](https://github.com/thecaaz/daily-challenges-web/commit/c7ef9a20c5d7d8b785d37fc525244e7e77747da1))
+* add navigation drawer to GameBar component ([1c17301](https://github.com/thecaaz/daily-challenges-web/commit/1c173018acb0802adff27d28bc2c3097d3362dd2))
+* change play button to navigate to play site ([910e38b](https://github.com/thecaaz/daily-challenges-web/commit/910e38b5fc2013e8ab995331bc5bf13499a477a3))
+* dashboard ([0d279f1](https://github.com/thecaaz/daily-challenges-web/commit/0d279f14be233e87a64d4169bb9b8c6d81722608))
+* dashboard play area ([9b80aa6](https://github.com/thecaaz/daily-challenges-web/commit/9b80aa6b6acf5a1f500c7770832425d3af295cb3))
+* **docs:** add ScoreBridge extension plans for score bridging and screenshot capture ([9bbe686](https://github.com/thecaaz/daily-challenges-web/commit/9bbe686318965b95cf8cba295c830db798630124))
+* **docs:** add ScoreBridge Iframe Screenshot Capture PoC plan and remove old PoC plan ([fec377a](https://github.com/thecaaz/daily-challenges-web/commit/fec377a1add9df3773fad3d9a9f6b2304c978855))
+* **docs:** add ScoreBridge PoC plan and remove screenshot capture plan ([e1d44dd](https://github.com/thecaaz/daily-challenges-web/commit/e1d44ddb8f56cd566d965c95d7a6a367d15561e0))
+* enhance iframe capture functionality with fullscreen overlay and improved state management ([579dfd6](https://github.com/thecaaz/daily-challenges-web/commit/579dfd6d3a37d6426896215a15d5531c2ad68596))
+* **ideas:** expand speculation section ([ddd83ea](https://github.com/thecaaz/daily-challenges-web/commit/ddd83eae19b0faba37027c7315045be29906056d))
+* implement onInit hook for TimeGuessr adapter to handle initialization ([01726b5](https://github.com/thecaaz/daily-challenges-web/commit/01726b50278cd6e6d992239cb32744185bcca34f))
+* implement visible-tab capture functionality and enhance canvas capture methods ([b14a888](https://github.com/thecaaz/daily-challenges-web/commit/b14a8889e03c70c55fc9ca45ed4dac80aa2ca2da))
+* show extension icon next to games that are supported by the extension, if it is installed ([40ad175](https://github.com/thecaaz/daily-challenges-web/commit/40ad175f4b76cf11fa88be6805e0971ca5fae0e8))
+* use new extension to get score ands prefill submit form ([baff990](https://github.com/thecaaz/daily-challenges-web/commit/baff99097f6f206d124ca7a2512419e0f79073f6))
+
+
+### Bug Fixes
+
+* set cookie to secure for non develpoment environments ([6a7f747](https://github.com/thecaaz/daily-challenges-web/commit/6a7f747428f9405b60565772b7f1138ea27ccfc9))
+* update selector for iframe capture request in test harness ([f4894eb](https://github.com/thecaaz/daily-challenges-web/commit/f4894eb483faa1a9d0267239779e9198bc58cdd1))
+
 ## [1.15.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.14.3...v1.15.0) (2026-04-03)
 
 
