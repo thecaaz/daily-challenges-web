@@ -49,6 +49,8 @@ builder.Services.AddScoped<DailyChallenges.Repositories.ISubmissionRepository, D
 builder.Services.AddScoped<DailyChallenges.Repositories.IXpEventRepository, DailyChallenges.Repositories.EfXpEventRepository>();
 builder.Services.AddScoped<DailyChallenges.Repositories.INotificationRepository, DailyChallenges.Repositories.EfNotificationRepository>();
 builder.Services.AddScoped<DailyChallenges.Repositories.IScoringDayResultRepository, DailyChallenges.Repositories.EfScoringDayResultRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.IFavoriteRepository, DailyChallenges.Repositories.EfFavoriteRepository>();
+builder.Services.AddScoped<DailyChallenges.Services.IFavoriteService, DailyChallenges.Services.FavoriteService>();
 // Helper services
 builder.Services.AddScoped<DailyChallenges.Services.IUserSubmissionChecker, DailyChallenges.Services.UserSubmissionChecker>();
 

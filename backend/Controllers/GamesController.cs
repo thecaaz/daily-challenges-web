@@ -77,9 +77,9 @@ namespace DailyChallenges.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var g = await _games.GetByIdAsync(id);
-            if (g == null) return NotFound();
-            return Ok(DtoMapper.ToDto(g));
+            var overview = await _games.GetOverviewAsync(id, User);
+            if (overview == null || overview.Game == null) return NotFound();
+            return Ok(overview.Game);
         }
 
         [HttpGet("{id}/overview")]

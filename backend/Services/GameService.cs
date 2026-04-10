@@ -13,13 +13,15 @@ namespace DailyChallenges.Services
         private readonly IFileStorage _files;
         private readonly ISubmissionRepository _subsRepo;
         private readonly ISubmissionService _submissionService;
+        private readonly IFavoriteRepository _favRepo;
 
-        public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo, ISubmissionService submissionService)
+        public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo, ISubmissionService submissionService, IFavoriteRepository favRepo)
         {
             _games = games;
             _files = files;
             _subsRepo = subsRepo;
             _submissionService = submissionService;
+            _favRepo = favRepo;
         }
 
         public async Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user = null)
@@ -39,10 +41,14 @@ namespace DailyChallenges.Services
 
             var submittedSet = new HashSet<(int, DateTime)>(userSubs.Select(s => (s.GameId, s.ScoringDay.Date)));
 
+            var favoriteIds = await _favRepo.GetFavoriteGameIdsForUserAsync(userId.Value);
+            var favSet = new HashSet<int>(favoriteIds);
+
             foreach (var dto in dtos)
             {
                 var day = gameDays.First(x => x.Id == dto.Id).Day;
                 dto.HasSubmittedForLatest = submittedSet.Contains((dto.Id, day));
+                dto.IsFavorite = favSet.Contains(dto.Id);
             }
 
             return dtos;
@@ -254,6 +260,14 @@ namespace DailyChallenges.Services
             dto.HasSubmittedForLatest = hasSubmitted;
             dto.Top = topDtos;
             dto.Errors = errors.Count > 0 ? errors : null;
+
+            // mark favorite flag for the requesting user when available
+            var requestingUserId = user.GetUserId();
+            if (requestingUserId.HasValue && dto.Game != null)
+            {
+                var favIds = await _favRepo.GetFavoriteGameIdsForUserAsync(requestingUserId.Value);
+                dto.Game.IsFavorite = favIds.Contains(dto.Game.Id);
+            }
 
             return dto;
         }

@@ -1,11 +1,45 @@
-import React from 'react'
-import { CardMedia, Box, Typography, Tooltip } from '@mui/material'
+import React, { useEffect, useState } from 'react'
+import { CardMedia, Box, Typography, Tooltip, IconButton } from '@mui/material'
 import AppButton from './ui/AppButton'
+import PlayButton from './ui/PlayButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import ExtensionIcon from '@mui/icons-material/Extension'
+import StarIcon from '@mui/icons-material/Star'
+import StarBorderIcon from '@mui/icons-material/StarBorder'
+import useFavorite from '../hooks/useFavorite'
 import imageUrl from '../utils/imageUrl'
+import { getAdapterForUrl } from '../utils/adapters'
+
+function FavoriteToggle({ game }) {
+  const { isFavorite, toggle, loading } = useFavorite(game.id, game.isFavorite)
+  return (
+    <Tooltip title={isFavorite ? 'Unfavorite' : 'Add to favorites'}>
+      <IconButton size="small" onClick={toggle} sx={{ color: 'white' }} disabled={loading} aria-label="toggle-favorite">
+        {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+      </IconButton>
+    </Tooltip>
+  )
+}
 
 export default function GameHeader({ game }) {
   if (!game) return null
+
+  const [adapter, setAdapter] = useState(null)
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      if (!game?.url) return
+      try {
+        const a = await getAdapterForUrl(game.url)
+        if (mounted) setAdapter(a)
+      } catch (e) {
+        if (mounted) setAdapter(null)
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [game?.url])
 
   const desc = (game.description ?? '').trim()
   const fallback = 'Compete on daily challenges — climb the leaderboard!'
@@ -31,24 +65,23 @@ export default function GameHeader({ game }) {
       <div className="game-header__overlay">
         <Box className="game-header__content" sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: '70ch' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Typography variant="h5" sx={{ color: 'white' }}>Submissions — {game.name}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h5" sx={{ color: 'white', display: 'flex', alignItems: 'center', gap: 1 }}>
+                Submissions — {game.name}
+              </Typography>
+              {adapter && (
+                <Tooltip title="Extension Supported" arrow>
+                  <ExtensionIcon sx={{ color: 'white' }} fontSize="small" />
+                </Tooltip>
+              )}
+              {/* Favorite toggle */}
+              <FavoriteToggle game={game} />
+            </Box>
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             {game.url && (
-              <AppButton
-                href={game.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="outlined"
-                size="small"
-                color="primary"
-                endIcon={<OpenInNewIcon />}
-                dataTest="game-play-link"
-                sx={{ textTransform: 'none' }}
-              >
-                Play
-              </AppButton>
+              <PlayButton game={game} adapter={adapter} dataTest="game-play-link" sx={{ textTransform: 'none' }} />
             )}
             <AppButton
               to={`/games/${game.id}/highscore`}
@@ -70,6 +103,7 @@ export default function GameHeader({ game }) {
             >
               Your Highscores
             </AppButton>
+            
           </Box>
 
           {isLong ? (
