@@ -66,9 +66,11 @@ Permissions and compatibility notes
 -----------------------------------
 
 - The current manifest is Manifest V2.
-- Requested permissions are `storage`, `activeTab`, `tabs`, and `<all_urls>`.
-- The content script runs at `document_idle` in all frames.
-- `background.js` is a background script, not a service worker.
+- Requested permissions (reduced): host access only to `https://caaz.ddns.net/*`.
+- For local development the manifest includes `http://localhost:5173/*` (remove this before publishing).
+- No `storage`, `activeTab`, `tabs`, or `<all_urls>` permissions are requested in the reduced manifest.
+- The content script runs at `document_idle` in the matched frames; `all_frames: true` is retained to support iframe injection.
+- `background.js` is a background script (MV2). For Chrome Web Store publishing, migrate to Manifest V3 and convert the background script to a service worker, moving host patterns to `host_permissions`.
 - If your target browser refuses to load this manifest, test with Firefox using the temporary add-on flow above or update the manifest for that browser.
 
 Where to look for logs
