@@ -36,7 +36,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: caaz//daily-challenges-backend:dev
+          tags: caaz/daily-challenges-backend:dev
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v4
@@ -44,4 +44,4 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: caaz//daily-challenges-frontend:dev
+          tags: caaz/daily-challenges-frontend:dev
