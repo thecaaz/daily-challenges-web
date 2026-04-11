@@ -18,6 +18,7 @@ import UserProfile from './pages/UserProfile'
 import TimeguessrDebug from './pages/TimeguessrDebug'
 import Play from './pages/Play'
 import DashboardPlay from './pages/DashboardPlay'
+import Extension from './pages/Extension'
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/games/:gameId/highscore" element={<GameHighscore />} />
               <Route path="/games/:gameId/personal-highscore" element={<PersonalHighscore />} />
               <Route path="/users/:id" element={<UserProfile />} />
+              <Route path="/extension" element={<Extension />} />
             </Routes>
           </Container>
         } />
