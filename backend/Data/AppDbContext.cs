@@ -14,6 +14,7 @@ namespace DailyChallenges.Data
         public DbSet<XpEvent> XpEvents => Set<XpEvent>();
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<ScoringDayResult> ScoringDayResults => Set<ScoringDayResult>();
+        public DbSet<FriendRequest> FriendRequests => Set<FriendRequest>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -117,6 +118,28 @@ namespace DailyChallenges.Data
 
             modelBuilder.Entity<Favorite>()
                 .HasIndex(f => f.UserId);
+
+            // FriendRequests: Sender FK cascades on delete; Receiver FK restricts to avoid multiple cascade paths
+            modelBuilder.Entity<FriendRequest>()
+                .HasOne(fr => fr.Sender)
+                .WithMany()
+                .HasForeignKey(fr => fr.SenderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<FriendRequest>()
+                .HasOne(fr => fr.Receiver)
+                .WithMany()
+                .HasForeignKey(fr => fr.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Only one request record between any two users at a time
+            modelBuilder.Entity<FriendRequest>()
+                .HasIndex(fr => new { fr.SenderId, fr.ReceiverId })
+                .IsUnique();
+
+            // Fast query for incoming pending requests
+            modelBuilder.Entity<FriendRequest>()
+                .HasIndex(fr => new { fr.ReceiverId, fr.Status });
         }
     }
 }

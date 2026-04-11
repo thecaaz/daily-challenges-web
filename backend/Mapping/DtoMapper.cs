@@ -118,5 +118,32 @@ namespace DailyChallenges.Mapping
                 TopGames = topGames ?? []
             };
         }
+
+        public static FriendRequestDto ToDto(Models.FriendRequest fr)
+        {
+            return new FriendRequestDto
+            {
+                Id = fr.Id,
+                SenderId = fr.SenderId,
+                SenderUsername = fr.Sender?.Username ?? string.Empty,
+                ReceiverId = fr.ReceiverId,
+                ReceiverUsername = fr.Receiver?.Username ?? string.Empty,
+                Status = fr.Status.ToString().ToLowerInvariant(),
+                CreatedAt = fr.CreatedAt
+            };
+        }
+
+        public static FriendDto ToFriendDto(User u, LevelCalculator levelCalc)
+        {
+            var (level, _, _) = levelCalc.GetLevelInfo(u.TotalXp);
+            return new FriendDto
+            {
+                UserId = u.Id,
+                Username = u.Username,
+                Level = level,
+                TotalXp = u.TotalXp,
+                Streak = u.Streak
+            };
+        }
     }
 }

@@ -2,6 +2,7 @@ import React from 'react'
 import { Drawer, Box, List } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import DashboardIcon from '@mui/icons-material/Dashboard'
+import PeopleIcon from '@mui/icons-material/People'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import NavDrawerItem from './NavDrawerItem'
@@ -13,6 +14,7 @@ export default function NavDrawer({ open, onClose, user }) {
         <List>
           <NavDrawerItem to="/" icon={<HomeIcon />} primary="Home" />
           {user && <NavDrawerItem to="/dashboard" icon={<DashboardIcon />} primary="Dashboard" />}
+          {user && <NavDrawerItem to="/friends" icon={<PeopleIcon />} primary="Friends" />}
           {user?.isAdmin && <NavDrawerItem to="/admin" icon={<AdminPanelSettingsIcon />} primary="Admin" />}
           <NavDrawerItem to="/extension" icon={<ExtensionIcon />} primary="Extension" />
         </List>
