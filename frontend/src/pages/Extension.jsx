@@ -17,7 +17,6 @@ export default function Extension() {
       if (!ev || !ev.data || typeof ev.data.type !== 'string') return
       if (ev.data.type === 'ADAPTERS_RESPONSE' && ev.data.nonce === nonce) {
         if (mounted) {
-          debugger;
           setInstalled(true)  
           clearTimeout(timer)        
         } 
@@ -33,7 +32,6 @@ export default function Extension() {
 
     const timer = setTimeout(() => {
       if (mounted && installed !== true) {
-        debugger
         setInstalled(false)
       } 
     }, 800)
