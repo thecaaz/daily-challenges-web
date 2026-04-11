@@ -20,6 +20,7 @@ import Play from './pages/Play'
 import DashboardPlay from './pages/DashboardPlay'
 import Extension from './pages/Extension'
 import Friends from './pages/Friends'
+import DashboardTest from './pages/DashboardTest'
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="/users/:id" element={<UserProfile />} />
               <Route path="/friends" element={<Friends />} />
               <Route path="/extension" element={<Extension />} />
+              <Route path="/dashboard-test" element={<DashboardTest />} />
             </Routes>
           </Container>
         } />
