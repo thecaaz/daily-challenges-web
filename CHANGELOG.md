@@ -1,3 +1,10 @@
+### [1.17.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.17.0...v1.17.1) (2026-04-11)
+
+
+### Bug Fixes
+
+* show if extension is already installed ([c36f770](https://github.com/thecaaz/daily-challenges-web/commit/c36f77072a7665eda04d2fae7797ad71fa87ee0f))
+
 ## [1.17.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.16.0...v1.17.0) (2026-04-11)
 
 
