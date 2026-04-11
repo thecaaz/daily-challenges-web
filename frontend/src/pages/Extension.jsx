@@ -1,16 +1,61 @@
-import React from 'react'
-import { Box, Button, Typography, Paper, List, ListItem, ListItemText } from '@mui/material'
+import React, { useEffect, useState } from 'react'
+import { Box, Button, Typography, Paper, List, ListItem, ListItemText, Chip } from '@mui/material'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import DownloadIcon from '@mui/icons-material/Download'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 
 const DOWNLOAD_URL = 'https://addons.mozilla.org/firefox/downloads/file/4760673/2915713b218843aca6f8-0.1.1.xpi'
 
 export default function Extension() {
+  const [installed, setInstalled] = useState(null)
+
+  useEffect(() => {
+    let mounted = true
+    const nonce = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+    function onMessage(ev) {
+      if (!ev || !ev.data || typeof ev.data.type !== 'string') return
+      if (ev.data.type === 'ADAPTERS_RESPONSE' && ev.data.nonce === nonce) {
+        if (mounted) {
+          setInstalled(true)  
+          clearTimeout(timer)        
+        } 
+      }
+    }
+
+    window.addEventListener('message', onMessage)
+    try {
+      // Ask any injected content script for its adapters; a responding ADAPTERS_RESPONSE
+      // implies the extension (or at least a content script) is present on this page.
+      window.postMessage({ type: 'GET_ADAPTERS', nonce }, '*')
+    } catch (e) {}
+
+    const timer = setTimeout(() => {
+      if (mounted && installed !== true) {
+        setInstalled(false)
+      } 
+    }, 800)
+
+    return () => {
+      mounted = false
+      window.removeEventListener('message', onMessage)
+      clearTimeout(timer)
+    }
+  }, [])
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <ExtensionIcon fontSize="large" />
         <Typography variant="h4" component="h1">Browser Extension</Typography>
+        {installed && (
+          <Chip
+            color="success"
+            icon={<CheckCircleIcon />}
+            label="Extension already installed"
+            sx={{ ml: 2 }}
+          />
+        )}
       </Box>
 
       <Typography variant="body1" sx={{ mb: 3 }}>
