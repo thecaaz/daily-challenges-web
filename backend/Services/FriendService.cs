@@ -53,17 +53,31 @@ namespace DailyChallenges.Services
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _notifications.CreateBatchAsync(
-            [
-                new Notification
+            // Prevent notification spam: if there's a recent unread friend_request notification
+            // from the same sender within the cooldown window, skip sending another notification.
+            var (existingItems, _, _) = await _notifications.GetByUserPagedAsync(targetUserId, 1, 50);
+            var cooldownWindow = TimeSpan.FromMinutes(15);
+            var recentSimilar = existingItems.Any(n =>
+                n.Type == "friend_request" &&
+                !n.IsRead &&
+                n.Message.Contains(sender.Username) &&
+                n.CreatedAt >= DateTime.UtcNow.Subtract(cooldownWindow)
+            );
+
+            if (!recentSimilar)
+            {
+                await _notifications.CreateBatchAsync(new List<Notification>
                 {
-                    UserId = targetUserId,
-                    GameId = null,
-                    ScoringDay = DateTime.UtcNow.Date,
-                    Message = $"{sender.Username} sent you a friend request.",
-                    Type = "friend_request"
-                }
-            ]);
+                    new Notification
+                    {
+                        UserId = targetUserId,
+                        GameId = null,
+                        ScoringDay = DateTime.UtcNow.Date,
+                        Message = $"{sender.Username} sent you a friend request.",
+                        Type = "friend_request"
+                    }
+                });
+            }
 
             return DtoMapper.ToDto(fr);
         }
@@ -97,8 +111,8 @@ namespace DailyChallenges.Services
             await _friends.UpdateAsync(fr);
 
             var receiver = await _users.GetByIdAsync(receiverId);
-            await _notifications.CreateBatchAsync(
-            [
+            await _notifications.CreateBatchAsync(new List<Notification>
+            {
                 new Notification
                 {
                     UserId = fr.SenderId,
@@ -107,7 +121,7 @@ namespace DailyChallenges.Services
                     Message = $"{receiver?.Username ?? "Someone"} accepted your friend request.",
                     Type = "friend_request_accepted"
                 }
-            ]);
+            });
         }
 
         public async Task CancelRequestAsync(int requestId, int senderId)
