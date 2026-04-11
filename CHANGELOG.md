@@ -1,3 +1,11 @@
+## [1.17.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.16.0...v1.17.0) (2026-04-11)
+
+
+### Features
+
+* add Extension page and integrate into navigation ([1d3fa63](https://github.com/thecaaz/daily-challenges-web/commit/1d3fa6314526cf51579c231176f0073be6a68d33))
+* release extension ([5063e8a](https://github.com/thecaaz/daily-challenges-web/commit/5063e8a3a27effcd57ec07a197f8b3b1637914e9))
+
 ## [1.16.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.15.0...v1.16.0) (2026-04-10)
 
 
