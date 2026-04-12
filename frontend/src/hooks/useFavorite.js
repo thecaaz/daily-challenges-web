@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
@@ -36,6 +36,11 @@ export default function useFavorite(gameId, initial = false) {
       setLoading(false)
     }
   }
+
+  // Keep local state in sync if the parent updates the `initial` value
+  useEffect(() => {
+    setIsFavorite(Boolean(initial))
+  }, [initial])
 
   return { isFavorite, toggle, loading }
 }

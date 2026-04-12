@@ -69,8 +69,20 @@ export default function NotificationBell() {
       } catch { /* ignore */ }
     }
     handleClose()
+
+    if (n.type === 'friend_request') {
+      navigate('/friends?tab=incoming')
+      return
+    }
+
+    if (n.type === 'friend_request_accepted') {
+      navigate('/friends?tab=friends')
+      return
+    }
+
     if (n.gameId && n.scoringDay) {
       navigate(`/games/${n.gameId}?scoringDay=${n.scoringDay}`)
+      return
     }
   }
 

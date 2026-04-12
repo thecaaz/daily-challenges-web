@@ -15,6 +15,11 @@ namespace DailyChallenges.Repositories
             return await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
         }
 
+        public async Task<User?> GetByUsernameAsync(string username)
+        {
+            return await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Username == username);
+        }
+
         public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames = 10)
         {
             if (topGames < 1) topGames = 10;

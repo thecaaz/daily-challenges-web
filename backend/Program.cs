@@ -57,6 +57,10 @@ builder.Services.AddScoped<DailyChallenges.Services.IUserSubmissionChecker, Dail
 // User profile repository
 builder.Services.AddScoped<DailyChallenges.Repositories.IUserProfileRepository, DailyChallenges.Repositories.EfUserProfileRepository>();
 
+// Friends
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IFriendRepository, DailyChallenges.Repositories.EfFriendRepository>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IFriendService, DailyChallenges.Services.FriendService>();
+
 // XP system
 builder.Services.Configure<DailyChallenges.Services.XpConfig>(builder.Configuration.GetSection("Xp"));
 builder.Services.AddSingleton(sp =>
@@ -81,6 +85,9 @@ builder.Services.AddScoped<DailyChallenges.Services.INotificationService, DailyC
 
 // User profile service
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IUserProfileService, DailyChallenges.Services.UserProfileService>();
+
+// Dashboard service
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IDashboardService, DailyChallenges.Services.DashboardService>();
 
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
 builder.Services.AddHttpClient();

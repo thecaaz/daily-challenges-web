@@ -3,6 +3,7 @@ import { Box, Avatar, Typography, LinearProgress, Grid, Chip } from '@mui/materi
 import { Link } from 'react-router-dom'
 import timeAgo from '../../utils/timeAgo'
 import formatNumber from '../../utils/formatNumber'
+import FriendButton from './FriendButton'
 
 export default function UserProfileHeader({ profile }) {
   const username = profile.username || profile.Username || 'user'
@@ -42,6 +43,7 @@ export default function UserProfileHeader({ profile }) {
             <LinearProgress variant="determinate" value={percent} sx={{ height: 8, borderRadius: 1 }} />
             <Typography variant="caption" color="text.secondary">{formatNumber(xpInto)}/{formatNumber(totalForLevel)} XP ({formatNumber(xpToNext)} to go) — {percent}%</Typography>
           </Box>
+          {userId && <Box sx={{ mt: 1.5 }}><FriendButton targetUserId={userId} /></Box>}
         </Grid>
       </Grid>
     </Box>
