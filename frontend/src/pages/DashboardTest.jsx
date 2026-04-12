@@ -373,12 +373,12 @@ export default function Dashboard() {
     return (
       <Box>
         <Skeleton variant="text" width={200} height={36} sx={{ mb: 3 }} />
-        <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Stack direction="row" sx={{ mb: 3, flexWrap: 'wrap', gap: 2, '& > *': { flex: '1 1 140px', maxWidth: { md: 280 } } }}>
           {[1, 2, 3].map(i => <Skeleton key={i} variant="rounded" width={150} height={64} />)}
         </Stack>
         <Grid container spacing={2}>
           {[1, 2].map(i => (
-            <Grid item xs={12} md={6} key={i}>
+            <Grid item xs={12} sm={6} lg={4} key={i}>
               <Skeleton variant="rounded" height={300} />
             </Grid>
           ))}
@@ -406,7 +406,7 @@ export default function Dashboard() {
       </Box>
 
       {/* Stat summary strip */}
-      <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap', gap: 2 }}>
+      <Stack direction="row" sx={{ mb: 3, flexWrap: 'wrap', gap: 2, '& > *': { flex: '1 1 140px', maxWidth: { md: 280 } } }}>
         <StatCard
           icon={<TodayIcon fontSize="small" />}
           label="Active today"
@@ -463,11 +463,11 @@ export default function Dashboard() {
         </Paper>
       )}
 
-      {/* Main grid: two columns on md+, stacked on mobile */}
+      {/* Main grid: responsive – 1 col mobile, 2 col tablet, 3 col large */}
       <Grid container spacing={2} sx={{ mb: 2 }}>
 
         {/* Recent Games */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={6} lg={4}>
           <Section
             title="Active Today"
             icon={<TodayIcon fontSize="small" color="primary" />}
@@ -486,7 +486,7 @@ export default function Dashboard() {
         </Grid>
 
         {/* Friends' Activity */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={6} lg={4}>
           <Section
             title="Friends' Activity"
             icon={<WhatshotIcon fontSize="small" color="warning" />}
@@ -501,7 +501,7 @@ export default function Dashboard() {
 
         {/* Pending Favorites */}
         {favData.pendingGames.length > 0 && (
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} sm={6} lg={4}>
             <Section
               title="Pending Favorites"
               icon={<StarBorderIcon fontSize="small" sx={{ color: 'warning.main' }} />}
@@ -516,7 +516,7 @@ export default function Dashboard() {
 
         {/* Your Ranks Today */}
         {userTodayRanks.length > 0 && (
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} sm={6} lg={4}>
             <Section
               title="Your Ranks Today"
               icon={<EmojiEventsIcon fontSize="small" color="warning" />}
@@ -559,7 +559,7 @@ export default function Dashboard() {
           : (
             <Grid container spacing={0}>
               {friends.map((friend, i) => (
-                <Grid item xs={12} sm={6} md={4} key={friend.userId}>
+                <Grid item xs={12} sm={6} md={4} lg={3} key={friend.userId}>
                   {i > 0 && i % 1 === 0 && <Divider />}
                   <ListItem
                     component={Link}
