@@ -142,7 +142,8 @@ namespace DailyChallenges.Mapping
                 Username = u.Username,
                 Level = level,
                 TotalXp = u.TotalXp,
-                Streak = u.Streak
+                Streak = u.Streak,
+                LastSubmissionAt = u.LastSubmissionAt
             };
         }
     }

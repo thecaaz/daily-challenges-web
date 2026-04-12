@@ -2,7 +2,7 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Container, Box } from '@mui/material'
 import Games from './pages/Games'
-import Dashboard from './pages/Dashboard'
+import Dashboard from './pages/DashboardTest'
 import Admin from './pages/Admin'
 import AdminUsers from './pages/AdminUsers'
 import Submit from './pages/Submit'
@@ -27,12 +27,12 @@ export default function App() {
       <GameBar />
       <Routes>
         <Route path="/compare/:id1/:id2" element={<Box sx={{ mt: 4, mb: 6, px: 3 }}><CompareSubmissions /></Box>} />
+        <Route path="/dashboard/play" element={<Box sx={{ mt: 4, mb: 6, px: { xs: 2, sm: 3, md: 4 } }}><DashboardPlay /></Box>} />
+        <Route path="/" element={<Box sx={{ mt: 4, mb: 6, px: { xs: 2, sm: 3, md: 4 } }}><Dashboard /></Box>} />
         <Route path="*" element={
           <Container sx={{ mt: 4, mb: 6 }}>
             <Routes>
-              <Route path="/" element={<Games />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/dashboard/play" element={<DashboardPlay />} />
+              <Route path="/games" element={<Games />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/debug/timeguessr" element={<TimeguessrDebug />} />

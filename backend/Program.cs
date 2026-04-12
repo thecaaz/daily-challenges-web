@@ -86,6 +86,9 @@ builder.Services.AddScoped<DailyChallenges.Services.INotificationService, DailyC
 // User profile service
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IUserProfileService, DailyChallenges.Services.UserProfileService>();
 
+// Dashboard service
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IDashboardService, DailyChallenges.Services.DashboardService>();
+
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, DailyChallenges.Services.InfoService>();
