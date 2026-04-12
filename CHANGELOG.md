@@ -1,3 +1,14 @@
+## [1.18.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.17.1...v1.18.0) (2026-04-12)
+
+
+### Features
+
+* enhance dashboard with XP tracking and user ranks display ([6146fe1](https://github.com/thecaaz/daily-challenges-web/commit/6146fe146f57205b7bee9948c3fe65269e352809))
+* implement friends system ([2738f9a](https://github.com/thecaaz/daily-challenges-web/commit/2738f9a14fe0b3b0996e5ab124b2757891577732))
+* navigate to friends on friend request notification click ([c45b555](https://github.com/thecaaz/daily-challenges-web/commit/c45b5559aaf18d48df13f8b7da2aad97ea38e18a))
+* update dashboard routes and enhance layout for responsiveness ([0a5b69d](https://github.com/thecaaz/daily-challenges-web/commit/0a5b69d2205a6bf144761befae556df69c3e14ff))
+* update routing for dashboard and games, enhance image handling in dashboard components ([e72b505](https://github.com/thecaaz/daily-challenges-web/commit/e72b505a824b38410174f2d499629f584e95f2ee))
+
 ### [1.17.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.17.0...v1.17.1) (2026-04-11)
 
 
