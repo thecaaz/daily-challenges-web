@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
 import useFavorite from '../hooks/useFavorite'
+import AppButton from '../components/ui/AppButton'
 import PlayButton from '../components/ui/PlayButton'
 import { hasAdapterForUrl } from '../utils/adapters'
 import timeAgo from '../utils/timeAgo'
@@ -248,11 +249,12 @@ function Section({ title, icon, children, empty, emptyText = 'Nothing here yet.'
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function DashboardTest() {
+export default function Dashboard() {
   useRequireAuth()
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [playableCount, setPlayableCount] = useState(0)
 
   const fetchData = useCallback(async () => {
     try {
@@ -266,6 +268,34 @@ export default function DashboardTest() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Compute how many favorite games are playable (have adapter & not submitted)
+  useEffect(() => {
+    let mounted = true
+    const computePlayable = async () => {
+      try {
+        const res = await api.get('/games')
+        const all = Array.isArray(res.data) ? res.data : []
+        const favs = all.filter(g => g.isFavorite)
+        let count = 0
+        for (const g of favs) {
+          try {
+            if (!g.url) continue
+            if (g.hasSubmittedForLatest) continue
+            const ok = await hasAdapterForUrl(g.url)
+            if (ok) count++
+          } catch (e) {
+            // ignore per-game
+          }
+        }
+        if (mounted) setPlayableCount(count)
+      } catch (e) {
+        if (mounted) setPlayableCount(0)
+      }
+    }
+    computePlayable()
+    return () => { mounted = false }
+  }, [])
 
   // Keep dashboard in sync when favorites are toggled elsewhere
   useEffect(() => {
@@ -316,9 +346,13 @@ export default function DashboardTest() {
   return (
     <Box>
       {/* Page title */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" fontWeight={800} gutterBottom>Dashboard</Typography>
-        <Typography variant="body2" color="text.secondary">Your daily overview</Typography>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h4" fontWeight={800} gutterBottom>Dashboard</Typography>
+          <Typography variant="body2" color="text.secondary">Your daily overview</Typography>
+        </Box>
+        <Box sx={{ flex: 1 }} />
+        <AppButton to="/dashboard/play" variant="contained" disabled={playableCount === 0} sx={{ mt: 0.5 }}>Play</AppButton>
       </Box>
 
       {/* Stat summary strip */}
