@@ -22,6 +22,7 @@ import AppButton from '../components/ui/AppButton'
 import PlayButton from '../components/ui/PlayButton'
 import { hasAdapterForUrl } from '../utils/adapters'
 import timeAgo from '../utils/timeAgo'
+import imageUrl from '../utils/imageUrl'
 
 // ─── Game list row ────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ function GameRow({ game, badge, badgeLabel }) {
       {/* Game image */}
       <ListItemAvatar sx={{ minWidth: 44 }}>
         <Avatar
-          src={game.imageUrl ?? undefined}
+          src={game.imageUrl ? imageUrl(game.imageUrl) : undefined}
           variant="rounded"
           sx={{ width: 40, height: 40, bgcolor: 'primary.dark', fontSize: '1.2rem' }}
         >
@@ -136,14 +137,14 @@ function FriendActivityRow({ activity }) {
       }}
     >
       <ListItemAvatar sx={{ minWidth: 44 }}>
-        <Avatar
-          src={activity.gameImageUrl ?? undefined}
-          variant="rounded"
-          sx={{ width: 40, height: 40, bgcolor: 'secondary.dark', fontSize: '1.2rem' }}
-        >
-          {!activity.gameImageUrl && '🎮'}
-        </Avatar>
-      </ListItemAvatar>
+          <Avatar
+            src={activity.gameImageUrl ? imageUrl(activity.gameImageUrl) : undefined}
+            variant="rounded"
+            sx={{ width: 40, height: 40, bgcolor: 'secondary.dark', fontSize: '1.2rem' }}
+          >
+            {!activity.gameImageUrl && '🎮'}
+          </Avatar>
+        </ListItemAvatar>
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -212,7 +213,7 @@ function RankRow({ rank }) {
     >
       <ListItemAvatar sx={{ minWidth: 44 }}>
         <Avatar
-          src={rank.gameImageUrl ?? undefined}
+          src={rank.gameImageUrl ? imageUrl(rank.gameImageUrl) : undefined}
           variant="rounded"
           sx={{ width: 40, height: 40, bgcolor: 'primary.dark', fontSize: '1.2rem' }}
         >
@@ -395,15 +396,6 @@ export default function Dashboard() {
 
   return (
     <Box>
-      {/* Page title */}
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'flex-start' }}>
-        <Box>
-          <Typography variant="h4" fontWeight={800} gutterBottom>Dashboard</Typography>
-          <Typography variant="body2" color="text.secondary">Your daily overview</Typography>
-        </Box>
-        <Box sx={{ flex: 1 }} />
-        <AppButton to="/dashboard/play" variant="contained" disabled={favData.playableCount === 0} sx={{ mt: 0.5 }}>Play ({favData.playableCount})</AppButton>
-      </Box>
 
       {/* Stat summary strip */}
       <Stack direction="row" sx={{ mb: 3, flexWrap: 'wrap', gap: 2, '& > *': { flex: '1 1 140px', maxWidth: { md: 280 } } }}>
@@ -441,6 +433,11 @@ export default function Dashboard() {
             color="warning"
           />
         )}
+
+        <Box sx={{ alignContent: 'end', mb: 3, display: 'flex', alignItems: 'flex-start' }}>
+          <Box sx={{ flex: 1 }} />
+          <AppButton to="/dashboard/play" variant="contained" disabled={favData.playableCount === 0} sx={{ mt: 0.5 }}>Play ({favData.playableCount})</AppButton>
+        </Box>
       </Stack>
 
       {/* Favorites completion progress */}
