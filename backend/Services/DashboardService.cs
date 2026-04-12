@@ -104,6 +104,7 @@ namespace DailyChallenges.Services
                 .ToList();
 
             // 6. Friend activity: games friends played in the last 7 days
+            var gameById = games.ToDictionary(g => g.Id);
             List<FriendActivityDto> friendActivity = new();
             if (friendIds.Count > 0)
             {
@@ -113,13 +114,11 @@ namespace DailyChallenges.Services
                     .AsNoTracking()
                     .ToListAsync();
 
-                var gameIdMap = games.ToDictionary(g => g.Id);
-
                 friendActivity = friendSubs
                     .GroupBy(s => s.GameId)
                     .Select(g =>
                     {
-                        gameIdMap.TryGetValue(g.Key, out var game);
+                        gameById.TryGetValue(g.Key, out var game);
                         return new FriendActivityDto
                         {
                             GameId = g.Key,
@@ -145,11 +144,52 @@ namespace DailyChallenges.Services
                     .ToList();
             }
 
+            // 7. XP earned today by the current user — query XpEvents directly (more reliable
+            //    than Submission.XpAwarded which is null for submissions made before the XP system).
+            var xpEarnedToday = await _db.XpEvents
+                .Where(e => e.UserId == userId
+                            && e.ScoringDay.HasValue
+                            && distinctDays.Contains(e.ScoringDay.Value)
+                            && (e.EventType == "submission" || e.EventType == "streak_bonus"))
+                .SumAsync(e => (int?)e.Amount) ?? 0;
+
+            // 8. User's rank in each game submitted today (only where ScoreValue is present)
+            var userSubsByGame = todaySubmissions
+                .Where(s => s.UserId == userId && userSubmittedToday.Contains(s.GameId))
+                .GroupBy(s => s.GameId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var userTodayRanks = userSubmittedToday
+                .Where(gameId => userSubsByGame.ContainsKey(gameId) && userSubsByGame[gameId].ScoreValue.HasValue)
+                .Select(gameId =>
+                {
+                    var userSub = userSubsByGame[gameId];
+                    gameById.TryGetValue(gameId, out var game);
+                    var gameSubs = submissionsByGame.ContainsKey(gameId) ? submissionsByGame[gameId] : new List<Submission>();
+                    var mode = game?.RankingMode ?? RankingMode.Highest;
+                    int rank = mode == RankingMode.Highest
+                        ? gameSubs.Count(s => (s.ScoreValue ?? int.MinValue) > userSub.ScoreValue!.Value) + 1
+                        : gameSubs.Count(s => (s.ScoreValue ?? int.MaxValue) < userSub.ScoreValue!.Value) + 1;
+                    return new UserTodayRankDto
+                    {
+                        GameId = gameId,
+                        GameName = game?.Name ?? string.Empty,
+                        GameImageUrl = game?.ScreenshotData != null ? $"/api/games/{gameId}/image" : null,
+                        Score = userSub.Score,
+                        Rank = rank,
+                        TotalSubmissions = gameSubs.Count
+                    };
+                })
+                .OrderBy(r => r.Rank)
+                .ToList();
+
             return new DashboardDataDto
             {
                 RecentGames = recentGames,
                 FriendActivity = friendActivity,
-                Friends = friendDtos
+                Friends = friendDtos,
+                XpEarnedToday = xpEarnedToday,
+                UserTodayRanks = userTodayRanks
             };
         }
     }
