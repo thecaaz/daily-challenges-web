@@ -6,7 +6,8 @@
   "permissions": [
     "<all_urls>",
     "tabs",
-    "https://caaz.ddns.net/*",
+    "https://challenges.caaz.dev/*",
+    "https://test.challenges.caaz.dev/*",
     "https://timeguessr.com/*",
     "https://maptap.gg/*",
     "http://localhost/*"
@@ -36,7 +37,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://caaz.ddns.net/*",
+        "https://challenges.caaz.dev/*",
+        "https://test.challenges.caaz.dev/*",
         "https://timeguessr.com/*",
         "https://maptap.gg/*",
         "http://localhost/*"

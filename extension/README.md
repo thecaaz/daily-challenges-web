@@ -66,7 +66,7 @@ Permissions and compatibility notes
 -----------------------------------
 
 - The current manifest is Manifest V2.
-- Requested permissions (reduced): host access only to `https://caaz.ddns.net/*`.
+- Requested permissions (reduced): host access only to `https://challenges.caaz.dev/*` and `https://test.challenges.caaz.dev/*`.
 - For local development the manifest includes `http://localhost:5173/*` (remove this before publishing).
 - No `storage`, `activeTab`, `tabs`, or `<all_urls>` permissions are requested in the reduced manifest.
 - The content script runs at `document_idle` in the matched frames; `all_frames: true` is retained to support iframe injection.
