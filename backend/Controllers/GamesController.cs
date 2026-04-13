@@ -25,10 +25,10 @@ namespace DailyChallenges.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url, [FromForm] string? description, [FromForm] string? rankingMode)
+        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? url, [FromForm] string? description, [FromForm] int? resetTimezoneOffsetMinutes, [FromForm] string? rankingMode)
         {
             if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
-            var created = await _games.CreateAsync(name, image, resetTime, resetTimezoneId, url, description, rankingMode);
+            var created = await _games.CreateAsync(name, image, resetTime, url, description, resetTimezoneOffsetMinutes, rankingMode);
             return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }
 
@@ -60,9 +60,9 @@ namespace DailyChallenges.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? resetTimezoneId, [FromForm] string? url, [FromForm] string? description, [FromForm] string? rankingMode)
+        public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? url, [FromForm] string? description, [FromForm] int? resetTimezoneOffsetMinutes, [FromForm] string? rankingMode)
         {
-            var updated = await _games.UpdateAsync(id, name, image, resetTime, resetTimezoneId, url, description, rankingMode);
+            var updated = await _games.UpdateAsync(id, name, image, resetTime, url, description, resetTimezoneOffsetMinutes, rankingMode);
             return Ok(updated);
         }
 

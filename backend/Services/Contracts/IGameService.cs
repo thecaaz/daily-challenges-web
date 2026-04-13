@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using DailyChallenges.DTOs;
 
 namespace DailyChallenges.Services
@@ -6,9 +7,9 @@ namespace DailyChallenges.Services
     public interface IGameService
     {
         Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user = null);
-        Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null);
+        Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? url, string? description, int? resetTimezoneOffsetMinutes = null, string? rankingMode = null);
         Task<Models.Game?> GetByIdAsync(int id);
-        Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null);
+        Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? url, string? description, int? resetTimezoneOffsetMinutes = null, string? rankingMode = null);
         Task DeleteAsync(int id);
         Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id);
         Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user);

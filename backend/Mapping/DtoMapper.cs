@@ -49,9 +49,8 @@ namespace DailyChallenges.Mapping
                 Url = g.Url,
                 Description = g.Description,
                 ImageUrl = g.ScreenshotData != null ? $"/api/games/{g.Id}/image" : null,
-                // ResetTime is exported as HH:mm and timezone id as provided
+                // ResetTime is exported as HH:mm (UTC)
                 ResetTime = g.ResetTime.ToString(@"hh\:mm"),
-                ResetTimezoneId = g.ResetTimezoneId,
                 RankingMode = g.RankingMode.ToString().ToLowerInvariant(),
                 Submissions = includeSubmissions && g.Submissions != null
                     ? g.Submissions.Select(ToDto).ToList()
@@ -60,8 +59,8 @@ namespace DailyChallenges.Mapping
 
             try
             {
-                // Compute current scoring day on the server side so frontend can rely on it
-                dto.CurrentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).ToString("yyyy-MM-dd");
+                // Compute current scoring day on the server side (ResetTime is UTC)
+                dto.CurrentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime).ToString("yyyy-MM-dd");
             }
             catch
             {

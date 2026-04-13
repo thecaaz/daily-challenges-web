@@ -32,7 +32,7 @@ namespace DailyChallenges.Services
             var userId = user.GetUserId();
             if (!userId.HasValue) return dtos;
 
-            var gameDays = games.Select(g => new { g.Id, Day = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).Date }).ToList();
+            var gameDays = games.Select(g => new { g.Id, Day = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime).Date }).ToList();
 
             var distinctDays = gameDays.Select(x => x.Day).Distinct().ToList();
             var gameIds = gameDays.Select(x => x.Id).ToList();
@@ -54,14 +54,20 @@ namespace DailyChallenges.Services
             return dtos;
         }
 
-        public async Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null)
+        public async Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? url, string? description, int? resetTimezoneOffsetMinutes = null, string? rankingMode = null)
         {
             var game = new Game { Name = name };
             if (!string.IsNullOrWhiteSpace(resetTime))
             {
-                if (TryParseResetTime(resetTime, out var ts)) game.ResetTime = ts;
+                if (TryParseResetTime(resetTime, out var ts))
+                {
+                    if (resetTimezoneOffsetMinutes.HasValue)
+                    {
+                        ts = NormalizeToUtc(ts, resetTimezoneOffsetMinutes.Value);
+                    }
+                    game.ResetTime = ts;
+                }
             }
-            if (!string.IsNullOrWhiteSpace(resetTimezoneId)) game.ResetTimezoneId = resetTimezoneId;
             if (!string.IsNullOrWhiteSpace(url)) game.Url = url;
             if (!string.IsNullOrWhiteSpace(description)) game.Description = description;
             if (Enum.TryParse<RankingMode>(rankingMode, ignoreCase: true, out var mode)) game.RankingMode = mode;
@@ -79,7 +85,7 @@ namespace DailyChallenges.Services
 
         public async Task<Game?> GetByIdAsync(int id) => await _games.GetByIdAsync(id);
 
-        public async Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? resetTimezoneId, string? url, string? description, string? rankingMode = null)
+        public async Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? url, string? description, int? resetTimezoneOffsetMinutes = null, string? rankingMode = null)
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
@@ -87,9 +93,15 @@ namespace DailyChallenges.Services
             if (!string.IsNullOrWhiteSpace(url)) g.Url = url;
             if (!string.IsNullOrWhiteSpace(resetTime))
             {
-                if (TryParseResetTime(resetTime, out var ts)) g.ResetTime = ts;
+                if (TryParseResetTime(resetTime, out var ts))
+                {
+                    if (resetTimezoneOffsetMinutes.HasValue)
+                    {
+                        ts = NormalizeToUtc(ts, resetTimezoneOffsetMinutes.Value);
+                    }
+                    g.ResetTime = ts;
+                }
             }
-            if (!string.IsNullOrWhiteSpace(resetTimezoneId)) g.ResetTimezoneId = resetTimezoneId;
             if (description != null) g.Description = description;
             if (!string.IsNullOrWhiteSpace(rankingMode) && Enum.TryParse<RankingMode>(rankingMode, ignoreCase: true, out var mode)) g.RankingMode = mode;
 
@@ -121,7 +133,7 @@ namespace DailyChallenges.Services
             if (g == null) throw new KeyNotFoundException("Game not found");
             var strategy = RankingStrategyFactory.GetStrategy(g.RankingMode);
             // Determine whether the current user has already submitted today
-            var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId);
+            var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime);
             bool hasSubmittedToday = false;
             if (user != null)
             {
@@ -138,8 +150,8 @@ namespace DailyChallenges.Services
 
             if (user == null || !user.IsInRole("Admin"))
             {
-                if (!hasSubmittedToday)
-                    subs = subs.Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, g.ResetTime, g.ResetTimezoneId) != currentDay).ToList();
+                    if (!hasSubmittedToday)
+                    subs = subs.Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, g.ResetTime) != currentDay).ToList();
             }
 
             List<SubmissionDto> topDtos;
@@ -305,6 +317,15 @@ namespace DailyChallenges.Services
 
             result = default;
             return false;
+        }
+
+        private static TimeSpan NormalizeToUtc(TimeSpan localTime, int offsetMinutes)
+        {
+            
+            var utc = localTime + TimeSpan.FromMinutes(offsetMinutes);
+            var dayTicks = TimeSpan.TicksPerDay;
+            var ticks = ((utc.Ticks % dayTicks) + dayTicks) % dayTicks;
+            return new TimeSpan(ticks);
         }
     }
 }
