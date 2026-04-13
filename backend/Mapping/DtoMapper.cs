@@ -119,7 +119,7 @@ namespace DailyChallenges.Mapping
             };
         }
 
-        public static FriendRequestDto ToDto(Models.FriendRequest fr)
+        public static FriendRequestDto ToDto(FriendRequest fr)
         {
             return new FriendRequestDto
             {

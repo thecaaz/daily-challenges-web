@@ -8,6 +8,9 @@
       "preLaunchTask": "build backend",
       "program": "${workspaceFolder}/backend/bin/Debug/net10.0/DailyChallenges.dll",
       "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
       "args": [],
       "stopAtEntry": false
     },

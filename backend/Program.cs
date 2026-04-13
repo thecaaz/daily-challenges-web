@@ -97,10 +97,19 @@ builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, D
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
 builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundService>();
 
-// JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? string.Empty;
-var issuer = builder.Configuration["Jwt:Issuer"];
-var audience = builder.Configuration["Jwt:Audience"];
+// JWT Authentication: bind typed options
+builder.Services.Configure<DailyChallenges.Services.JwtOptions>(builder.Configuration.GetSection("Jwt"));
+var jwtOptions = builder.Configuration.GetSection("Jwt").Get<DailyChallenges.Services.JwtOptions>() ?? new DailyChallenges.Services.JwtOptions();
+
+// Fail fast in non-development environments when the JWT key is not configured properly.
+if (!builder.Environment.IsDevelopment())
+{
+    var key = jwtOptions.Key ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(key) || key.Contains("CHANGE_THIS") || key.Length < 32)
+    {
+        throw new InvalidOperationException("Jwt:Key must be configured to a strong secret (>=32 chars) in non-development environments.");
+    }
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -113,22 +122,11 @@ builder.Services.AddAuthentication(options =>
         {
             ValidateIssuer = true,
             ValidateAudience = true,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = issuer,
-            ValidAudience = audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-        };
-
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                if (context.Request.Cookies.ContainsKey("access_token"))
-                {
-                    context.Token = context.Request.Cookies["access_token"];
-                }
-                return Task.CompletedTask;
-            }
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key ?? string.Empty))
         };
     });
 

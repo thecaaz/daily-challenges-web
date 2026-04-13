@@ -5,7 +5,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace DailyChallenges.Services
 {
-    public class UserProfileService : Services.Contracts.IUserProfileService
+    public class UserProfileService : Contracts.IUserProfileService
     {
         private readonly IUserProfileRepository _repo;
         private readonly LevelCalculator _levelCalc;
