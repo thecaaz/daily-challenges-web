@@ -1,3 +1,10 @@
+### [1.19.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.0...v1.19.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* deduplicate names in recent played ([918de81](https://github.com/thecaaz/daily-challenges-web/commit/918de810252c765a14cb4bac2b7875c297f75dc9))
+
 ## [1.19.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.18.0...v1.19.0) (2026-04-14)
 
 
