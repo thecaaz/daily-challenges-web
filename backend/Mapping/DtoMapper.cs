@@ -60,11 +60,17 @@ namespace DailyChallenges.Mapping
             try
             {
                 // Compute current scoring day on the server side (ResetTime is UTC)
-                dto.CurrentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime).ToString("yyyy-MM-dd");
+                var currentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime);
+                dto.CurrentScoringDay = currentScoringDay.ToString("yyyy-MM-dd");
+                var (utcStart, utcEnd) = ScoringDayHelper.GetScoringDayUtcRange(currentScoringDay, g.ResetTime);
+                dto.CurrentScoringDayUtcStart = utcStart.ToString("yyyy-MM-ddTHH:mm:ss'Z'");
+                dto.CurrentScoringDayUtcEnd = utcEnd.ToString("yyyy-MM-ddTHH:mm:ss'Z'");
             }
             catch
             {
                 dto.CurrentScoringDay = null;
+                dto.CurrentScoringDayUtcStart = null;
+                dto.CurrentScoringDayUtcEnd = null;
             }
 
             return dto;

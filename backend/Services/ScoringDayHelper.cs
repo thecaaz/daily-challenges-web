@@ -8,11 +8,30 @@ namespace DailyChallenges.Services
         /// Returns the "scoring day" date for a given UTC timestamp based on the
         /// game's reset time-of-day expressed in UTC. If the UTC time-of-day is
         /// before the reset time, the submission belongs to the previous day.
+        /// 
+        /// IMPORTANT: Historically the code treated `resetTimeUtc` as the start
+        /// of the scoring day (scoring day label = start date). To better match
+        /// UX expectations for late reset times (e.g. 22:00 UTC), we treat
+        /// reset times at or after noon (12:00 UTC) as the *end* of the
+        /// scoring day (scoring day label = end date). For those cases the
+        /// scoring-day range is [scoringDay.Date - 1 + resetTimeUtc, scoringDay.Date + resetTimeUtc).
         /// </summary>
         public static DateTime GetScoringDay(DateTime utcTimestamp, TimeSpan resetTimeUtc)
         {
             var day = utcTimestamp.Date;
-            if (utcTimestamp.TimeOfDay < resetTimeUtc) day = day.AddDays(-1);
+            // If reset time is considered the end of the scoring day (late times),
+            // then timestamps before the reset belong to the same-day label,
+            // otherwise they belong to the previous day (start-of-day semantics).
+            if (ResetTimeRepresentsEndOfScoringDay(resetTimeUtc))
+            {
+                // End-of-day semantics: if timestamp is at-or-after reset, it's for the next day's label.
+                if (utcTimestamp.TimeOfDay >= resetTimeUtc) day = day.AddDays(1);
+            }
+            else
+            {
+                // Start-of-day semantics (original behavior).
+                if (utcTimestamp.TimeOfDay < resetTimeUtc) day = day.AddDays(-1);
+            }
             return day;
         }
 
@@ -28,9 +47,27 @@ namespace DailyChallenges.Services
         /// </summary>
         public static (DateTime UtcStart, DateTime UtcEnd) GetScoringDayUtcRange(DateTime scoringDay, TimeSpan resetTimeUtc)
         {
-            var utcStart = DateTime.SpecifyKind(scoringDay.Date + resetTimeUtc, DateTimeKind.Utc);
-            var utcEnd = utcStart.AddDays(1);
-            return (utcStart, utcEnd);
+            if (ResetTimeRepresentsEndOfScoringDay(resetTimeUtc))
+            {
+                // resetTime is the end of the scoring day: range = [scoringDay.Date - 1 + resetTime, scoringDay.Date + resetTime)
+                var utcEnd = DateTime.SpecifyKind(scoringDay.Date + resetTimeUtc, DateTimeKind.Utc);
+                var utcStart = utcEnd.AddDays(-1);
+                return (utcStart, utcEnd);
+            }
+            else
+            {
+                // resetTime is the start of the scoring day: range = [scoringDay.Date + resetTime, scoringDay.Date + resetTime + 1day)
+                var utcStart = DateTime.SpecifyKind(scoringDay.Date + resetTimeUtc, DateTimeKind.Utc);
+                var utcEnd = utcStart.AddDays(1);
+                return (utcStart, utcEnd);
+            }
+        }
+
+        private static bool ResetTimeRepresentsEndOfScoringDay(TimeSpan resetTimeUtc)
+        {
+            // Heuristic: treat reset times at or after 12:00 UTC as the end of the scoring day.
+            // This matches the described UX where a 22:00 UTC reset feels like the previous calendar day.
+            return resetTimeUtc >= TimeSpan.FromHours(12);
         }
 
         /// <summary>
