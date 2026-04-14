@@ -55,7 +55,7 @@ namespace DailyChallenges.Services
             //    Use each game's computed scoring day for accuracy.
             var gameScoringDays = games.Select(g =>
             {
-                try { return (g.Id, Day: ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, g.ResetTimezoneId).Date); }
+                try { return (g.Id, Day: ScoringDayHelper.GetCurrentScoringDay(g.ResetTime).Date); }
                 catch { return (g.Id, Day: DateTime.UtcNow.Date); }
             }).ToDictionary(x => x.Id, x => x.Day);
 

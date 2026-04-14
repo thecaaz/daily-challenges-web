@@ -7,20 +7,21 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 namespace DailyChallenges.Services
 {
     public class AuthService : IAuthService
     {
         private readonly AppDbContext _db;
-        private readonly IConfiguration _config;
+        private readonly JwtOptions _jwtOptions;
         private readonly LevelCalculator _levelCalc;
         private readonly IWebHostEnvironment _env;
 
-        public AuthService(AppDbContext db, IConfiguration config, LevelCalculator levelCalc, IWebHostEnvironment env)
+        public AuthService(AppDbContext db, IOptions<JwtOptions> jwtOptions, LevelCalculator levelCalc, IWebHostEnvironment env)
         {
             _db = db;
-            _config = config;
+            _jwtOptions = jwtOptions?.Value ?? new JwtOptions();
             _levelCalc = levelCalc;
             _env = env;
         }
@@ -38,7 +39,7 @@ namespace DailyChallenges.Services
             return DtoMapper.ToDto(user, _levelCalc);
         }
 
-        public async Task<UserDto> LoginAsync(string username, string password, HttpResponse response)
+        public async Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
             if (user == null) throw new UnauthorizedAccessException("Invalid credentials");
@@ -46,27 +47,33 @@ namespace DailyChallenges.Services
             if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid credentials");
 
-            var token = GenerateJwtToken(user);
+            // Access token expiry (minutes)
+            var accessMinutes = _jwtOptions.AccessTokenMinutes <= 0 ? 30 : _jwtOptions.AccessTokenMinutes;
 
-            var expiresDays = int.Parse(_config["Jwt:ExpiresDays"] ?? "7");
+            var accessToken = GenerateJwtToken(user, TimeSpan.FromMinutes(accessMinutes));
+            var refreshToken = GenerateJwtToken(user, TimeSpan.FromDays(_jwtOptions.RefreshExpiresDays));
 
-            // Force insecure cookie so it can be set over plain HTTP in Development only.
+            // Force secure cookie except in Development only.
             var cookieSecure = !_env.IsDevelopment();
 
-            response.Cookies.Append("access_token", token, new CookieOptions
+            // Set refresh token as HttpOnly cookie (used to obtain new access tokens).
+            response.Cookies.Append("refresh_token", refreshToken, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = cookieSecure,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTimeOffset.UtcNow.AddDays(expiresDays)
+                Expires = DateTimeOffset.UtcNow.AddDays(_jwtOptions.RefreshExpiresDays)
             });
 
-            return DtoMapper.ToDto(user, _levelCalc);
+            // Do not set an `access_token` cookie; use refresh cookie + Authorization header only.
+
+            var dto = DtoMapper.ToDto(user, _levelCalc);
+            return new AuthResultDto(dto, accessToken, accessMinutes * 60);
         }
 
         public Task LogoutAsync(HttpResponse response)
         {
-            response.Cookies.Delete("access_token");
+            response.Cookies.Delete("refresh_token");
             return Task.CompletedTask;
         }
 
@@ -80,12 +87,43 @@ namespace DailyChallenges.Services
             if (u == null) return null;
             return DtoMapper.ToDto(u, _levelCalc);
         }
-
-        private string GenerateJwtToken(User user)
+        public async Task<AuthResultDto?> RefreshAsync(HttpRequest request, HttpResponse response)
         {
-            var issuer = _config["Jwt:Issuer"];
-            var audience = _config["Jwt:Audience"];
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? string.Empty));
+            if (!request.Cookies.ContainsKey("refresh_token")) return null;
+            var refreshToken = request.Cookies["refresh_token"];
+
+            var principal = ValidateToken(refreshToken, validateLifetime: true);
+            if (principal == null) return null;
+
+            var idClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(idClaim) || !int.TryParse(idClaim, out var userId)) return null;
+
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null) return null;
+
+            var accessMinutes = _jwtOptions.AccessTokenMinutes <= 0 ? 30 : _jwtOptions.AccessTokenMinutes;
+            var accessToken = GenerateJwtToken(user, TimeSpan.FromMinutes(accessMinutes));
+
+            // Optionally rotate refresh token: re-issue new refresh cookie with fresh expiry
+            var newRefreshToken = GenerateJwtToken(user, TimeSpan.FromDays(_jwtOptions.RefreshExpiresDays));
+            var cookieSecure = !_env.IsDevelopment();
+            response.Cookies.Append("refresh_token", newRefreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = cookieSecure,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddDays(_jwtOptions.RefreshExpiresDays)
+            });
+
+            var dto = DtoMapper.ToDto(user, _levelCalc);
+            return new AuthResultDto(dto, accessToken, accessMinutes * 60);
+        }
+
+        private string GenerateJwtToken(User user, TimeSpan expires)
+        {
+            var issuer = _jwtOptions.Issuer;
+            var audience = _jwtOptions.Audience;
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Key ?? string.Empty));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>
@@ -99,8 +137,35 @@ namespace DailyChallenges.Services
                 claims.Add(new Claim(ClaimTypes.Role, "Admin"));
             }
 
-            var token = new JwtSecurityToken(issuer, audience, claims, expires: DateTime.UtcNow.AddDays(double.Parse(_config["Jwt:ExpiresDays"] ?? "7")), signingCredentials: creds);
+            var token = new JwtSecurityToken(issuer, audience, claims, expires: DateTime.UtcNow.Add(expires), signingCredentials: creds);
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private ClaimsPrincipal? ValidateToken(string token, bool validateLifetime)
+        {
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.UTF8.GetBytes(_jwtOptions.Key ?? string.Empty);
+                var parameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = _jwtOptions.Issuer,
+                    ValidAudience = _jwtOptions.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateLifetime = validateLifetime,
+                    ClockSkew = TimeSpan.FromSeconds(30)
+                };
+
+                var principal = tokenHandler.ValidateToken(token, parameters, out var validatedToken);
+                return principal;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

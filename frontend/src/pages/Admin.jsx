@@ -36,13 +36,6 @@ export default function Admin() {
   const [url, setUrl] = useState('')
   const [description, setDescription] = useState('')
   const [rankingMode, setRankingMode] = useState('highest')
-  const [detectedTimezone, setDetectedTimezone] = useState(() => {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-    } catch (e) {
-      return 'UTC'
-    }
-  })
 
   const submit = async (e) => {
     e.preventDefault()
@@ -51,7 +44,8 @@ export default function Admin() {
     if (url) fd.append('url', url)
     if (description) fd.append('description', description)
     fd.append('resetTime', resetTime)
-    fd.append('resetTimezoneId', detectedTimezone)
+    const tzOffset = new Date().getTimezoneOffset()
+    fd.append('resetTimezoneOffsetMinutes', String(tzOffset))
     fd.append('rankingMode', rankingMode)
     if (createImageFile) fd.append('image', createImageFile)
     try {
@@ -104,7 +98,8 @@ export default function Admin() {
       if (editingGame.name) fd.append('name', editingGame.name)
       if (editingGame.url) fd.append('url', editingGame.url)
       if (editingGame.resetTime) fd.append('resetTime', editingGame.resetTime)
-      if (editingGame.resetTimezoneId) fd.append('resetTimezoneId', editingGame.resetTimezoneId)
+      const tzOffsetEdit = new Date().getTimezoneOffset()
+      fd.append('resetTimezoneOffsetMinutes', String(tzOffsetEdit))
       if (editImageFile) fd.append('image', editImageFile)
       else if (editingGame.imageFile) fd.append('image', editingGame.imageFile)
       if (editingGame.description !== undefined) fd.append('description', editingGame.description ?? '')
@@ -180,10 +175,7 @@ export default function Admin() {
             <label>Reset time (day boundary): </label>
             <input type="time" value={resetTime} onChange={e => setResetTime(e.target.value)} />
           </div>
-          <div>
-            <label>Reset timezone (detected): </label>
-            <input type="text" value={detectedTimezone} readOnly />
-          </div>
+ 
         <div>
             <label>Ranking mode: </label>
             <select value={rankingMode} onChange={e => setRankingMode(e.target.value)}>

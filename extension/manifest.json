@@ -1,12 +1,15 @@
 {
   "manifest_version": 2,
   "name": "DailyChallenges ScoreBridge",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Extension that bridges embedded game scores and visible-tab captures into a parent page.",
   "permissions": [
     "<all_urls>",
     "tabs",
-    "https://caaz.ddns.net/*",
+    "alarms",
+    "notifications",
+    "https://challenges.caaz.dev/*",
+    "https://test.challenges.caaz.dev/*",
     "https://timeguessr.com/*",
     "https://maptap.gg/*",
     "http://localhost/*"
@@ -21,6 +24,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "{b9dac5a9-12d3-4eec-8334-0343342947a2}",
+      "update_url": "https://raw.githubusercontent.com/thecaaz/daily-challenges-web/refs/heads/main/extension/updates.json",
       "data_collection_permissions": {
         "required": [
           "none"
@@ -36,7 +40,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://caaz.ddns.net/*",
+        "https://challenges.caaz.dev/*",
+        "https://test.challenges.caaz.dev/*",
         "https://timeguessr.com/*",
         "https://maptap.gg/*",
         "http://localhost/*"

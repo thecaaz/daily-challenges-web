@@ -10,10 +10,9 @@ namespace DailyChallenges.DTOs
         public string? Description { get; set; }
         // URL to fetch the image blob if present: GET /api/games/{id}/image
         public string? ImageUrl { get; set; }
-        // Reset time (HH:mm) and timezone id for scoring day boundaries
+        // Reset time (HH:mm) in UTC for scoring day boundaries
         public string? ResetTime { get; set; }
-        public string? ResetTimezoneId { get; set; }
-        // Current scoring day computed on server (YYYY-MM-DD) based on ResetTime/ResetTimezoneId
+        // Current scoring day computed on server (YYYY-MM-DD) based on ResetTime (UTC)
         public string? CurrentScoringDay { get; set; }
         // Whether the current authenticated user has submitted for the CurrentScoringDay
         public bool HasSubmittedForLatest { get; set; }

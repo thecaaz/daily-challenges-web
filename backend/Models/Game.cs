@@ -14,10 +14,9 @@ namespace DailyChallenges.Models
         public byte[]? ScreenshotData { get; set; }
         public string? ScreenshotContentType { get; set; }
 
-        // Daily reset time and timezone for scoring day boundaries.
-        // ResetTime is a wall-clock time (HH:mm) in the specified ResetTimezoneId.
+        // Daily reset time in UTC (time-of-day). Timezone is no longer stored.
+        // ResetTime represents the UTC time-of-day at which a scoring day rolls over.
         public TimeSpan ResetTime { get; set; } = TimeSpan.Zero;
-        public string ResetTimezoneId { get; set; } = "UTC";
 
         // Navigation property
         public List<Submission> Submissions { get; set; } = new();

@@ -2,4 +2,5 @@ namespace DailyChallenges.DTOs
 {
     public record RegisterDto(string Username, string Password);
     public record LoginDto(string Username, string Password);
+    public record AuthResultDto(UserDto User, string AccessToken, int ExpiresInSeconds);
 }

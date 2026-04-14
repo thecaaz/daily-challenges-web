@@ -25,8 +25,8 @@ namespace DailyChallenges.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            var u = await _auth.LoginAsync(dto.Username, dto.Password, Response);
-            return Ok(u);
+            var result = await _auth.LoginAsync(dto.Username, dto.Password, Response);
+            return Ok(result);
         }
 
         [HttpPost("logout")]
@@ -34,6 +34,14 @@ namespace DailyChallenges.Controllers
         {
             await _auth.LogoutAsync(Response);
             return Ok(new { success = true });
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh()
+        {
+            var result = await _auth.RefreshAsync(Request, Response);
+            if (result == null) return Unauthorized();
+            return Ok(result);
         }
 
         [HttpGet("me")]

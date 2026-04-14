@@ -66,12 +66,52 @@ Permissions and compatibility notes
 -----------------------------------
 
 - The current manifest is Manifest V2.
-- Requested permissions (reduced): host access only to `https://caaz.ddns.net/*`.
+- Requested permissions (reduced): host access only to `https://challenges.caaz.dev/*` and `https://test.challenges.caaz.dev/*`.
 - For local development the manifest includes `http://localhost:5173/*` (remove this before publishing).
-- No `storage`, `activeTab`, `tabs`, or `<all_urls>` permissions are requested in the reduced manifest.
+- The extension uses `alarms` and `notifications` to perform periodic self-checks for newer releases and notify the user with a download link.
+- No `storage`, `activeTab`, or `tabs` permissions are requested in the reduced manifest beyond what's needed for capture.
 - The content script runs at `document_idle` in the matched frames; `all_frames: true` is retained to support iframe injection.
 - `background.js` is a background script (MV2). For Chrome Web Store publishing, migrate to Manifest V3 and convert the background script to a service worker, moving host patterns to `host_permissions`.
 - If your target browser refuses to load this manifest, test with Firefox using the temporary add-on flow above or update the manifest for that browser.
+
+Firefox automatic updates
+-------------------------
+
+This extension can use Firefox's JSON update manifest mechanism. Host an `updates.json` file on a secure HTTPS URL (GitHub raw URLs or GitHub Pages are fine) and add an `update_url` entry to the gecko section of `manifest.json`.
+
+Example `manifest.json` snippet (already added):
+
+```json
+"browser_specific_settings": {
+  "gecko": {
+    "id": "{b9dac5a9-12d3-4eec-8334-0343342947a2}",
+    "update_url": "https://raw.githubusercontent.com/<owner>/<repo>/main/extension/updates.json"
+  }
+}
+```
+
+Example `updates.json` format (place at the raw/GitHub Pages URL above):
+
+```json
+{
+  "addons": {
+    "{b9dac5a9-12d3-4eec-8334-0343342947a2}": {
+      "updates": [
+        {
+          "version": "0.2.0",
+          "update_link": "https://github.com/<owner>/<repo>/releases/download/v0.2.0/scorebridge-0.2.0.xpi",
+          "update_info_url": "https://github.com/<owner>/<repo>/releases/tag/v0.2.0"
+        }
+      ]
+    }
+  }
+}
+```
+
+Notes:
+- Replace `<owner>/<repo>` with your GitHub repository owner and name. Use the raw content URL or GitHub Pages to serve `updates.json` over HTTPS.
+- `update_link` must be HTTPS. If using a non-HTTPS download URL, include an `update_hash` (sha256:...) for verification.
+- Firefox checks for updates on its own schedule (default daily) and will download the XPI from the `update_link` when a new version is listed. During testing, see the Extension Workshop docs: https://extensionworkshop.com/documentation/manage/updating-your-extension/
 
 Where to look for logs
 ----------------------

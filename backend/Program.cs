@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Data.Common;
 using DailyChallenges.Data;
 using DailyChallenges.Middleware;
 using System.Text.Json.Serialization;
@@ -97,10 +99,19 @@ builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, D
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
 builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundService>();
 
-// JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? string.Empty;
-var issuer = builder.Configuration["Jwt:Issuer"];
-var audience = builder.Configuration["Jwt:Audience"];
+// JWT Authentication: bind typed options
+builder.Services.Configure<DailyChallenges.Services.JwtOptions>(builder.Configuration.GetSection("Jwt"));
+var jwtOptions = builder.Configuration.GetSection("Jwt").Get<DailyChallenges.Services.JwtOptions>() ?? new DailyChallenges.Services.JwtOptions();
+
+// Fail fast in non-development environments when the JWT key is not configured properly.
+if (!builder.Environment.IsDevelopment())
+{
+    var key = jwtOptions.Key ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(key) || key.Contains("CHANGE_THIS") || key.Length < 32)
+    {
+        throw new InvalidOperationException("Jwt:Key must be configured to a strong secret (>=32 chars) in non-development environments.");
+    }
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -113,22 +124,11 @@ builder.Services.AddAuthentication(options =>
         {
             ValidateIssuer = true,
             ValidateAudience = true,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = issuer,
-            ValidAudience = audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-        };
-
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                if (context.Request.Cookies.ContainsKey("access_token"))
-                {
-                    context.Token = context.Request.Cookies["access_token"];
-                }
-                return Task.CompletedTask;
-            }
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key ?? string.Empty))
         };
     });
 
@@ -155,6 +155,71 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    try
+    {
+        var conn = db.Database.GetDbConnection();
+        conn.Open();
+
+        using (var check = conn.CreateCommand())
+        {
+            check.CommandText = "PRAGMA table_info('Games')";
+            using var rdr = check.ExecuteReader();
+            var hasResetTimezoneId = false;
+            while (rdr.Read())
+            {
+                var col = rdr.GetString(1);
+                if (string.Equals(col, "ResetTimezoneId", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasResetTimezoneId = true;
+                    break;
+                }
+            }
+
+            if (hasResetTimezoneId)
+            {
+                using var sel = conn.CreateCommand();
+                sel.CommandText = "SELECT Id, ResetTime, ResetTimezoneId FROM Games";
+                using var r2 = sel.ExecuteReader();
+                var updates = new List<(int Id, string NewTime)>();
+                while (r2.Read())
+                {
+                    var id = r2.GetInt32(0);
+                    var resetTimeText = r2.IsDBNull(1) ? "00:00:00" : r2.GetString(1);
+                    var tz = r2.IsDBNull(2) ? "UTC" : r2.GetString(2);
+                    try
+                    {
+                        var resetTs = TimeSpan.Parse(resetTimeText);
+                        var tzInfo = TimeZoneInfo.FindSystemTimeZoneById(tz);
+                        var offset = tzInfo.GetUtcOffset(DateTime.UtcNow);
+                        var newReset = resetTs - offset;
+                        // normalize to 0..24h
+                        var ticks = ((newReset.Ticks % TimeSpan.TicksPerDay) + TimeSpan.TicksPerDay) % TimeSpan.TicksPerDay;
+                        var norm = new TimeSpan(ticks);
+                        updates.Add((id, norm.ToString(@"hh\:mm\:ss")));
+                    }
+                    catch
+                    {
+                        updates.Add((id, resetTimeText));
+                    }
+                }
+
+                foreach (var u in updates)
+                {
+                    using var up = conn.CreateCommand();
+                    up.CommandText = "UPDATE Games SET ResetTime = @t WHERE Id = @id";
+                    var pT = up.CreateParameter(); pT.ParameterName = "@t"; pT.Value = u.NewTime; up.Parameters.Add(pT);
+                    var pId = up.CreateParameter(); pId.ParameterName = "@id"; pId.Value = u.Id; up.Parameters.Add(pId);
+                    up.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+    catch
+    {
+        // if anything goes wrong during migration, don't fail startup here; migrations may still run
+    }
+
     db.Database.Migrate();
 }
 

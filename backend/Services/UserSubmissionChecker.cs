@@ -18,7 +18,7 @@ namespace DailyChallenges.Services
         public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user)
         {
             var game = await _games.GetByIdAsync(gameId);
-            var currentDay = ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
+            var currentDay = ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero);
             int? userId = ClaimsPrincipalExtensions.GetUserId(user);
             return await HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
         }
@@ -33,7 +33,7 @@ namespace DailyChallenges.Services
             if (latest.ScoringDay != DateTime.MinValue)
                 return latest.ScoringDay.Date == scoringDay.Date;
 
-            var fallback = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
+            var fallback = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game?.ResetTime ?? TimeSpan.Zero);
             return fallback == scoringDay.Date;
         }
     }

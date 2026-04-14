@@ -50,7 +50,7 @@ namespace DailyChallenges.Services
                 {
                     // The "current" scoring day is the day that is currently in progress.
                     // The "previous" scoring day is the one that just ended — that's what we want to finalize.
-                    var currentDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime, game.ResetTimezoneId);
+                    var currentDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime);
                     var previousDay = currentDay.AddDays(-1);
 
                     // Skip if already processed

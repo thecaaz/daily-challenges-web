@@ -109,7 +109,7 @@ namespace DailyChallenges.Services
 
         private DateTime GetCurrentScoringDay(Game? game)
         {
-            return ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC");
+            return ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero);
         }
 
         public async Task<TodaySubmittersDto> GetTodaySubmittersAsync(int gameId)
@@ -143,10 +143,10 @@ namespace DailyChallenges.Services
             var all = await _subs.GetByGameAsync(gameId);
             var subs = all ?? new List<Submission>();
 
-            var adminDtos = subs.Select(s =>
+                var adminDtos = subs.Select(s =>
             {
                 var dto = DtoMapper.ToDto(s);
-                dto.ScoringDay = ScoringDayHelper.FormatScoringDay(ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero, game?.ResetTimezoneId ?? "UTC"));
+                dto.ScoringDay = ScoringDayHelper.FormatScoringDay(ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero));
                 return dto;
             }).ToList();
 
@@ -196,8 +196,8 @@ namespace DailyChallenges.Services
                 var latest = await _subs.GetByGameAndUserAsync(gameId, userId.Value);
                 if (latest != null)
                 {
-                    DateTime newDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime, game.ResetTimezoneId);
-                    var exDay = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game.ResetTime, game.ResetTimezoneId);
+                    DateTime newDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime);
+                    var exDay = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game.ResetTime);
                     if (exDay == newDay) throw new InvalidOperationException("User has already submitted for this game");
                 }
             }
@@ -213,7 +213,7 @@ namespace DailyChallenges.Services
 
             if (userId.HasValue && !string.IsNullOrEmpty(user.Identity?.Name)) submission.Username = user.Identity.Name;
             // Compute and persist scoring day at write time so reads can query it directly.
-            submission.ScoringDay = ScoringDayHelper.GetScoringDay(submission.CreatedAt, game.ResetTime, game.ResetTimezoneId);
+            submission.ScoringDay = ScoringDayHelper.GetScoringDay(submission.CreatedAt, game.ResetTime);
 
             // Wrap submission creation and XP award in a single DB transaction so both
             // succeed or both roll back together.
