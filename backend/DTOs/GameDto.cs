@@ -14,6 +14,9 @@ namespace DailyChallenges.DTOs
         public string? ResetTime { get; set; }
         // Current scoring day computed on server (YYYY-MM-DD) based on ResetTime (UTC)
         public string? CurrentScoringDay { get; set; }
+        // UTC range for the current scoring day in ISO 8601 (start inclusive, end exclusive)
+        public string? CurrentScoringDayUtcStart { get; set; }
+        public string? CurrentScoringDayUtcEnd { get; set; }
         // Whether the current authenticated user has submitted for the CurrentScoringDay
         public bool HasSubmittedForLatest { get; set; }
         public List<SubmissionDto>? Submissions { get; set; }
