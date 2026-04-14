@@ -1,3 +1,10 @@
+### [1.19.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.1...v1.19.2) (2026-04-14)
+
+
+### Bug Fixes
+
+* scoring day bug ([da17285](https://github.com/thecaaz/daily-challenges-web/commit/da17285f88e4f21bc42056af7b4b6da98efae9bc))
+
 ### [1.19.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.0...v1.19.1) (2026-04-14)
 
 
