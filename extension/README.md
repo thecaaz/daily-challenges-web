@@ -74,36 +74,44 @@ Permissions and compatibility notes
 - `background.js` is a background script (MV2). For Chrome Web Store publishing, migrate to Manifest V3 and convert the background script to a service worker, moving host patterns to `host_permissions`.
 - If your target browser refuses to load this manifest, test with Firefox using the temporary add-on flow above or update the manifest for that browser.
 
-Self-hosted update mechanism
-----------------------------
+Firefox automatic updates
+-------------------------
 
-This extension includes a simple self-checking update mechanism that periodically fetches a small JSON manifest hosted at:
+This extension can use Firefox's JSON update manifest mechanism. Host an `updates.json` file on a secure HTTPS URL (GitHub raw URLs or GitHub Pages are fine) and add an `update_url` entry to the gecko section of `manifest.json`.
 
-- `https://challenges.caaz.dev/extension/latest.json`
-
-The JSON should look like:
+Example `manifest.json` snippet (already added):
 
 ```json
-{
-  "version": "0.2.0",
-  "url": "https://challenges.caaz.dev/extension/scorebridge-0.2.0.zip",
-  "notes": "Short release notes"
+"browser_specific_settings": {
+  "gecko": {
+    "id": "{b9dac5a9-12d3-4eec-8334-0343342947a2}",
+    "update_url": "https://raw.githubusercontent.com/<owner>/<repo>/main/extension/updates.json"
+  }
 }
 ```
 
-When a newer version is detected the extension shows a notification. Clicking the notification opens the `url` from the manifest so the user can download and install the update manually (automatic install is not possible from a WebExtension).
+Example `updates.json` format (place at the raw/GitHub Pages URL above):
 
-Hosting notes
--------------
+```json
+{
+  "addons": {
+    "{b9dac5a9-12d3-4eec-8334-0343342947a2}": {
+      "updates": [
+        {
+          "version": "0.2.0",
+          "update_link": "https://github.com/<owner>/<repo>/releases/download/v0.2.0/scorebridge-0.2.0.xpi",
+          "update_info_url": "https://github.com/<owner>/<repo>/releases/tag/v0.2.0"
+        }
+      ]
+    }
+  }
+}
+```
 
-- Serve `latest.json` from `https://challenges.caaz.dev/extension/latest.json`.
-- Upload packaged extension artifacts (zip/xpi/crx) to a stable URL and set the `url` field accordingly.
-- Keep the `version` field in `latest.json` in semver-style dotted form (e.g. `0.2.0`).
-
-Local testing
--------------
-
-- For iterative development use `npx web-ext run --source-dir extension` and edit `extension/latest.json` locally or point the `UPDATE_MANIFEST_URL` in `background.js` to a local server for testing.
+Notes:
+- Replace `<owner>/<repo>` with your GitHub repository owner and name. Use the raw content URL or GitHub Pages to serve `updates.json` over HTTPS.
+- `update_link` must be HTTPS. If using a non-HTTPS download URL, include an `update_hash` (sha256:...) for verification.
+- Firefox checks for updates on its own schedule (default daily) and will download the XPI from the `update_link` when a new version is listed. During testing, see the Extension Workshop docs: https://extensionworkshop.com/documentation/manage/updating-your-extension/
 
 Where to look for logs
 ----------------------
