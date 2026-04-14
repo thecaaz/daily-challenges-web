@@ -1,3 +1,15 @@
+## [1.19.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.18.0...v1.19.0) (2026-04-14)
+
+
+### Features
+
+* implement JWT authentication with refresh token support and update related services ([92a2c51](https://github.com/thecaaz/daily-challenges-web/commit/92a2c513d26b471cf12b53d6e132848400c04c6f))
+
+
+### Bug Fixes
+
+* bug with timezones ([cdf3a7c](https://github.com/thecaaz/daily-challenges-web/commit/cdf3a7c80b44e041bd9f771d96fe750202345eb3))
+
 ## [1.18.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.17.1...v1.18.0) (2026-04-12)
 
 
