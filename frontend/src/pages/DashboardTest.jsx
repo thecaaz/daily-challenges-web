@@ -123,6 +123,20 @@ function FriendActivityRow({ activity }) {
 
   const latest = activity.recentSubmissions?.[0]
 
+  const uniqueSubmissions = (() => {
+    const arr = activity.recentSubmissions || []
+    const seen = new Set()
+    const out = []
+    for (const s of arr) {
+      const key = (s.username || '').toLowerCase()
+      if (!seen.has(key)) {
+        seen.add(key)
+        out.push(s)
+      }
+    }
+    return out
+  })()
+
   return (
     <ListItem
       disableGutters
@@ -165,9 +179,9 @@ function FriendActivityRow({ activity }) {
           )}
         </Box>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.4, mt: 0.25 }}>
-          {activity.recentSubmissions?.slice(0, 4).map((s, i) => (
+          {uniqueSubmissions.slice(0, 4).map((s) => (
             <Chip
-              key={i}
+              key={s.userId ?? s.username}
               label={s.username}
               size="small"
               sx={{ height: 18, fontSize: '0.65rem' }}
