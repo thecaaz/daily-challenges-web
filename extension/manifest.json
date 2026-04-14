@@ -6,6 +6,8 @@
   "permissions": [
     "<all_urls>",
     "tabs",
+    "alarms",
+    "notifications",
     "https://challenges.caaz.dev/*",
     "https://test.challenges.caaz.dev/*",
     "https://timeguessr.com/*",

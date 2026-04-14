@@ -68,10 +68,42 @@ Permissions and compatibility notes
 - The current manifest is Manifest V2.
 - Requested permissions (reduced): host access only to `https://challenges.caaz.dev/*` and `https://test.challenges.caaz.dev/*`.
 - For local development the manifest includes `http://localhost:5173/*` (remove this before publishing).
-- No `storage`, `activeTab`, `tabs`, or `<all_urls>` permissions are requested in the reduced manifest.
+- The extension uses `alarms` and `notifications` to perform periodic self-checks for newer releases and notify the user with a download link.
+- No `storage`, `activeTab`, or `tabs` permissions are requested in the reduced manifest beyond what's needed for capture.
 - The content script runs at `document_idle` in the matched frames; `all_frames: true` is retained to support iframe injection.
 - `background.js` is a background script (MV2). For Chrome Web Store publishing, migrate to Manifest V3 and convert the background script to a service worker, moving host patterns to `host_permissions`.
 - If your target browser refuses to load this manifest, test with Firefox using the temporary add-on flow above or update the manifest for that browser.
+
+Self-hosted update mechanism
+----------------------------
+
+This extension includes a simple self-checking update mechanism that periodically fetches a small JSON manifest hosted at:
+
+- `https://challenges.caaz.dev/extension/latest.json`
+
+The JSON should look like:
+
+```json
+{
+  "version": "0.2.0",
+  "url": "https://challenges.caaz.dev/extension/scorebridge-0.2.0.zip",
+  "notes": "Short release notes"
+}
+```
+
+When a newer version is detected the extension shows a notification. Clicking the notification opens the `url` from the manifest so the user can download and install the update manually (automatic install is not possible from a WebExtension).
+
+Hosting notes
+-------------
+
+- Serve `latest.json` from `https://challenges.caaz.dev/extension/latest.json`.
+- Upload packaged extension artifacts (zip/xpi/crx) to a stable URL and set the `url` field accordingly.
+- Keep the `version` field in `latest.json` in semver-style dotted form (e.g. `0.2.0`).
+
+Local testing
+-------------
+
+- For iterative development use `npx web-ext run --source-dir extension` and edit `extension/latest.json` locally or point the `UPDATE_MANIFEST_URL` in `background.js` to a local server for testing.
 
 Where to look for logs
 ----------------------
