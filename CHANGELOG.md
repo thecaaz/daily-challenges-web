@@ -1,3 +1,10 @@
+### [1.19.7](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.6...v1.19.7) (2026-04-15)
+
+
+### Bug Fixes
+
+* dashboar url having test in it ([94db237](https://github.com/thecaaz/daily-challenges-web/commit/94db2370cb4020d20014b611905bb20eb4f7d554))
+
 ### [1.19.6](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.5...v1.19.6) (2026-04-15)
 
 
