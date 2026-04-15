@@ -1,3 +1,10 @@
+## [1.20.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.7...v1.20.0) (2026-04-15)
+
+
+### Features
+
+* update extension to support cutle ([799cc47](https://github.com/thecaaz/daily-challenges-web/commit/799cc4715e9124800741320c5a8fcc9a46922f11))
+
 ### [1.19.7](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.6...v1.19.7) (2026-04-15)
 
 
