@@ -1,3 +1,10 @@
+### [1.19.6](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.5...v1.19.6) (2026-04-15)
+
+
+### Bug Fixes
+
+* nginx ([6593547](https://github.com/thecaaz/daily-challenges-web/commit/659354795497ae7317c0fe87e5477d05daa4b41a))
+
 ### [1.19.5](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.4...v1.19.5) (2026-04-15)
 
 
