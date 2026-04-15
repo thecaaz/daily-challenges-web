@@ -1,3 +1,10 @@
+### [1.19.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.2...v1.19.3) (2026-04-15)
+
+
+### Bug Fixes
+
+* update download links to point to Nextcloud ([17daed7](https://github.com/thecaaz/daily-challenges-web/commit/17daed7a787d76622e2dd6d42d296ec7de4f091e))
+
 ### [1.19.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.1...v1.19.2) (2026-04-14)
 
 
