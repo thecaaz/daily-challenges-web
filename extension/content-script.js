@@ -42,6 +42,50 @@
         }
         return null
       }
+    },
+    {
+      name: 'Cutle',
+      matchDescriptor: { type: 'includes', value: 'pfiffel' },
+      match: host => /pfiffel/.test(host) || host.includes('pfiffel'),
+      onInit: function (doc, ctx) {
+      },
+      readScore: function (doc) {
+        function extractTwoNumbers(text) {
+          if (!text) return null
+          const matches = text.match(/-?\d+(?:\.\d+)?/g)
+          if (!matches || matches.length < 2) return null
+          const a = Number(matches[0])
+          const b = Number(matches[1])
+          if (Number.isNaN(a) || Number.isNaN(b)) return null
+          return [a, b]
+        }
+
+        const resultEl = doc.querySelector('#result')
+        if (resultEl) {
+          const leEl = resultEl.querySelector('.le')
+          const cutEl = resultEl.querySelector('.cut')
+          if (leEl && cutEl) {
+            const a = Number((leEl.textContent || '').replace(/[^0-9.\-]/g, '').trim())
+            const b = Number((cutEl.textContent || '').replace(/[^0-9.\-]/g, '').trim())
+            if (!Number.isNaN(a) && !Number.isNaN(b)) return Math.min(a, b)
+          }
+          const parsed = extractTwoNumbers(resultEl.textContent || '')
+          if (parsed) return Math.min(parsed[0], parsed[1])
+        }
+
+        const statsEl = doc.querySelector('#statsScore')
+        if (statsEl) {
+          const leEl = statsEl.querySelector('.le')
+          const cutEl = statsEl.querySelector('.cut')
+          if (leEl && cutEl) {
+            const a = Number((leEl.textContent || '').replace(/[^0-9.\-]/g, '').trim())
+            const b = Number((cutEl.textContent || '').replace(/[^0-9.\-]/g, '').trim())
+            if (!Number.isNaN(a) && !Number.isNaN(b)) return Math.min(a, b)
+          }
+          const parsed = extractTwoNumbers(statsEl.textContent || '')
+          if (parsed) return Math.min(parsed[0], parsed[1])
+        }
+      }
     }
   ]
 

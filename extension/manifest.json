@@ -12,6 +12,7 @@
     "https://test.challenges.caaz.dev/*",
     "https://timeguessr.com/*",
     "https://maptap.gg/*",
+    "https://pfiffel.com/cutle/*",
     "http://localhost/*"
   ],
   "browser_action": {
@@ -44,6 +45,7 @@
         "https://test.challenges.caaz.dev/*",
         "https://timeguessr.com/*",
         "https://maptap.gg/*",
+        "https://pfiffel.com/cutle/*",
         "http://localhost/*"
       ],
       "js": ["content-script.js"],
