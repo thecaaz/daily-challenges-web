@@ -4,7 +4,7 @@ import ExtensionIcon from '@mui/icons-material/Extension'
 import DownloadIcon from '@mui/icons-material/Download'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 
-const DOWNLOAD_URL = 'https://nextcloud.caaz.dev/public.php/dav/files/kFc78G6CM2JxDaG'
+const DOWNLOAD_URL = '/0.1.2.xpi'
 
 export default function Extension() {
   const [installed, setInstalled] = useState(null)
