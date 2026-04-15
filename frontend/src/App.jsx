@@ -28,6 +28,7 @@ export default function App() {
       <Routes>
         <Route path="/compare/:id1/:id2" element={<Box sx={{ mt: 4, mb: 6, px: 3 }}><CompareSubmissions /></Box>} />
         <Route path="/dashboard/play" element={<Box sx={{ mt: 4, mb: 6, px: { xs: 2, sm: 3, md: 4 } }}><DashboardPlay /></Box>} />
+        <Route path="/dashboard" element={<Box sx={{ mt: 4, mb: 6, px: { xs: 2, sm: 3, md: 4 } }}><Dashboard /></Box>} />
         <Route path="/" element={<Box sx={{ mt: 4, mb: 6, px: { xs: 2, sm: 3, md: 4 } }}><Dashboard /></Box>} />
         <Route path="*" element={
           <Container sx={{ mt: 4, mb: 6 }}>
