@@ -1,3 +1,10 @@
+### [1.19.4](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.3...v1.19.4) (2026-04-15)
+
+
+### Bug Fixes
+
+* another try of getting auto update to work ([02a7ccc](https://github.com/thecaaz/daily-challenges-web/commit/02a7ccc289259b7e92fd540d2ae9e540439a41e7))
+
 ### [1.19.3](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.2...v1.19.3) (2026-04-15)
 
 
