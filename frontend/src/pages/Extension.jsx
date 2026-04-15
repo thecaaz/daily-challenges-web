@@ -4,7 +4,7 @@ import ExtensionIcon from '@mui/icons-material/Extension'
 import DownloadIcon from '@mui/icons-material/Download'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 
-const DOWNLOAD_URL = 'https://addons.mozilla.org/firefox/downloads/file/4764275/2915713b218843aca6f8-0.1.2.xpi'
+const DOWNLOAD_URL = 'https://nextcloud.caaz.dev/public.php/dav/files/kFc78G6CM2JxDaG'
 
 export default function Extension() {
   const [installed, setInstalled] = useState(null)
