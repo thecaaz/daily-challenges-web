@@ -3,14 +3,6 @@
     "{b9dac5a9-12d3-4eec-8334-0343342947a2}": {
       "updates": [
         {
-          "version": "0.1.0",
-          "update_link": "https://challenges.caaz.dev/0.1.0.xpi"
-        },
-        {
-          "version": "0.1.1",
-          "update_link": "https://challenges.caaz.dev/0.1.1.xpi"
-        },
-        {
           "version": "0.1.2",
           "update_link": "https://challenges.caaz.dev/0.1.2.xpi"
         }
