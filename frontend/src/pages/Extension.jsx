@@ -4,7 +4,7 @@ import ExtensionIcon from '@mui/icons-material/Extension'
 import DownloadIcon from '@mui/icons-material/Download'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 
-const DOWNLOAD_URL = '/0.1.2.xpi'
+const DOWNLOAD_URL = '/extension.xpi'
 
 export default function Extension() {
   const [installed, setInstalled] = useState(null)
@@ -101,7 +101,7 @@ export default function Extension() {
       </Button>
 
       <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>
-        Version 0.1.2 &mdash; Firefox only
+        Version 0.2.0 &mdash; Firefox only
       </Typography>
     </Box>
   )
