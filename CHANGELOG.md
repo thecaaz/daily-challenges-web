@@ -1,3 +1,10 @@
+### [1.19.5](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.4...v1.19.5) (2026-04-15)
+
+
+### Bug Fixes
+
+* broken link on extension page ([5cee9ea](https://github.com/thecaaz/daily-challenges-web/commit/5cee9eaf50fccd7b85229bc3eca820c19d5bfbf3))
+
 ### [1.19.4](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.3...v1.19.4) (2026-04-15)
 
 
