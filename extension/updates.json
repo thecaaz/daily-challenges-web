@@ -4,15 +4,15 @@
       "updates": [
         {
           "version": "0.1.0",
-          "update_link": "https://nextcloud.caaz.dev/public.php/dav/files/3Jp3PFfsMtMkRy2"
+          "update_link": "https://challenges.caaz.dev/0.1.0.xpi"
         },
         {
           "version": "0.1.1",
-          "update_link": "https://nextcloud.caaz.dev/public.php/dav/files/SY4pWdsaFd7jtZK"
+          "update_link": "https://challenges.caaz.dev/0.1.1.xpi"
         },
         {
           "version": "0.1.2",
-          "update_link": "https://nextcloud.caaz.dev/public.php/dav/files/kFc78G6CM2JxDaG"
+          "update_link": "https://challenges.caaz.dev/0.1.2.xpi"
         }
       ]
     }
