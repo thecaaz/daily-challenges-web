@@ -1,3 +1,10 @@
+## [1.21.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.20.0...v1.21.0) (2026-04-18)
+
+
+### Features
+
+* add image compression utility and integrate with image upload hooks ([164823e](https://github.com/thecaaz/daily-challenges-web/commit/164823e64cfcd3c3d4b8463b4451775b935c4263))
+
 ## [1.20.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.7...v1.20.0) (2026-04-15)
 
 
