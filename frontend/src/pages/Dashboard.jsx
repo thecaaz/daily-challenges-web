@@ -309,7 +309,7 @@ function Section({ title, icon, children, empty, emptyText = 'Nothing here yet.'
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  useRequireAuth()
+  const { user, loading: authLoading } = useRequireAuth()
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -358,9 +358,31 @@ export default function Dashboard() {
         if (mounted) setFavData({ total: 0, submittedCount: 0, pendingGames: [], playableCount: 0 })
       }
     }
+
+    // Wait for auth to settle so server returns per-user flags
+    if (authLoading) {
+      return () => { mounted = false }
+    }
+
+    // If not authenticated, clear favorites summary
+    if (!user) {
+      if (mounted) setFavData({ total: 0, submittedCount: 0, pendingGames: [], playableCount: 0 })
+      return () => { mounted = false }
+    }
+
     computeFavData()
-    return () => { mounted = false }
-  }, [])
+
+    const onFavChanged = () => {
+      // re-compute favorites when toggled elsewhere
+      computeFavData().catch(() => {})
+    }
+    window.addEventListener('favorite-changed', onFavChanged)
+
+    return () => {
+      mounted = false
+      window.removeEventListener('favorite-changed', onFavChanged)
+    }
+  }, [authLoading, user?.id])
 
   // Keep dashboard in sync when favorites are toggled elsewhere
   useEffect(() => {
