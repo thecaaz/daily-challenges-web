@@ -5,6 +5,7 @@ import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
 import SubmissionForm from '../components/SubmissionForm/SubmissionForm'
+import compressImage from '../utils/compressImage'
 
 export default function Play() {
   const { gameId } = useParams()
@@ -52,8 +53,8 @@ export default function Play() {
 
         if (data.dataUrl && data.rect) {
           try {
-            // convert dataUrl to File and set as captured file for the submission form
-            const file = dataUrlToFile(data.dataUrl, 'capture.png')
+            // compress and convert dataUrl to File for the submission form
+            const file = await compressImage(data.dataUrl)
             setCapturedFile(file)
             console.debug('CAPTURE_RESPONSE', { rect: data.rect, dpr: data.dpr })
 
@@ -170,19 +171,6 @@ export default function Play() {
     postToIframe({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce })
   }
 
-
-  function dataUrlToFile(dataUrl, filename) {
-    const arr = dataUrl.split(',')
-    const mimeMatch = arr[0].match(/:(.*?);/)
-    const mime = mimeMatch ? mimeMatch[1] : 'image/png'
-    const bstr = atob(arr[1])
-    let n = bstr.length
-    const u8arr = new Uint8Array(n)
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n)
-    }
-    return new File([u8arr], filename, { type: mime })
-  }
 
   return (
     <Box>

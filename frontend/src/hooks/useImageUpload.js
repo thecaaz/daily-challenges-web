@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import compressImage from '../utils/compressImage'
 
 export default function useImageUpload(showSnackbar) {
   const [screenshot, setScreenshot] = useState(null)
@@ -15,13 +16,20 @@ export default function useImageUpload(showSnackbar) {
     return () => { URL.revokeObjectURL(url) }
   }, [screenshot])
 
-  const onFileChange = useCallback((e) => {
-    setScreenshot(e.target.files?.[0] ?? null)
+  const onFileChange = useCallback(async (e) => {
+    const raw = e.target.files?.[0] ?? null
+    if (!raw) { setScreenshot(null); return }
+    try {
+      const compressed = await compressImage(raw)
+      setScreenshot(compressed)
+    } catch (_) {
+      setScreenshot(raw)
+    }
   }, [])
 
   // handle paste events (Ctrl+V) to accept images from clipboard
   useEffect(() => {
-    const handler = (e) => {
+    const handler = async (e) => {
       try {
         const items = e.clipboardData?.items
         if (!items) return
@@ -30,8 +38,13 @@ export default function useImageUpload(showSnackbar) {
           if (item && item.type && item.type.startsWith('image/')) {
             const blob = item.getAsFile ? item.getAsFile() : null
             if (blob) {
-              const file = new File([blob], 'clipboard.png', { type: blob.type })
-              setScreenshot(file)
+              try {
+                const compressed = await compressImage(blob)
+                setScreenshot(compressed)
+              } catch (_) {
+                const file = new File([blob], 'clipboard.png', { type: blob.type })
+                setScreenshot(file)
+              }
               if (typeof showSnackbar === 'function') showSnackbar('Image pasted from clipboard', 'success')
               e.preventDefault()
               return

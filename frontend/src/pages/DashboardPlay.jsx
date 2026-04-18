@@ -7,6 +7,7 @@ import SubmissionForm from '../components/SubmissionForm/SubmissionForm'
 import { hasAdapterForUrl } from '../utils/adapters'
 import GameCard from '../components/ui/GameCard/GameCard'
 import { useNavigate } from 'react-router-dom'
+import compressImage from '../utils/compressImage'
 
 export default function DashboardPlay() {
   const { user, loading: authLoading } = useRequireAuth()
@@ -93,7 +94,7 @@ export default function DashboardPlay() {
 
         if (data.dataUrl && data.rect) {
           try {
-            const file = dataUrlToFile(data.dataUrl, 'capture.png')
+            const file = await compressImage(data.dataUrl)
             setCapturedFile(file)
 
             if (captureStateRef.current.fauxFullscreen) {
@@ -167,17 +168,6 @@ export default function DashboardPlay() {
     }
 
     postToIframe({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce })
-  }
-
-  function dataUrlToFile(dataUrl, filename) {
-    const arr = dataUrl.split(',')
-    const mimeMatch = arr[0].match(/:(.*?);/)
-    const mime = mimeMatch ? mimeMatch[1] : 'image/png'
-    const bstr = atob(arr[1])
-    let n = bstr.length
-    const u8arr = new Uint8Array(n)
-    while (n--) u8arr[n] = bstr.charCodeAt(n)
-    return new File([u8arr], filename, { type: mime })
   }
 
   const current = queue[currentIndex]
