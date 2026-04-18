@@ -1,3 +1,10 @@
+### [1.21.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.21.0...v1.21.1) (2026-04-18)
+
+
+### Bug Fixes
+
+* load pending favorites on dashboard on load ([3f7a260](https://github.com/thecaaz/daily-challenges-web/commit/3f7a260789825939d9c20f3a2a96a4e5bb15051c))
+
 ## [1.21.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.20.0...v1.21.0) (2026-04-18)
 
 
