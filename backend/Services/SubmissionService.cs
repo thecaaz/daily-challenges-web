@@ -5,6 +5,7 @@ using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services.Ranking;
 using System.Security.Claims;
+using Microsoft.Extensions.Logging;
 
 namespace DailyChallenges.Services
 {
@@ -16,6 +17,7 @@ namespace DailyChallenges.Services
         private readonly IXpService _xp;
         private readonly AppDbContext _db;
         private readonly IUserSubmissionChecker _userSubmissionChecker;
+        private readonly ILogger<SubmissionService> _logger;
 
         public SubmissionService(
             ISubmissionRepository subs,
@@ -23,7 +25,8 @@ namespace DailyChallenges.Services
             IFileStorage files,
             IXpService xp,
             AppDbContext db,
-            IUserSubmissionChecker userSubmissionChecker)
+            IUserSubmissionChecker userSubmissionChecker,
+            ILogger<SubmissionService> logger)
         {
             _subs = subs;
             _games = games;
@@ -31,6 +34,7 @@ namespace DailyChallenges.Services
             _xp = xp;
             _db = db;
             _userSubmissionChecker = userSubmissionChecker;
+            _logger = logger;
         }
 
         public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, DateTime? scoringDay = null, int page = 1, int pageSize = 50)
@@ -229,9 +233,10 @@ namespace DailyChallenges.Services
                 await tx.CommitAsync();
                 return (DtoMapper.ToDto(created), xpGain);
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
+                _logger.LogError(ex, "Error creating submission for game {GameId} by user {UserId}", gameId, userId);
                 throw;
             }
         }
