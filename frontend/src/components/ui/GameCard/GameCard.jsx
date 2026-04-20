@@ -1,34 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Box, Tooltip, IconButton } from '@mui/material'
+import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Box, Tooltip } from '@mui/material'
 import AppButton from '../AppButton'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import PlayButton from '../PlayButton'
 import CheckIcon from '@mui/icons-material/Check'
 import ExtensionIcon from '@mui/icons-material/Extension'
-import StarIcon from '@mui/icons-material/Star'
-import StarBorderIcon from '@mui/icons-material/StarBorder'
-import useFavorite from '../../../hooks/useFavorite'
+import FavoriteButton from '../FavoriteButton'
 import { getAdapterForUrl } from '../../../utils/adapters'
 import imageUrl from '../../../utils/imageUrl'
 
-function FavoriteButton({ game }) {
-  const { isFavorite, toggle, loading } = useFavorite(game.id, game.isFavorite)
-  const handleClick = (ev) => {
-    ev.preventDefault()
-    ev.stopPropagation()
-    toggle()
-  }
-
-  return (
-    <Tooltip title={isFavorite ? 'Unfavorite' : 'Add to favorites'}>
-      <IconButton size="small" onClick={handleClick} disabled={loading} aria-label="toggle-favorite">
-        {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
-      </IconButton>
-    </Tooltip>
-  )
-}
+ 
 
 export default function GameCard({ game, sx, showSubmit = true }) {
   const [adapter, setAdapter] = useState(null)
@@ -88,7 +71,7 @@ export default function GameCard({ game, sx, showSubmit = true }) {
               <CheckIcon color="primary" fontSize="small" aria-label="submitted" />
             )}
             {/* Favorite toggle */}
-            <FavoriteButton game={game} />
+            <FavoriteButton game={game} stopPropagationOnClick />
           </Box>
         </CardContent>
       </CardActionArea>
