@@ -49,7 +49,7 @@ namespace DailyChallenges.Mapping
                 Url = g.Url,
                 Description = g.Description,
                 ImageUrl = g.ScreenshotData != null ? $"/api/games/{g.Id}/image" : null,
-                // ResetTime is exported as HH:mm (UTC)
+                // ResetTime is exported as hh:mm (UTC)
                 ResetTime = g.ResetTime.ToString(@"hh\:mm"),
                 RankingMode = g.RankingMode.ToString().ToLowerInvariant(),
                 Submissions = includeSubmissions && g.Submissions != null
