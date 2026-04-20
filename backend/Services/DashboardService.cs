@@ -5,6 +5,7 @@ using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services.Contracts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DailyChallenges.Services
 {
@@ -13,12 +14,14 @@ namespace DailyChallenges.Services
         private readonly AppDbContext _db;
         private readonly IFavoriteRepository _favRepo;
         private readonly LevelCalculator _levelCalc;
+        private readonly ILogger<DashboardService> _logger;
 
-        public DashboardService(AppDbContext db, IFavoriteRepository favRepo, LevelCalculator levelCalc)
+        public DashboardService(AppDbContext db, IFavoriteRepository favRepo, LevelCalculator levelCalc, ILogger<DashboardService> logger)
         {
             _db = db;
             _favRepo = favRepo;
             _levelCalc = levelCalc;
+            _logger = logger;
         }
 
         public async Task<DashboardDataDto> GetDashboardDataAsync(int userId)
@@ -56,7 +59,11 @@ namespace DailyChallenges.Services
             var gameScoringDays = games.Select(g =>
             {
                 try { return (g.Id, Day: ScoringDayHelper.GetCurrentScoringDay(g.ResetTime).Date); }
-                catch { return (g.Id, Day: DateTime.UtcNow.Date); }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to compute scoring day for game {GameId}; falling back to UTC.Date", g.Id);
+                    return (g.Id, Day: DateTime.UtcNow.Date);
+                }
             }).ToDictionary(x => x.Id, x => x.Day);
 
             // Gather the distinct days we need to query

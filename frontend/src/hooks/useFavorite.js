@@ -19,7 +19,7 @@ export default function useFavorite(gameId, initial = false) {
 
     const next = !isFavorite
     setIsFavorite(next)
-    window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: next } }))
+    window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: next, optimistic: true } }))
     setLoading(true)
     try {
       if (next) {
@@ -27,6 +27,7 @@ export default function useFavorite(gameId, initial = false) {
       } else {
         await api.delete(`/favorites/${gameId}`)
       }
+      window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: next, confirmed: true } }))
     } catch (err) {
       setIsFavorite(!next)
       window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: !next } }))

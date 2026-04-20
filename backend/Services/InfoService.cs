@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DailyChallenges.Services.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace DailyChallenges.Services
 {
@@ -7,6 +8,7 @@ namespace DailyChallenges.Services
     {
         private readonly IWebHostEnvironment _env;
         private readonly IHttpClientFactory _httpFactory;
+        private readonly ILogger<InfoService> _logger;
         private const string ChangelogUrl = "https://raw.githubusercontent.com/thecaaz/daily-challenges-web/refs/heads/main/CHANGELOG.md";
 
         private string? _cachedChangelog;
@@ -14,10 +16,11 @@ namespace DailyChallenges.Services
         private static readonly TimeSpan _changelogCacheDuration = TimeSpan.FromHours(2);
         private readonly SemaphoreSlim _changelogLock = new SemaphoreSlim(1, 1);
 
-        public InfoService(IWebHostEnvironment env, IHttpClientFactory httpFactory)
+        public InfoService(IWebHostEnvironment env, IHttpClientFactory httpFactory, ILogger<InfoService> logger)
         {
             _env = env;
             _httpFactory = httpFactory;
+            _logger = logger;
         }
 
         public async Task<ReleaseInfo?> ReadReleaseInfoAsync()
@@ -30,8 +33,9 @@ namespace DailyChallenges.Services
                 var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 return JsonSerializer.Deserialize<ReleaseInfo>(txt, opts);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Failed to read release-info.json at {Path}", path);
                 return null;
             }
         }
@@ -64,10 +68,14 @@ namespace DailyChallenges.Services
                         _cachedChangelogFetchedAt = DateTimeOffset.UtcNow;
                         return content;
                     }
+                    else
+                    {
+                        _logger.LogWarning("Fetching changelog returned non-success status {StatusCode} from {Url}", resp.StatusCode, ChangelogUrl);
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // swallow network errors and return empty string
+                    _logger.LogWarning(ex, "Failed to fetch changelog from {Url}", ChangelogUrl);
                 }
 
                 return string.Empty;

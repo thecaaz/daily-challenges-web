@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DailyChallenges.Services;
+using DailyChallenges.DTOs;
 
 namespace DailyChallenges.Controllers
 {
@@ -69,11 +70,11 @@ namespace DailyChallenges.Controllers
 
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Create([FromForm] int gameId, [FromForm] string score, [FromForm] string? username, [FromForm] IFormFile? screenshot)
+        public async Task<IActionResult> Create([FromForm] SubmissionCreateRequest request)
         {
-            var (submissionDto, xpGain) = await _subs.CreateAsync(gameId, score, username, screenshot, User);
+            var (submissionDto, xpGain) = await _subs.CreateAsync(request.GameId, request.Score, request.Username, request.Screenshot, User);
             var response = new { submission = submissionDto, xpGain };
-            return CreatedAtAction(nameof(GetByGame), new { gameId = gameId }, response);
+            return CreatedAtAction(nameof(GetByGame), new { gameId = request.GameId }, response);
         }
 
         [HttpGet("{id}/screenshot")]

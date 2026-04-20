@@ -8,6 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace DailyChallenges.Services
 {
@@ -17,13 +18,15 @@ namespace DailyChallenges.Services
         private readonly JwtOptions _jwtOptions;
         private readonly LevelCalculator _levelCalc;
         private readonly IWebHostEnvironment _env;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(AppDbContext db, IOptions<JwtOptions> jwtOptions, LevelCalculator levelCalc, IWebHostEnvironment env)
+        public AuthService(AppDbContext db, IOptions<JwtOptions> jwtOptions, LevelCalculator levelCalc, IWebHostEnvironment env, ILogger<AuthService> logger)
         {
             _db = db;
             _jwtOptions = jwtOptions?.Value ?? new JwtOptions();
             _levelCalc = levelCalc;
             _env = env;
+            _logger = logger;
         }
 
         public async Task<UserDto> RegisterAsync(string username, string password)
@@ -89,8 +92,7 @@ namespace DailyChallenges.Services
         }
         public async Task<AuthResultDto?> RefreshAsync(HttpRequest request, HttpResponse response)
         {
-            if (!request.Cookies.ContainsKey("refresh_token")) return null;
-            var refreshToken = request.Cookies["refresh_token"];
+            if (!request.Cookies.TryGetValue("refresh_token", out var refreshToken)) return null;
 
             var principal = ValidateToken(refreshToken, validateLifetime: true);
             if (principal == null) return null;
@@ -162,8 +164,9 @@ namespace DailyChallenges.Services
                 var principal = tokenHandler.ValidateToken(token, parameters, out var validatedToken);
                 return principal;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Token validation failed (validateLifetime={ValidateLifetime})", validateLifetime);
                 return null;
             }
         }

@@ -1,25 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import { CardMedia, Box, Typography, Tooltip, IconButton } from '@mui/material'
+import { CardMedia, Box, Typography, Tooltip } from '@mui/material'
 import AppButton from './ui/AppButton'
 import PlayButton from './ui/PlayButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ExtensionIcon from '@mui/icons-material/Extension'
-import StarIcon from '@mui/icons-material/Star'
-import StarBorderIcon from '@mui/icons-material/StarBorder'
-import useFavorite from '../hooks/useFavorite'
+import FavoriteButton from './ui/FavoriteButton'
 import imageUrl from '../utils/imageUrl'
 import { getAdapterForUrl } from '../utils/adapters'
 
-function FavoriteToggle({ game }) {
-  const { isFavorite, toggle, loading } = useFavorite(game.id, game.isFavorite)
-  return (
-    <Tooltip title={isFavorite ? 'Unfavorite' : 'Add to favorites'}>
-      <IconButton size="small" onClick={toggle} sx={{ color: 'white' }} disabled={loading} aria-label="toggle-favorite">
-        {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
-      </IconButton>
-    </Tooltip>
-  )
-}
+ 
 
 export default function GameHeader({ game }) {
   if (!game) return null
@@ -75,7 +64,7 @@ export default function GameHeader({ game }) {
                 </Tooltip>
               )}
               {/* Favorite toggle */}
-              <FavoriteToggle game={game} />
+              <FavoriteButton game={game} sx={{ color: 'white' }} />
             </Box>
           </Box>
 

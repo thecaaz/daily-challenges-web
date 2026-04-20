@@ -17,7 +17,7 @@ import BoltIcon from '@mui/icons-material/Bolt'
 import { Link } from 'react-router-dom'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
-import useFavorite from '../hooks/useFavorite'
+import FavoriteButton from '../components/ui/FavoriteButton'
 import AppButton from '../components/ui/AppButton'
 import PlayButton from '../components/ui/PlayButton'
 import { hasAdapterForUrl } from '../utils/adapters'
@@ -27,7 +27,6 @@ import imageUrl from '../utils/imageUrl'
 // ─── Game list row ────────────────────────────────────────────────────────────
 
 function GameRow({ game, badge, badgeLabel }) {
-  const { isFavorite, toggle: toggleFavorite, loading: favLoading } = useFavorite(game.id, game.isFavorite)
   const [hasAdapter, setHasAdapter] = useState(null)
 
   useEffect(() => {
@@ -92,13 +91,13 @@ function GameRow({ game, badge, badgeLabel }) {
       </Box>
 
       {/* Favourite */}
-      <Tooltip title={isFavorite ? 'Remove from favourites' : 'Add to favourites'}>
-        <IconButton size="small" onClick={toggleFavorite} disabled={favLoading} sx={{ p: 0.5 }}>
-          {isFavorite
-            ? <StarIcon fontSize="small" sx={{ color: 'warning.main' }} />
-            : <StarBorderIcon fontSize="small" sx={{ color: 'text.secondary' }} />}
-        </IconButton>
-      </Tooltip>
+      <FavoriteButton
+        game={game}
+        size="small"
+        sx={{ p: 0.5 }}
+        activeIconSx={{ color: 'warning.main' }}
+        inactiveIconSx={{ color: 'text.secondary' }}
+      />
 
       {/* Play */}
       <PlayButton game={game} size="small" adapter={hasAdapter} sx={{ flexShrink: 0 }} />
@@ -109,7 +108,6 @@ function GameRow({ game, badge, badgeLabel }) {
 // ─── Friend activity row ──────────────────────────────────────────────────────
 
 function FriendActivityRow({ activity }) {
-  const { isFavorite, toggle: toggleFavorite, loading: favLoading } = useFavorite(activity.gameId, activity.isFavorite)
   const [hasAdapter, setHasAdapter] = useState(null)
 
   const fakeGame = { id: activity.gameId, url: activity.gameUrl, name: activity.gameName, imageUrl: activity.gameImageUrl, isFavorite: activity.isFavorite, hasSubmittedForLatest: activity.hasSubmittedForLatest }
@@ -195,13 +193,13 @@ function FriendActivityRow({ activity }) {
         </Box>
       </Box>
 
-      <Tooltip title={isFavorite ? 'Remove from favourites' : 'Add to favourites'}>
-        <IconButton size="small" onClick={toggleFavorite} disabled={favLoading} sx={{ p: 0.5 }}>
-          {isFavorite
-            ? <StarIcon fontSize="small" sx={{ color: 'warning.main' }} />
-            : <StarBorderIcon fontSize="small" sx={{ color: 'text.secondary' }} />}
-        </IconButton>
-      </Tooltip>
+      <FavoriteButton
+        game={fakeGame}
+        size="small"
+        sx={{ p: 0.5 }}
+        activeIconSx={{ color: 'warning.main' }}
+        inactiveIconSx={{ color: 'text.secondary' }}
+      />
 
       <PlayButton game={fakeGame} size="small" adapter={hasAdapter} sx={{ flexShrink: 0 }} />
     </ListItem>

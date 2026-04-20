@@ -54,27 +54,27 @@ namespace DailyChallenges.Services
             return dtos;
         }
 
-        public async Task<GameDto> CreateAsync(string name, IFormFile? image, string? resetTime, string? url, string? description, int? resetTimezoneOffsetMinutes = null, string? rankingMode = null)
+        public async Task<GameDto> CreateAsync(GameCreateRequest request)
         {
-            var game = new Game { Name = name };
-            if (!string.IsNullOrWhiteSpace(resetTime))
+            var game = new Game { Name = request.Name };
+            if (!string.IsNullOrWhiteSpace(request.ResetTime))
             {
-                if (TryParseResetTime(resetTime, out var ts))
+                if (TryParseResetTime(request.ResetTime, out var ts))
                 {
-                    if (resetTimezoneOffsetMinutes.HasValue)
+                    if (request.ResetTimezoneOffsetMinutes.HasValue)
                     {
-                        ts = NormalizeToUtc(ts, resetTimezoneOffsetMinutes.Value);
+                        ts = NormalizeToUtc(ts, request.ResetTimezoneOffsetMinutes.Value);
                     }
                     game.ResetTime = ts;
                 }
             }
-            if (!string.IsNullOrWhiteSpace(url)) game.Url = url;
-            if (!string.IsNullOrWhiteSpace(description)) game.Description = description;
-            if (Enum.TryParse<RankingMode>(rankingMode, ignoreCase: true, out var mode)) game.RankingMode = mode;
+            if (!string.IsNullOrWhiteSpace(request.Url)) game.Url = request.Url;
+            if (!string.IsNullOrWhiteSpace(request.Description)) game.Description = request.Description;
+            if (Enum.TryParse<RankingMode>(request.RankingMode, ignoreCase: true, out var mode)) game.RankingMode = mode;
 
-            if (image != null && image.Length > 0)
+            if (request.Image != null && request.Image.Length > 0)
             {
-                var (data, contentType) = await _files.ReadFileAsync(image);
+                var (data, contentType) = await _files.ReadFileAsync(request.Image);
                 game.ScreenshotData = data;
                 game.ScreenshotContentType = contentType;
             }
@@ -85,29 +85,29 @@ namespace DailyChallenges.Services
 
         public async Task<Game?> GetByIdAsync(int id) => await _games.GetByIdAsync(id);
 
-        public async Task<GameDto> UpdateAsync(int id, string? name, IFormFile? image, string? resetTime, string? url, string? description, int? resetTimezoneOffsetMinutes = null, string? rankingMode = null)
+        public async Task<GameDto> UpdateAsync(int id, GameUpdateRequest request)
         {
             var g = await _games.GetByIdAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
-            if (!string.IsNullOrWhiteSpace(name)) g.Name = name;
-            if (!string.IsNullOrWhiteSpace(url)) g.Url = url;
-            if (!string.IsNullOrWhiteSpace(resetTime))
+            if (!string.IsNullOrWhiteSpace(request.Name)) g.Name = request.Name;
+            if (!string.IsNullOrWhiteSpace(request.Url)) g.Url = request.Url;
+            if (!string.IsNullOrWhiteSpace(request.ResetTime))
             {
-                if (TryParseResetTime(resetTime, out var ts))
+                if (TryParseResetTime(request.ResetTime, out var ts))
                 {
-                    if (resetTimezoneOffsetMinutes.HasValue)
+                    if (request.ResetTimezoneOffsetMinutes.HasValue)
                     {
-                        ts = NormalizeToUtc(ts, resetTimezoneOffsetMinutes.Value);
+                        ts = NormalizeToUtc(ts, request.ResetTimezoneOffsetMinutes.Value);
                     }
                     g.ResetTime = ts;
                 }
             }
-            if (description != null) g.Description = description;
-            if (!string.IsNullOrWhiteSpace(rankingMode) && Enum.TryParse<RankingMode>(rankingMode, ignoreCase: true, out var mode)) g.RankingMode = mode;
+            if (request.Description != null) g.Description = request.Description;
+            if (!string.IsNullOrWhiteSpace(request.RankingMode) && Enum.TryParse<RankingMode>(request.RankingMode, ignoreCase: true, out var mode)) g.RankingMode = mode;
 
-            if (image != null && image.Length > 0)
+            if (request.Image != null && request.Image.Length > 0)
             {
-                var (data, contentType) = await _files.ReadFileAsync(image);
+                var (data, contentType) = await _files.ReadFileAsync(request.Image);
                 g.ScreenshotData = data;
                 g.ScreenshotContentType = contentType;
             }

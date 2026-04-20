@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using DailyChallenges.Mapping;
 using DailyChallenges.Services;
+using DailyChallenges.DTOs;
 
 namespace DailyChallenges.Controllers
 {
@@ -25,10 +26,9 @@ namespace DailyChallenges.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromForm] string name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? url, [FromForm] string? description, [FromForm] int? resetTimezoneOffsetMinutes, [FromForm] string? rankingMode)
+        public async Task<IActionResult> Create([FromForm] GameCreateRequest request)
         {
-            if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
-            var created = await _games.CreateAsync(name, image, resetTime, url, description, resetTimezoneOffsetMinutes, rankingMode);
+            var created = await _games.CreateAsync(request);
             return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }
 
@@ -60,9 +60,9 @@ namespace DailyChallenges.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromForm] string? name, [FromForm] IFormFile? image, [FromForm] string? resetTime, [FromForm] string? url, [FromForm] string? description, [FromForm] int? resetTimezoneOffsetMinutes, [FromForm] string? rankingMode)
+        public async Task<IActionResult> Update(int id, [FromForm] GameUpdateRequest request)
         {
-            var updated = await _games.UpdateAsync(id, name, image, resetTime, url, description, resetTimezoneOffsetMinutes, rankingMode);
+            var updated = await _games.UpdateAsync(id, request);
             return Ok(updated);
         }
 
