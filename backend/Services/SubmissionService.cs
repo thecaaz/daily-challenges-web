@@ -208,12 +208,16 @@ namespace DailyChallenges.Services
 
             var submission = new Submission { GameId = gameId, Score = score, Username = username, UserId = userId };
             if (ScoreParser.TryParseInt(score, out var parsedScore)) submission.ScoreValue = parsedScore;
-            if (screenshot != null && screenshot.Length > 0)
+
+            if (screenshot == null || screenshot.Length == 0)
             {
-                var (data, contentType) = await _files.ReadFileAsync(screenshot);
-                submission.ScreenshotData = data;
-                submission.ScreenshotContentType = contentType;
+                throw new ArgumentException("screenshot is required");
             }
+
+            var (data, contentType) = await _files.ReadFileAsync(screenshot);
+            if (data == null || data.Length == 0) throw new ArgumentException("screenshot is required");
+            submission.ScreenshotData = data;
+            submission.ScreenshotContentType = contentType ?? string.Empty;
 
             if (userId.HasValue && !string.IsNullOrEmpty(user.Identity?.Name)) submission.Username = user.Identity.Name;
             // Compute and persist scoring day at write time so reads can query it directly.
