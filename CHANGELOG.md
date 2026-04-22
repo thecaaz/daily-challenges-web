@@ -1,3 +1,11 @@
+## [1.22.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.21.2...v1.22.0) (2026-04-22)
+
+
+### Features
+
+* enforce screenshot requirement and validate file type and size in submission process (client side) ([f10b327](https://github.com/thecaaz/daily-challenges-web/commit/f10b327f22ffc3734fd268a751e66eb88ad7e2ce))
+* make screenshot fields non-nullable and enforce validation in submission process ([f82e2b9](https://github.com/thecaaz/daily-challenges-web/commit/f82e2b9dd493ea6c11b131910545904bd61ec790))
+
 ### [1.21.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.21.1...v1.21.2) (2026-04-20)
 
 
