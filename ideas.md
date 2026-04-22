@@ -1,3 +1,0 @@
-- Live updates
-- Comments for a specific day
-- username/trophy/profile customization

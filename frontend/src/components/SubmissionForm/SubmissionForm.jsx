@@ -39,6 +39,23 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
       return
     }
 
+    // Client-side enforcement: require a screenshot
+    if (!screenshot) {
+      showSnackbar('Screenshot is required', 'error')
+      return
+    }
+
+    // Basic client-side validation for type and size
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
+    if (screenshot.type && !allowedTypes.includes(screenshot.type)) {
+      showSnackbar('Allowed formats: PNG, JPEG, WebP', 'error')
+      return
+    }
+    if (screenshot.size && screenshot.size > 2 * 1024 * 1024) {
+      showSnackbar('Screenshot must be 2 MB or smaller', 'error')
+      return
+    }
+
     const fd = new FormData()
     fd.append('gameId', gameId)
     const parsed = parseScore(score)
@@ -47,7 +64,7 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
       if (!ok) return
     }
     fd.append('score', isNaN(parsed) ? score : String(parsed))
-    if (screenshot) fd.append('screenshot', screenshot)
+    fd.append('screenshot', screenshot)
 
     try {
       const res = await api.post('/submissions', fd)

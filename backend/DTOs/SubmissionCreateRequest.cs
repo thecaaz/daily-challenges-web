@@ -15,6 +15,7 @@ namespace DailyChallenges.DTOs
         [StringLength(100)]
         public string? Username { get; set; }
 
+        [Required]
         public IFormFile? Screenshot { get; set; }
     }
 }

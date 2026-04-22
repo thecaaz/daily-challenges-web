@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models
@@ -26,8 +27,8 @@ namespace DailyChallenges.Models
         public string? Username { get; set; }
 
         // Screenshot stored as blob
-        public byte[]? ScreenshotData { get; set; }
-        public string? ScreenshotContentType { get; set; }
+        public byte[] ScreenshotData { get; set; } = Array.Empty<byte>();
+        public string ScreenshotContentType { get; set; } = string.Empty;
 
         // Date-only scoring day calculated based on the game's reset time/timezone.
         public DateTime ScoringDay { get; set; }
