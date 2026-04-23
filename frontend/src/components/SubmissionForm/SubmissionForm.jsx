@@ -98,7 +98,7 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
         return
       }
 
-      navigate(`/games/${gameId}?scoringDay=${date}`)
+      navigate(`/games/${gameId}`)
     } catch (err) {
       // Treat server-side duplicate-submission (409) as success when caller wants to handle it
       const status = err?.response?.status
