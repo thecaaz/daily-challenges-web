@@ -1,3 +1,10 @@
+### [1.22.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.22.0...v1.22.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* incorrect navigation after score submission (remove date parameter) ([de6db13](https://github.com/thecaaz/daily-challenges-web/commit/de6db131fa1eade55d8411935a2f8ba25c7cff87))
+
 ## [1.22.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.21.2...v1.22.0) (2026-04-22)
 
 
