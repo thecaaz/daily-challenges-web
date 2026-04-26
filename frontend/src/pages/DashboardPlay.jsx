@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Box, CircularProgress, IconButton, Typography, Grid } from '@mui/material'
+import { Box, CircularProgress, IconButton, Tooltip, Typography, Grid } from '@mui/material'
 import FullscreenIcon from '@mui/icons-material/Fullscreen'
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import SkipNextIcon from '@mui/icons-material/SkipNext'
+import ExitToAppIcon from '@mui/icons-material/ExitToApp'
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
@@ -218,18 +221,32 @@ export default function DashboardPlay() {
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Typography sx={{ alignSelf: 'center' }}>{currentIndex + 1} / {queue.length}</Typography>
           {current.url && (
-            <AppButton href={current.url} target="_blank" rel="noreferrer" variant="outlined">Open in new tab</AppButton>
+            <Tooltip title="Open in new tab">
+              <IconButton href={current.url} target="_blank" rel="noreferrer" size="small">
+                <OpenInNewIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
           {current.url && (
-            <AppButton onClick={submitScore} variant="contained">Submit score</AppButton>
+            <AppButton onClick={submitScore} variant="contained" size="small">Submit</AppButton>
           )}
           {current.url && !isMaximized && (
-            <IconButton onClick={() => setIsMaximized(true)} title="Maximize" size="small">
-              <FullscreenIcon />
-            </IconButton>
+            <Tooltip title="Maximize">
+              <IconButton onClick={() => setIsMaximized(true)} size="small">
+                <FullscreenIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
-          <AppButton color="inherit" variant="outlined" onClick={() => setCurrentIndex(i => i + 1)}>Skip</AppButton>
-          <AppButton to="/dashboard" variant="text">Quit</AppButton>
+          <Tooltip title="Skip">
+            <IconButton size="small" onClick={() => setCurrentIndex(i => i + 1)}>
+              <SkipNextIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Quit">
+            <IconButton size="small" onClick={() => navigate('/dashboard')}>
+              <ExitToAppIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
 
