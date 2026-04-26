@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Box, CircularProgress, Typography, Grid } from '@mui/material'
+import { Box, CircularProgress, IconButton, Typography, Grid } from '@mui/material'
+import FullscreenIcon from '@mui/icons-material/Fullscreen'
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
@@ -19,6 +21,7 @@ export default function DashboardPlay() {
   const loadedQueueRef = useRef(false)
 
   const iframeRef = useRef(null)
+  const [isMaximized, setIsMaximized] = useState(false)
   const [score, setScore] = useState('')
   const [showSubmission, setShowSubmission] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
@@ -143,7 +146,7 @@ export default function DashboardPlay() {
 
     try {
       const container = iframe?.parentElement
-      if (container) {
+      if (container && !isMaximized) {
         container.__prevStyle = {
           position: container.style.position || '',
           zIndex: container.style.zIndex || '',
@@ -220,6 +223,11 @@ export default function DashboardPlay() {
           {current.url && (
             <AppButton onClick={submitScore} variant="contained">Submit score</AppButton>
           )}
+          {current.url && !isMaximized && (
+            <IconButton onClick={() => setIsMaximized(true)} title="Maximize" size="small">
+              <FullscreenIcon />
+            </IconButton>
+          )}
           <AppButton color="inherit" variant="outlined" onClick={() => setCurrentIndex(i => i + 1)}>Skip</AppButton>
           <AppButton to="/dashboard" variant="text">Quit</AppButton>
         </Box>
@@ -230,12 +238,22 @@ export default function DashboardPlay() {
       ) : (
         <>
           {!showSubmission ? (
-            <Box sx={{ width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh', position: 'relative' }}>
+            <Box sx={isMaximized ? { position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', zIndex: 2147483646 } : { width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh', position: 'relative' }}>
               {!iframeLoaded && (
                 <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.paper', zIndex: 0 }}>
                   <CircularProgress />
                   <Typography sx={{ mt: 2 }}>Loading game...</Typography>
                 </Box>
+              )}
+              {isMaximized && (
+                <IconButton
+                  onClick={() => setIsMaximized(false)}
+                  title="Restore"
+                  size="small"
+                  sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2, bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}
+                >
+                  <FullscreenExitIcon />
+                </IconButton>
               )}
               <iframe
                 allowFullScreen
