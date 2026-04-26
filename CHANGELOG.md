@@ -1,3 +1,11 @@
+## [1.23.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.22.2...v1.23.0) (2026-04-26)
+
+
+### Features
+
+* add fullscreen toggle functionality to game iframe ([d6a7a6f](https://github.com/thecaaz/daily-challenges-web/commit/d6a7a6f2820dbdf37f823386f9cf88d7fa64a033))
+* **dashboard-play:** enhance UI with tooltips and icon buttons for navigation actions ([440329f](https://github.com/thecaaz/daily-challenges-web/commit/440329f7b77cbdcbb64e2e00c6058fab700cd45d))
+
 ### [1.22.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.22.1...v1.22.2) (2026-04-26)
 
 
