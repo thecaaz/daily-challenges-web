@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Box, CircularProgress, Typography, Grid } from '@mui/material'
+import { Box, CircularProgress, IconButton, Tooltip, Typography, Grid } from '@mui/material'
+import FullscreenIcon from '@mui/icons-material/Fullscreen'
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import SkipNextIcon from '@mui/icons-material/SkipNext'
+import ExitToAppIcon from '@mui/icons-material/ExitToApp'
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
@@ -19,6 +24,7 @@ export default function DashboardPlay() {
   const loadedQueueRef = useRef(false)
 
   const iframeRef = useRef(null)
+  const [isMaximized, setIsMaximized] = useState(false)
   const [score, setScore] = useState('')
   const [showSubmission, setShowSubmission] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
@@ -143,7 +149,7 @@ export default function DashboardPlay() {
 
     try {
       const container = iframe?.parentElement
-      if (container) {
+      if (container && !isMaximized) {
         container.__prevStyle = {
           position: container.style.position || '',
           zIndex: container.style.zIndex || '',
@@ -215,13 +221,32 @@ export default function DashboardPlay() {
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Typography sx={{ alignSelf: 'center' }}>{currentIndex + 1} / {queue.length}</Typography>
           {current.url && (
-            <AppButton href={current.url} target="_blank" rel="noreferrer" variant="outlined">Open in new tab</AppButton>
+            <Tooltip title="Open in new tab">
+              <IconButton href={current.url} target="_blank" rel="noreferrer" size="small">
+                <OpenInNewIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
           {current.url && (
-            <AppButton onClick={submitScore} variant="contained">Submit score</AppButton>
+            <AppButton onClick={submitScore} variant="contained" size="small">Submit</AppButton>
           )}
-          <AppButton color="inherit" variant="outlined" onClick={() => setCurrentIndex(i => i + 1)}>Skip</AppButton>
-          <AppButton to="/dashboard" variant="text">Quit</AppButton>
+          {current.url && !isMaximized && (
+            <Tooltip title="Maximize">
+              <IconButton onClick={() => setIsMaximized(true)} size="small">
+                <FullscreenIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Skip">
+            <IconButton size="small" onClick={() => setCurrentIndex(i => i + 1)}>
+              <SkipNextIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Quit">
+            <IconButton size="small" onClick={() => navigate('/dashboard')}>
+              <ExitToAppIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
 
@@ -230,12 +255,22 @@ export default function DashboardPlay() {
       ) : (
         <>
           {!showSubmission ? (
-            <Box sx={{ width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh', position: 'relative' }}>
+            <Box sx={isMaximized ? { position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', zIndex: 2147483646 } : { width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh', position: 'relative' }}>
               {!iframeLoaded && (
                 <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.paper', zIndex: 0 }}>
                   <CircularProgress />
                   <Typography sx={{ mt: 2 }}>Loading game...</Typography>
                 </Box>
+              )}
+              {isMaximized && (
+                <IconButton
+                  onClick={() => setIsMaximized(false)}
+                  title="Restore"
+                  size="small"
+                  sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2, bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}
+                >
+                  <FullscreenExitIcon />
+                </IconButton>
               )}
               <iframe
                 allowFullScreen
