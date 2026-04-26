@@ -162,9 +162,11 @@ namespace DailyChallenges.Services
 
             // 8. User's rank in each game submitted today (only where ScoreValue is present)
             var userSubsByGame = todaySubmissions
-                .Where(s => s.UserId == userId && userSubmittedToday.Contains(s.GameId))
+                .Where(s => s.UserId == userId
+                         && gameScoringDays.TryGetValue(s.GameId, out var d)
+                         && s.ScoringDay == d)
                 .GroupBy(s => s.GameId)
-                .ToDictionary(g => g.Key, g => g.First());
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.CreatedAt).First());
 
             var userTodayRanks = userSubmittedToday
                 .Where(gameId => userSubsByGame.ContainsKey(gameId) && userSubsByGame[gameId].ScoreValue.HasValue)
@@ -184,7 +186,7 @@ namespace DailyChallenges.Services
                         GameImageUrl = game?.ScreenshotData != null ? $"/api/games/{gameId}/image" : null,
                         Score = userSub.Score,
                         Rank = rank,
-                        TotalSubmissions = gameSubs.Count
+                        TotalSubmissions = gameSubs.Count(s => s.ScoreValue.HasValue)
                     };
                 })
                 .OrderBy(r => r.Rank)

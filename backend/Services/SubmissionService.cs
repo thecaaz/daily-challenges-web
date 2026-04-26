@@ -201,7 +201,7 @@ namespace DailyChallenges.Services
                 if (latest != null)
                 {
                     DateTime newDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime);
-                    var exDay = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game.ResetTime);
+                    var exDay = latest.ScoringDay;
                     if (exDay == newDay) throw new InvalidOperationException("User has already submitted for this game");
                 }
             }
