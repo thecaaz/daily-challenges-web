@@ -1,3 +1,10 @@
+### [1.22.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.22.1...v1.22.2) (2026-04-26)
+
+
+### Bug Fixes
+
+* update game submission logic to use correct scoring day for validation ([5a9f9cc](https://github.com/thecaaz/daily-challenges-web/commit/5a9f9cc1eba5da1c95edf85428d7ce2c8a79240b))
+
 ### [1.22.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.22.0...v1.22.1) (2026-04-23)
 
 
