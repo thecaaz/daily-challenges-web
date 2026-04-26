@@ -12,7 +12,8 @@ import SubmissionForm from '../components/SubmissionForm/SubmissionForm'
 import { hasAdapterForUrl } from '../utils/adapters'
 import GameCard from '../components/ui/GameCard/GameCard'
 import { useNavigate } from 'react-router-dom'
-import compressImage from '../utils/compressImage'
+import { useScoreCapture } from '../hooks/useScoreCapture'
+import GameIframePlayer from '../components/ui/GameIframePlayer'
 
 export default function DashboardPlay() {
   const { user, loading: authLoading } = useRequireAuth()
@@ -25,12 +26,7 @@ export default function DashboardPlay() {
 
   const iframeRef = useRef(null)
   const [isMaximized, setIsMaximized] = useState(false)
-  const [score, setScore] = useState('')
-  const [showSubmission, setShowSubmission] = useState(false)
-  const [iframeLoaded, setIframeLoaded] = useState(false)
-  const [capturedFile, setCapturedFile] = useState(null)
-  const lastNonceRef = useRef(null)
-  const captureStateRef = useRef({ nonce: null, fauxFullscreen: false })
+  const { score, setScore, capturedFile, setCapturedFile, showSubmission, setShowSubmission, submitScore } = useScoreCapture(iframeRef, { isMaximized })
 
   useEffect(() => {
     let mounted = true
@@ -73,115 +69,13 @@ export default function DashboardPlay() {
     return () => { mounted = false }
   }, [user])
 
-  useEffect(() => {
-    async function onMessage(ev) {
-      if (!ev.data || typeof ev.data.type !== 'string') return
-      const data = ev.data
+  // message handling and capture logic moved to `useScoreCapture` hook
 
-      if (data.type === 'SCORE_RESPONSE') {
-        if (data.nonce && lastNonceRef.current && data.nonce !== lastNonceRef.current) return
-        setScore(typeof data.score === 'string' ? data.score : JSON.stringify(data.score))
-      }
-
-      if (data.type === 'CAPTURE_RESPONSE') {
-        if (data.nonce && captureStateRef.current.nonce && data.nonce !== captureStateRef.current.nonce) return
-
-        if (data.error) {
-          if (captureStateRef.current.fauxFullscreen) {
-            const container = iframeRef.current?.parentElement
-            if (container && container.__prevStyle) {
-              Object.assign(container.style, container.__prevStyle)
-              delete container.__prevStyle
-            }
-            captureStateRef.current.fauxFullscreen = false
-          }
-          return
-        }
-
-        if (data.dataUrl && data.rect) {
-          try {
-            const file = await compressImage(data.dataUrl)
-            setCapturedFile(file)
-
-            if (captureStateRef.current.fauxFullscreen) {
-              const container = iframeRef.current?.parentElement
-              if (container && container.__prevStyle) {
-                Object.assign(container.style, container.__prevStyle)
-                delete container.__prevStyle
-              }
-              captureStateRef.current.fauxFullscreen = false
-            }
-            if (score) setShowSubmission(true)
-          } catch (err) {
-            // ignore
-          }
-        }
-      }
-    }
-
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [score])
-
-  function postToIframe(payload) {
-    const iframe = iframeRef.current
-    if (!iframe?.contentWindow) return
-    const origin = (function () {
-      try {
-        return new URL(iframe.src).origin
-      } catch (e) {
-        return '*'
-      }
-    })()
-    iframe.contentWindow.postMessage(payload, origin)
-  }
-
-  async function submitScore() {
-    const nonce = Math.random().toString(36).slice(2)
-    lastNonceRef.current = nonce
-    captureStateRef.current.nonce = nonce
-    const iframe = iframeRef.current
-    if (iframe && iframe.scrollIntoView) {
-      try { iframe.scrollIntoView({ behavior: 'smooth', block: 'center' }) } catch (e) { iframe.scrollIntoView() }
-    }
-
-    postToIframe({ source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce })
-
-    try {
-      const container = iframe?.parentElement
-      if (container && !isMaximized) {
-        container.__prevStyle = {
-          position: container.style.position || '',
-          zIndex: container.style.zIndex || '',
-          left: container.style.left || '',
-          top: container.style.top || '',
-          width: container.style.width || '',
-          height: container.style.height || ''
-        }
-        container.style.position = 'fixed'
-        container.style.left = '0'
-        container.style.top = '0'
-        container.style.width = '100vw'
-        container.style.height = '100vh'
-        container.style.zIndex = '2147483647'
-        captureStateRef.current.fauxFullscreen = true
-        await new Promise(r => setTimeout(r, 300))
-      } else {
-        await new Promise(r => setTimeout(r, 300))
-      }
-    } catch (err) {
-      await new Promise(r => setTimeout(r, 300))
-    }
-
-    postToIframe({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce })
-  }
+  // submitScore provided by the hook
 
   const current = queue[currentIndex]
 
-  useEffect(() => {
-    // reset iframe loaded state whenever we switch to a new game
-    setIframeLoaded(false)
-  }, [current?.id])
+  // iframe load state handled by GameIframePlayer
 
   const handleSubmitted = ({ submission }) => {
     // mark current as submitted and advance
@@ -255,33 +149,7 @@ export default function DashboardPlay() {
       ) : (
         <>
           {!showSubmission ? (
-            <Box sx={isMaximized ? { position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', zIndex: 2147483646 } : { width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh', position: 'relative' }}>
-              {!iframeLoaded && (
-                <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.paper', zIndex: 0 }}>
-                  <CircularProgress />
-                  <Typography sx={{ mt: 2 }}>Loading game...</Typography>
-                </Box>
-              )}
-              {isMaximized && (
-                <IconButton
-                  onClick={() => setIsMaximized(false)}
-                  title="Restore"
-                  size="small"
-                  sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2, bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}
-                >
-                  <FullscreenExitIcon />
-                </IconButton>
-              )}
-              <iframe
-                allowFullScreen
-                allow="fullscreen"
-                ref={iframeRef}
-                src={current.url}
-                title={current.name || 'Play'}
-                onLoad={() => setIframeLoaded(true)}
-                style={{ width: '100%', height: '100%', border: 0, visibility: iframeLoaded ? 'visible' : 'hidden', position: 'relative', zIndex: 1 }}
-              />
-            </Box>
+            <GameIframePlayer src={current.url} title={current.name} iframeRef={iframeRef} isMaximized={isMaximized} onRestore={() => setIsMaximized(false)} />
           ) : (
             <SubmissionForm
               gameId={current.id}
