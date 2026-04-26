@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Box, CircularProgress, Typography } from '@mui/material'
+import { Box, CircularProgress, Typography, IconButton, Tooltip } from '@mui/material'
+import FullscreenIcon from '@mui/icons-material/Fullscreen'
 import AppButton from '../components/ui/AppButton'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
 import SubmissionForm from '../components/SubmissionForm/SubmissionForm'
-import compressImage from '../utils/compressImage'
+import { useScoreCapture } from '../hooks/useScoreCapture'
+import GameIframePlayer from '../components/ui/GameIframePlayer'
 
 export default function Play() {
   const { gameId } = useParams()
@@ -16,68 +18,10 @@ export default function Play() {
   const [loading, setLoading] = useState(true)
 
   const iframeRef = useRef(null)
-  const [score, setScore] = useState('')
-  const [showSubmission, setShowSubmission] = useState(false)
-  const [capturedFile, setCapturedFile] = useState(null)
-  const lastNonceRef = useRef(null)
-  const captureStateRef = useRef({ nonce: null, fauxFullscreen: false })
+  const [isMaximized, setIsMaximized] = useState(false)
+  const { score, setScore, capturedFile, setCapturedFile, showSubmission, setShowSubmission, submitScore } = useScoreCapture(iframeRef, { isMaximized })
 
-  useEffect(() => {
-    async function onMessage(ev) {
-      if (!ev.data || typeof ev.data.type !== 'string') return
-      const data = ev.data
-
-      if (data.type === 'SCORE_RESPONSE') {
-        if (data.nonce && lastNonceRef.current && data.nonce !== lastNonceRef.current) return
-        // store as string to populate input
-        setScore(typeof data.score === 'string' ? data.score : JSON.stringify(data.score))
-        console.debug('SCORE_RESPONSE', data.score)
-      }
-
-      if (data.type === 'CAPTURE_RESPONSE') {
-        if (data.nonce && captureStateRef.current.nonce && data.nonce !== captureStateRef.current.nonce) return
-
-        if (data.error) {
-          console.debug('CAPTURE_RESPONSE error', data.error)
-          // revert faux-fullscreen styles if applied
-          if (captureStateRef.current.fauxFullscreen) {
-            const container = iframeRef.current?.parentElement
-            if (container && container.__prevStyle) {
-              Object.assign(container.style, container.__prevStyle)
-              delete container.__prevStyle
-            }
-            captureStateRef.current.fauxFullscreen = false
-          }
-          return
-        }
-
-        if (data.dataUrl && data.rect) {
-          try {
-            // compress and convert dataUrl to File for the submission form
-            const file = await compressImage(data.dataUrl)
-            setCapturedFile(file)
-            console.debug('CAPTURE_RESPONSE', { rect: data.rect, dpr: data.dpr })
-
-            // revert faux-fullscreen styles if applied, then show submission
-            if (captureStateRef.current.fauxFullscreen) {
-              const container = iframeRef.current?.parentElement
-              if (container && container.__prevStyle) {
-                Object.assign(container.style, container.__prevStyle)
-                delete container.__prevStyle
-              }
-              captureStateRef.current.fauxFullscreen = false
-            }
-            if (score) setShowSubmission(true)
-          } catch (err) {
-            console.debug('Capture processing error', err)
-          }
-        }
-      }
-    }
-
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [])
+  // message handling moved to useScoreCapture hook
 
   useEffect(() => {
     let mounted = true
@@ -95,14 +39,7 @@ export default function Play() {
     return () => { mounted = false }
   }, [gameId])
 
-  // show submission UI when both score and screenshot are available
-  useEffect(() => {
-    if (score && capturedFile) {
-      // if we used faux-fullscreen for capture, wait for the capture handler to revert styles
-      if (captureStateRef.current.fauxFullscreen) return
-      setShowSubmission(true)
-    }
-  }, [score, capturedFile])
+  // showSubmission handled in hook
 
   if (loading) return <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>
 
@@ -110,66 +47,7 @@ export default function Play() {
 
   const url = game.url
 
-  function postToIframe(payload) {
-    const iframe = iframeRef.current
-    if (!iframe?.contentWindow) return
-    const origin = (function () {
-      try {
-        return new URL(iframe.src).origin
-      } catch (e) {
-        return '*'
-      }
-    })()
-    iframe.contentWindow.postMessage(payload, origin)
-  }
-
-  async function submitScore() {
-    const nonce = Math.random().toString(36).slice(2)
-    lastNonceRef.current = nonce
-    captureStateRef.current.nonce = nonce
-    const iframe = iframeRef.current
-    if (iframe && iframe.scrollIntoView) {
-      try {
-        iframe.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      } catch (e) {
-        iframe.scrollIntoView()
-      }
-    }
-
-    // request score immediately
-    postToIframe({ source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce })
-
-    // show iframe over everything else (faux-fullscreen) so capture contains iframe only
-    try {
-      const container = iframe?.parentElement
-      if (container) {
-        container.__prevStyle = {
-          position: container.style.position || '',
-          zIndex: container.style.zIndex || '',
-          left: container.style.left || '',
-          top: container.style.top || '',
-          width: container.style.width || '',
-          height: container.style.height || ''
-        }
-        container.style.position = 'fixed'
-        container.style.left = '0'
-        container.style.top = '0'
-        container.style.width = '100vw'
-        container.style.height = '100vh'
-        container.style.zIndex = '2147483647'
-        captureStateRef.current.fauxFullscreen = true
-        await new Promise(r => setTimeout(r, 300))
-      } else {
-        await new Promise(r => setTimeout(r, 300))
-      }
-    } catch (err) {
-      console.debug('Failed to apply faux-fullscreen for capture', err)
-      await new Promise(r => setTimeout(r, 300))
-    }
-
-    // ask the iframe to capture the visible tab
-    postToIframe({ source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce })
-  }
+  // submitScore provided by the hook
 
 
   return (
@@ -180,6 +58,13 @@ export default function Play() {
           <Box sx={{ display: 'flex', gap: 1 }}>
             <AppButton href={url} target="_blank" rel="noreferrer" variant="outlined">Open in new tab</AppButton>
             <AppButton onClick={submitScore} variant="contained">Submit score</AppButton>
+            {!isMaximized && (
+              <Tooltip title="Maximize">
+                <IconButton onClick={() => setIsMaximized(true)} size="small">
+                  <FullscreenIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         )}
       </Box>
@@ -189,9 +74,7 @@ export default function Play() {
       ) : (
         <>
           {!showSubmission ? (
-            <Box sx={{ width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh' }}>
-              <iframe allowFullScreen allow="fullscreen" ref={iframeRef} src={url} title={game.name || 'Play'} style={{ width: '100%', height: '100%', border: 0 }} />
-            </Box>
+            <GameIframePlayer src={url} title={game.name} iframeRef={iframeRef} isMaximized={isMaximized} onRestore={() => setIsMaximized(false)} />
           ) : (
             <SubmissionForm
               gameId={gameId}
