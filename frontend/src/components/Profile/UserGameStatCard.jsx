@@ -3,6 +3,7 @@ import { Card, CardContent, Typography, Box, Link as MuiLink } from '@mui/materi
 import { Link } from 'react-router-dom'
 import timeAgo from '../../utils/timeAgo'
 import formatNumber from '../../utils/formatNumber'
+import ScoreSparkline from './ScoreSparkline'
 
 export default function UserGameStatCard({ game }) {
   const id = game.gameId ?? game.GameId
@@ -11,6 +12,8 @@ export default function UserGameStatCard({ game }) {
   const best = game.highestScore ?? game.HighestScore
   const bestId = game.bestSubmissionId ?? game.BestSubmissionId
   const last = game.lastPlayed ?? game.LastPlayed
+  const history = game.scoreHistory ?? game.ScoreHistory
+  const rankingMode = game.rankingMode ?? game.RankingMode
 
   return (
     <Card variant="outlined">
@@ -33,6 +36,11 @@ export default function UserGameStatCard({ game }) {
           </Typography>
           {last ? <Typography variant="body2" color="text.secondary">Last played: {timeAgo(last)}</Typography> : null}
         </Box>
+        {history && history.length > 0 && (
+          <Box sx={{ mt: 1 }}>
+            <ScoreSparkline history={history} rankingMode={rankingMode} />
+          </Box>
+        )}
       </CardContent>
     </Card>
   )

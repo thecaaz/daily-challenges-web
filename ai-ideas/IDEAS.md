@@ -16,7 +16,6 @@
 
 ## Gamification
 
-- **Achievements / badges** — Milestone badges that show on profiles: "7-day streak", "First place 10 times", "Submitted every game this week", etc. Gives long-term goals beyond level grinding.
 - **Weekly leaderboards** — Cumulative XP or wins over the past 7 days. Gives players who missed the daily another way to be competitive. Much lower commitment than all-time rankings.
 - **Personal records per game** — Clearly surface a user's all-time best score for each game on their profile. Simple but motivating.
 - **Comeback XP** — Small XP bonus when a user returns after a streak break. Reduces the "I already lost my streak, no point playing" drop-off.
@@ -25,7 +24,6 @@
 
 - **PWA / installable app** — Add a web app manifest and service worker so mobile users can install it to their home screen. The daily-game audience skews heavily mobile.
 - **Score input improvements** — Smarter score field: auto-detect format hints from the game config, show an example input, validate before submission rather than after.
-- **Submission history chart** — A small sparkline or bar chart on the profile page showing score trend over the past 30 days per game. Visual feedback is more engaging than a flat list.
 
 ## Games & Content
 
