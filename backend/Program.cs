@@ -95,6 +95,9 @@ builder.Services.AddScoped<DailyChallenges.Services.Contracts.IDashboardService,
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, DailyChallenges.Services.InfoService>();
 
+// Achievement system
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IAchievementService, DailyChallenges.Services.AchievementService>();
+
 // Scoring day finalization
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
 builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundService>();

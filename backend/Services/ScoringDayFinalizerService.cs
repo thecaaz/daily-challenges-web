@@ -1,5 +1,7 @@
+using DailyChallenges.Achievements;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
+using DailyChallenges.Services.Contracts;
 using DailyChallenges.Services.Ranking;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +14,7 @@ namespace DailyChallenges.Services
         private readonly IGameRepository _games;
         private readonly INotificationRepository _notifications;
         private readonly IXpService _xp;
+        private readonly IAchievementService _achievements;
         private readonly XpConfig _cfg;
         private readonly ILogger<ScoringDayFinalizerService> _logger;
 
@@ -21,6 +24,7 @@ namespace DailyChallenges.Services
             IGameRepository games,
             INotificationRepository notifications,
             IXpService xp,
+            IAchievementService achievements,
             IOptions<XpConfig> cfg,
             ILogger<ScoringDayFinalizerService> logger)
         {
@@ -29,6 +33,7 @@ namespace DailyChallenges.Services
             _games = games;
             _notifications = notifications;
             _xp = xp;
+            _achievements = achievements;
             _cfg = cfg.Value;
             _logger = logger;
         }
@@ -77,6 +82,8 @@ namespace DailyChallenges.Services
             {
                 var xpAwarded = await _xp.AwardForDayWinAsync(winnerUserId.Value, gameId, day);
                 _logger.LogInformation("Awarded {Xp} XP to user {UserId} for winning game {GameName} on {Day}", xpAwarded, winnerUserId.Value, game.Name, day.ToString("yyyy-MM-dd"));
+
+                await _achievements.CheckAndAwardAsync(winnerUserId.Value, AchievementTrigger.DayWin);
             }
 
             // Build notifications for all registered participants

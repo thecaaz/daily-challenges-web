@@ -15,6 +15,7 @@ namespace DailyChallenges.Data
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<ScoringDayResult> ScoringDayResults => Set<ScoringDayResult>();
         public DbSet<FriendRequest> FriendRequests => Set<FriendRequest>();
+        public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -140,6 +141,17 @@ namespace DailyChallenges.Data
             // Fast query for incoming pending requests
             modelBuilder.Entity<FriendRequest>()
                 .HasIndex(fr => new { fr.ReceiverId, fr.Status });
+
+            // UserAchievements: FK to User (cascade on delete), unique per user+achievement
+            modelBuilder.Entity<UserAchievement>()
+                .HasOne(ua => ua.User)
+                .WithMany()
+                .HasForeignKey(ua => ua.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserAchievement>()
+                .HasIndex(ua => new { ua.UserId, ua.AchievementId })
+                .IsUnique();
         }
     }
 }

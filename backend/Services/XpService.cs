@@ -1,5 +1,7 @@
+using DailyChallenges.Achievements;
 using DailyChallenges.Data;
 using DailyChallenges.Models;
+using DailyChallenges.Services.Contracts;
 using Microsoft.Extensions.Options;
 
 namespace DailyChallenges.Services
@@ -22,12 +24,14 @@ namespace DailyChallenges.Services
         private readonly AppDbContext _db;
         private readonly LevelCalculator _levelCalc;
         private readonly XpConfig _cfg;
+        private readonly IAchievementService _achievements;
 
-        public XpService(AppDbContext db, LevelCalculator levelCalc, IOptions<XpConfig> cfg)
+        public XpService(AppDbContext db, LevelCalculator levelCalc, IOptions<XpConfig> cfg, IAchievementService achievements)
         {
             _db = db;
             _levelCalc = levelCalc;
             _cfg = cfg.Value;
+            _achievements = achievements;
         }
 
         public async Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay)
@@ -104,6 +108,10 @@ namespace DailyChallenges.Services
             });
 
             await _db.SaveChangesAsync();
+
+            // Check level-based achievements after the XP/level are persisted.
+            await _achievements.CheckAndAwardAsync(userId, AchievementTrigger.LevelUp);
+
             return xpAwarded;
         }
 

@@ -1,8 +1,10 @@
-﻿using DailyChallenges.Data;
+﻿using DailyChallenges.Achievements;
+using DailyChallenges.Data;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
+using DailyChallenges.Services.Contracts;
 using DailyChallenges.Services.Ranking;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
@@ -17,6 +19,7 @@ namespace DailyChallenges.Services
         private readonly IXpService _xp;
         private readonly AppDbContext _db;
         private readonly IUserSubmissionChecker _userSubmissionChecker;
+        private readonly IAchievementService _achievements;
         private readonly ILogger<SubmissionService> _logger;
 
         public SubmissionService(
@@ -26,6 +29,7 @@ namespace DailyChallenges.Services
             IXpService xp,
             AppDbContext db,
             IUserSubmissionChecker userSubmissionChecker,
+            IAchievementService achievements,
             ILogger<SubmissionService> logger)
         {
             _subs = subs;
@@ -34,6 +38,7 @@ namespace DailyChallenges.Services
             _xp = xp;
             _db = db;
             _userSubmissionChecker = userSubmissionChecker;
+            _achievements = achievements;
             _logger = logger;
         }
 
@@ -235,6 +240,11 @@ namespace DailyChallenges.Services
                     xpGain = await _xp.AwardForSubmissionAsync(userId.Value, created.Id, created.ScoringDay);
 
                 await tx.CommitAsync();
+
+                // Check achievements outside the transaction so a check failure never rolls back the submission.
+                if (userId.HasValue)
+                    await _achievements.CheckAndAwardAsync(userId.Value, AchievementTrigger.Submission);
+
                 return (DtoMapper.ToDto(created), xpGain);
             }
             catch (Exception ex)
