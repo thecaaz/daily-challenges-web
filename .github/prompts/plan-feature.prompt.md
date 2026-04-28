@@ -50,7 +50,7 @@ Example invocation (JSON):
    - **Database Changes:** tables/columns to add/change, migration steps, data migration strategy, backward compatibility concerns.
    - **Backend Implementation Notes:** services/repositories/controllers to change or add (list workspace-relative file links), important helper functions or libraries to reuse.
    - **Frontend Implementation Notes:** pages/components to modify or create, UX copy, validation rules, upload preview behavior, file size limits.
-   - **Tests:** unit tests, integration tests, and e2e tests to add or update; test-data needs and test-file suggestions.
+   - **Tests:** unit tests and integration tests to add or update; test-data needs and test-file suggestions.
    - **Deployment & Rollout:** feature flags, phased rollout, migration window, rollback plan.
    - **Monitoring & Alerts:** metrics to emit, dashboards to add, alert thresholds.
    - **Estimation & Tasks:** break into ticket-sized tasks with size/effort (Small/Med/Large + hours or story points).
