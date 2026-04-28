@@ -1,28 +1,27 @@
-using DailyChallenges.Data;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
-using Microsoft.EntityFrameworkCore;
+using DailyChallenges.Repositories.Contracts;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Logging;
 
 namespace DailyChallenges.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly AppDbContext _db;
+        private readonly IUserRepository _userRepo;
         private readonly JwtOptions _jwtOptions;
         private readonly LevelCalculator _levelCalc;
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(AppDbContext db, IOptions<JwtOptions> jwtOptions, LevelCalculator levelCalc, IWebHostEnvironment env, ILogger<AuthService> logger)
+        public AuthService(IUserRepository userRepo, IOptions<JwtOptions> jwtOptions, LevelCalculator levelCalc, IWebHostEnvironment env, ILogger<AuthService> logger)
         {
-            _db = db;
+            _userRepo = userRepo;
             _jwtOptions = jwtOptions?.Value ?? new JwtOptions();
             _levelCalc = levelCalc;
             _env = env;
@@ -31,20 +30,19 @@ namespace DailyChallenges.Services
 
         public async Task<UserDto> RegisterAsync(string username, string password)
         {
-            if (await _db.Users.AnyAsync(u => u.Username == username))
+            if (await _userRepo.ExistsWithUsernameAsync(username))
                 throw new InvalidOperationException("Username already taken");
 
-            var isFirstUser = !await _db.Users.AnyAsync();
+            var isFirstUser = await _userRepo.IsEmptyAsync();
             var hash = BCrypt.Net.BCrypt.HashPassword(password);
             var user = new User { Username = username, PasswordHash = hash, IsAdmin = isFirstUser };
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
+            await _userRepo.CreateAsync(user);
             return DtoMapper.ToDto(user, _levelCalc);
         }
 
         public async Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response)
         {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+            var user = await _userRepo.GetByUsernameAsync(username);
             if (user == null) throw new UnauthorizedAccessException("Invalid credentials");
 
             if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
@@ -86,7 +84,7 @@ namespace DailyChallenges.Services
             var idClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(idClaim)) return null;
             if (!int.TryParse(idClaim, out var id)) return null;
-            var u = await _db.Users.FindAsync(id);
+            var u = await _userRepo.GetByIdAsync(id);
             if (u == null) return null;
             return DtoMapper.ToDto(u, _levelCalc);
         }
@@ -100,7 +98,7 @@ namespace DailyChallenges.Services
             var idClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(idClaim) || !int.TryParse(idClaim, out var userId)) return null;
 
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return null;
 
             var accessMinutes = _jwtOptions.AccessTokenMinutes <= 0 ? 30 : _jwtOptions.AccessTokenMinutes;

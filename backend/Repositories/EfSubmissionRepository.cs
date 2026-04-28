@@ -205,5 +205,28 @@ namespace DailyChallenges.Repositories
             _db.Submissions.Remove(existing);
             await _db.SaveChangesAsync();
         }
+
+        public async Task<List<Submission>> GetByScoringDaysAsync(List<DateTime> scoringDays)
+        {
+            if (scoringDays == null || scoringDays.Count == 0) return new List<Submission>();
+            var days = scoringDays.Select(d => d.Date).ToList();
+            return await _db.Submissions
+                .Where(s => days.Contains(s.ScoringDay))
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<List<Submission>> GetByUserIdsInWindowAsync(IEnumerable<int> userIds, DateTime since)
+        {
+            var ids = userIds.ToList();
+            if (ids.Count == 0) return new List<Submission>();
+            return await _db.Submissions
+                .Where(s => s.UserId.HasValue && ids.Contains(s.UserId.Value) && s.CreatedAt >= since)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public Task<int> CountByUserAsync(int userId) =>
+            _db.Submissions.CountAsync(s => s.UserId == userId);
     }
 }

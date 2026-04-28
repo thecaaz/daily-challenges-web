@@ -21,5 +21,8 @@ namespace DailyChallenges.Repositories
             await _db.SaveChangesAsync();
             return result;
         }
+
+        public Task<int> CountWinsByUserAsync(int userId) =>
+            _db.ScoringDayResults.CountAsync(r => r.WinnerUserId == userId);
     }
 }

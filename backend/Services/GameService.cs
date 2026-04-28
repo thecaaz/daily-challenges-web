@@ -161,27 +161,7 @@ namespace DailyChallenges.Services
             }
             else
             {
-                // Fallback: in-memory sort for non-numeric scores respecting ranking mode
-                if (g.RankingMode == RankingMode.Lowest)
-                {
-                    topDtos = subs
-                        .Select(s => new { Sub = s, Num = ScoreParser.ParseScore(s.Score) })
-                        .OrderBy(x => double.IsNaN(x.Num) ? double.MaxValue : x.Num)
-                        .ThenBy(x => x.Sub.CreatedAt)
-                        .Take(50)
-                        .Select(x => DtoMapper.ToDto(x.Sub))
-                        .ToList();
-                }
-                else
-                {
-                    topDtos = subs
-                        .Select(s => new { Sub = s, Num = ScoreParser.ParseScore(s.Score) })
-                        .OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num)
-                        .ThenBy(x => x.Sub.CreatedAt)
-                        .Take(50)
-                        .Select(x => DtoMapper.ToDto(x.Sub))
-                        .ToList();
-                }
+                topDtos = SortSubmissionsInMemory(subs, g.RankingMode).Take(50).Select(s => DtoMapper.ToDto(s)).ToList();
             }
 
             AssignSequentialRanks(topDtos);
@@ -284,8 +264,15 @@ namespace DailyChallenges.Services
             return dto;
         }
 
-        private void AssignSequentialRanks(List<SubmissionDto>? dtos)
+        private static IEnumerable<Submission> SortSubmissionsInMemory(List<Submission> subs, RankingMode mode)
         {
+            var parsed = subs.Select(s => (Sub: s, Num: ScoreParser.ParseScore(s.Score)));
+            return mode == RankingMode.Lowest
+                ? parsed.OrderBy(x => double.IsNaN(x.Num) ? double.MaxValue : x.Num).ThenBy(x => x.Sub.CreatedAt).Select(x => x.Sub)
+                : parsed.OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num).ThenBy(x => x.Sub.CreatedAt).Select(x => x.Sub);
+        }
+
+        private void AssignSequentialRanks(List<SubmissionDto>? dtos)        {
             if (dtos == null) return;
             int rank = 1;
             foreach (var dto in dtos)

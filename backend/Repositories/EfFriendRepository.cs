@@ -71,6 +71,13 @@ namespace DailyChallenges.Repositories
                 .ToList();
         }
 
+        public async Task<bool> HasAcceptedFriendAsync(int userId)
+        {
+            return await _db.FriendRequests.AnyAsync(fr =>
+                fr.Status == FriendRequestStatus.Accepted &&
+                (fr.SenderId == userId || fr.ReceiverId == userId));
+        }
+
         public async Task<FriendRequest> CreateAsync(FriendRequest fr)
         {
             _db.FriendRequests.Add(fr);

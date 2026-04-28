@@ -1,20 +1,37 @@
 using DailyChallenges.Achievements;
-using DailyChallenges.Data;
 using DailyChallenges.DTOs;
 using DailyChallenges.Models;
+using DailyChallenges.Repositories;
+using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services.Contracts;
-using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Services
 {
     public class AchievementService : IAchievementService
     {
-        private readonly AppDbContext _db;
+        private readonly IUserAchievementRepository _userAchievementRepo;
+        private readonly IUserRepository _userRepo;
+        private readonly ISubmissionRepository _submissionRepo;
+        private readonly IScoringDayResultRepository _scoringDayResultRepo;
+        private readonly INotificationRepository _notificationRepo;
+        private readonly IFriendRepository _friendRepo;
         private readonly ILogger<AchievementService> _logger;
 
-        public AchievementService(AppDbContext db, ILogger<AchievementService> logger)
+        public AchievementService(
+            IUserAchievementRepository userAchievementRepo,
+            IUserRepository userRepo,
+            ISubmissionRepository submissionRepo,
+            IScoringDayResultRepository scoringDayResultRepo,
+            INotificationRepository notificationRepo,
+            IFriendRepository friendRepo,
+            ILogger<AchievementService> logger)
         {
-            _db = db;
+            _userAchievementRepo = userAchievementRepo;
+            _userRepo = userRepo;
+            _submissionRepo = submissionRepo;
+            _scoringDayResultRepo = scoringDayResultRepo;
+            _notificationRepo = notificationRepo;
+            _friendRepo = friendRepo;
             _logger = logger;
         }
 
@@ -26,29 +43,24 @@ namespace DailyChallenges.Services
             }
             catch (Exception ex)
             {
-                // Achievement checks must never break the calling service flow.
                 _logger.LogError(ex, "Achievement check failed for user {UserId} on trigger {Trigger}", userId, trigger);
             }
         }
 
         private async Task CheckAndAwardInternalAsync(int userId, AchievementTrigger trigger)
         {
-            var alreadyUnlockedList = await _db.UserAchievements
-                .Where(ua => ua.UserId == userId)
-                .Select(ua => ua.AchievementId)
-                .ToListAsync();
+            var alreadyUnlockedIds = await _userAchievementRepo.GetUnlockedIdsAsync(userId);
 
             var candidates = AchievementCatalog.All
-                .Where(a => !alreadyUnlockedList.Contains(a.Id) && IsRelevant(a.Id, trigger))
+                .Where(a => !alreadyUnlockedIds.Contains(a.Id) && IsRelevant(a.Id, trigger))
                 .ToList();
 
             if (candidates.Count == 0) return;
 
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return;
 
             var newlyUnlocked = new List<AchievementDefinition>();
-
             foreach (var def in candidates)
             {
                 if (await IsEarnedAsync(def.Id, userId, user))
@@ -59,37 +71,34 @@ namespace DailyChallenges.Services
 
             var now = DateTime.UtcNow;
 
-            foreach (var def in newlyUnlocked)
+            var newAchievements = newlyUnlocked.Select(def => new UserAchievement
             {
-                _db.UserAchievements.Add(new UserAchievement
-                {
-                    UserId = userId,
-                    AchievementId = def.Id,
-                    UnlockedAt = now
-                });
+                UserId = userId,
+                AchievementId = def.Id,
+                UnlockedAt = now
+            }).ToList();
 
-                _db.Notifications.Add(new Notification
-                {
-                    UserId = userId,
-                    GameId = null,
-                    ScoringDay = now.Date,
-                    Message = $"Achievement unlocked: {def.Name}",
-                    Type = "achievement",
-                    IsRead = false,
-                    CreatedAt = now
-                });
+            var notifications = newlyUnlocked.Select(def => new Notification
+            {
+                UserId = userId,
+                GameId = null,
+                ScoringDay = now.Date,
+                Message = $"Achievement unlocked: {def.Name}",
+                Type = "achievement",
+                IsRead = false,
+                CreatedAt = now
+            }).ToList();
 
+            foreach (var def in newlyUnlocked)
                 _logger.LogInformation("User {UserId} unlocked achievement {AchievementId}", userId, def.Id);
-            }
 
-            await _db.SaveChangesAsync();
+            await _userAchievementRepo.AddBatchAsync(newAchievements);
+            await _notificationRepo.CreateBatchAsync(notifications);
         }
 
         public async Task<List<AchievementDto>> GetForUserAsync(int userId)
         {
-            var unlocked = await _db.UserAchievements
-                .Where(ua => ua.UserId == userId)
-                .ToDictionaryAsync(ua => ua.AchievementId, ua => ua.UnlockedAt);
+            var unlocked = await _userAchievementRepo.GetUnlockedWithTimestampsAsync(userId);
 
             return AchievementCatalog.All.Select(def => new AchievementDto
             {
@@ -101,8 +110,6 @@ namespace DailyChallenges.Services
             }).ToList();
         }
 
-        // ── Routing: which triggers are relevant for each achievement ────────────
-
         private static bool IsRelevant(string achievementId, AchievementTrigger trigger) => achievementId switch
         {
             "submission_first" or "submission_50" or "submission_250" => trigger == AchievementTrigger.Submission,
@@ -113,40 +120,30 @@ namespace DailyChallenges.Services
             _                                                          => false,
         };
 
-        // ── Per-achievement evaluation ───────────────────────────────────────────
-
         private async Task<bool> IsEarnedAsync(string achievementId, int userId, User user)
         {
             return achievementId switch
             {
-                "submission_first"  => await _db.Submissions.AnyAsync(s => s.UserId == userId),
-                "submission_50"     => await _db.Submissions.CountAsync(s => s.UserId == userId) >= 50,
-                "submission_250"    => await _db.Submissions.CountAsync(s => s.UserId == userId) >= 250,
+                "submission_first"  => await _submissionRepo.CountByUserAsync(userId) >= 1,
+                "submission_50"     => await _submissionRepo.CountByUserAsync(userId) >= 50,
+                "submission_250"    => await _submissionRepo.CountByUserAsync(userId) >= 250,
 
                 "streak_7"   => user.Streak >= 7,
                 "streak_30"  => user.Streak >= 30,
                 "streak_100" => user.Streak >= 100,
 
-                "win_1"  => await CountDayWinsAsync(userId) >= 1,
-                "win_10" => await CountDayWinsAsync(userId) >= 10,
-                "win_50" => await CountDayWinsAsync(userId) >= 50,
+                "win_1"  => await _scoringDayResultRepo.CountWinsByUserAsync(userId) >= 1,
+                "win_10" => await _scoringDayResultRepo.CountWinsByUserAsync(userId) >= 10,
+                "win_50" => await _scoringDayResultRepo.CountWinsByUserAsync(userId) >= 50,
 
                 "level_5"  => user.Level >= 5,
                 "level_10" => user.Level >= 10,
                 "level_25" => user.Level >= 25,
 
-                "first_friend" => await HasAcceptedFriendAsync(userId),
+                "first_friend" => await _friendRepo.HasAcceptedFriendAsync(userId),
 
                 _ => false,
             };
         }
-
-        private Task<int> CountDayWinsAsync(int userId) =>
-            _db.ScoringDayResults.CountAsync(r => r.WinnerUserId == userId);
-
-        private async Task<bool> HasAcceptedFriendAsync(int userId) =>
-            await _db.FriendRequests.AnyAsync(fr =>
-                fr.Status == FriendRequestStatus.Accepted &&
-                (fr.SenderId == userId || fr.ReceiverId == userId));
     }
 }

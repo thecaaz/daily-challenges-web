@@ -58,6 +58,8 @@ builder.Services.AddScoped<DailyChallenges.Services.IUserSubmissionChecker, Dail
 
 // User profile repository
 builder.Services.AddScoped<DailyChallenges.Repositories.IUserProfileRepository, DailyChallenges.Repositories.EfUserProfileRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserRepository, DailyChallenges.Repositories.EfUserRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserAchievementRepository, DailyChallenges.Repositories.EfUserAchievementRepository>();
 
 // Friends
 builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IFriendRepository, DailyChallenges.Repositories.EfFriendRepository>();
