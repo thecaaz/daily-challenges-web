@@ -1,5 +1,7 @@
 # .gitignore for Daily Challenges (backend + frontend)
 
+**/TestResults/**
+
 ## OS
 .DS_Store
 
