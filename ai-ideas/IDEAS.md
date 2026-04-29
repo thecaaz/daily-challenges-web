@@ -9,7 +9,6 @@
 
 ## Social & Community
 
-- **Leagues / groups** — Small invite-only groups with their own leaderboard. This is the primary way friend groups actually want to compete — against each other, not the whole platform.
 - **Quick reactions on leaderboard entries** — Emoji reactions (👏, 🔥, 😬) on a daily result. Low effort to build, high social stickiness.
 - **Weekly digest notification** — A summary of the week: your best game, your rank changes, who's been dominant. Could be in-app only, no email needed.
 - **"Beaten by a friend" notification** — When a friend submits a better score than yours on the same scoring day, you get a nudge. Drives re-engagement and friendly rivalry.
@@ -17,8 +16,6 @@
 ## Gamification
 
 - **Weekly leaderboards** — Cumulative XP or wins over the past 7 days. Gives players who missed the daily another way to be competitive. Much lower commitment than all-time rankings.
-- **Personal records per game** — Clearly surface a user's all-time best score for each game on their profile. Simple but motivating.
-- **Comeback XP** — Small XP bonus when a user returns after a streak break. Reduces the "I already lost my streak, no point playing" drop-off.
 
 ## UX & Mobile
 

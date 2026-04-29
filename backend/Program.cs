@@ -65,6 +65,10 @@ builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserAchieveme
 builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IFriendRepository, DailyChallenges.Repositories.EfFriendRepository>();
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IFriendService, DailyChallenges.Services.FriendService>();
 
+// Leagues
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.ILeagueRepository, DailyChallenges.Repositories.EfLeagueRepository>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.ILeagueService, DailyChallenges.Services.LeagueService>();
+
 // XP system
 builder.Services.Configure<DailyChallenges.Services.XpConfig>(builder.Configuration.GetSection("Xp"));
 builder.Services.AddSingleton(sp =>

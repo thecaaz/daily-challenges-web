@@ -20,6 +20,9 @@ import Play from './pages/Play'
 import DashboardPlay from './pages/DashboardPlay'
 import Extension from './pages/Extension'
 import Friends from './pages/Friends'
+import Leagues from './pages/Leagues'
+import LeagueDetail from './pages/LeagueDetail'
+import LeagueJoin from './pages/LeagueJoin'
 
 export default function App() {
   return (
@@ -47,6 +50,9 @@ export default function App() {
               <Route path="/games/:gameId/personal-highscore" element={<PersonalHighscore />} />
               <Route path="/users/:id" element={<UserProfile />} />
               <Route path="/friends" element={<Friends />} />
+              <Route path="/leagues" element={<Leagues />} />
+              <Route path="/leagues/:id" element={<LeagueDetail />} />
+              <Route path="/leagues/join/:token" element={<LeagueJoin />} />
               <Route path="/extension" element={<Extension />} />
             </Routes>
           </Container>
