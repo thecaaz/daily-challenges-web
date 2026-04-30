@@ -24,5 +24,7 @@ namespace DailyChallenges.Services.Contracts
         Task KickMemberAsync(int leagueId, int requestingUserId, int targetUserId);
 
         Task<LeagueLeaderboardDto> GetLeaderboardAsync(int leagueId, int gameId, DateTime scoringDay, int requestingUserId);
+
+        Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(int leagueId, int requestingUserId, int days = 7, int page = 1, int pageSize = 20);
     }
 }

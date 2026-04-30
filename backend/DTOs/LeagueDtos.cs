@@ -53,6 +53,8 @@ namespace DailyChallenges.DTOs
         public string Username { get; set; } = string.Empty;
         public string Score { get; set; } = string.Empty;
         public int ScoreValue { get; set; }
+        public int SubmissionId { get; set; }
+        public string? ScreenshotUrl { get; set; }
     }
 
     public class LeagueLeaderboardDto
@@ -78,5 +80,20 @@ namespace DailyChallenges.DTOs
     public class LeagueInviteByUsernameRequest
     {
         public string Username { get; set; } = string.Empty;
+    }
+
+    public class LeagueGameSummaryDto
+    {
+        public int GameId { get; set; }
+        public string GameName { get; set; } = string.Empty;
+        public string? IconUrl { get; set; }
+        public DateTime LastPlayedAt { get; set; }
+        public int PlayCount { get; set; }
+        public string? TopScore { get; set; }
+        public int? TopScoreValue { get; set; }
+        public string? MyBestScore { get; set; }
+        public int? MyBestScoreValue { get; set; }
+        public int? MyRank { get; set; }
+        public List<int> RecentPlays { get; set; } = new(); // counts per day, oldest->newest
     }
 }

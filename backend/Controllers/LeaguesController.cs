@@ -181,5 +181,14 @@ namespace DailyChallenges.Controllers
 
             return Ok(await _leagues.GetLeaderboardAsync(id, gameId, day, userId.Value));
         }
+
+        [HttpGet("{id:int}/game-summaries")]
+        public async Task<IActionResult> GetGameSummaries(int id, [FromQuery] int days = 7, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var userId = User.GetUserId();
+            if (!userId.HasValue) return Forbid();
+            var (items, total) = await _leagues.GetLeagueGameSummariesAsync(id, userId.Value, days, page, pageSize);
+            return Ok(new { items, totalCount = total });
+        }
     }
 }

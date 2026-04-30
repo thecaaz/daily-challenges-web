@@ -2,6 +2,9 @@ using DailyChallenges.Data;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services.Ranking;
+using DailyChallenges.DTOs;
+using DailyChallenges.Models;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Repositories
@@ -155,7 +158,7 @@ namespace DailyChallenges.Repositories
 
         // ── Leaderboard ───────────────────────────────────────────────────────
 
-        public async Task<List<(int UserId, string Username, int Rank, string Score, int ScoreValue)>> GetLeaderboardAsync(
+        public async Task<List<(int UserId, string Username, int Rank, string Score, int ScoreValue, int SubmissionId, bool HasScreenshot)>> GetLeaderboardAsync(
             int leagueId, int gameId, DateTime scoringDay, IRankingStrategy strategy)
         {
             var targetDay = scoringDay.Date;
@@ -167,7 +170,7 @@ namespace DailyChallenges.Repositories
                 .ToListAsync();
 
             if (memberIds.Count == 0)
-                return new List<(int, string, int, string, int)>();
+                return new List<(int, string, int, string, int, int, bool)>();
 
             // Get the best submission per user: apply strategy ordering, then take first per user
             var baseQuery = _db.Submissions
@@ -181,8 +184,15 @@ namespace DailyChallenges.Repositories
             var ordered = strategy.ApplyOrdering(baseQuery);
 
             var submissions = await ordered
-                .Include(s => s.User)
-                .AsNoTracking()
+                .Select(s => new {
+                    s.Id,
+                    s.UserId,
+                    s.Score,
+                    s.ScoreValue,
+                    s.CreatedAt,
+                    Username = s.Username != null ? s.Username : s.User != null ? s.User.Username : "Unknown",
+                    HasScreenshot = s.ScreenshotData != null && s.ScreenshotData.Length > 0
+                })
                 .ToListAsync();
 
             // Take the best submission per user (strategy ordering already sorted best-first)
@@ -197,7 +207,7 @@ namespace DailyChallenges.Repositories
                 : bestPerUser.OrderByDescending(s => s.ScoreValue!.Value).ThenBy(s => s.CreatedAt).ToList();
 
             // Assign dense ranks (ties get the same rank)
-            var result = new List<(int UserId, string Username, int Rank, string Score, int ScoreValue)>();
+            var result = new List<(int UserId, string Username, int Rank, string Score, int ScoreValue, int SubmissionId, bool HasScreenshot)>();
             int rank = 1;
             for (int i = 0; i < reordered.Count; i++)
             {
@@ -205,10 +215,115 @@ namespace DailyChallenges.Repositories
                     rank = i + 1;
 
                 var s = reordered[i];
-                result.Add((s.UserId!.Value, s.Username ?? s.User?.Username ?? "Unknown", rank, s.Score, s.ScoreValue!.Value));
+                result.Add((s.UserId!.Value, s.Username ?? "Unknown", rank, s.Score, s.ScoreValue!.Value, s.Id, s.HasScreenshot));
             }
 
             return result;
+        }
+
+        public async Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(int leagueId, int requestingUserId, int days = 7, int page = 1, int pageSize = 20)
+        {
+            var memberIds = await _db.LeagueMembers
+                .Where(m => m.LeagueId == leagueId)
+                .Select(m => m.UserId)
+                .ToListAsync();
+
+            if (memberIds.Count == 0)
+                return (new List<LeagueGameSummaryDto>(), 0);
+
+            var since = DateTime.UtcNow.Date.AddDays(-(days - 1));
+
+            var subs = await _db.Submissions
+                .Where(s => s.UserId.HasValue && memberIds.Contains(s.UserId!.Value)
+                            && s.ScoringDay >= since.Date && s.ScoringDay <= DateTime.UtcNow.Date)
+                .Include(s => s.Game)
+                .Include(s => s.User)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var groups = subs.GroupBy(s => s.GameId);
+            var results = new List<LeagueGameSummaryDto>();
+
+            foreach (var g in groups)
+            {
+                var game = g.First().Game!;
+                var playCount = g.Count();
+                var lastPlayedAt = g.Max(s => s.CreatedAt);
+
+                var scored = g.Where(s => s.ScoreValue.HasValue).ToList();
+
+                // Ordering function according to ranking mode
+                IOrderedEnumerable<Submission> OrderByStrategy(IEnumerable<Submission> list)
+                {
+                    return game.RankingMode == RankingMode.Lowest
+                        ? list.OrderBy(s => s.ScoreValue).ThenBy(s => s.CreatedAt)
+                        : list.OrderByDescending(s => s.ScoreValue).ThenBy(s => s.CreatedAt);
+                }
+
+                var top = scored.Any() ? OrderByStrategy(scored).First() : null;
+
+                // Best per user
+                var bestPerUser = scored
+                    .GroupBy(s => s.UserId!.Value)
+                    .Select(gr => OrderByStrategy(gr).First())
+                    .ToList();
+
+                var sorted = game.RankingMode == RankingMode.Lowest
+                    ? bestPerUser.OrderBy(s => s.ScoreValue).ThenBy(s => s.CreatedAt).ToList()
+                    : bestPerUser.OrderByDescending(s => s.ScoreValue).ThenBy(s => s.CreatedAt).ToList();
+
+                int? myRank = null;
+                int rank = 1;
+                for (int i = 0; i < sorted.Count; i++)
+                {
+                    if (i > 0 && sorted[i].ScoreValue != sorted[i - 1].ScoreValue)
+                        rank = i + 1;
+
+                    if (sorted[i].UserId == requestingUserId)
+                    {
+                        myRank = rank;
+                        break;
+                    }
+                }
+
+                var myBest = g.Where(s => s.UserId == requestingUserId && s.ScoreValue.HasValue).ToList();
+                var myBestSub = myBest.Any() ? OrderByStrategy(myBest).First() : null;
+
+                // recent plays counts per day oldest->newest
+                var recentPlays = new List<int>();
+                for (int d = 0; d < days; d++)
+                {
+                    var day = since.AddDays(d).Date;
+                    var count = g.Count(s => s.ScoringDay.Date == day);
+                    recentPlays.Add(count);
+                }
+
+                results.Add(new LeagueGameSummaryDto
+                {
+                    GameId = game.Id,
+                    GameName = game.Name,
+                    IconUrl = game.ScreenshotData != null ? $"/api/games/{game.Id}/image" : null,
+                    LastPlayedAt = lastPlayedAt,
+                    PlayCount = playCount,
+                    TopScore = top?.Score,
+                    TopScoreValue = top?.ScoreValue,
+                    MyBestScore = myBestSub?.Score,
+                    MyBestScoreValue = myBestSub?.ScoreValue,
+                    MyRank = myRank,
+                    RecentPlays = recentPlays
+                });
+            }
+
+            // Sort results by last played desc
+            var ordered = results.OrderByDescending(r => r.LastPlayedAt).ToList();
+
+            if (pageSize < 1) pageSize = 20;
+            if (page < 1) page = 1;
+            var total = ordered.Count;
+            var skip = (page - 1) * pageSize;
+            var pageItems = ordered.Skip(skip).Take(pageSize).ToList();
+
+            return (pageItems, total);
         }
     }
 }

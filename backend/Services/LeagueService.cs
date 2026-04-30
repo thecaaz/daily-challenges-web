@@ -374,9 +374,23 @@ namespace DailyChallenges.Services
                     UserId = e.UserId,
                     Username = e.Username,
                     Score = e.Score,
-                    ScoreValue = e.ScoreValue
+                    ScoreValue = e.ScoreValue,
+                    SubmissionId = e.SubmissionId,
+                    ScreenshotUrl = e.HasScreenshot ? $"/api/submissions/{e.SubmissionId}/screenshot" : null
                 }).ToList()
             };
+        }
+
+        public async Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(int leagueId, int requestingUserId, int days = 7, int page = 1, int pageSize = 20)
+        {
+            var league = await _leagues.GetByIdAsync(leagueId)
+                ?? throw new KeyNotFoundException("League not found.");
+
+            var member = await _leagues.GetMemberAsync(leagueId, requestingUserId);
+            if (member == null)
+                throw new InvalidOperationException("You are not a member of this league.");
+
+            return await _leagues.GetLeagueGameSummariesAsync(leagueId, requestingUserId, days, page, pageSize);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

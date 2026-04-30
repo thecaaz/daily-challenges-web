@@ -4,6 +4,7 @@ using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
+using DailyChallenges.DTOs;
 using Moq;
 
 namespace DailyChallenges.Tests;
@@ -261,5 +262,33 @@ public class LeagueServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => sut.Service.RenameLeagueAsync(1, requestingUserId: 99, "New Name"));
+    }
+
+    [Fact]
+    public async Task GetLeagueGameSummaries_NonMember_Throws()
+    {
+        var sut = Build();
+        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
+        sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 99)).ReturnsAsync((LeagueMember?)null);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => sut.Service.GetLeagueGameSummariesAsync(1, requestingUserId: 99, days: 7, page: 1, pageSize: 20));
+    }
+
+    [Fact]
+    public async Task GetLeagueGameSummaries_AsMember_ReturnsList()
+    {
+        var sut = Build();
+        var league = MakeLeague(1, ownerId: 10);
+        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(league);
+        sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 1)).ReturnsAsync(new LeagueMember { LeagueId = 1, UserId = 1 });
+        var expected = (new List<LeagueGameSummaryDto>
+        {
+            new LeagueGameSummaryDto { GameId = 5, GameName = "G" }
+        }, 1);
+
+        sut.LeagueRepo.Setup(r => r.GetLeagueGameSummariesAsync(1, 1, 7, 1, 20)).ReturnsAsync(expected);
+
+        var result = await sut.Service.GetLeagueGameSummariesAsync(1, 1, 7, 1, 20);
+        Assert.Equal(expected, result);
     }
 }

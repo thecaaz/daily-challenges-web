@@ -5,7 +5,8 @@ import {
   IconButton, Chip, Divider, Paper, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, Tooltip, Alert,
   Table, TableBody, TableCell, TableHead, TableRow, Select,
-  MenuItem, FormControl, InputLabel
+  MenuItem, FormControl, InputLabel, Grid, Skeleton,
+  ToggleButtonGroup, ToggleButton
 } from '@mui/material'
 import GroupsIcon from '@mui/icons-material/Groups'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
@@ -18,6 +19,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import useRequireAuth from '../hooks/useRequireAuth'
 import api from '../api'
+import useLeagueGameSummaries from '../hooks/useLeagueGameSummaries'
+import LeagueGameCard from '../components/League/LeagueGameCard'
+import imageUrl from '../utils/imageUrl'
 
 function TabPanel({ children, value, index }) {
   return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null
@@ -168,6 +172,8 @@ export default function LeagueDetail() {
     }
   }
 
+  const { items: gameSummaries, totalCount: gameSummaryTotal, loading: gsLoading, loadMore: loadMoreGames, days, setDays } = useLeagueGameSummaries(id)
+
   const fetchLeaderboard = async () => {
     if (!selectedGameId) return
     setLbLoading(true)
@@ -181,6 +187,16 @@ export default function LeagueDetail() {
     } finally {
       setLbLoading(false)
     }
+  }
+
+  // Auto-load leaderboard when on that tab and game/date selection changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (tab === 2 && selectedGameId) fetchLeaderboard() }, [tab, selectedGameId, selectedDay])
+
+  const handleGameSelect = (gameId) => {
+    setSelectedGameId(gameId)
+    setSelectedDay(new Date().toISOString().slice(0, 10))
+    setTab(2)
   }
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>
@@ -222,13 +238,61 @@ export default function LeagueDetail() {
       </Typography>
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 1 }}>
+        <Tab label="Games" />
         <Tab label="Members" />
         <Tab label="Leaderboard" />
         {isOwner && <Tab label="Invitations" />}
       </Tabs>
 
-      {/* Members tab */}
+      {/* Games tab */}
       <TabPanel value={tab} index={0}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            {gameSummaryTotal > 0 ? `${gameSummaryTotal} game${gameSummaryTotal !== 1 ? 's' : ''} played` : ''}
+          </Typography>
+          <ToggleButtonGroup
+            size="small"
+            value={days}
+            exclusive
+            onChange={(_, v) => { if (v != null) setDays(v) }}
+          >
+            <ToggleButton value={7}>7d</ToggleButton>
+            <ToggleButton value={14}>14d</ToggleButton>
+            <ToggleButton value={30}>30d</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        {gsLoading && gameSummaries.length === 0 ? (
+          <Grid container spacing={2}>
+            {[0, 1, 2].map(i => (
+              <Grid item xs={12} sm={6} md={4} key={i}>
+                <Skeleton variant="rounded" height={200} />
+              </Grid>
+            ))}
+          </Grid>
+        ) : gameSummaries.length === 0 ? (
+          <Alert severity="info">No games played in this league in the last {days} days.</Alert>
+        ) : (
+          <>
+            <Grid container spacing={2}>
+              {gameSummaries.map(g => (
+                <Grid item xs={12} sm={6} md={4} key={g.gameId}>
+                  <LeagueGameCard summary={g} onSelect={handleGameSelect} />
+                </Grid>
+              ))}
+            </Grid>
+            {gameSummaries.length < gameSummaryTotal && (
+              <Box sx={{ textAlign: 'center', mt: 2 }}>
+                <Button onClick={loadMoreGames} disabled={gsLoading}>
+                  {gsLoading ? <CircularProgress size={20} /> : 'Load more'}
+                </Button>
+              </Box>
+            )}
+          </>
+        )}
+      </TabPanel>
+
+      {/* Members tab */}
+      <TabPanel value={tab} index={1}>
         <List disablePadding>
           {(league.members || []).map((m, i) => (
             <React.Fragment key={m.userId}>
@@ -264,7 +328,7 @@ export default function LeagueDetail() {
       </TabPanel>
 
       {/* Leaderboard tab */}
-      <TabPanel value={tab} index={1}>
+      <TabPanel value={tab} index={2}>
         <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <InputLabel>Game</InputLabel>
@@ -286,12 +350,14 @@ export default function LeagueDetail() {
             onChange={e => setSelectedDay(e.target.value)}
             InputLabelProps={{ shrink: true }}
           />
-          <Button variant="contained" onClick={fetchLeaderboard} disabled={!selectedGameId || lbLoading}>
-            {lbLoading ? <CircularProgress size={20} /> : 'Load'}
-          </Button>
         </Box>
 
-        {leaderboard && (
+        {lbLoading && <CircularProgress size={24} sx={{ display: 'block', mx: 'auto', my: 2 }} />}
+        {!lbLoading && !selectedGameId && (
+          <Alert severity="info">Select a game above, or pick one from the Games tab.</Alert>
+        )}
+
+        {leaderboard && !lbLoading && (
           leaderboard.entries.length === 0 ? (
             <Alert severity="info">No submissions from league members for this game and date.</Alert>
           ) : (
@@ -301,6 +367,7 @@ export default function LeagueDetail() {
                   <TableCell>#</TableCell>
                   <TableCell>Player</TableCell>
                   <TableCell>Score</TableCell>
+                  <TableCell>Screenshot</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -317,6 +384,30 @@ export default function LeagueDetail() {
                       </Link>
                     </TableCell>
                     <TableCell>{entry.score}</TableCell>
+                    <TableCell sx={{ py: 0.5 }}>
+                      {entry.screenshotUrl ? (
+                        <Link to={`/submission/${entry.submissionId}`}>
+                          <Box
+                            component="img"
+                            src={imageUrl(entry.screenshotUrl)}
+                            alt={`${entry.username} screenshot`}
+                            loading="lazy"
+                            sx={{
+                              height: 48,
+                              width: 'auto',
+                              maxWidth: 80,
+                              borderRadius: 1,
+                              objectFit: 'cover',
+                              display: 'block',
+                              cursor: 'pointer',
+                              '&:hover': { opacity: 0.85 },
+                            }}
+                          />
+                        </Link>
+                      ) : (
+                        <Typography variant="caption" color="text.disabled">—</Typography>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -327,7 +418,7 @@ export default function LeagueDetail() {
 
       {/* Invitations tab (owner only) */}
       {isOwner && (
-        <TabPanel value={tab} index={2}>
+        <TabPanel value={tab} index={3}>
           {(league.pendingInvitations || []).length === 0 ? (
             <Typography color="text.secondary">No pending invitations.</Typography>
           ) : (
