@@ -99,10 +99,14 @@ export default function LeagueGameCard({ summary, onSelect }) {
             My best: {myBestScore != null ? myBestScore : 'Not played'}
           </Typography>
 
-          {/* Recent plays bar */}
+          {/* Recent plays bar — click a bar to jump to that day's leaderboard */}
           {recentPlays && recentPlays.length > 0 && (
-            <Box sx={{ mt: 1 }}>
-              <RecentPlaysBar recentPlays={recentPlays} days={recentPlays.length} />
+            <Box sx={{ mt: 1 }} onClick={e => e.stopPropagation()}>
+              <RecentPlaysBar
+                recentPlays={recentPlays}
+                days={recentPlays.length}
+                onDayClick={(isoDate) => onSelect(gameId, isoDate)}
+              />
             </Box>
           )}
         </CardContent>

@@ -193,9 +193,9 @@ export default function LeagueDetail() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (tab === 2 && selectedGameId) fetchLeaderboard() }, [tab, selectedGameId, selectedDay])
 
-  const handleGameSelect = (gameId) => {
+  const handleGameSelect = (gameId, day = null) => {
     setSelectedGameId(gameId)
-    setSelectedDay(new Date().toISOString().slice(0, 10))
+    setSelectedDay(day ?? new Date().toISOString().slice(0, 10))
     setTab(2)
   }
 
