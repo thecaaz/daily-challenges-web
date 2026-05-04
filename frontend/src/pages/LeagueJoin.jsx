@@ -7,12 +7,13 @@ import api from '../api'
 
 export default function LeagueJoin() {
   const { token } = useParams()
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const { showSnackbar } = useSnackbar()
   const navigate = useNavigate()
   const [status, setStatus] = useState('loading') // loading | success | error
 
   useEffect(() => {
+    if (loading) return  // wait for auth to restore from refresh cookie
     if (!user) {
       navigate(`/login?redirect=/leagues/join/${token}`)
       return
@@ -28,7 +29,7 @@ export default function LeagueJoin() {
         showSnackbar(typeof msg === 'string' ? msg : 'Could not join league.', 'error')
         setStatus('error')
       })
-  }, [token, user, navigate, showSnackbar])
+  }, [token, user, loading, navigate, showSnackbar])
 
   if (status === 'loading') {
     return (
