@@ -4,7 +4,6 @@ using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
-using DailyChallenges.DTOs;
 using Moq;
 
 namespace DailyChallenges.Tests;

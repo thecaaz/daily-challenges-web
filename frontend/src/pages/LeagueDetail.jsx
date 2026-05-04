@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   Box, Typography, CircularProgress, Tabs, Tab, Button,
   List, ListItem, ListItemText, ListItemAvatar, Avatar,
-  IconButton, Chip, Divider, Paper, TextField, Dialog,
+  IconButton, Chip, Divider, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, Tooltip, Alert,
   Table, TableBody, TableCell, TableHead, TableRow, Select,
   MenuItem, FormControl, InputLabel, Grid, Skeleton,
@@ -174,7 +174,7 @@ export default function LeagueDetail() {
 
   const { items: gameSummaries, totalCount: gameSummaryTotal, loading: gsLoading, loadMore: loadMoreGames, days, setDays } = useLeagueGameSummaries(id)
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     if (!selectedGameId) return
     setLbLoading(true)
     try {
@@ -187,11 +187,10 @@ export default function LeagueDetail() {
     } finally {
       setLbLoading(false)
     }
-  }
+  }, [id, selectedGameId, selectedDay, showSnackbar])
 
-  // Auto-load leaderboard when on that tab and game/date selection changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (tab === 2 && selectedGameId) fetchLeaderboard() }, [tab, selectedGameId, selectedDay])
+  // Auto-load leaderboard when on that tab or when game/date selection changes
+  useEffect(() => { if (tab === 2 && selectedGameId) fetchLeaderboard() }, [tab, fetchLeaderboard])
 
   const handleGameSelect = (gameId, day = null) => {
     setSelectedGameId(gameId)
