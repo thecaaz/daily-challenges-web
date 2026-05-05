@@ -21,20 +21,14 @@ import FavoriteButton from '../components/ui/FavoriteButton'
 import AppButton from '../components/ui/AppButton'
 import PlayButton from '../components/ui/PlayButton'
 import { hasAdapterForUrl } from '../utils/adapters'
+import useAdapter from '../hooks/useAdapter'
 import timeAgo from '../utils/timeAgo'
 import imageUrl from '../utils/imageUrl'
 
 // ─── Game list row ────────────────────────────────────────────────────────────
 
 function GameRow({ game, badge, badgeLabel }) {
-  const [hasAdapter, setHasAdapter] = useState(null)
-
-  useEffect(() => {
-    let mounted = true
-    if (!game?.url) { setHasAdapter(false); return }
-    hasAdapterForUrl(game.url).then(ok => { if (mounted) setHasAdapter(Boolean(ok)) })
-    return () => { mounted = false }
-  }, [game?.url])
+  const adapter = useAdapter(game?.url)
 
   return (
     <ListItem
@@ -68,7 +62,7 @@ function GameRow({ game, badge, badgeLabel }) {
               {game.name}
             </Typography>
           </Link>
-          {hasAdapter && (
+          {adapter && (
             <Tooltip title="Playable in browser via extension">
               <ExtensionIcon sx={{ fontSize: 15, color: 'primary.main', flexShrink: 0 }} />
             </Tooltip>
@@ -100,7 +94,7 @@ function GameRow({ game, badge, badgeLabel }) {
       />
 
       {/* Play */}
-      <PlayButton game={game} size="small" adapter={hasAdapter} sx={{ flexShrink: 0 }} />
+      <PlayButton game={game} size="small" adapter={adapter} sx={{ flexShrink: 0 }} />
     </ListItem>
   )
 }
@@ -108,16 +102,9 @@ function GameRow({ game, badge, badgeLabel }) {
 // ─── Friend activity row ──────────────────────────────────────────────────────
 
 function FriendActivityRow({ activity }) {
-  const [hasAdapter, setHasAdapter] = useState(null)
+  const adapter = useAdapter(activity.gameUrl)
 
   const fakeGame = { id: activity.gameId, url: activity.gameUrl, name: activity.gameName, imageUrl: activity.gameImageUrl, isFavorite: activity.isFavorite, hasSubmittedForLatest: activity.hasSubmittedForLatest }
-
-  useEffect(() => {
-    let mounted = true
-    if (!activity.gameUrl) { setHasAdapter(false); return }
-    hasAdapterForUrl(activity.gameUrl).then(ok => { if (mounted) setHasAdapter(Boolean(ok)) })
-    return () => { mounted = false }
-  }, [activity.gameUrl])
 
   const latest = activity.recentSubmissions?.[0]
 
@@ -165,7 +152,7 @@ function FriendActivityRow({ activity }) {
               {activity.gameName}
             </Typography>
           </Link>
-          {hasAdapter && (
+          {adapter && (
             <Tooltip title="Playable in browser via extension">
               <ExtensionIcon sx={{ fontSize: 15, color: 'primary.main', flexShrink: 0 }} />
             </Tooltip>
@@ -201,7 +188,7 @@ function FriendActivityRow({ activity }) {
         inactiveIconSx={{ color: 'text.secondary' }}
       />
 
-      <PlayButton game={fakeGame} size="small" adapter={hasAdapter} sx={{ flexShrink: 0 }} />
+      <PlayButton game={fakeGame} size="small" adapter={adapter} sx={{ flexShrink: 0 }} />
     </ListItem>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Box, Tooltip } from '@mui/material'
 import AppButton from '../AppButton'
@@ -8,28 +8,13 @@ import PlayButton from '../PlayButton'
 import CheckIcon from '@mui/icons-material/Check'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import FavoriteButton from '../FavoriteButton'
-import { getAdapterForUrl } from '../../../utils/adapters'
+import useAdapter from '../../../hooks/useAdapter'
 import imageUrl from '../../../utils/imageUrl'
 
  
 
 export default function GameCard({ game, sx, showSubmit = true }) {
-  const [adapter, setAdapter] = useState(null)
-
-  useEffect(() => {
-    let mounted = true
-    async function load() {
-      if (!game?.url) return
-      try {
-        const a = await getAdapterForUrl(game.url)
-        if (mounted) setAdapter(a)
-      } catch (e) {
-        if (mounted) setAdapter(null)
-      }
-    }
-    load()
-    return () => { mounted = false }
-  }, [game?.url])
+  const adapter = useAdapter(game?.url)
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', ...(sx || {}) }}>
