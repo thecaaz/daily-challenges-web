@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React from 'react'
 import { useParams } from 'react-router-dom'
 import { Typography } from '@mui/material'
 import SubmissionCard from '../components/SubmissionCard'
@@ -8,20 +8,19 @@ import useRequireAuth from '../hooks/useRequireAuth'
 import useGame from '../hooks/useGame'
 import NotFound from '../components/ui/NotFound'
 import Loading from '../components/ui/Loading'
+import useAsyncData from '../hooks/useAsyncData'
 
 export default function PersonalHighscore() {
   const { gameId } = useParams()
-  const [top, setTop] = useState([])
   const { user, loading: authLoading } = useRequireAuth()
   const { game, notFound, loading: gameLoading } = useGame(gameId)
-
-  useEffect(() => {
-    if (authLoading || !user || !game) return
-    api.get(`/games/${gameId}/personal-highscore`).then(res => {
-      const data = res.data || { top: [] }
-      setTop(data.top || [])
-    })
-  }, [authLoading, user, game, gameId])
+  const { data: highscoreData } = useAsyncData(
+    () => (!authLoading && user && game)
+      ? api.get(`/games/${gameId}/personal-highscore`).then(r => (r.data || {}).top || [])
+      : Promise.resolve(null),
+    [authLoading, user, game, gameId]
+  )
+  const top = highscoreData ?? []
 
   if (notFound) return <NotFound message="Game not found" />
   if (authLoading || gameLoading || !game) return <Loading />
