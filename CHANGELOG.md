@@ -1,3 +1,19 @@
+## [1.24.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.23.1...v1.24.0) (2026-05-11)
+
+
+### Features
+
+* add league management features including creation, joining, and invitations ([916b027](https://github.com/thecaaz/daily-challenges-web/commit/916b0273f6c82edf8b233360ffce327de60cb465))
+* enhance RecentPlaysBar with onDayClick functionality and update LeagueGameCard to handle day selection ([9877933](https://github.com/thecaaz/daily-challenges-web/commit/9877933408a37d61fd9f1be5714582c2aea2914b))
+* implement achievement system with user achievements tracking ([13b3d30](https://github.com/thecaaz/daily-challenges-web/commit/13b3d3061b7ed0a6424257b3e52ffe55a7b34b26))
+* implement game summaries feature for leagues, including API and UI components ([0eb1e7e](https://github.com/thecaaz/daily-challenges-web/commit/0eb1e7ee3b8bbdeba76722f2f9d6cf09278cb409))
+* **profile:** add score history visualization and ranking mode to user game stats ([d26d97b](https://github.com/thecaaz/daily-challenges-web/commit/d26d97b558a01b1de7e57e41451d35cc1de0c621))
+
+
+### Bug Fixes
+
+* league invite link not working ([6a94656](https://github.com/thecaaz/daily-challenges-web/commit/6a946564bfbeb88cee2259f5274a5a5cc50f60ce))
+
 ### [1.23.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.23.0...v1.23.1) (2026-04-26)
 
 
