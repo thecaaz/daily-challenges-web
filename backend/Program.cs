@@ -58,10 +58,16 @@ builder.Services.AddScoped<DailyChallenges.Services.IUserSubmissionChecker, Dail
 
 // User profile repository
 builder.Services.AddScoped<DailyChallenges.Repositories.IUserProfileRepository, DailyChallenges.Repositories.EfUserProfileRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserRepository, DailyChallenges.Repositories.EfUserRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserAchievementRepository, DailyChallenges.Repositories.EfUserAchievementRepository>();
 
 // Friends
 builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IFriendRepository, DailyChallenges.Repositories.EfFriendRepository>();
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IFriendService, DailyChallenges.Services.FriendService>();
+
+// Leagues
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.ILeagueRepository, DailyChallenges.Repositories.EfLeagueRepository>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.ILeagueService, DailyChallenges.Services.LeagueService>();
 
 // XP system
 builder.Services.Configure<DailyChallenges.Services.XpConfig>(builder.Configuration.GetSection("Xp"));
@@ -94,6 +100,9 @@ builder.Services.AddScoped<DailyChallenges.Services.Contracts.IDashboardService,
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, DailyChallenges.Services.InfoService>();
+
+// Achievement system
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IAchievementService, DailyChallenges.Services.AchievementService>();
 
 // Scoring day finalization
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();

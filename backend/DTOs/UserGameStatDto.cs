@@ -9,5 +9,7 @@ namespace DailyChallenges.DTOs
         public int? HighestScore { get; set; }
         public int? BestSubmissionId { get; set; }
         public DateTime? LastPlayed { get; set; }
+        public string? RankingMode { get; set; }
+        public List<ScoreHistoryEntryDto> ScoreHistory { get; set; } = new();
     }
 }

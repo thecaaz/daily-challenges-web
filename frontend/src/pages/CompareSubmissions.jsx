@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
+import useAsyncData from '../hooks/useAsyncData'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Typography, Card, Box, Chip, Tooltip, Divider } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
@@ -57,29 +58,15 @@ function SubmissionPanel({ submission }) {
 export default function CompareSubmissions() {
   const { id1, id2 } = useParams()
   const navigate = useNavigate()
-  const [sub1, setSub1] = useState(null)
-  const [sub2, setSub2] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const [r1, r2] = await Promise.all([
-          api.get(`/submissions/${id1}`),
-          api.get(`/submissions/${id2}`),
-        ])
-        if (!cancelled) { setSub1(r1.data); setSub2(r2.data) }
-      } catch {
-        if (!cancelled) setError(true)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [id1, id2])
+  const { data, loading, error } = useAsyncData(
+    () => Promise.all([
+      api.get(`/submissions/${id1}`),
+      api.get(`/submissions/${id2}`),
+    ]).then(([r1, r2]) => ({ sub1: r1.data, sub2: r2.data })),
+    [id1, id2]
+  )
+  const sub1 = data?.sub1 ?? null
+  const sub2 = data?.sub2 ?? null
 
   if (loading) return <Loading />
   if (error || !sub1 || !sub2) return <NotFound message="Could not load submissions for comparison" />

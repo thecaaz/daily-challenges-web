@@ -108,6 +108,102 @@ namespace DailyChallenges.Migrations
                     b.ToTable("Games");
                 });
 
+            modelBuilder.Entity("DailyChallenges.Models.League", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("Leagues");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.LeagueInvitation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("InviteeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("InviterId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LeagueId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Token")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InviteeId");
+
+                    b.HasIndex("InviterId");
+
+                    b.HasIndex("Token");
+
+                    b.HasIndex("LeagueId", "InviteeId");
+
+                    b.ToTable("LeagueInvitations");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.LeagueMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LeagueId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("LeagueId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LeagueMembers");
+                });
+
             modelBuilder.Entity("DailyChallenges.Models.Notification", b =>
                 {
                     b.Property<int>("Id")
@@ -263,6 +359,30 @@ namespace DailyChallenges.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("DailyChallenges.Models.UserAchievement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AchievementId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UnlockedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "AchievementId")
+                        .IsUnique();
+
+                    b.ToTable("UserAchievements");
+                });
+
             modelBuilder.Entity("DailyChallenges.Models.XpEvent", b =>
                 {
                     b.Property<int>("Id")
@@ -343,6 +463,62 @@ namespace DailyChallenges.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("DailyChallenges.Models.League", b =>
+                {
+                    b.HasOne("DailyChallenges.Models.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.LeagueInvitation", b =>
+                {
+                    b.HasOne("DailyChallenges.Models.User", "Invitee")
+                        .WithMany()
+                        .HasForeignKey("InviteeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("DailyChallenges.Models.User", "Inviter")
+                        .WithMany()
+                        .HasForeignKey("InviterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DailyChallenges.Models.League", "League")
+                        .WithMany("Invitations")
+                        .HasForeignKey("LeagueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Invitee");
+
+                    b.Navigation("Inviter");
+
+                    b.Navigation("League");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.LeagueMember", b =>
+                {
+                    b.HasOne("DailyChallenges.Models.League", "League")
+                        .WithMany("Members")
+                        .HasForeignKey("LeagueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DailyChallenges.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("League");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DailyChallenges.Models.Notification", b =>
                 {
                     b.HasOne("DailyChallenges.Models.Game", "Game")
@@ -397,6 +573,17 @@ namespace DailyChallenges.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DailyChallenges.Models.UserAchievement", b =>
+                {
+                    b.HasOne("DailyChallenges.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DailyChallenges.Models.XpEvent", b =>
                 {
                     b.HasOne("DailyChallenges.Models.Game", "Game")
@@ -425,6 +612,13 @@ namespace DailyChallenges.Migrations
             modelBuilder.Entity("DailyChallenges.Models.Game", b =>
                 {
                     b.Navigation("Submissions");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.League", b =>
+                {
+                    b.Navigation("Invitations");
+
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

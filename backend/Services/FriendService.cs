@@ -1,3 +1,4 @@
+using DailyChallenges.Achievements;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
@@ -13,17 +14,20 @@ namespace DailyChallenges.Services
         private readonly IUserProfileRepository _users;
         private readonly INotificationRepository _notifications;
         private readonly LevelCalculator _levelCalc;
+        private readonly IAchievementService _achievements;
 
         public FriendService(
             IFriendRepository friends,
             IUserProfileRepository users,
             INotificationRepository notifications,
-            LevelCalculator levelCalc)
+            LevelCalculator levelCalc,
+            IAchievementService achievements)
         {
             _friends = friends;
             _users = users;
             _notifications = notifications;
             _levelCalc = levelCalc;
+            _achievements = achievements;
         }
 
         public async Task<FriendRequestDto> SendRequestAsync(int senderId, int targetUserId)
@@ -122,6 +126,10 @@ namespace DailyChallenges.Services
                     Type = "friend_request_accepted"
                 }
             });
+
+            // Check first_friend achievement for both parties.
+            await _achievements.CheckAndAwardAsync(fr.SenderId, AchievementTrigger.FriendAccepted);
+            await _achievements.CheckAndAwardAsync(receiverId, AchievementTrigger.FriendAccepted);
         }
 
         public async Task CancelRequestAsync(int requestId, int senderId)

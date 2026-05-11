@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { CardMedia, Box, Typography, Tooltip } from '@mui/material'
 import AppButton from './ui/AppButton'
 import PlayButton from './ui/PlayButton'
@@ -6,29 +6,14 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import FavoriteButton from './ui/FavoriteButton'
 import imageUrl from '../utils/imageUrl'
-import { getAdapterForUrl } from '../utils/adapters'
+import useAdapter from '../hooks/useAdapter'
 
  
 
 export default function GameHeader({ game }) {
+  const adapter = useAdapter(game?.url)
+
   if (!game) return null
-
-  const [adapter, setAdapter] = useState(null)
-
-  useEffect(() => {
-    let mounted = true
-    async function load() {
-      if (!game?.url) return
-      try {
-        const a = await getAdapterForUrl(game.url)
-        if (mounted) setAdapter(a)
-      } catch (e) {
-        if (mounted) setAdapter(null)
-      }
-    }
-    load()
-    return () => { mounted = false }
-  }, [game?.url])
 
   const desc = (game.description ?? '').trim()
   const fallback = 'Compete on daily challenges — climb the leaderboard!'

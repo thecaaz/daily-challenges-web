@@ -15,6 +15,10 @@ namespace DailyChallenges.Data
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<ScoringDayResult> ScoringDayResults => Set<ScoringDayResult>();
         public DbSet<FriendRequest> FriendRequests => Set<FriendRequest>();
+        public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
+        public DbSet<League> Leagues => Set<League>();
+        public DbSet<LeagueMember> LeagueMembers => Set<LeagueMember>();
+        public DbSet<LeagueInvitation> LeagueInvitations => Set<LeagueInvitation>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -140,6 +144,73 @@ namespace DailyChallenges.Data
             // Fast query for incoming pending requests
             modelBuilder.Entity<FriendRequest>()
                 .HasIndex(fr => new { fr.ReceiverId, fr.Status });
+
+            // UserAchievements: FK to User (cascade on delete), unique per user+achievement
+            modelBuilder.Entity<UserAchievement>()
+                .HasOne(ua => ua.User)
+                .WithMany()
+                .HasForeignKey(ua => ua.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserAchievement>()
+                .HasIndex(ua => new { ua.UserId, ua.AchievementId })
+                .IsUnique();
+
+            // Leagues: owner FK (restrict to prevent accidental cascade)
+            modelBuilder.Entity<League>()
+                .HasOne(l => l.Owner)
+                .WithMany()
+                .HasForeignKey(l => l.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // LeagueMembers: FK to League (cascade) and User (cascade)
+            modelBuilder.Entity<LeagueMember>()
+                .HasOne(m => m.League)
+                .WithMany(l => l.Members)
+                .HasForeignKey(m => m.LeagueId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeagueMember>()
+                .HasOne(m => m.User)
+                .WithMany()
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // One membership row per user per league
+            modelBuilder.Entity<LeagueMember>()
+                .HasIndex(m => new { m.LeagueId, m.UserId })
+                .IsUnique();
+
+            // Fast lookup: all leagues a user belongs to
+            modelBuilder.Entity<LeagueMember>()
+                .HasIndex(m => m.UserId);
+
+            // LeagueInvitations: FK to League (cascade), Inviter (restrict), Invitee (set null on delete)
+            modelBuilder.Entity<LeagueInvitation>()
+                .HasOne(i => i.League)
+                .WithMany(l => l.Invitations)
+                .HasForeignKey(i => i.LeagueId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeagueInvitation>()
+                .HasOne(i => i.Inviter)
+                .WithMany()
+                .HasForeignKey(i => i.InviterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LeagueInvitation>()
+                .HasOne(i => i.Invitee)
+                .WithMany()
+                .HasForeignKey(i => i.InviteeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Unique pending invite per (league, invitee)
+            modelBuilder.Entity<LeagueInvitation>()
+                .HasIndex(i => new { i.LeagueId, i.InviteeId });
+
+            // Token index for quick join-by-link lookups
+            modelBuilder.Entity<LeagueInvitation>()
+                .HasIndex(i => i.Token);
         }
     }
 }

@@ -4,6 +4,7 @@ import { Container, Box, Typography } from '@mui/material'
 import useUserProfile from '../hooks/useUserProfile'
 import UserProfileHeader from '../components/Profile/UserProfileHeader'
 import TopGamesList from '../components/Profile/TopGamesList'
+import AchievementsGrid from '../components/Profile/AchievementsGrid'
 import Loading from '../components/ui/Loading'
 
 export default function UserProfile() {
@@ -18,6 +19,9 @@ export default function UserProfile() {
   return (
     <Container sx={{ mt: 4 }}>
       <UserProfileHeader profile={profile} />
+      <Box mt={3}>
+        <AchievementsGrid userId={userId} />
+      </Box>
       <Box mt={3}>
         <Typography variant="h6" gutterBottom>Top games</Typography>
         <TopGamesList games={profile.topGames || profile.TopGames || []} />

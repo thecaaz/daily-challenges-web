@@ -46,7 +46,8 @@ namespace DailyChallenges.Repositories
                         Plays = g.Plays,
                         // WARNING: Will need to be adjusted if we add more ranking modes in the future
                         HighestScore = gm.RankingMode == RankingMode.Highest ? g.MaxScore : g.MinScore,
-                        LastPlayed = g.LastPlayed
+                        LastPlayed = g.LastPlayed,
+                        RankingMode = gm.RankingMode == RankingMode.Highest ? "highest" : "lowest"
                     };
 
             var list = await q.OrderByDescending(x => x.Plays).Take(topGames).ToListAsync();

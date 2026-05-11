@@ -13,11 +13,14 @@ namespace DailyChallenges.Repositories
         Task<List<Submission>> GetByGameAndDayByScoreValueAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy);
         Task<Submission?> GetByGameAndUserAsync(int gameId, int userId);
         Task<List<Submission>> GetByUserAndGamesAndDaysAsync(int userId, List<int> gameIds, List<DateTime> scoringDays);
+        Task<List<Submission>> GetByScoringDaysAsync(List<DateTime> scoringDays);
+        Task<List<Submission>> GetByUserIdsInWindowAsync(IEnumerable<int> userIds, DateTime since);
         Task<(List<Submission> Items, int TotalCount, List<DateTime> AvailableDates)> GetByGameFilteredAsync(int gameId, int page, int pageSize, string? search, DateTime? scoringDay, DateTime? excludeScoringDay = null);
         Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy);
         Task<List<Submission>> GetWinnersForGameAndDaysAsync(int gameId, List<DateTime> days, IRankingStrategy strategy);
         Task<List<DateTime>> GetAvailableDatesAsync(int gameId);
         Task<List<string>> GetUsernamesForDayAsync(int gameId, DateTime scoringDay);
+        Task<int> CountByUserAsync(int userId);
         Task<Submission> CreateAsync(Submission submission);
         Task<Submission?> GetByIdAsync(int id);
         Task<Submission> UpdateAsync(Submission submission);

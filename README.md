@@ -84,20 +84,3 @@ dotnet ef database update --project backend/DailyChallenges.csproj --startup-pro
 
 The migration files are created under [backend/Migrations](backend/Migrations). After running `migrations add`, review the generated migration before applying it.
 
-## E2E Tests (Playwright)
-
-NOTE: Wildly outdated, might not update them for quite a while.
-End-to-end tests live in [`tests/e2e/`](tests/e2e/). See [`tests/e2e/README.md`](tests/e2e/README.md) for full setup and usage instructions.
-
-**Quick start (PowerShell):**
-
-```powershell
-cd tests/e2e
-npm ci
-npm run install-playwright
-
-# Start services, run headless tests, and stop services:
-npm run run:ci
-```
-
-Tests run against an isolated SQLite database at `tests/e2e/.data/test.db` and do not affect any other data.

@@ -1,5 +1,8 @@
-using DailyChallenges.Data;
+using DailyChallenges.Achievements;
 using DailyChallenges.Models;
+using DailyChallenges.Repositories;
+using DailyChallenges.Repositories.Contracts;
+using DailyChallenges.Services.Contracts;
 using Microsoft.Extensions.Options;
 
 namespace DailyChallenges.Services
@@ -19,20 +22,26 @@ namespace DailyChallenges.Services
 
     public class XpService : IXpService
     {
-        private readonly AppDbContext _db;
+        private readonly IUserRepository _userRepo;
+        private readonly ISubmissionRepository _submissionRepo;
+        private readonly IXpEventRepository _xpEventRepo;
         private readonly LevelCalculator _levelCalc;
         private readonly XpConfig _cfg;
+        private readonly IAchievementService _achievements;
 
-        public XpService(AppDbContext db, LevelCalculator levelCalc, IOptions<XpConfig> cfg)
+        public XpService(IUserRepository userRepo, ISubmissionRepository submissionRepo, IXpEventRepository xpEventRepo, LevelCalculator levelCalc, IOptions<XpConfig> cfg, IAchievementService achievements)
         {
-            _db = db;
+            _userRepo = userRepo;
+            _submissionRepo = submissionRepo;
+            _xpEventRepo = xpEventRepo;
             _levelCalc = levelCalc;
             _cfg = cfg.Value;
+            _achievements = achievements;
         }
 
         public async Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return 0;
 
             var scoringDate = scoringDay.Date;
@@ -41,7 +50,6 @@ namespace DailyChallenges.Services
             int newStreak;
             if (user.LastSubmissionAt == null)
             {
-                // Very first submission ever.
                 newStreak = 1;
             }
             else
@@ -50,48 +58,41 @@ namespace DailyChallenges.Services
 
                 if (scoringDate == lastDate)
                 {
-                    // Same scoring day (different game): award XP but keep the existing streak
-                    // unchanged — the streak has already been accounted for this day.
+                    // Same scoring day (different game): award XP but keep streak unchanged.
                     newStreak = user.Streak;
                 }
                 else if (scoringDate == lastDate.AddDays(1))
                 {
-                    // Consecutive day — extend streak.
                     newStreak = user.Streak + 1;
                 }
                 else
                 {
-                    // Gap detected — reset streak.
                     newStreak = 1;
                 }
             }
 
             // --- Bonus calculation ---
-            // Bonus starts at 0% for streak=1 (no prior day) and grows 1% per consecutive day
-            // beyond the first, capped at MaxStreakBonus.
             double bonusFraction = Math.Min(Math.Max(newStreak - 1, 0) * _cfg.StreakBonusPerDay, _cfg.MaxStreakBonus);
             int xpAwarded = (int)Math.Round(_cfg.BaseXpPerSubmission * (1.0 + bonusFraction));
 
-            // --- Update user ---
+            // --- Update user (tracked by EF; changes saved by AddAsync below) ---
             user.TotalXp += xpAwarded;
             user.Level = _levelCalc.GetLevelFromTotalXp(user.TotalXp);
             user.Streak = newStreak;
-            // Only advance LastSubmissionAt when the scoring day is newer, so that same-day
-            // submissions for different games do not accidentally re-trigger streak logic.
             if (user.LastSubmissionAt == null || scoringDate > user.LastSubmissionAt.Value.Date)
                 user.LastSubmissionAt = scoringDate;
 
-            // --- Stamp submission ---
-            var submission = await _db.Submissions.FindAsync(submissionId);
+            // --- Stamp submission XpAwarded (tracked by EF) ---
+            var submission = await _submissionRepo.GetByIdAsync(submissionId);
             if (submission != null)
                 submission.XpAwarded = xpAwarded;
 
-            // --- Audit event ---
+            // --- Audit event; AddAsync flushes all pending tracked changes atomically ---
             var details = newStreak > 1
                 ? $"streak={newStreak},bonus={bonusFraction * 100:F0}%"
                 : "streak=1,bonus=0%";
 
-            _db.XpEvents.Add(new XpEvent
+            await _xpEventRepo.AddAsync(new XpEvent
             {
                 UserId = userId,
                 SubmissionId = submissionId,
@@ -103,13 +104,15 @@ namespace DailyChallenges.Services
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _db.SaveChangesAsync();
+            // Check level-based achievements after the XP/level are persisted.
+            await _achievements.CheckAndAwardAsync(userId, AchievementTrigger.LevelUp);
+
             return xpAwarded;
         }
 
         public async Task<int> AdjustXpAsync(int userId, int delta, string reason, int? adminUserId = null)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) throw new KeyNotFoundException($"User {userId} not found");
 
             user.TotalXp = Math.Max(0, user.TotalXp + delta);
@@ -118,7 +121,7 @@ namespace DailyChallenges.Services
             var details = $"delta={delta},reason={reason}" +
                           (adminUserId.HasValue ? $",admin={adminUserId}" : string.Empty);
 
-            _db.XpEvents.Add(new XpEvent
+            await _xpEventRepo.AddAsync(new XpEvent
             {
                 UserId = userId,
                 Amount = delta,
@@ -127,13 +130,12 @@ namespace DailyChallenges.Services
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _db.SaveChangesAsync();
             return delta;
         }
 
         public async Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay)
         {
-            var user = await _db.Users.FindAsync(userId);
+            var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return 0;
 
             var scoringDate = scoringDay.Date;
@@ -142,7 +144,7 @@ namespace DailyChallenges.Services
             user.TotalXp += xpAwarded;
             user.Level = _levelCalc.GetLevelFromTotalXp(user.TotalXp);
 
-            _db.XpEvents.Add(new XpEvent
+            await _xpEventRepo.AddAsync(new XpEvent
             {
                 UserId = userId,
                 GameId = gameId,
@@ -153,7 +155,6 @@ namespace DailyChallenges.Services
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _db.SaveChangesAsync();
             return xpAwarded;
         }
     }

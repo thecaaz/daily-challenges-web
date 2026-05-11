@@ -1,8 +1,10 @@
-﻿using DailyChallenges.Data;
+﻿using DailyChallenges.Achievements;
+using DailyChallenges.Data;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
+using DailyChallenges.Services.Contracts;
 using DailyChallenges.Services.Ranking;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
@@ -17,6 +19,7 @@ namespace DailyChallenges.Services
         private readonly IXpService _xp;
         private readonly AppDbContext _db;
         private readonly IUserSubmissionChecker _userSubmissionChecker;
+        private readonly IAchievementService _achievements;
         private readonly ILogger<SubmissionService> _logger;
 
         public SubmissionService(
@@ -26,6 +29,7 @@ namespace DailyChallenges.Services
             IXpService xp,
             AppDbContext db,
             IUserSubmissionChecker userSubmissionChecker,
+            IAchievementService achievements,
             ILogger<SubmissionService> logger)
         {
             _subs = subs;
@@ -34,6 +38,7 @@ namespace DailyChallenges.Services
             _xp = xp;
             _db = db;
             _userSubmissionChecker = userSubmissionChecker;
+            _achievements = achievements;
             _logger = logger;
         }
 
@@ -57,20 +62,8 @@ namespace DailyChallenges.Services
             // Fetch a single page of submissions (repository will apply excludeScoringDay if provided)
             var (pageItems, totalCount, _) = await _subs.GetByGameFilteredAsync(gameId, page, pageSize, null, scoringDay, excludeScoringDay);
 
-            // Compute winners only for scoring days present in the returned page using a single batched repository call
-            var daysInPage = pageItems.Select(s => s.ScoringDay.Date).Distinct().ToList();
-            var winnersByDay = new Dictionary<DateTime, Submission>();
-            if (daysInPage.Count > 0)
-            {
-                var winners = await _subs.GetWinnersForGameAndDaysAsync(gameId, daysInPage, strategy);
-                if (winners != null)
-                {
-                    foreach (var w in winners)
-                    {
-                        winnersByDay[w.ScoringDay.Date] = w;
-                    }
-                }
-            }
+            // Compute winners only for scoring days present in the returned page
+            var winnersByDay = await ComputeWinnersByDayAsync(gameId, pageItems, strategy);
 
             var mapped = pageItems.Select(s =>
             {
@@ -105,15 +98,18 @@ namespace DailyChallenges.Services
             return await _userSubmissionChecker.HasUserSubmittedForLatestAsync(gameId, user);
         }
 
-        private async Task<List<Submission>> GetRecentSubmissionsAsync(int gameId)
-        {
-            var all = await _subs.GetTopByGameAsync(gameId, 2000);
-            return all ?? new List<Submission>();
-        }
-
         private DateTime GetCurrentScoringDay(Game? game)
         {
             return ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero);
+        }
+
+        private async Task<Dictionary<DateTime, Submission>> ComputeWinnersByDayAsync(int gameId, List<Submission> pageItems, IRankingStrategy strategy)
+        {
+            var daysInPage = pageItems.Select(s => s.ScoringDay.Date).Distinct().ToList();
+            if (daysInPage.Count == 0) return new Dictionary<DateTime, Submission>();
+
+            var winners = await _subs.GetWinnersForGameAndDaysAsync(gameId, daysInPage, strategy);
+            return (winners ?? new List<Submission>()).ToDictionary(w => w.ScoringDay.Date);
         }
 
         public async Task<TodaySubmittersDto> GetTodaySubmittersAsync(int gameId)
@@ -124,30 +120,13 @@ namespace DailyChallenges.Services
             return SubmissionDtoHelper.ToTodaySubmittersDto(usernames);
         }
 
-
-        private List<Submission> FilterSubmissionsForVisibility(List<Submission> subs, bool hasSubmittedToday, Game? game, DateTime currentDay)
-        {
-            if (hasSubmittedToday) return subs;
-            return subs.Where(s => s.ScoringDay.Date != currentDay).ToList();
-        }
-
-        private List<SubmissionDto> MapAndAnnotate(List<Submission> subs, Game? game)
-        {
-            return subs.Select(s =>
-            {
-                var dto = DtoMapper.ToDto(s);
-                dto.ScoringDay = ScoringDayHelper.FormatScoringDay(s.ScoringDay.Date);
-                return dto;
-            }).ToList();
-        }
-
         public async Task<List<SubmissionDto>> GetUnfilteredByGameAsync(int gameId)
         {
             var game = await _games.GetByIdAsync(gameId);
             var all = await _subs.GetByGameAsync(gameId);
             var subs = all ?? new List<Submission>();
 
-                var adminDtos = subs.Select(s =>
+            var adminDtos = subs.Select(s =>
             {
                 var dto = DtoMapper.ToDto(s);
                 dto.ScoringDay = ScoringDayHelper.FormatScoringDay(ScoringDayHelper.GetScoringDay(s.CreatedAt, game?.ResetTime ?? TimeSpan.Zero));
@@ -235,6 +214,11 @@ namespace DailyChallenges.Services
                     xpGain = await _xp.AwardForSubmissionAsync(userId.Value, created.Id, created.ScoringDay);
 
                 await tx.CommitAsync();
+
+                // Check achievements outside the transaction so a check failure never rolls back the submission.
+                if (userId.HasValue)
+                    await _achievements.CheckAndAwardAsync(userId.Value, AchievementTrigger.Submission);
+
                 return (DtoMapper.ToDto(created), xpGain);
             }
             catch (Exception ex)

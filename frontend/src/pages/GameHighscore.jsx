@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { useParams } from 'react-router-dom'
 import { Typography } from '@mui/material'
 import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
@@ -8,19 +8,18 @@ import HiddenScoresCard from '../components/ui/HiddenScoresCard'
 import SubmissionCard from '../components/SubmissionCard'
 import api from '../api'
 import useGame from '../hooks/useGame'
+import useAsyncData from '../hooks/useAsyncData'
 
 export default function GameHighscore() {
   const { gameId } = useParams()
-  const [top, setTop] = useState([])
   const { game, hasSubmittedForLatest, notFound, loading } = useGame(gameId)
-
-  useEffect(() => {
-    if (!game) return
-    api.get(`/games/${gameId}/highscore`).then(res => {
-      const data = res.data || { top: [] }
-      setTop(data.top || [])
-    })
-  }, [game, gameId])
+  const { data: highscoreData } = useAsyncData(
+    () => game
+      ? api.get(`/games/${gameId}/highscore`).then(r => (r.data || {}).top || [])
+      : Promise.resolve(null),
+    [game, gameId]
+  )
+  const top = highscoreData ?? []
 
   if (notFound) return <NotFound message="Game not found" />
   if (loading || !game) return <Loading />

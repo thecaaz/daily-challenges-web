@@ -6,5 +6,6 @@ namespace DailyChallenges.Repositories
     {
         Task<bool> ExistsAsync(int gameId, DateTime scoringDay);
         Task<ScoringDayResult> CreateAsync(ScoringDayResult result);
+        Task<int> CountWinsByUserAsync(int userId);
     }
 }
