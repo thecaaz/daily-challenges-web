@@ -185,9 +185,14 @@ namespace DailyChallenges.Services
                     gameById.TryGetValue(gameId, out var game);
                     var gameSubs = submissionsByGame.ContainsKey(gameId) ? submissionsByGame[gameId] : new List<Submission>();
                     var mode = game?.RankingMode ?? RankingMode.Highest;
+                    // Rank matches leaderboard ordering: best ScoreValue first, ties broken by earliest CreatedAt.
                     int rank = mode == RankingMode.Highest
-                        ? gameSubs.Count(s => (s.ScoreValue ?? int.MinValue) > userSub.ScoreValue!.Value) + 1
-                        : gameSubs.Count(s => (s.ScoreValue ?? int.MaxValue) < userSub.ScoreValue!.Value) + 1;
+                        ? gameSubs.Count(s =>
+                            (s.ScoreValue ?? int.MinValue) > userSub.ScoreValue!.Value ||
+                            (s.ScoreValue == userSub.ScoreValue && s.CreatedAt < userSub.CreatedAt)) + 1
+                        : gameSubs.Count(s =>
+                            (s.ScoreValue ?? int.MaxValue) < userSub.ScoreValue!.Value ||
+                            (s.ScoreValue == userSub.ScoreValue && s.CreatedAt < userSub.CreatedAt)) + 1;
                     return new UserTodayRankDto
                     {
                         GameId = gameId,
