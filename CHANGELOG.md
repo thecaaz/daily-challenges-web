@@ -1,3 +1,10 @@
+### [1.24.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.0...v1.24.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **dashboard:** use CreatedAt as tiebreaker in rank calculation ([d5a7b5f](https://github.com/thecaaz/daily-challenges-web/commit/d5a7b5f0db58470cd7b3b4b856f63246701e780f))
+
 ## [1.24.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.23.1...v1.24.0) (2026-05-11)
 
 
