@@ -1,3 +1,10 @@
+### [1.24.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.1...v1.24.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* scoring logic being dependent on scoring days instead of subsequent days played ([2b822e4](https://github.com/thecaaz/daily-challenges-web/commit/2b822e438edbdd85ea6f735ec4fc318762a1f694))
+
 ### [1.24.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.0...v1.24.1) (2026-05-13)
 
 
