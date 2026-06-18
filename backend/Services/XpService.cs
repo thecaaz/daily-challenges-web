@@ -45,6 +45,7 @@ namespace DailyChallenges.Services
             if (user == null) return 0;
 
             var scoringDate = scoringDay.Date;
+            var today = DateTime.UtcNow.Date;
 
             // --- Streak calculation ---
             int newStreak;
@@ -56,12 +57,11 @@ namespace DailyChallenges.Services
             {
                 var lastDate = user.LastSubmissionAt.Value.Date;
 
-                if (scoringDate == lastDate)
+                if (today == lastDate)
                 {
-                    // Same scoring day (different game): award XP but keep streak unchanged.
                     newStreak = user.Streak;
                 }
-                else if (scoringDate == lastDate.AddDays(1))
+                else if (today == lastDate.AddDays(1))
                 {
                     newStreak = user.Streak + 1;
                 }
@@ -79,8 +79,8 @@ namespace DailyChallenges.Services
             user.TotalXp += xpAwarded;
             user.Level = _levelCalc.GetLevelFromTotalXp(user.TotalXp);
             user.Streak = newStreak;
-            if (user.LastSubmissionAt == null || scoringDate > user.LastSubmissionAt.Value.Date)
-                user.LastSubmissionAt = scoringDate;
+            if (user.LastSubmissionAt == null || today > user.LastSubmissionAt.Value.Date)
+                user.LastSubmissionAt = today;
 
             // --- Stamp submission XpAwarded (tracked by EF) ---
             var submission = await _submissionRepo.GetByIdAsync(submissionId);
