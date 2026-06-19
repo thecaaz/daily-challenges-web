@@ -1,3 +1,10 @@
+## [1.25.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.2...v1.25.0) (2026-06-19)
+
+
+### Features
+
+* Add reset countdown timer to game detail page ([26e233d](https://github.com/thecaaz/daily-challenges-web/commit/26e233ddb9450d93e269ecf02a9191f7baed71e3))
+
 ### [1.24.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.1...v1.24.2) (2026-06-18)
 
 
