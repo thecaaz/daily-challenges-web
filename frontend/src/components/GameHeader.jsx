@@ -5,6 +5,7 @@ import PlayButton from './ui/PlayButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import FavoriteButton from './ui/FavoriteButton'
+import Countdown from './Countdown'
 import imageUrl from '../utils/imageUrl'
 import useAdapter from '../hooks/useAdapter'
 
@@ -48,10 +49,11 @@ export default function GameHeader({ game }) {
                   <ExtensionIcon sx={{ color: 'white' }} fontSize="small" />
                 </Tooltip>
               )}
-              {/* Favorite toggle */}
               <FavoriteButton game={game} sx={{ color: 'white' }} />
             </Box>
           </Box>
+
+          <Countdown targetDate={game.currentScoringDayUtcEnd} />
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             {game.url && (
