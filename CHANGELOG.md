@@ -1,3 +1,10 @@
+## [1.26.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.25.0...v1.26.0) (2026-06-24)
+
+
+### Features
+
+* update extension for timeguessr update ([abd8e60](https://github.com/thecaaz/daily-challenges-web/commit/abd8e604e79936327b05758cdfaec7f5ca7d6e27))
+
 ## [1.25.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.2...v1.25.0) (2026-06-19)
 
 
