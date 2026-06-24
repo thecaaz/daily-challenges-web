@@ -7,7 +7,7 @@
       name: 'TimeGuessr',
       matchDescriptor: { type: 'includes', value: 'timeguessr' },
       match: host => /timeguessr/.test(host) || host.includes('timeguessr'),
-      selectors: ['#totalText', '#totalScoreBreakdownText'],
+      selectors: ['.summary-score'],
       onInit: function (doc, ctx) {
       },
       readScore: function (doc) {
