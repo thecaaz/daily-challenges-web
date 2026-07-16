@@ -19,6 +19,7 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
   const { confirm, dialogProps } = useConfirm()
 
   const [score, setScore] = useState(initialScore)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { screenshot, previewUrl, setScreenshot, onFileChange, clear } = useImageUpload(showSnackbar)
 
   useEffect(() => {
@@ -66,6 +67,7 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
     fd.append('score', isNaN(parsed) ? score : String(parsed))
     fd.append('screenshot', screenshot)
 
+    setIsSubmitting(true)
     try {
       const res = await api.post('/submissions', fd)
       const { submission, xpGain } = res.data
@@ -112,6 +114,8 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
 
       const msg = err?.response?.data?.message || err?.response?.data || err?.message || 'Failed to submit'
       showSnackbar(String(msg), 'error')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -126,7 +130,7 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
           )}
           <ImageUpload onFileChange={onFileChange} previewUrl={previewUrl} onRemove={clear} />
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <AppButton type="submit">Submit</AppButton>
+            <AppButton type="submit" disabled={isSubmitting || hasSubmitted}>Submit</AppButton>
             {onCancel && <AppButton color="inherit" variant="outlined" onClick={() => { onCancel(); clear(); setScore('') }}>Cancel</AppButton>}
           </Box>
         </Stack>
