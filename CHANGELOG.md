@@ -1,3 +1,10 @@
+### [1.26.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.1...v1.26.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* submission unique index on userid gameid scoring day for race conditions ([05f78ad](https://github.com/thecaaz/daily-challenges-web/commit/05f78ad3c9298d800be0e96e9c7b8c30eae3ca33))
+
 ### [1.26.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.0...v1.26.1) (2026-07-16)
 
 
