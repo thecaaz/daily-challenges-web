@@ -221,6 +221,11 @@ namespace DailyChallenges.Services
 
                 return (DtoMapper.ToDto(created), xpGain);
             }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+            {
+                await tx.RollbackAsync();
+                throw new InvalidOperationException("User has already submitted for this game");
+            }
             catch (Exception ex)
             {
                 await tx.RollbackAsync();
