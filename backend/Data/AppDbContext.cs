@@ -47,6 +47,12 @@ namespace DailyChallenges.Data
             modelBuilder.Entity<Submission>()
                 .HasIndex(s => new { s.GameId, s.ScoringDay });
 
+            // one submission per authenticated user per game per scoring day (race-condition proof)
+            modelBuilder.Entity<Submission>()
+                .HasIndex(s => new { s.UserId, s.GameId, s.ScoringDay })
+                .IsUnique()
+                .HasFilter("[UserId] IS NOT NULL");
+
             // XpEvents: FK to User (required), FK to Submission and Game (optional)
             modelBuilder.Entity<XpEvent>()
                 .HasOne(e => e.User)
