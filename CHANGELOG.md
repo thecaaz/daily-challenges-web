@@ -1,3 +1,10 @@
+### [1.26.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.0...v1.26.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* disable submit button when it was already clicked ([116aeab](https://github.com/thecaaz/daily-challenges-web/commit/116aeabb0c097090ba864589569d83a8da440455))
+
 ## [1.26.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.25.0...v1.26.0) (2026-06-24)
 
 
