@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "DailyChallenges ScoreBridge",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Extension that bridges embedded game scores and visible-tab captures into a parent page.",
   "permissions": [
     "<all_urls>",
