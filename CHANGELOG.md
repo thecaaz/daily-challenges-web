@@ -1,3 +1,10 @@
+## [1.27.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.2...v1.27.0) (2026-07-22)
+
+
+### Features
+
+* introduce decimal score, get more accurate cutle score (2 decimals) ([22403b4](https://github.com/thecaaz/daily-challenges-web/commit/22403b4a1b37678e8374b9e4ff60209b58e7e585))
+
 ### [1.26.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.1...v1.26.2) (2026-07-16)
 
 
