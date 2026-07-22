@@ -57,7 +57,7 @@ public class ScoringDayFinalizerServiceTests
     private static Game MakeGame(int id = 1, RankingMode mode = RankingMode.Highest) =>
         new() { Id = id, Name = "TestGame", ResetTime = TimeSpan.Zero, RankingMode = mode };
 
-    private static Submission MakeSub(int id, int? userId, int gameId = 1, int? scoreValue = 100) =>
+    private static Submission MakeSub(int id, int? userId, int gameId = 1, double? scoreValue = 100.0) =>
         new() { Id = id, GameId = gameId, UserId = userId, Score = scoreValue?.ToString() ?? "", ScoreValue = scoreValue, ScoringDay = Day, CreatedAt = DateTime.UtcNow, Username = $"user{userId}" };
 
     // ── Idempotency ───────────────────────────────────────────────────────────

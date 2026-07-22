@@ -79,7 +79,7 @@ namespace DailyChallenges.Repositories
                 var lower = search.ToLower();
                 if (int.TryParse(search, out var parsedInt))
                 {
-                    q = q.Where(s => (s.Username != null && s.Username.ToLower().Contains(lower)) || (s.Score != null && s.Score.ToLower().Contains(lower)) || (s.ScoreValue.HasValue && s.ScoreValue == parsedInt));
+                    q = q.Where(s => (s.Username != null && s.Username.ToLower().Contains(lower)) || (s.Score != null && s.Score.ToLower().Contains(lower)) || (s.ScoreValue.HasValue && s.ScoreValue >= parsedInt - 0.01 && s.ScoreValue <= parsedInt + 0.01));
                 }
                 else
                 {

@@ -186,7 +186,7 @@ namespace DailyChallenges.Services
             }
 
             var submission = new Submission { GameId = gameId, Score = score, Username = username, UserId = userId };
-            if (ScoreParser.TryParseInt(score, out var parsedScore)) submission.ScoreValue = parsedScore;
+            if (ScoreParser.TryParseDouble(score, out var parsedScore)) submission.ScoreValue = parsedScore;
 
             if (screenshot == null || screenshot.Length == 0)
             {
@@ -255,7 +255,7 @@ namespace DailyChallenges.Services
             if (!string.IsNullOrWhiteSpace(score))
             {
                 s.Score = score;
-                if (ScoreParser.TryParseInt(score, out var parsedScore)) s.ScoreValue = parsedScore;
+                if (ScoreParser.TryParseDouble(score, out var parsedScore)) s.ScoreValue = parsedScore;
                 else s.ScoreValue = null;
             }
             var updated = await _subs.UpdateAsync(s);

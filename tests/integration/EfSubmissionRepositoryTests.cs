@@ -22,7 +22,7 @@ public class EfSubmissionRepositoryTests
         ctx.SaveChanges();
     }
 
-    private static Submission SeedSub(AppDbContext ctx, int gameId, int? scoreValue, DateTime scoringDay, int? userId = null)
+    private static Submission SeedSub(AppDbContext ctx, int gameId, double? scoreValue, DateTime scoringDay, int? userId = null)
     {
         var sub = new Submission
         {
@@ -53,9 +53,9 @@ public class EfSubmissionRepositoryTests
         var results = await repo.GetByGameAndDayByScoreValueAsync(1, Day1, new HighestRankingStrategy());
 
         Assert.Equal(3, results.Count);
-        Assert.Equal(300, results[0].ScoreValue);
-        Assert.Equal(200, results[1].ScoreValue);
-        Assert.Equal(100, results[2].ScoreValue);
+        Assert.Equal(300.0, results[0].ScoreValue);
+        Assert.Equal(200.0, results[1].ScoreValue);
+        Assert.Equal(100.0, results[2].ScoreValue);
     }
 
     [Fact]
@@ -70,9 +70,9 @@ public class EfSubmissionRepositoryTests
 
         var results = await repo.GetByGameAndDayByScoreValueAsync(1, Day1, new LowestRankingStrategy());
 
-        Assert.Equal(100, results[0].ScoreValue);
-        Assert.Equal(200, results[1].ScoreValue);
-        Assert.Equal(300, results[2].ScoreValue);
+        Assert.Equal(100.0, results[0].ScoreValue);
+        Assert.Equal(200.0, results[1].ScoreValue);
+        Assert.Equal(300.0, results[2].ScoreValue);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class EfSubmissionRepositoryTests
         var results = await repo.GetByGameAndDayByScoreValueAsync(1, Day1, new HighestRankingStrategy());
 
         Assert.Single(results);
-        Assert.Equal(100, results[0].ScoreValue);
+        Assert.Equal(100.0, results[0].ScoreValue);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class EfSubmissionRepositoryTests
         var results = await repo.GetByGameAndDayByScoreValueAsync(1, Day1, new HighestRankingStrategy());
 
         Assert.Single(results);
-        Assert.Equal(100, results[0].ScoreValue);
+        Assert.Equal(100.0, results[0].ScoreValue);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class EfSubmissionRepositoryTests
         var results = await repo.GetByGameAndDayByScoreValueAsync(1, Day1, new HighestRankingStrategy());
 
         Assert.Single(results);
-        Assert.Equal(100, results[0].ScoreValue);
+        Assert.Equal(100.0, results[0].ScoreValue);
     }
 
     // ── GetWinnerForGameAndDayAsync ───────────────────────────────────────────
@@ -148,7 +148,7 @@ public class EfSubmissionRepositoryTests
 
         var winner = await repo.GetWinnerForGameAndDayAsync(1, Day1, new HighestRankingStrategy());
 
-        Assert.Equal(300, winner?.ScoreValue);
+        Assert.Equal(300.0, winner?.ScoreValue);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class EfSubmissionRepositoryTests
 
         var winner = await repo.GetWinnerForGameAndDayAsync(1, Day1, new LowestRankingStrategy());
 
-        Assert.Equal(100, winner?.ScoreValue);
+        Assert.Equal(100.0, winner?.ScoreValue);
     }
 
     // ── GetWinnersForGameAndDaysAsync ─────────────────────────────────────────
@@ -182,8 +182,8 @@ public class EfSubmissionRepositoryTests
         var winners = await repo.GetWinnersForGameAndDaysAsync(1, new List<DateTime> { Day1, Day2 }, new HighestRankingStrategy());
 
         Assert.Equal(2, winners.Count);
-        Assert.Contains(winners, w => w.ScoringDay.Date == Day1.Date && w.ScoreValue == 200);
-        Assert.Contains(winners, w => w.ScoringDay.Date == Day2.Date && w.ScoreValue == 150);
+        Assert.Contains(winners, w => w.ScoringDay.Date == Day1.Date && w.ScoreValue == 200.0);
+        Assert.Contains(winners, w => w.ScoringDay.Date == Day2.Date && w.ScoreValue == 150.0);
     }
 
     [Fact]

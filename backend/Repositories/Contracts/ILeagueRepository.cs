@@ -34,7 +34,7 @@ namespace DailyChallenges.Repositories.Contracts
         /// Returns the best submission per member for the given game and scoring day,
         /// ordered by the provided ranking strategy. Only members with a ScoreValue are included.
         /// </summary>
-        Task<List<(int UserId, string Username, int Rank, string Score, int ScoreValue, int SubmissionId, bool HasScreenshot)>> GetLeaderboardAsync(
+        Task<List<(int UserId, string Username, int Rank, string Score, double ScoreValue, int SubmissionId, bool HasScreenshot)>> GetLeaderboardAsync(
             int leagueId, int gameId, DateTime scoringDay, IRankingStrategy strategy);
 
         /// <summary>

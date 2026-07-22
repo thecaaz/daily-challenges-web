@@ -17,15 +17,16 @@ namespace DailyChallenges.Services
             return double.NaN;
         }
 
-        public static bool TryParseInt(string s, out int value)
+        public static bool TryParseDouble(string s, out double value)
         {
             value = 0;
             if (string.IsNullOrWhiteSpace(s)) return false;
 
-            // Try direct integer parse first
-            if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv))
+            // Try direct double parse first (handle comma as decimal separator)
+            var normalized = s.Replace(',', '.');
+            if (double.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var dv))
             {
-                value = iv;
+                value = dv;
                 return true;
             }
 
@@ -34,22 +35,21 @@ namespace DailyChallenges.Services
             if (!m.Success) return false;
             var raw = m.Value.Replace(',', '.');
 
-            // If the token contains a decimal point, only accept if it's a whole number
-            if (raw.Contains('.'))
-            {
-                if (double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var dv))
-                {
-                    if (Math.Abs(dv - Math.Round(dv)) < double.Epsilon)
-                    {
-                        value = (int)Math.Round(dv);
-                        return true;
-                    }
-                    return false;
-                }
-                return false;
-            }
+            return double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out value);
+        }
 
-            return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+        public static bool TryParseInt(string s, out int value)
+        {
+            value = 0;
+            if (TryParseDouble(s, out var doubleVal))
+            {
+                if (Math.Abs(doubleVal - Math.Round(doubleVal)) < double.Epsilon)
+                {
+                    value = (int)Math.Round(doubleVal);
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

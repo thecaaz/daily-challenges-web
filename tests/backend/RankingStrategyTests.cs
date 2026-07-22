@@ -5,7 +5,7 @@ namespace DailyChallenges.Tests;
 
 public class RankingStrategyTests
 {
-    private static Submission Sub(int id, int? scoreValue, DateTime createdAt) =>
+    private static Submission Sub(int id, double? scoreValue, DateTime createdAt) =>
         new() { Id = id, GameId = 1, UserId = id, Score = scoreValue?.ToString() ?? "", ScoreValue = scoreValue, CreatedAt = createdAt };
 
     private static readonly DateTime T0 = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
@@ -17,7 +17,7 @@ public class RankingStrategyTests
     {
         var subs = new[] { Sub(1, 10, T0), Sub(2, 50, T0), Sub(3, 30, T0) }.AsQueryable();
         var result = new HighestRankingStrategy().ApplyOrdering(subs).ToList();
-        Assert.Equal([50, 30, 10], result.Select(s => s.ScoreValue));
+        Assert.Equal([50.0, 30.0, 10.0], result.Select(s => s.ScoreValue));
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class RankingStrategyTests
     {
         var subs = new[] { Sub(1, 30, T0), Sub(2, 10, T0), Sub(3, 50, T0) }.AsQueryable();
         var result = new LowestRankingStrategy().ApplyOrdering(subs).ToList();
-        Assert.Equal([10, 30, 50], result.Select(s => s.ScoreValue));
+        Assert.Equal([10.0, 30.0, 50.0], result.Select(s => s.ScoreValue));
     }
 
     [Fact]

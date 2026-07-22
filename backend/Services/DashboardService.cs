@@ -188,10 +188,10 @@ namespace DailyChallenges.Services
                     // Rank matches leaderboard ordering: best ScoreValue first, ties broken by earliest CreatedAt.
                     int rank = mode == RankingMode.Highest
                         ? gameSubs.Count(s =>
-                            (s.ScoreValue ?? int.MinValue) > userSub.ScoreValue!.Value ||
+                            (s.ScoreValue ?? double.MinValue) > userSub.ScoreValue!.Value ||
                             (s.ScoreValue == userSub.ScoreValue && s.CreatedAt < userSub.CreatedAt)) + 1
                         : gameSubs.Count(s =>
-                            (s.ScoreValue ?? int.MaxValue) < userSub.ScoreValue!.Value ||
+                            (s.ScoreValue ?? double.MaxValue) < userSub.ScoreValue!.Value ||
                             (s.ScoreValue == userSub.ScoreValue && s.CreatedAt < userSub.CreatedAt)) + 1;
                     return new UserTodayRankDto
                     {

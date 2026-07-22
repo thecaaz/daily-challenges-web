@@ -18,7 +18,7 @@ public class EfLeagueRepositoryGameSummariesTests
         ctx.SaveChanges();
     }
 
-    private static Submission SeedSub(AppDbContext ctx, int gameId, int? scoreValue, DateTime scoringDay, int? userId = null)
+    private static Submission SeedSub(AppDbContext ctx, int gameId, double? scoreValue, DateTime scoringDay, int? userId = null)
     {
         var sub = new Submission
         {
@@ -72,8 +72,8 @@ public class EfLeagueRepositoryGameSummariesTests
 
         Assert.Equal(1, res.GameId);
         Assert.Equal(3, res.PlayCount);
-        Assert.Equal(300, res.TopScoreValue);
-        Assert.Equal(300, res.MyBestScoreValue);
+        Assert.Equal(300.0, res.TopScoreValue);
+        Assert.Equal(300.0, res.MyBestScoreValue);
         Assert.Equal(1, res.MyRank); // user1 has the best score (300)
 
         // recent plays oldest->newest: day1=2, day2=1

@@ -25,7 +25,7 @@ namespace DailyChallenges.Repositories
             if (topGames < 1) topGames = 10;
 
             var grouped = _db.Submissions
-                .Where(s => s.UserId == userId)
+                .Where(s => s.UserId == userId && s.ScoreValue != null)
                 .GroupBy(s => s.GameId)
                 .Select(g => new
                 {
@@ -65,22 +65,22 @@ namespace DailyChallenges.Repositories
             
             var scoreLookup = await _db.Submissions
                 .Where(s => s.UserId == userId && gameIdsWithScore.Contains(s.GameId) && s.ScoreValue != null)
-                .GroupBy(s => new { s.GameId, s.ScoreValue })
+                .GroupBy(s => new { s.GameId, ScoreKey = Math.Round(s.ScoreValue!.Value, 2) })
                 .Select(g => new
                 {
                     g.Key.GameId,
-                    g.Key.ScoreValue,
+                    ScoreKey = g.Key.ScoreKey,
                     SubmissionId = g.OrderByDescending(x => x.CreatedAt).Select(x => x.Id).FirstOrDefault()
                 })
                 .ToListAsync();
 
-            var dict = scoreLookup.ToDictionary(x => (x.GameId, x.ScoreValue), x => (int?)x.SubmissionId);
+            var dict = scoreLookup.ToDictionary(x => (x.GameId, x.ScoreKey), x => (int?)x.SubmissionId);
 
             foreach (var item in list)
             {
                 if (!item.HighestScore.HasValue) continue;
 
-                dict.TryGetValue((item.GameId, item.HighestScore), out var submissionId);
+                dict.TryGetValue((item.GameId, Math.Round(item.HighestScore.Value, 2)), out var submissionId);
                 item.BestSubmissionId = submissionId;
 
             }

@@ -52,7 +52,7 @@ namespace DailyChallenges.DTOs
         public int UserId { get; set; }
         public string Username { get; set; } = string.Empty;
         public string Score { get; set; } = string.Empty;
-        public int ScoreValue { get; set; }
+        public double ScoreValue { get; set; }
         public int SubmissionId { get; set; }
         public string? ScreenshotUrl { get; set; }
     }
@@ -90,9 +90,9 @@ namespace DailyChallenges.DTOs
         public DateTime LastPlayedAt { get; set; }
         public int PlayCount { get; set; }
         public string? TopScore { get; set; }
-        public int? TopScoreValue { get; set; }
+        public double? TopScoreValue { get; set; }
         public string? MyBestScore { get; set; }
-        public int? MyBestScoreValue { get; set; }
+        public double? MyBestScoreValue { get; set; }
         public int? MyRank { get; set; }
         public List<int> RecentPlays { get; set; } = new(); // counts per day, oldest->newest
     }

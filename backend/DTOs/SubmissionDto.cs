@@ -6,7 +6,7 @@ namespace DailyChallenges.DTOs
         public int GameId { get; set; }
         public int? UserId { get; set; }
         public string Score { get; set; } = string.Empty;
-        public int? ScoreValue { get; set; }
+        public double? ScoreValue { get; set; }
         // 1-based rank for scored submissions (computed server-side when applicable)
         public int? Rank { get; set; }
         // true when this submission is the winning submission for its scoring day
