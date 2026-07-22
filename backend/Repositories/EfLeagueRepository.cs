@@ -157,7 +157,7 @@ namespace DailyChallenges.Repositories
 
         // ── Leaderboard ───────────────────────────────────────────────────────
 
-        public async Task<List<(int UserId, string Username, int Rank, string Score, int ScoreValue, int SubmissionId, bool HasScreenshot)>> GetLeaderboardAsync(
+        public async Task<List<(int UserId, string Username, int Rank, string Score, double ScoreValue, int SubmissionId, bool HasScreenshot)>> GetLeaderboardAsync(
             int leagueId, int gameId, DateTime scoringDay, IRankingStrategy strategy)
         {
             var targetDay = scoringDay.Date;
@@ -169,7 +169,7 @@ namespace DailyChallenges.Repositories
                 .ToListAsync();
 
             if (memberIds.Count == 0)
-                return new List<(int, string, int, string, int, int, bool)>();
+                return new List<(int, string, int, string, double, int, bool)>();
 
             // Get the best submission per user: apply strategy ordering, then take first per user
             var baseQuery = _db.Submissions
@@ -206,11 +206,11 @@ namespace DailyChallenges.Repositories
                 : bestPerUser.OrderByDescending(s => s.ScoreValue!.Value).ThenBy(s => s.CreatedAt).ToList();
 
             // Assign dense ranks (ties get the same rank)
-            var result = new List<(int UserId, string Username, int Rank, string Score, int ScoreValue, int SubmissionId, bool HasScreenshot)>();
+            var result = new List<(int UserId, string Username, int Rank, string Score, double ScoreValue, int SubmissionId, bool HasScreenshot)>();
             int rank = 1;
             for (int i = 0; i < reordered.Count; i++)
             {
-                if (i > 0 && reordered[i].ScoreValue != reordered[i - 1].ScoreValue)
+                if (i > 0 && Math.Abs(reordered[i].ScoreValue!.Value - reordered[i - 1].ScoreValue!.Value) > 1e-9)
                     rank = i + 1;
 
                 var s = reordered[i];
@@ -284,7 +284,7 @@ namespace DailyChallenges.Repositories
                 int rank = 1;
                 for (int i = 0; i < sorted.Count; i++)
                 {
-                    if (i > 0 && sorted[i].ScoreValue != sorted[i - 1].ScoreValue)
+                    if (i > 0 && Math.Abs(sorted[i].ScoreValue!.Value - sorted[i - 1].ScoreValue!.Value) > 1e-9)
                         rank = i + 1;
 
                     if (sorted[i].UserId == requestingUserId)

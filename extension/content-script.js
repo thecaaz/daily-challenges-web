@@ -48,6 +48,28 @@
       matchDescriptor: { type: 'includes', value: 'pfiffel' },
       match: host => /pfiffel/.test(host) || host.includes('pfiffel'),
       onInit: function (doc, ctx) {
+        // Inject a script into the page to read preciseRatio (content scripts
+        // run in an isolated world and cannot access page-scoped `let`/`const`).
+        const scriptId = 'cutle-precise-ratio-injector'
+        if (doc.getElementById(scriptId)) return
+
+        const script = doc.createElement('script')
+        script.id = scriptId
+        script.textContent = `
+          (function() {
+            if (typeof _cutlePreciseRatio !== 'undefined') return
+            function poll() {
+              if (typeof preciseRatio !== 'undefined') {
+                _cutlePreciseRatio = preciseRatio
+                try { window.postMessage({ type: 'CUTLE_PRECISE_RATIO', ratio: preciseRatio }, '*') } catch(e) {}
+              } else {
+                setTimeout(poll, 300)
+              }
+            }
+            poll()
+          })()
+        `
+        ;(doc.head || doc.documentElement || doc.body).appendChild(script)
       },
       readScore: function (doc) {
         function extractTwoNumbers(text) {
@@ -58,6 +80,11 @@
           const b = Number(matches[1])
           if (Number.isNaN(a) || Number.isNaN(b)) return null
           return [a, b]
+        }
+
+        // Try the cached ratio from the injected page script
+        if (_cachedCutleRatio !== null) {
+          return Math.round((1 - _cachedCutleRatio) * 10000) / 100
         }
 
         const resultEl = doc.querySelector('#result')
@@ -107,6 +134,14 @@
       if (res && typeof res.then === 'function') res.catch(() => {})
     } catch (err) {}
   })()
+
+  // --- Cutle preciseRatio cache (set by injected page script via postMessage) ---
+  let _cachedCutleRatio = null
+  window.addEventListener('message', function onCutleRatio(ev) {
+    if (ev.data && ev.data.type === 'CUTLE_PRECISE_RATIO') {
+      _cachedCutleRatio = ev.data.ratio
+    }
+  }, false)
 
   // Handle score, capture, and adapter discovery requests sent over window.postMessage.
   window.addEventListener(

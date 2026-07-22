@@ -4,7 +4,60 @@ namespace DailyChallenges.Tests;
 
 public class ScoreParserTests
 {
-    // ---- TryParseInt ----
+    // ---- TryParseDouble ----
+
+    [Theory]
+    [InlineData("42", 42.0)]
+    [InlineData("-7", -7.0)]
+    [InlineData("0", 0.0)]
+    [InlineData("1000", 1000.0)]
+    public void TryParseDouble_PlainInteger_ReturnsValue(string input, double expected)
+    {
+        Assert.True(ScoreParser.TryParseDouble(input, out var v));
+        Assert.Equal(expected, v);
+    }
+
+    [Theory]
+    [InlineData("3.14", 3.14)]
+    [InlineData("3,14", 3.14)]
+    [InlineData("-0.5", -0.5)]
+    [InlineData("99.99", 99.99)]
+    public void TryParseDouble_AcceptsDecimalValues(string input, double expected)
+    {
+        Assert.True(ScoreParser.TryParseDouble(input, out var v));
+        Assert.Equal(expected, v);
+    }
+
+    [Theory]
+    [InlineData("3/6", 3.0)]     // Wordle-style: extracts first number
+    [InlineData("5/6", 5.0)]
+    [InlineData("2:34", 2.0)]    // Time-style: extracts first number
+    [InlineData("12 pts", 12.0)]
+    [InlineData("  15  ", 15.0)] // Whitespace
+    public void TryParseDouble_ScoreWithSuffix_ExtractsFirstNumber(string input, double expected)
+    {
+        Assert.True(ScoreParser.TryParseDouble(input, out var v));
+        Assert.Equal(expected, v);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void TryParseDouble_NullOrEmpty_ReturnsFalse(string? input)
+    {
+        Assert.False(ScoreParser.TryParseDouble(input!, out _));
+    }
+
+    [Theory]
+    [InlineData("no numbers here")]
+    [InlineData("abc")]
+    public void TryParseDouble_NoNumericToken_ReturnsFalse(string input)
+    {
+        Assert.False(ScoreParser.TryParseDouble(input, out _));
+    }
+
+    // ---- TryParseInt (backward compat) ----
 
     [Theory]
     [InlineData("42", 42)]
@@ -39,7 +92,7 @@ public class ScoreParserTests
     }
 
     [Theory]
-    [InlineData("3.5")]        // True decimal
+    [InlineData("3.5")]        // True decimal → rejected by TryParseInt
     [InlineData("1.23")]
     public void TryParseInt_NonWholeDecimal_ReturnsFalse(string input)
     {

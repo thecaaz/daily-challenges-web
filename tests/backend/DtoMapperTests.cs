@@ -53,7 +53,7 @@ public class DtoMapperTests
         var sub = new Submission
         {
             Id = 42, GameId = 1, UserId = 3, Score = "3/6",
-            ScoreValue = 3, Username = "bob", CreatedAt = BaseTime,
+            ScoreValue = 3.0, Username = "bob", CreatedAt = BaseTime,
             ScreenshotData = null
         };
         var dto = DtoMapper.ToDto(sub);
@@ -62,7 +62,7 @@ public class DtoMapperTests
         Assert.Equal(1, dto.GameId);
         Assert.Equal(3, dto.UserId);
         Assert.Equal("3/6", dto.Score);
-        Assert.Equal(3, dto.ScoreValue);
+        Assert.Equal(3.0, dto.ScoreValue);
         Assert.Equal("bob", dto.Username);
         Assert.Equal(BaseTime, dto.CreatedAt);
         Assert.Null(dto.ScreenshotUrl);
