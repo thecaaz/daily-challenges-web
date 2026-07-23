@@ -84,7 +84,8 @@
 
         // Try the cached ratio from the injected page script
         if (_cachedCutleRatio !== null) {
-          return Math.round((1 - _cachedCutleRatio) * 10000) / 100
+          const ratio = Math.min(_cachedCutleRatio, 1 - _cachedCutleRatio)
+          return Math.round(ratio * 10000) / 100
         }
 
         const resultEl = doc.querySelector('#result')
