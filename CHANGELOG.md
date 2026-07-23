@@ -1,3 +1,10 @@
+### [1.27.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.27.0...v1.27.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* **cutle:** access preciseRatio via injected script for extension compatibility ([adacc11](https://github.com/thecaaz/daily-challenges-web/commit/adacc113a812325157272dca0dd8b59b0fe2c549))
+
 ## [1.27.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.2...v1.27.0) (2026-07-22)
 
 
