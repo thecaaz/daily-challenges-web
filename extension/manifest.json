@@ -13,6 +13,8 @@
     "https://timeguessr.com/*",
     "https://maptap.gg/*",
     "https://pfiffel.com/cutle/*",
+    "https://blindcut.app/*",
+    "https://motionpath.app/*",
     "http://localhost/*"
   ],
   "browser_action": {
@@ -46,6 +48,8 @@
         "https://timeguessr.com/*",
         "https://maptap.gg/*",
         "https://pfiffel.com/cutle/*",
+        "https://blindcut.app/*",
+        "https://motionpath.app/*",
         "http://localhost/*"
       ],
       "js": ["content-script.js"],

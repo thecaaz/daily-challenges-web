@@ -18,8 +18,7 @@
           if (!el) continue
           const text = (el.textContent || '').replace(/[^0-9.\-]/g, '').trim()
           if (!text) continue
-          const n = Number(text)
-          return Number.isNaN(n) ? text : n
+          return text
         }
         return null
       }
@@ -113,6 +112,79 @@
           const parsed = extractTwoNumbers(statsEl.textContent || '')
           if (parsed) return Math.min(parsed[0], parsed[1])
         }
+      }
+    },
+    {
+      name: 'BlindCut',
+      matchDescriptor: { type: 'includes', value: 'blindcut' },
+      match: host => /blindcut/.test(host) || host.includes('blindcut'),
+      onInit: function (doc, ctx) {
+      },
+      readScore: function (doc) {
+        // The game records the daily result in localStorage the moment the
+        // final screen mounts, keyed by UTC date. Prefer it over the DOM:
+        // the on-screen number runs a ~1s count-up animation.
+        try {
+          const key = 'blind-cut-daily-best:' + new Date().toISOString().slice(0, 10)
+          const stored = window.localStorage.getItem(key)
+          if (stored !== null) {
+            const n = Number(stored)
+            if (Number.isFinite(n)) return Math.round(n * 100) / 100
+          }
+        } catch (e) {}
+
+        // Fallback: total on the final screen (out of 500), e.g. "437.25"
+        const finalEl = doc.querySelector('.final-screen .final-score strong')
+        if (finalEl) {
+          const n = Number((finalEl.textContent || '').replace(/[^0-9.\-]/g, '').trim())
+          if (Number.isFinite(n)) return n
+        }
+        return null
+      }
+    },
+    {
+      name: 'MotionPath',
+      matchDescriptor: { type: 'includes', value: 'motionpath' },
+      match: host => /motionpath/.test(host) || host.includes('motionpath'),
+      onInit: function (doc, ctx) {
+      },
+      readScore: function (doc) {
+        // Final screen total (out of 500). The <strong> runs a count-up
+        // animation, but the aria-label carries the exact total immediately.
+        const scoreEl = doc.querySelector('.final-screen .final-score')
+        if (scoreEl) {
+          const label = scoreEl.getAttribute('aria-label') || ''
+          const m = label.match(/-?\d+(?:\.\d+)?/)
+          if (m) return Number(m[0])
+          const strongEl = scoreEl.querySelector('strong')
+          if (strongEl) {
+            const n = Number((strongEl.textContent || '').replace(/[^0-9.\-]/g, '').trim())
+            if (Number.isFinite(n)) return n
+          }
+        }
+
+        // Fallback: today's recorded completion for the active game.
+        // MotionPath hosts four games selected via the ?game= query param,
+        // each with its own daily-state localStorage key.
+        try {
+          const DAILY_KEYS = {
+            path: 'motion-path.daily.v1',
+            dots: 'dot-memory.daily.v1',
+            rhythm: 'rhythm.daily.v1',
+            cut: 'blind-cut.daily.v1'
+          }
+          const game = new URL(location.href).searchParams.get('game') || 'path'
+          const raw = window.localStorage.getItem(DAILY_KEYS[game] || DAILY_KEYS.path)
+          if (raw) {
+            const data = JSON.parse(raw)
+            const today = new Date().toISOString().slice(0, 10)
+            const entry = data && data.completions && data.completions[today]
+            if (entry && typeof entry.score === 'number' && Number.isFinite(entry.score)) {
+              return entry.score
+            }
+          }
+        } catch (e) {}
+        return null
       }
     }
   ]

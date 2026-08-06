@@ -64,7 +64,7 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
       const ok = await confirm({ title: 'Non-numeric score', message: 'This score is not a number and may not show up correctly on leaderboards. Submit anyway?', confirmText: 'Submit', confirmColor: 'primary' })
       if (!ok) return
     }
-    fd.append('score', isNaN(parsed) ? score : String(parsed))
+    fd.append('score', isNaN(parsed) ? score : score)
     fd.append('screenshot', screenshot)
 
     setIsSubmitting(true)
