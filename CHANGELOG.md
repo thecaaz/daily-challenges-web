@@ -1,3 +1,147 @@
+### [1.27.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.27.0...v1.27.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* **cutle:** access preciseRatio via injected script for extension compatibility ([adacc11](https://github.com/thecaaz/daily-challenges-web/commit/adacc113a812325157272dca0dd8b59b0fe2c549))
+
+## [1.27.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.2...v1.27.0) (2026-07-22)
+
+
+### Features
+
+* introduce decimal score, get more accurate cutle score (2 decimals) ([22403b4](https://github.com/thecaaz/daily-challenges-web/commit/22403b4a1b37678e8374b9e4ff60209b58e7e585))
+
+### [1.26.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.1...v1.26.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* submission unique index on userid gameid scoring day for race conditions ([05f78ad](https://github.com/thecaaz/daily-challenges-web/commit/05f78ad3c9298d800be0e96e9c7b8c30eae3ca33))
+
+### [1.26.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.26.0...v1.26.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* disable submit button when it was already clicked ([116aeab](https://github.com/thecaaz/daily-challenges-web/commit/116aeabb0c097090ba864589569d83a8da440455))
+
+## [1.26.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.25.0...v1.26.0) (2026-06-24)
+
+
+### Features
+
+* update extension for timeguessr update ([abd8e60](https://github.com/thecaaz/daily-challenges-web/commit/abd8e604e79936327b05758cdfaec7f5ca7d6e27))
+
+## [1.25.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.2...v1.25.0) (2026-06-19)
+
+
+### Features
+
+* Add reset countdown timer to game detail page ([26e233d](https://github.com/thecaaz/daily-challenges-web/commit/26e233ddb9450d93e269ecf02a9191f7baed71e3))
+
+### [1.24.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.1...v1.24.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* scoring logic being dependent on scoring days instead of subsequent days played ([2b822e4](https://github.com/thecaaz/daily-challenges-web/commit/2b822e438edbdd85ea6f735ec4fc318762a1f694))
+
+### [1.24.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.24.0...v1.24.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **dashboard:** use CreatedAt as tiebreaker in rank calculation ([d5a7b5f](https://github.com/thecaaz/daily-challenges-web/commit/d5a7b5f0db58470cd7b3b4b856f63246701e780f))
+
+## [1.24.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.23.1...v1.24.0) (2026-05-11)
+
+
+### Features
+
+* add league management features including creation, joining, and invitations ([916b027](https://github.com/thecaaz/daily-challenges-web/commit/916b0273f6c82edf8b233360ffce327de60cb465))
+* enhance RecentPlaysBar with onDayClick functionality and update LeagueGameCard to handle day selection ([9877933](https://github.com/thecaaz/daily-challenges-web/commit/9877933408a37d61fd9f1be5714582c2aea2914b))
+* implement achievement system with user achievements tracking ([13b3d30](https://github.com/thecaaz/daily-challenges-web/commit/13b3d3061b7ed0a6424257b3e52ffe55a7b34b26))
+* implement game summaries feature for leagues, including API and UI components ([0eb1e7e](https://github.com/thecaaz/daily-challenges-web/commit/0eb1e7ee3b8bbdeba76722f2f9d6cf09278cb409))
+* **profile:** add score history visualization and ranking mode to user game stats ([d26d97b](https://github.com/thecaaz/daily-challenges-web/commit/d26d97b558a01b1de7e57e41451d35cc1de0c621))
+
+
+### Bug Fixes
+
+* league invite link not working ([6a94656](https://github.com/thecaaz/daily-challenges-web/commit/6a946564bfbeb88cee2259f5274a5a5cc50f60ce))
+
+### [1.23.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.23.0...v1.23.1) (2026-04-26)
+
+
+### Bug Fixes
+
+* normal play  missing maixmize button ([abedc4e](https://github.com/thecaaz/daily-challenges-web/commit/abedc4e8234d04c8f78fcd01586aed47c521003e))
+
+## [1.23.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.22.2...v1.23.0) (2026-04-26)
+
+
+### Features
+
+* add fullscreen toggle functionality to game iframe ([d6a7a6f](https://github.com/thecaaz/daily-challenges-web/commit/d6a7a6f2820dbdf37f823386f9cf88d7fa64a033))
+* **dashboard-play:** enhance UI with tooltips and icon buttons for navigation actions ([440329f](https://github.com/thecaaz/daily-challenges-web/commit/440329f7b77cbdcbb64e2e00c6058fab700cd45d))
+
+### [1.22.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.22.1...v1.22.2) (2026-04-26)
+
+
+### Bug Fixes
+
+* update game submission logic to use correct scoring day for validation ([5a9f9cc](https://github.com/thecaaz/daily-challenges-web/commit/5a9f9cc1eba5da1c95edf85428d7ce2c8a79240b))
+
+### [1.22.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.22.0...v1.22.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* incorrect navigation after score submission (remove date parameter) ([de6db13](https://github.com/thecaaz/daily-challenges-web/commit/de6db131fa1eade55d8411935a2f8ba25c7cff87))
+
+## [1.22.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.21.2...v1.22.0) (2026-04-22)
+
+
+### Features
+
+* enforce screenshot requirement and validate file type and size in submission process (client side) ([f10b327](https://github.com/thecaaz/daily-challenges-web/commit/f10b327f22ffc3734fd268a751e66eb88ad7e2ce))
+* make screenshot fields non-nullable and enforce validation in submission process ([f82e2b9](https://github.com/thecaaz/daily-challenges-web/commit/f82e2b9dd493ea6c11b131910545904bd61ec790))
+
+### [1.21.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.21.1...v1.21.2) (2026-04-20)
+
+
+### Bug Fixes
+
+* favorit toggle to always update pending games on dashboard ([60bb0c8](https://github.com/thecaaz/daily-challenges-web/commit/60bb0c870d9ba05159ba745c7b9d3cb17f930107))
+
+### [1.21.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.21.0...v1.21.1) (2026-04-18)
+
+
+### Bug Fixes
+
+* load pending favorites on dashboard on load ([3f7a260](https://github.com/thecaaz/daily-challenges-web/commit/3f7a260789825939d9c20f3a2a96a4e5bb15051c))
+
+## [1.21.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.20.0...v1.21.0) (2026-04-18)
+
+
+### Features
+
+* add image compression utility and integrate with image upload hooks ([164823e](https://github.com/thecaaz/daily-challenges-web/commit/164823e64cfcd3c3d4b8463b4451775b935c4263))
+
+## [1.20.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.7...v1.20.0) (2026-04-15)
+
+
+### Features
+
+* update extension to support cutle ([799cc47](https://github.com/thecaaz/daily-challenges-web/commit/799cc4715e9124800741320c5a8fcc9a46922f11))
+
+### [1.19.7](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.6...v1.19.7) (2026-04-15)
+
+
+### Bug Fixes
+
+* dashboar url having test in it ([94db237](https://github.com/thecaaz/daily-challenges-web/commit/94db2370cb4020d20014b611905bb20eb4f7d554))
+
 ### [1.19.6](https://github.com/thecaaz/daily-challenges-web/compare/v1.19.5...v1.19.6) (2026-04-15)
 
 
