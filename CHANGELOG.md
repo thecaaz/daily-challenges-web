@@ -1,3 +1,11 @@
+## [1.28.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.27.1...v1.28.0) (2026-08-06)
+
+
+### Features
+
+* **extension:** add BlindCut and MotionPath adapters ([d48c33a](https://github.com/thecaaz/daily-challenges-web/commit/d48c33a68440fee1fbaaca3caac2bf9140c73ba3))
+* release extension 0.4.2 ([de29298](https://github.com/thecaaz/daily-challenges-web/commit/de2929850cc8a0505c9a377dc7ec03b0f97e59c8))
+
 ### [1.27.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.27.0...v1.27.1) (2026-07-23)
 
 
