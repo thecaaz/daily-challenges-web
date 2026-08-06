@@ -51,3 +51,19 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  ci-build:
+    # Gate job whose check name matches the "CI Build" required status check
+    # in the main branch protection rule.
+    name: CI Build
+    needs: [backend, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check build results
+        run: |
+          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ]; then
+            echo "A build job failed or was cancelled."
+            exit 1
+          fi
+          echo "All builds succeeded."
