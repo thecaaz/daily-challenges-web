@@ -85,6 +85,15 @@ export default function Extension() {
           <ListItem disableGutters>
             <ListItemText primary="MapTap" />
           </ListItem>
+          <ListItem disableGutters>
+            <ListItemText primary="Cutle" />
+          </ListItem>
+          <ListItem disableGutters>
+            <ListItemText primary="BlindCut" />
+          </ListItem>
+          <ListItem disableGutters>
+            <ListItemText primary="MotionPath" />
+          </ListItem>
         </List>
       </Paper>
 
@@ -101,7 +110,7 @@ export default function Extension() {
       </Button>
 
       <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>
-        Version 0.2.0 &mdash; Firefox only
+        Version 0.4.2 &mdash; Firefox only
       </Typography>
     </Box>
   )

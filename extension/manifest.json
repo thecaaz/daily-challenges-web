@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "DailyChallenges ScoreBridge",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Extension that bridges embedded game scores and visible-tab captures into a parent page.",
   "permissions": [
     "<all_urls>",
@@ -13,6 +13,8 @@
     "https://timeguessr.com/*",
     "https://maptap.gg/*",
     "https://pfiffel.com/cutle/*",
+    "https://blindcut.app/*",
+    "https://motionpath.app/*",
     "http://localhost/*"
   ],
   "browser_action": {
@@ -46,6 +48,8 @@
         "https://timeguessr.com/*",
         "https://maptap.gg/*",
         "https://pfiffel.com/cutle/*",
+        "https://blindcut.app/*",
+        "https://motionpath.app/*",
         "http://localhost/*"
       ],
       "js": ["content-script.js"],

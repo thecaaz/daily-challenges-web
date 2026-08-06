@@ -14,6 +14,9 @@ Current built-in adapters:
 
 - `TimeGuessr`: reads `#totalText` or `#totalScoreBreakdownText`, and clicks `#breakdownButton` first when present
 - `MapTap`: reads `#ui_score`
+- `Cutle`: reads the page-scoped `preciseRatio` via an injected script, with DOM fallbacks
+- `BlindCut`: reads the daily best from localStorage (`blind-cut-daily-best:<UTC date>`), with a final-screen DOM fallback
+- `MotionPath`: reads the final-screen score aria-label, with a per-game localStorage fallback (`?game=` selects path, dots, rhythm, or cut)
 
 Contents
 --------
