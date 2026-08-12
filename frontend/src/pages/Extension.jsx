@@ -110,7 +110,7 @@ export default function Extension() {
       </Button>
 
       <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>
-        Version 0.4.2 &mdash; Firefox only
+        Version 0.4.3 &mdash; Firefox only
       </Typography>
     </Box>
   )

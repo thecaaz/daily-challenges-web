@@ -1,6 +1,53 @@
 // ScoreBridge-PoC content script
 ;(function () {
   'use strict'
+
+  // Game pages render scores with the player's locale, so the same value shows
+  // up as "40,456" on an en-US machine and "40.456" on a de-DE one. The
+  // separators are indistinguishable by character, so mirror the rule in
+  // frontend/src/utils/parseScore.js: the last '.' or ',' is a decimal point
+  // only when fewer than three digits follow it; every other separator is a
+  // grouping separator and gets dropped.
+  //
+  // Adapters for games that can only ever score whole numbers pass
+  // { integerOnly: true }, which drops every separator unconditionally. That
+  // matters for TimeGuessr, where a legitimate "40.456" would otherwise be read
+  // as the decimal 40.456 on period-grouping locales.
+  const SEPARATORS = /[.,\u00A0\u202F\s]/g
+  const NUMERIC_TOKEN = /-?\d+(?:[.,\u00A0\u202F ]\d+)*/
+
+  function readNumber(text, opts) {
+    if (text == null) return null
+    const token = String(text).match(NUMERIC_TOKEN)
+    if (!token) return null
+
+    let s = token[0]
+    let sign = ''
+    if (s[0] === '-') {
+      sign = '-'
+      s = s.slice(1)
+    }
+
+    let lastSep = -1
+    for (let i = s.length - 1; i >= 0; i--) {
+      if (s[i] === '.' || s[i] === ',') {
+        lastSep = i
+        break
+      }
+    }
+
+    let normalized
+    const after = lastSep === -1 ? '' : s.slice(lastSep + 1)
+    if (lastSep !== -1 && !(opts && opts.integerOnly) && after.length > 0 && after.length < 3) {
+      normalized = s.slice(0, lastSep).replace(SEPARATORS, '') + '.' + after
+    } else {
+      normalized = s.replace(SEPARATORS, '')
+    }
+
+    const n = Number(sign + normalized)
+    return Number.isFinite(n) ? n : null
+  }
+
   // --- Built-in site adapters ---
   const ADAPTERS = [
     {
@@ -16,9 +63,11 @@
         for (const s of this.selectors) {
           const el = doc.querySelector(s)
           if (!el) continue
-          const text = (el.textContent || '').replace(/[^0-9.\-]/g, '').trim()
-          if (!text) continue
-          return text
+          // TimeGuessr scores are whole numbers in 0..50000, so any separator
+          // in the rendered text is a grouping separator.
+          const n = readNumber(el.textContent, { integerOnly: true })
+          if (n === null) continue
+          return n
         }
         return null
       }
@@ -34,10 +83,9 @@
         for (const s of this.selectors) {
           const el = doc.querySelector(s)
           if (!el) continue
-          const text = (el.textContent || '').replace(/[^0-9.\-]/g, '').trim()
-          if (!text) continue
-          const n = Number(text)
-          return Number.isNaN(n) ? text : n
+          const n = readNumber(el.textContent)
+          if (n === null) continue
+          return n
         }
         return null
       }
@@ -133,11 +181,12 @@
           }
         } catch (e) {}
 
-        // Fallback: total on the final screen (out of 500), e.g. "437.25"
+        // Fallback: total on the final screen (out of 500), e.g. "437.25".
+        // Genuinely fractional, so no integerOnly here.
         const finalEl = doc.querySelector('.final-screen .final-score strong')
         if (finalEl) {
-          const n = Number((finalEl.textContent || '').replace(/[^0-9.\-]/g, '').trim())
-          if (Number.isFinite(n)) return n
+          const n = readNumber(finalEl.textContent)
+          if (n !== null) return n
         }
         return null
       }
@@ -154,12 +203,12 @@
         const scoreEl = doc.querySelector('.final-screen .final-score')
         if (scoreEl) {
           const label = scoreEl.getAttribute('aria-label') || ''
-          const m = label.match(/-?\d+(?:\.\d+)?/)
-          if (m) return Number(m[0])
+          const labelScore = readNumber(label)
+          if (labelScore !== null) return labelScore
           const strongEl = scoreEl.querySelector('strong')
           if (strongEl) {
-            const n = Number((strongEl.textContent || '').replace(/[^0-9.\-]/g, '').trim())
-            if (Number.isFinite(n)) return n
+            const n = readNumber(strongEl.textContent)
+            if (n !== null) return n
           }
         }
 

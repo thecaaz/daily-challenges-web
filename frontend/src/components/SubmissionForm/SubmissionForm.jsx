@@ -64,7 +64,9 @@ export default function SubmissionForm({ gameId, initialScore = '', initialScree
       const ok = await confirm({ title: 'Non-numeric score', message: 'This score is not a number and may not show up correctly on leaderboards. Submit anyway?', confirmText: 'Submit', confirmColor: 'primary' })
       if (!ok) return
     }
-    fd.append('score', isNaN(parsed) ? score : score)
+    // Send the locale-normalised value so the server stores a canonical number.
+    // A German player typing "40.456" means 40456, not 40.456.
+    fd.append('score', isNaN(parsed) ? score : String(parsed))
     fd.append('screenshot', screenshot)
 
     setIsSubmitting(true)
