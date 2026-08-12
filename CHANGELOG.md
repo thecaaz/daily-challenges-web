@@ -1,3 +1,15 @@
+### [1.28.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.0...v1.28.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* score being decimals on some machines, even though it should be a natural number ([934c0e1](https://github.com/thecaaz/daily-challenges-web/commit/934c0e1572ffd1c42af5985451f64cfef42f333d))
+
+
+### Reverts
+
+* Revert "ci: add gate job matching the CI Build required status check" ([55762f6](https://github.com/thecaaz/daily-challenges-web/commit/55762f6bb66f4e876a23520381e7d03708c4978a))
+
 ## [1.28.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.27.1...v1.28.0) (2026-08-06)
 
 
