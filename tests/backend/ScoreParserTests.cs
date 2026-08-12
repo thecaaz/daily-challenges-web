@@ -142,4 +142,52 @@ public class ScoreParserTests
     {
         Assert.Equal(3.5, ScoreParser.ParseScore("3,5"), precision: 5);
     }
+
+    // ---- Locale-formatted grouping separators ----
+    //
+    // Regression: a TimeGuessr score of 40456 renders as "40,456" on en-US and
+    // "40.456" on de-DE. Both previously parsed to the decimal 40.456, which
+    // sorted the submission below every single-digit score on the leaderboard.
+
+    [Theory]
+    [InlineData("40,456", 40456.0)]
+    [InlineData("40.456", 40456.0)]
+    [InlineData("1,000", 1000.0)]
+    [InlineData("1.000", 1000.0)]
+    [InlineData("50,000", 50000.0)]
+    [InlineData("1.000.000", 1000000.0)]
+    [InlineData("1,000,000", 1000000.0)]
+    [InlineData("-40.456", -40456.0)]
+    public void TryParseDouble_GroupingSeparators_ParsedAsWholeNumber(string input, double expected)
+    {
+        Assert.True(ScoreParser.TryParseDouble(input, out var v));
+        Assert.Equal(expected, v, precision: 5);
+    }
+
+    [Theory]
+    [InlineData("1.234,56", 1234.56)]   // de-DE
+    [InlineData("1,234,567.89", 1234567.89)] // en-US
+    [InlineData("1 234 567,89", 1234567.89)] // space grouping
+    public void TryParseDouble_MixedSeparators_UsesLastAsDecimal(string input, double expected)
+    {
+        Assert.True(ScoreParser.TryParseDouble(input, out var v));
+        Assert.Equal(expected, v, precision: 5);
+    }
+
+    [Fact]
+    public void TryParseDouble_NarrowNoBreakSpaceGrouping_ParsedAsWholeNumber()
+    {
+        // fr-FR groups with U+202F
+        Assert.True(ScoreParser.TryParseDouble("40\u202F456", out var v));
+        Assert.Equal(40456.0, v, precision: 5);
+    }
+
+    [Theory]
+    [InlineData("40,456", 40456)]
+    [InlineData("40.456", 40456)]
+    public void TryParseInt_GroupingSeparators_ParsedAsWholeNumber(string input, int expected)
+    {
+        Assert.True(ScoreParser.TryParseInt(input, out var v));
+        Assert.Equal(expected, v);
+    }
 }
