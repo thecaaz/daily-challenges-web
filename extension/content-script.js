@@ -65,7 +65,8 @@
           if (!el) continue
           // TimeGuessr scores are whole numbers in 0..50000, so any separator
           // in the rendered text is a grouping separator.
-          const n = readNumber(el.textContent, { integerOnly: true })
+          const text = String(el.textContent).replace(/['\u2018\u2019]/g, '')
+          const n = readNumber(text, { integerOnly: true })
           if (n === null) continue
           return n
         }
