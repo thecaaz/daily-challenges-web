@@ -1,3 +1,11 @@
+### [1.28.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.1...v1.28.2) (2026-08-15)
+
+
+### Bug Fixes
+
+* swizz number formatting in tg ([a3f2f18](https://github.com/thecaaz/daily-challenges-web/commit/a3f2f18bde9448e3964c37788cb664eb2b0685d9))
+* udpate extension ([f73b20f](https://github.com/thecaaz/daily-challenges-web/commit/f73b20f019680aa3e7505d70eccc3bfc128dd040))
+
 ### [1.28.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.0...v1.28.1) (2026-08-12)
 
 
