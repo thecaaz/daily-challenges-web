@@ -28,8 +28,9 @@ namespace DailyChallenges.Services
         private readonly LevelCalculator _levelCalc;
         private readonly XpConfig _cfg;
         private readonly IAchievementService _achievements;
+        private readonly TimeProvider _time;
 
-        public XpService(IUserRepository userRepo, ISubmissionRepository submissionRepo, IXpEventRepository xpEventRepo, LevelCalculator levelCalc, IOptions<XpConfig> cfg, IAchievementService achievements)
+        public XpService(IUserRepository userRepo, ISubmissionRepository submissionRepo, IXpEventRepository xpEventRepo, LevelCalculator levelCalc, IOptions<XpConfig> cfg, IAchievementService achievements, TimeProvider time)
         {
             _userRepo = userRepo;
             _submissionRepo = submissionRepo;
@@ -37,6 +38,7 @@ namespace DailyChallenges.Services
             _levelCalc = levelCalc;
             _cfg = cfg.Value;
             _achievements = achievements;
+            _time = time;
         }
 
         public async Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay)
@@ -45,7 +47,7 @@ namespace DailyChallenges.Services
             if (user == null) return 0;
 
             var scoringDate = scoringDay.Date;
-            var today = DateTime.UtcNow.Date;
+            var today = _time.GetUtcNow().UtcDateTime.Date;
 
             // --- Streak calculation ---
             int newStreak;
@@ -101,7 +103,7 @@ namespace DailyChallenges.Services
                 Amount = xpAwarded,
                 EventType = "submission",
                 Details = details,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = _time.GetUtcNow().UtcDateTime
             });
 
             // Check level-based achievements after the XP/level are persisted.
@@ -127,7 +129,7 @@ namespace DailyChallenges.Services
                 Amount = delta,
                 EventType = "admin_adjustment",
                 Details = details,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = _time.GetUtcNow().UtcDateTime
             });
 
             return delta;
@@ -152,7 +154,7 @@ namespace DailyChallenges.Services
                 Amount = xpAwarded,
                 EventType = "day_win",
                 Details = $"win_xp={xpAwarded}",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = _time.GetUtcNow().UtcDateTime
             });
 
             return xpAwarded;

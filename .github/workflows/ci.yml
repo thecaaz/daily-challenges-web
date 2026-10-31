@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   backend:
@@ -27,6 +27,8 @@ jobs:
         run: dotnet restore daily-challenges-web.sln
       - name: Build
         run: dotnet build daily-challenges-web.sln --configuration Release --no-restore
+      - name: Test
+        run: dotnet test daily-challenges-web.sln --configuration Release --no-build
 
   frontend:
     name: Build frontend
@@ -48,6 +50,9 @@ jobs:
         working-directory: frontend
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Test
+        working-directory: frontend
+        run: npm test
       - name: Build
         working-directory: frontend
         run: npm run build
