@@ -27,7 +27,13 @@ public class XpServiceTests
         XpConfig Config
     );
 
-    private static Sut Build(Action<XpConfig>? configure = null)
+    private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(utcNow, TimeSpan.Zero);
+    }
+
+    // `now` is the wall-clock time of the submission; streaks are based on it (defaults to Day1).
+    private static Sut Build(Action<XpConfig>? configure = null, DateTime? now = null)
     {
         var cfg = new XpConfig();
         configure?.Invoke(cfg);
@@ -44,7 +50,8 @@ public class XpServiceTests
 
         var svc = new XpService(
             userRepo.Object, subRepo.Object, xpEventRepo.Object,
-            levelCalc, Options.Create(cfg), achievements.Object);
+            levelCalc, Options.Create(cfg), achievements.Object,
+            new FixedTimeProvider(now ?? Day1));
 
         return new Sut(svc, userRepo, subRepo, xpEventRepo, achievements, cfg);
     }
@@ -109,7 +116,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_ConsecutiveDay_IncrementsStreak()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         var user = NewUser(streak: 2, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
@@ -122,7 +129,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_NonConsecutiveDay_ResetsStreakTo1()
     {
-        var sut = Build();
+        var sut = Build(now: Day3);
         var user = NewUser(streak: 5, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
@@ -135,7 +142,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_Streak2_AppliesOneDayBonus()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         var user = NewUser(streak: 1, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
@@ -150,7 +157,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_StreakBonus_CappedAtMaxStreakBonus()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         // streak=31 → bonus would be 30*0.01=0.30 which is exactly the cap
         var user = NewUser(streak: 31, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
@@ -165,7 +172,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_StreakBeyondCap_StillCapped()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         var user = NewUser(streak: 100, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
@@ -238,7 +245,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_NewScoringDay_UpdatesLastSubmissionAt()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         var user = NewUser(lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));

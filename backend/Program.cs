@@ -78,6 +78,7 @@ builder.Services.AddSingleton(sp =>
 });
 // Memory cache for short-lived caches (user profile, etc.)
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<DailyChallenges.Services.IXpService, DailyChallenges.Services.XpService>();
 
 // Admin users service
