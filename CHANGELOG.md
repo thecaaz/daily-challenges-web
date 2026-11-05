@@ -1,3 +1,15 @@
+## [1.29.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.2...v1.29.0) (2026-11-05)
+
+
+### Features
+
+* address full code-review findings ([3812117](https://github.com/thecaaz/daily-challenges-web/commit/3812117383d7b6697aeb78abd812c3d7fe5d505a))
+
+
+### Bug Fixes
+
+* make XP streak tests deterministic and run tests in CI ([0965f80](https://github.com/thecaaz/daily-challenges-web/commit/0965f80b4861e86400413926f91c7196cc178da7))
+
 ### [1.28.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.1...v1.28.2) (2026-08-15)
 
 
