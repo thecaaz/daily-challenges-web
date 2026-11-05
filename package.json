@@ -6,7 +6,7 @@
     "release": "semantic-release"
   },
   "devDependencies": {
-    "semantic-release": "^20.0.0",
+    "semantic-release": "^25.0.9",
     "@semantic-release/changelog": "^6.0.0",
     "@semantic-release/commit-analyzer": "^9.0.0",
     "@semantic-release/release-notes-generator": "^10.0.0",
