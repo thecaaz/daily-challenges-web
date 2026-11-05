@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using DailyChallenges.Mapping;
 using DailyChallenges.Services;
 using DailyChallenges.DTOs;
+using DailyChallenges.Exceptions;
 
 namespace DailyChallenges.Controllers
 {
@@ -28,6 +29,7 @@ namespace DailyChallenges.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromForm] GameCreateRequest request)
         {
+            RejectLegacyTimezoneOffset();
             var created = await _games.CreateAsync(request);
             return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }
@@ -62,6 +64,7 @@ namespace DailyChallenges.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromForm] GameUpdateRequest request)
         {
+            RejectLegacyTimezoneOffset();
             var updated = await _games.UpdateAsync(id, request);
             return Ok(updated);
         }
@@ -74,6 +77,17 @@ namespace DailyChallenges.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// resetTime is UTC "HH:mm" only. An old cached SPA still sends a local time plus
+        /// resetTimezoneOffsetMinutes; reject it instead of silently storing a shifted reset time.
+        /// (Kept for one release after the field was removed.)
+        /// </summary>
+        private void RejectLegacyTimezoneOffset()
+        {
+            if (Request.HasFormContentType && Request.Form.ContainsKey("resetTimezoneOffsetMinutes"))
+                throw new ValidationException("resetTimezoneOffsetMinutes is no longer supported: send resetTime as UTC \"HH:mm\". Reload the page to get the current app.");
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -83,9 +97,9 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpGet("{id}/overview")]
-        public async Task<IActionResult> GetOverview(int id, [FromQuery] string? include, [FromQuery] int? top)
+        public async Task<IActionResult> GetOverview(int id, [FromQuery] string? include)
         {
-            var dto = await _games.GetOverviewAsync(id, User, include, top ?? 0);
+            var dto = await _games.GetOverviewAsync(id, User, include);
             return Ok(dto);
         }
     }

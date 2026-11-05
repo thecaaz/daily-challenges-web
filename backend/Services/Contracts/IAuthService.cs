@@ -8,7 +8,7 @@ namespace DailyChallenges.Services
         Task<UserDto> RegisterAsync(string username, string password);
         Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response);
         Task<AuthResultDto?> RefreshAsync(HttpRequest request, HttpResponse response);
-        Task LogoutAsync(HttpResponse response);
+        Task LogoutAsync(HttpRequest request, HttpResponse response);
         Task<UserDto?> GetCurrentUserAsync(ClaimsPrincipal user);
     }
 }

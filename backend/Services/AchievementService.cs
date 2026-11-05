@@ -9,6 +9,7 @@ namespace DailyChallenges.Services
 {
     public class AchievementService : IAchievementService
     {
+        private readonly TimeProvider _time;
         private readonly IUserAchievementRepository _userAchievementRepo;
         private readonly IUserRepository _userRepo;
         private readonly ISubmissionRepository _submissionRepo;
@@ -24,7 +25,7 @@ namespace DailyChallenges.Services
             IScoringDayResultRepository scoringDayResultRepo,
             INotificationRepository notificationRepo,
             IFriendRepository friendRepo,
-            ILogger<AchievementService> logger)
+            ILogger<AchievementService> logger, TimeProvider time)
         {
             _userAchievementRepo = userAchievementRepo;
             _userRepo = userRepo;
@@ -33,6 +34,7 @@ namespace DailyChallenges.Services
             _notificationRepo = notificationRepo;
             _friendRepo = friendRepo;
             _logger = logger;
+            _time = time;
         }
 
         public async Task CheckAndAwardAsync(int userId, AchievementTrigger trigger)
@@ -69,7 +71,7 @@ namespace DailyChallenges.Services
 
             if (newlyUnlocked.Count == 0) return;
 
-            var now = DateTime.UtcNow;
+            var now = _time.GetUtcNow().UtcDateTime;
 
             var newAchievements = newlyUnlocked.Select(def => new UserAchievement
             {

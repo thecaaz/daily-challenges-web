@@ -19,6 +19,7 @@ namespace DailyChallenges.Controllers
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
         {
+            (page, pageSize) = Paging.Clamp(page, pageSize);
             var (items, total) = await _adminService.GetUsersAsync(page, pageSize, search);
             return Ok(new { items, totalCount = total });
         }
@@ -38,6 +39,8 @@ namespace DailyChallenges.Controllers
         [HttpGet("{id}/xp-events")]
         public async Task<IActionResult> GetXpEvents(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] string? eventType = null)
         {
+            (page, pageSize) = Paging.Clamp(page, pageSize);
+            // `from` is inclusive, `to` is exclusive.
             var (items, total) = await _adminService.GetXpEventsAsync(id, page, pageSize, from, to, eventType);
             return Ok(new { items, totalCount = total });
         }
@@ -55,7 +58,11 @@ namespace DailyChallenges.Controllers
             if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
                 return BadRequest(new { message = "NewPassword is required" });
 
-            await _adminService.SetPasswordAsync(id, dto.NewPassword);
+            var requestingAdminId = User.GetUserId();
+            if (requestingAdminId == null) return Unauthorized();
+
+            // Validates the length (400) and refuses another admin's account (403).
+            await _adminService.SetPasswordAsync(id, dto.NewPassword, requestingAdminId.Value);
             return NoContent();
         }
 

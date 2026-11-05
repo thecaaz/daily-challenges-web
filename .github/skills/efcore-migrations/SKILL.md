@@ -105,3 +105,10 @@ Always review generated migration files under `backend/Migrations` before commit
 ---
 
 When you want me to create migrations automatically, confirm I may run `dotnet ef` in the workspace and whether to apply the migration to the dev/test DB immediately. If `dotnet-ef` is unavailable, I will stop and provide exact commands for you to run locally.
+
+## Data safety rules
+
+- Never edit a migration that has been released (check `git tag --contains <commit>`). Fix data with a new migration instead.
+- Never hard-delete user data in a migration. Backfill or keep columns nullable instead.
+- Before adding a unique index, remove or merge existing duplicates in the same migration.
+- Prefer modelling indexes, collations and computed columns in `AppDbContext` over raw SQL, so EF keeps them across SQLite table rebuilds and in `EnsureCreated` test databases.

@@ -3,15 +3,12 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardMedia, CardActionArea, CardActions, Typography, Box, Tooltip } from '@mui/material'
 import AppButton from '../AppButton'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
-import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import PlayButton from '../PlayButton'
 import CheckIcon from '@mui/icons-material/Check'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import FavoriteButton from '../FavoriteButton'
 import useAdapter from '../../../hooks/useAdapter'
 import imageUrl from '../../../utils/imageUrl'
-
- 
 
 export default function GameCard({ game, sx, showSubmit = true }) {
   const adapter = useAdapter(game?.url)
@@ -55,13 +52,11 @@ export default function GameCard({ game, sx, showSubmit = true }) {
             {game.hasSubmittedForLatest && (
               <CheckIcon color="primary" fontSize="small" aria-label="submitted" />
             )}
-            {/* Favorite toggle */}
-            <FavoriteButton game={game} stopPropagationOnClick />
           </Box>
         </CardContent>
       </CardActionArea>
 
-      <CardActions sx={{ px: 2, pb: 2, pt: 0, gap: 1 }}>
+      <CardActions disableSpacing sx={{ px: 2, pb: 2, pt: 0, gap: 1 }}>
         {showSubmit && (
           (() => {
             const disabled = Boolean(game.hasSubmittedForLatest);
@@ -84,6 +79,10 @@ export default function GameCard({ game, sx, showSubmit = true }) {
         {game.url && (
           <PlayButton game={game} adapter={adapter} />
         )}
+        {/* Kept outside the CardActionArea link: a button can't be nested in an <a>. */}
+        <Box sx={{ ml: 'auto' }}>
+          <FavoriteButton game={game} />
+        </Box>
       </CardActions>
     </Card>
   )

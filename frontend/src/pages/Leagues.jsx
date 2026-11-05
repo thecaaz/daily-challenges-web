@@ -11,9 +11,10 @@ import useRequireAuth from '../hooks/useRequireAuth'
 import useLeagues from '../hooks/useLeagues'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import api from '../api'
+import { getApiErrorMessage } from '../utils/apiError'
 
 export default function Leagues() {
-  useRequireAuth()
+  const { user } = useRequireAuth()
   const navigate = useNavigate()
   const { showSnackbar } = useSnackbar()
   const { leagues, pendingInvitations, loading, refresh } = useLeagues()
@@ -21,9 +22,11 @@ export default function Leagues() {
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [createBusy, setCreateBusy] = useState(false)
+  // Invitation id currently being accepted/declined (prevents double clicks).
+  const [invBusyId, setInvBusyId] = useState(null)
 
   const handleCreate = async () => {
-    if (!newName.trim()) return
+    if (!newName.trim() || createBusy) return
     setCreateBusy(true)
     try {
       const res = await api.post('/leagues', { name: newName.trim() })
@@ -32,31 +35,38 @@ export default function Leagues() {
       setNewName('')
       navigate(`/leagues/${res.data.id}`)
     } catch (err) {
-      const msg = err?.response?.data?.title || err?.response?.data || 'Failed to create league.'
-      showSnackbar(typeof msg === 'string' ? msg : 'Something went wrong.', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Failed to create league.'), 'error')
     } finally {
       setCreateBusy(false)
     }
   }
 
   const handleAccept = async (inv) => {
+    if (invBusyId != null) return
+    setInvBusyId(inv.id)
     try {
       await api.post(`/leagues/invitations/${inv.id}/accept`)
       showSnackbar(`You joined "${inv.leagueName}"!`)
-      refresh()
       navigate(`/leagues/${inv.leagueId}`)
-    } catch {
-      showSnackbar('Failed to accept invitation.', 'error')
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, 'Failed to accept invitation.'), 'error')
+      refresh()
+    } finally {
+      setInvBusyId(null)
     }
   }
 
   const handleDecline = async (inv) => {
+    if (invBusyId != null) return
+    setInvBusyId(inv.id)
     try {
       await api.post(`/leagues/invitations/${inv.id}/decline`)
       showSnackbar('Invitation declined.')
       refresh()
-    } catch {
-      showSnackbar('Failed to decline invitation.', 'error')
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, 'Failed to decline invitation.'), 'error')
+    } finally {
+      setInvBusyId(null)
     }
   }
 
@@ -89,10 +99,10 @@ export default function Leagues() {
                     secondary={`Invited by ${inv.inviterUsername}`}
                   />
                   <ListItemSecondaryAction>
-                    <Button size="small" variant="contained" onClick={() => handleAccept(inv)} sx={{ mr: 1 }}>
+                    <Button size="small" variant="contained" onClick={() => handleAccept(inv)} disabled={invBusyId != null} sx={{ mr: 1 }}>
                       Accept
                     </Button>
-                    <Button size="small" onClick={() => handleDecline(inv)}>
+                    <Button size="small" onClick={() => handleDecline(inv)} disabled={invBusyId != null}>
                       Decline
                     </Button>
                   </ListItemSecondaryAction>
@@ -122,8 +132,8 @@ export default function Leagues() {
                   primary={league.name}
                   secondary={`${league.memberCount} member${league.memberCount !== 1 ? 's' : ''} · Owner: ${league.ownerUsername}`}
                 />
-                {league.ownerId === league.ownerId && (
-                  <Chip label={`${league.memberCount} members`} size="small" sx={{ ml: 1 }} />
+                {user?.id != null && league.ownerId === user.id && (
+                  <Chip label="Owner" size="small" color="primary" sx={{ ml: 1 }} />
                 )}
               </ListItem>
             </React.Fragment>
@@ -142,7 +152,7 @@ export default function Leagues() {
             value={newName}
             onChange={e => setNewName(e.target.value)}
             inputProps={{ maxLength: 100 }}
-            onKeyDown={e => { if (e.key === 'Enter') handleCreate() }}
+            onKeyDown={e => { if (e.key === 'Enter' && !createBusy) handleCreate() }}
             sx={{ mt: 1 }}
           />
         </DialogContent>

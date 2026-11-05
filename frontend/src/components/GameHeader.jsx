@@ -2,16 +2,18 @@ import React from 'react'
 import { CardMedia, Box, Typography, Tooltip } from '@mui/material'
 import AppButton from './ui/AppButton'
 import PlayButton from './ui/PlayButton'
-import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import FavoriteButton from './ui/FavoriteButton'
 import Countdown from './Countdown'
 import imageUrl from '../utils/imageUrl'
 import useAdapter from '../hooks/useAdapter'
 
- 
-
-export default function GameHeader({ game }) {
+/**
+ * @param {object} props
+ * @param {object} props.game
+ * @param {() => void} [props.onExpire] - called when the scoring day resets; the parent should refetch the game.
+ */
+export default function GameHeader({ game, onExpire }) {
   const adapter = useAdapter(game?.url)
 
   if (!game) return null
@@ -53,7 +55,7 @@ export default function GameHeader({ game }) {
             </Box>
           </Box>
 
-          <Countdown targetDate={game.currentScoringDayUtcEnd} />
+          <Countdown targetDate={game.currentScoringDayUtcEnd} onExpire={onExpire} />
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
             {game.url && (

@@ -14,7 +14,7 @@ namespace DailyChallenges.Services
 
         /// <summary>
         /// Deletes a notification if the requesting user is the owner or an admin.
-        /// Throws KeyNotFoundException if not found, or InvalidOperationException if not authorized.
+        /// Throws NotFoundException if not found or not owned by the caller (unless admin).
         /// </summary>
         Task DeleteAsync(int id, int requestingUserId, bool isAdmin);
     }

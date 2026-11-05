@@ -6,8 +6,11 @@ namespace DailyChallenges.Mapping
 {
     public static class DtoMapper
     {
-        /// <summary>Maps a User entity to a UserDto, computing XP-into-level and XP-to-next-level.</summary>
-        public static UserDto ToDto(User u, LevelCalculator levelCalc)
+        /// <summary>
+        /// Maps a User entity to a UserDto, computing XP-into-level and XP-to-next-level.
+        /// <paramref name="todayUtc"/> (from the caller's TimeProvider) decides the effective streak.
+        /// </summary>
+        public static UserDto ToDto(User u, LevelCalculator levelCalc, DateTime todayUtc)
         {
             var (level, xpInto, xpToNext) = levelCalc.GetLevelInfo(u.TotalXp);
             return new UserDto
@@ -19,7 +22,7 @@ namespace DailyChallenges.Mapping
                 Level = level,
                 XpIntoLevel = xpInto,
                 XpToNextLevel = xpToNext,
-                Streak = u.Streak,
+                Streak = StreakHelper.Effective(u, todayUtc),
                 LastSubmissionAt = u.LastSubmissionAt
             };
         }
@@ -35,12 +38,16 @@ namespace DailyChallenges.Mapping
                 ScoreValue = s.ScoreValue,
                 Rank = null,
                 Username = s.Username,
-                ScreenshotUrl = s.ScreenshotData != null ? $"/api/submissions/{s.Id}/screenshot" : null,
+                ScreenshotUrl = !string.IsNullOrEmpty(s.ScreenshotContentType) ? $"/api/submissions/{s.Id}/screenshot" : null,
                 CreatedAt = s.CreatedAt
             };
         }
 
-        public static GameDto ToDto(Game g, bool includeSubmissions = false)
+        /// <summary>
+        /// Maps a game, including its current scoring day. Services pass <paramref name="nowUtc"/> from their
+        /// TimeProvider so the DTO uses the same clock as the rest of the request; without it the system clock is used.
+        /// </summary>
+        public static GameDto ToDto(Game g, bool includeSubmissions = false, DateTime? nowUtc = null)
         {
             var dto = new GameDto
             {
@@ -48,7 +55,8 @@ namespace DailyChallenges.Mapping
                 Name = g.Name,
                 Url = g.Url,
                 Description = g.Description,
-                ImageUrl = g.ScreenshotData != null ? $"/api/games/{g.Id}/image" : null,
+                // Content type, not the blob: list queries do not load the blob.
+                ImageUrl = !string.IsNullOrEmpty(g.ScreenshotContentType) ? $"/api/games/{g.Id}/image" : null,
                 // ResetTime is exported as hh:mm (UTC)
                 ResetTime = g.ResetTime.ToString(@"hh\:mm"),
                 RankingMode = g.RankingMode.ToString().ToLowerInvariant(),
@@ -60,7 +68,7 @@ namespace DailyChallenges.Mapping
             try
             {
                 // Compute current scoring day on the server side (ResetTime is UTC)
-                var currentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime);
+                var currentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, nowUtc ?? DateTime.UtcNow);
                 dto.CurrentScoringDay = currentScoringDay.ToString("yyyy-MM-dd");
                 var (utcStart, utcEnd) = ScoringDayHelper.GetScoringDayUtcRange(currentScoringDay, g.ResetTime);
                 dto.CurrentScoringDayUtcStart = utcStart.ToString("yyyy-MM-ddTHH:mm:ss'Z'");
@@ -84,7 +92,7 @@ namespace DailyChallenges.Mapping
                 UserId = e.UserId,
                 SubmissionId = e.SubmissionId,
                 GameId = e.GameId,
-                ScoringDay = e.ScoringDay,
+                ScoringDay = e.ScoringDay.HasValue ? ScoringDayHelper.FormatScoringDay(e.ScoringDay.Value) : null,
                 Amount = e.Amount,
                 EventType = e.EventType,
                 Details = e.Details,
@@ -102,12 +110,13 @@ namespace DailyChallenges.Mapping
                 GameId = n.GameId,
                 ScoringDay = ScoringDayHelper.FormatScoringDay(n.ScoringDay),
                 Rank = n.Rank,
+                ActorUserId = n.ActorUserId,
                 IsRead = n.IsRead,
                 CreatedAt = n.CreatedAt
             };
         }
 
-        public static UserProfileDto ToUserProfileDto(User u, List<UserGameStatDto> topGames, LevelCalculator levelCalc)
+        public static UserProfileDto ToUserProfileDto(User u, List<UserGameStatDto> topGames, LevelCalculator levelCalc, DateTime todayUtc)
         {
             var (level, xpInto, xpToNext) = levelCalc.GetLevelInfo(u.TotalXp);
             return new UserProfileDto
@@ -118,8 +127,8 @@ namespace DailyChallenges.Mapping
                 Level = level,
                 XpIntoLevel = xpInto,
                 XpToNextLevel = xpToNext,
-                Streak = u.Streak,
-                LastSubmissionAt = topGames?.Max(g => g.LastPlayed) ?? u.LastSubmissionAt,
+                Streak = StreakHelper.Effective(u, todayUtc),
+                LastSubmissionAt = u.LastSubmissionAt,
                 TopGames = topGames ?? []
             };
         }
@@ -138,7 +147,7 @@ namespace DailyChallenges.Mapping
             };
         }
 
-        public static FriendDto ToFriendDto(User u, LevelCalculator levelCalc)
+        public static FriendDto ToFriendDto(User u, LevelCalculator levelCalc, DateTime todayUtc)
         {
             var (level, _, _) = levelCalc.GetLevelInfo(u.TotalXp);
             return new FriendDto
@@ -147,7 +156,7 @@ namespace DailyChallenges.Mapping
                 Username = u.Username,
                 Level = level,
                 TotalXp = u.TotalXp,
-                Streak = u.Streak,
+                Streak = StreakHelper.Effective(u, todayUtc),
                 LastSubmissionAt = u.LastSubmissionAt
             };
         }

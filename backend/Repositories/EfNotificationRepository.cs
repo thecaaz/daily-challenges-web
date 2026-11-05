@@ -52,7 +52,26 @@ namespace DailyChallenges.Repositories
         {
             if (notifications.Count == 0) return;
             _db.Notifications.AddRange(notifications);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // Detach the failed inserts, or every later SaveChanges in this scope retries (and fails on) them.
+                foreach (var n in notifications) _db.Entry(n).State = EntityState.Detached;
+                throw;
+            }
+        }
+
+        public async Task<bool> HasRecentUnreadFromActorAsync(int userId, string type, int actorUserId, DateTime sinceUtc)
+        {
+            return await _db.Notifications.AnyAsync(n =>
+                n.UserId == userId &&
+                n.Type == type &&
+                n.ActorUserId == actorUserId &&
+                !n.IsRead &&
+                n.CreatedAt >= sinceUtc);
         }
 
         public async Task<Notification?> GetByIdAsync(int id)
@@ -66,6 +85,14 @@ namespace DailyChallenges.Repositories
             if (n == null) return;
             _db.Notifications.Remove(n);
             await _db.SaveChangesAsync();
+        }
+
+        public Task<int> DeleteDayResultNotificationsAsync(int gameId, DateTime scoringDay)
+        {
+            var day = scoringDay.Date;
+            return _db.Notifications
+                .Where(n => n.GameId == gameId && n.ScoringDay == day && (n.Type == "day_win" || n.Type == "day_placement"))
+                .ExecuteDeleteAsync();
         }
     }
 }

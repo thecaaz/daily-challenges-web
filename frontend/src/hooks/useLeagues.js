@@ -15,8 +15,8 @@ export default function useLeagues() {
         api.get('/leagues'),
         api.get('/leagues/invitations/pending'),
       ])
-      setLeagues(leaguesRes.data)
-      setPendingInvitations(invRes.data)
+      setLeagues(leaguesRes.data || [])
+      setPendingInvitations(invRes.data || [])
     } catch {
       showSnackbar('Failed to load leagues.', 'error')
     } finally {

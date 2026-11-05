@@ -1,3 +1,4 @@
+using DailyChallenges.Exceptions;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Repositories;
@@ -34,8 +35,9 @@ namespace DailyChallenges.Services
         public async Task DeleteAsync(int id, int requestingUserId, bool isAdmin)
         {
             var n = await _notifications.GetByIdAsync(id);
-            if (n == null) throw new KeyNotFoundException("Notification not found");
-            if (n.UserId != requestingUserId && !isAdmin) throw new InvalidOperationException("Not allowed to delete this notification");
+            if (n == null) throw new NotFoundException("Notification not found");
+            // Someone else's notification reads as "not found" so ids cannot be probed.
+            if (n.UserId != requestingUserId && !isAdmin) throw new NotFoundException("Notification not found");
             await _notifications.DeleteAsync(id);
         }
     }

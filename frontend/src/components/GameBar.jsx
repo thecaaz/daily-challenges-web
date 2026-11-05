@@ -15,7 +15,7 @@ import VersionBadge from './VersionBadge'
 import formatNumber from '../utils/formatNumber'
 
 export default function GameBar() {
-  const { user, logout, fetchMe } = useAuth()
+  const { user, logout } = useAuth()
   const { mode, toggleMode } = useThemeMode()
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -34,33 +34,33 @@ export default function GameBar() {
   const progress = xpForLevel > 0 ? Math.min(100, Math.round((xpInto / xpForLevel) * 100)) : 0
 
   // Flash "+N XP" whenever totalXp increases
+  const totalXp = user ? (user.totalXp ?? 0) : null
   const prevXpRef = useRef(null)
-  const gainTimerRef = useRef(null)
-  const [gainDisplay, setGainDisplay] = useState(null)
+  const gainIdRef = useRef(0)
+  const [gain, setGain] = useState(null) // { amount, id }
 
   useEffect(() => {
-    if (!user) { prevXpRef.current = null; return }
-    const current = user.totalXp ?? 0
-    if (prevXpRef.current !== null && current > prevXpRef.current) {
-      const gained = current - prevXpRef.current
-      setGainDisplay(gained)
-      clearTimeout(gainTimerRef.current)
-      gainTimerRef.current = setTimeout(() => setGainDisplay(null), 2500)
+    const previous = prevXpRef.current
+    prevXpRef.current = totalXp
+    if (totalXp === null || previous === null || totalXp <= previous) return undefined
+    gainIdRef.current += 1
+    setGain({ amount: totalXp - previous, id: gainIdRef.current })
+    const timer = setTimeout(() => setGain(null), 2500)
+    return () => {
+      clearTimeout(timer)
+      setGain(null)
     }
-    prevXpRef.current = current
-    return () => clearTimeout(gainTimerRef.current)
-  }, [user?.totalXp])
+  }, [totalXp])
 
-  // Re-fetch on level-up so xpIntoLevel / xpToNextLevel are accurate
-  const prevLevelRef = useRef(null)
-  useEffect(() => {
-    if (!user) { prevLevelRef.current = null; return }
-    const currentLevel = user.level ?? 1
-    if (prevLevelRef.current !== null && currentLevel > prevLevelRef.current) {
-      fetchMe()
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (e) {
+      // local state is cleared by logout() regardless
+    } finally {
+      navigate('/')
     }
-    prevLevelRef.current = currentLevel
-  }, [user?.level])
+  }
 
   return (
     <AppBar position="sticky" elevation={0}>
@@ -127,8 +127,8 @@ export default function GameBar() {
                   aria-label={`XP progress: ${formatNumber(xpInto)} of ${formatNumber(xpForLevel)}`}
                 />
               </Tooltip>
-              {gainDisplay && (
-                <span className="xp-gain" key={gainDisplay + Date.now()}>+{formatNumber(gainDisplay)} XP</span>
+              {gain && (
+                <span className="xp-gain" key={gain.id}>+{formatNumber(gain.amount)} XP</span>
               )}
             </Box>
             <Box
@@ -168,7 +168,7 @@ export default function GameBar() {
                 {user.username}
               </Typography>
             </Box>
-            <AppButton variant="contained" color="primary" size="small" onClick={() => { logout(); navigate('/') }}>
+            <AppButton variant="contained" color="primary" size="small" onClick={handleLogout}>
               Logout
             </AppButton>
           </Box>

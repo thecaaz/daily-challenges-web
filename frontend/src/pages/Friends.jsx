@@ -1,18 +1,27 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Box, Typography, TextField, Button, CircularProgress,
   List, ListItem, ListItemText, ListItemSecondaryAction,
-  Divider, Paper, Grid, Chip
+  Divider, Paper, Chip
 } from '@mui/material'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
 import { Link } from 'react-router-dom'
 import useRequireAuth from '../hooks/useRequireAuth'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import api from '../api'
+import { getApiErrorMessage } from '../utils/apiError'
+import useConfirm from '../hooks/useConfirm'
+import formatNumber from '../utils/formatNumber'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
 export default function Friends() {
   useRequireAuth()
   const { showSnackbar } = useSnackbar()
+  const { confirm, dialogProps } = useConfirm()
+  // Keys of the rows with a request in flight ('req:<id>' or 'friend:<userId>').
+  const [busyKeys, setBusyKeys] = useState(() => new Set())
+  const busyRef = useRef(new Set()) // guards double clicks before the re-render
+  const isBusy = (key) => busyKeys.has(key)
 
   const [username, setUsername] = useState('')
   const [sendBusy, setSendBusy] = useState(false)
@@ -22,17 +31,18 @@ export default function Friends() {
   const [friends, setFriends] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
+  // `silent` refreshes after an action without replacing the lists by a spinner.
+  const fetchAll = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true)
     try {
       const [inRes, sentRes, friendsRes] = await Promise.all([
         api.get('/friends/requests/incoming'),
         api.get('/friends/requests/sent'),
         api.get('/friends'),
       ])
-      setIncoming(inRes.data)
-      setSent(sentRes.data)
-      setFriends(friendsRes.data)
+      setIncoming(inRes.data ?? [])
+      setSent(sentRes.data ?? [])
+      setFriends(friendsRes.data ?? [])
     } catch {
       showSnackbar('Failed to load friends data.', 'error')
     } finally {
@@ -49,53 +59,69 @@ export default function Friends() {
       await api.post('/friends/requests/by-username', { username: username.trim() })
       showSnackbar(`Friend request sent to ${username.trim()}.`)
       setUsername('')
-      fetchAll()
+      fetchAll({ silent: true })
     } catch (err) {
-      const msg = err?.response?.data?.title || err?.response?.data || 'User not found or request already exists.'
-      showSnackbar(typeof msg === 'string' ? msg : 'Something went wrong.', 'error')
+      showSnackbar(getApiErrorMessage(err, 'User not found or request already exists.'), 'error')
     } finally {
       setSendBusy(false)
     }
   }
 
-  const accept = async (req) => {
+  // Runs one row action with that row's buttons disabled while it's in flight.
+  const runAction = async (key, action, successMessage, errorFallback) => {
+    if (busyRef.current.has(key)) return
+    busyRef.current.add(key)
+    setBusyKeys(prev => new Set(prev).add(key))
     try {
-      await api.post(`/friends/requests/${req.id}/accept`)
-      showSnackbar(`You are now friends with ${req.senderUsername}.`)
-      fetchAll()
-    } catch {
-      showSnackbar('Failed to accept request.', 'error')
+      await action()
+      showSnackbar(successMessage)
+      await fetchAll({ silent: true })
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, errorFallback), 'error')
+    } finally {
+      busyRef.current.delete(key)
+      setBusyKeys(prev => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
     }
   }
 
-  const reject = async (req) => {
-    try {
-      await api.post(`/friends/requests/${req.id}/reject`)
-      showSnackbar('Friend request declined.')
-      fetchAll()
-    } catch {
-      showSnackbar('Failed to decline request.', 'error')
-    }
-  }
+  const accept = (req) => runAction(
+    `req:${req.id}`,
+    () => api.post(`/friends/requests/${req.id}/accept`),
+    `You are now friends with ${req.senderUsername}.`,
+    'Failed to accept request.',
+  )
 
-  const cancel = async (req) => {
-    try {
-      await api.delete(`/friends/requests/${req.id}`)
-      showSnackbar('Friend request cancelled.')
-      fetchAll()
-    } catch {
-      showSnackbar('Failed to cancel request.', 'error')
-    }
-  }
+  const reject = (req) => runAction(
+    `req:${req.id}`,
+    () => api.post(`/friends/requests/${req.id}/reject`),
+    'Friend request declined.',
+    'Failed to decline request.',
+  )
+
+  const cancel = (req) => runAction(
+    `req:${req.id}`,
+    () => api.delete(`/friends/requests/${req.id}`),
+    'Friend request cancelled.',
+    'Failed to cancel request.',
+  )
 
   const removeFriend = async (friend) => {
-    try {
-      await api.delete(`/friends/${friend.userId}`)
-      showSnackbar(`Removed ${friend.username} from friends.`)
-      fetchAll()
-    } catch {
-      showSnackbar('Failed to remove friend.', 'error')
-    }
+    const ok = await confirm({
+      title: 'Remove friend?',
+      message: `Remove ${friend.username} from your friends?`,
+      confirmText: 'Remove',
+    })
+    if (!ok) return
+    await runAction(
+      `friend:${friend.userId}`,
+      () => api.delete(`/friends/${friend.userId}`),
+      `Removed ${friend.username} from friends.`,
+      'Failed to remove friend.',
+    )
   }
 
   return (
@@ -111,7 +137,7 @@ export default function Friends() {
             label="Username"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendByUsername()}
+            onKeyDown={e => { if (e.key === 'Enter' && !sendBusy) sendByUsername() }}
             disabled={sendBusy}
             sx={{ flex: 1 }}
           />
@@ -151,10 +177,10 @@ export default function Friends() {
                         }
                       />
                       <ListItemSecondaryAction>
-                        <Button size="small" variant="contained" color="success" onClick={() => accept(req)} sx={{ mr: 1 }}>
+                        <Button size="small" variant="contained" color="success" onClick={() => accept(req)} disabled={isBusy(`req:${req.id}`)} sx={{ mr: 1 }}>
                           Accept
                         </Button>
-                        <Button size="small" variant="outlined" color="error" onClick={() => reject(req)}>
+                        <Button size="small" variant="outlined" color="error" onClick={() => reject(req)} disabled={isBusy(`req:${req.id}`)}>
                           Decline
                         </Button>
                       </ListItemSecondaryAction>
@@ -183,7 +209,7 @@ export default function Friends() {
                         secondary="Pending"
                       />
                       <ListItemSecondaryAction>
-                        <Button size="small" variant="outlined" onClick={() => cancel(req)}>
+                        <Button size="small" variant="outlined" onClick={() => cancel(req)} disabled={isBusy(`req:${req.id}`)}>
                           Cancel
                         </Button>
                       </ListItemSecondaryAction>
@@ -215,10 +241,10 @@ export default function Friends() {
                             {f.username}
                           </Box>
                         }
-                        secondary={`Level ${f.level} · ${f.totalXp.toLocaleString()} XP · Streak: ${f.streak}`}
+                        secondary={`Level ${f.level ?? 1} · ${formatNumber(f.totalXp ?? 0)} XP · Streak: ${f.streak ?? 0}`}
                       />
                       <ListItemSecondaryAction>
-                        <Button size="small" variant="outlined" color="error" onClick={() => removeFriend(f)}>
+                        <Button size="small" variant="outlined" color="error" onClick={() => removeFriend(f)} disabled={isBusy(`friend:${f.userId}`)}>
                           Remove
                         </Button>
                       </ListItemSecondaryAction>
@@ -230,6 +256,7 @@ export default function Friends() {
           </Paper>
         </>
       )}
+      <ConfirmDialog {...dialogProps} />
     </Box>
   )
 }

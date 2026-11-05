@@ -7,6 +7,7 @@ namespace DailyChallenges.Repositories
     {
         Task<User?> GetByIdAsync(int userId);
         Task<User?> GetByUsernameAsync(string username);
-        Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames = 10);
+        /// <summary>Per-game stats of the user. Submissions in <paramref name="excludeSubmissionIds"/> are not counted.</summary>
+        Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames = 10, IReadOnlyCollection<int>? excludeSubmissionIds = null);
     }
 }

@@ -20,12 +20,13 @@ namespace DailyChallenges.Repositories
             return await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Username == username);
         }
 
-        public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames = 10)
+        public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames = 10, IReadOnlyCollection<int>? excludeSubmissionIds = null)
         {
             if (topGames < 1) topGames = 10;
+            var excluded = (excludeSubmissionIds ?? Array.Empty<int>()).ToList();
 
             var grouped = _db.Submissions
-                .Where(s => s.UserId == userId && s.ScoreValue != null)
+                .Where(s => s.UserId == userId && s.ScoreValue != null && !excluded.Contains(s.Id))
                 .GroupBy(s => s.GameId)
                 .Select(g => new
                 {
@@ -52,19 +53,19 @@ namespace DailyChallenges.Repositories
 
             var list = await q.OrderByDescending(x => x.Plays).Take(topGames).ToListAsync();
 
-            await PopulateBestSubmissionIdAsync(userId, list);
+            await PopulateBestSubmissionIdAsync(userId, list, excluded);
 
             return list;
         }
 
-        private async Task PopulateBestSubmissionIdAsync(int userId, List<UserGameStatDto> list)
+        private async Task PopulateBestSubmissionIdAsync(int userId, List<UserGameStatDto> list, List<int> excluded)
         {
             var gameIdsWithScore = list.Where(x => x.HighestScore.HasValue).Select(x => x.GameId).ToList();
 
             if (gameIdsWithScore.Count <= 0) return;
             
             var scoreLookup = await _db.Submissions
-                .Where(s => s.UserId == userId && gameIdsWithScore.Contains(s.GameId) && s.ScoreValue != null)
+                .Where(s => s.UserId == userId && gameIdsWithScore.Contains(s.GameId) && s.ScoreValue != null && !excluded.Contains(s.Id))
                 .GroupBy(s => new { s.GameId, ScoreKey = Math.Round(s.ScoreValue!.Value, 2) })
                 .Select(g => new
                 {

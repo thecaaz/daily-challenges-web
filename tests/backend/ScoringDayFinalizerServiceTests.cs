@@ -1,17 +1,42 @@
 using DailyChallenges.Achievements;
+using DailyChallenges.Data;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
 using DailyChallenges.Services.Ranking;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using DailyChallenges.TestUtilities;
 using Moq;
 
 namespace DailyChallenges.Tests;
 
-public class ScoringDayFinalizerServiceTests
+/// <summary>
+/// Orchestration tests with mocked repositories. The service also needs a real AppDbContext for its
+/// transaction (an empty in-memory SQLite database). Behaviour against real data (rollback, idempotency,
+/// achievements) is covered in the integration tests (ScoringDayFinalizationTests).
+/// </summary>
+public class ScoringDayFinalizerServiceTests : IDisposable
 {
+    private readonly SqliteConnection _conn = new("DataSource=:memory:");
+    private readonly AppDbContext _db;
+
+    public ScoringDayFinalizerServiceTests()
+    {
+        _conn.Open();
+        _db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_conn).Options);
+        _db.Database.EnsureCreated();
+    }
+
+    public void Dispose()
+    {
+        _db.Dispose();
+        _conn.Dispose();
+    }
+
     // ── Builder ───────────────────────────────────────────────────────────────
 
     private record Sut(
@@ -24,7 +49,7 @@ public class ScoringDayFinalizerServiceTests
         Mock<IAchievementService> Achievements
     );
 
-    private static Sut Build(Action<XpConfig>? cfg = null)
+    private Sut Build(Action<XpConfig>? cfg = null)
     {
         var config = new XpConfig();
         cfg?.Invoke(config);
@@ -44,10 +69,12 @@ public class ScoringDayFinalizerServiceTests
           .ReturnsAsync(config.WinXp);
 
         var svc = new ScoringDayFinalizerService(
+            _db,
             results.Object, subs.Object, games.Object, notifs.Object,
             xp.Object, ach.Object,
             Options.Create(config),
-            NullLogger<ScoringDayFinalizerService>.Instance);
+            NullLogger<ScoringDayFinalizerService>.Instance,
+            new FixedTimeProvider(Day.AddDays(1)));
 
         return new Sut(svc, results, subs, games, notifs, xp, ach);
     }
@@ -70,7 +97,7 @@ public class ScoringDayFinalizerServiceTests
 
         await sut.Service.FinalizeScoringDayAsync(1, Day);
 
-        sut.GamesRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>()), Times.Never);
+        sut.GamesRepo.Verify(r => r.GetByIdWithoutBlobAsync(It.IsAny<int>()), Times.Never);
         sut.XpService.Verify(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
         sut.ResultsRepo.Verify(r => r.CreateAsync(It.IsAny<ScoringDayResult>()), Times.Never);
     }
@@ -82,7 +109,7 @@ public class ScoringDayFinalizerServiceTests
     {
         var sut = Build();
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((Game?)null);
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync((Game?)null);
 
         await sut.Service.FinalizeScoringDayAsync(1, Day);
 
@@ -96,7 +123,7 @@ public class ScoringDayFinalizerServiceTests
     {
         var sut = Build();
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission>());
 
@@ -112,7 +139,7 @@ public class ScoringDayFinalizerServiceTests
     {
         var sut = Build();
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission>());
 
@@ -131,7 +158,7 @@ public class ScoringDayFinalizerServiceTests
         var second = MakeSub(2, userId: 11, scoreValue: 100);
 
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { winner, second });
 
@@ -147,7 +174,7 @@ public class ScoringDayFinalizerServiceTests
         var sut = Build();
         var winner = MakeSub(1, userId: 10);
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { winner });
 
@@ -163,13 +190,71 @@ public class ScoringDayFinalizerServiceTests
         var sut = Build();
         var winner = MakeSub(1, userId: 10);
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { winner });
 
         await sut.Service.FinalizeScoringDayAsync(1, Day);
 
         sut.Achievements.Verify(a => a.CheckAndAwardAsync(10, AchievementTrigger.DayWin), Times.Once);
+        sut.Achievements.Verify(a => a.CheckAndAwardAsync(10, AchievementTrigger.LevelUp), Times.Once);
+    }
+
+    [Fact]
+    public async Task FinalizeScoringDay_AchievementsRunAfterResultAndXp()
+    {
+        var sut = Build();
+        var calls = new List<string>();
+        sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
+        sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
+            .ReturnsAsync(new List<Submission> { MakeSub(1, userId: 10) });
+        sut.ResultsRepo.Setup(r => r.CreateAsync(It.IsAny<ScoringDayResult>()))
+            .Callback(() => calls.Add("result")).ReturnsAsync((ScoringDayResult r) => r);
+        sut.XpService.Setup(x => x.AwardForDayWinAsync(10, 1, Day.Date))
+            .Callback(() => calls.Add("xp")).ReturnsAsync(100);
+        sut.Achievements.Setup(a => a.CheckAndAwardAsync(10, It.IsAny<AchievementTrigger>()))
+            .Callback((int _, AchievementTrigger t) => calls.Add(t.ToString())).Returns(Task.CompletedTask);
+
+        await sut.Service.FinalizeScoringDayAsync(1, Day);
+
+        // H6: the win must be recorded before the DayWin achievement check counts wins.
+        Assert.Equal(new[] { "result", "xp", "DayWin", "LevelUp" }, calls);
+    }
+
+    [Fact]
+    public async Task FinalizeScoringDay_LostClaim_DoesNotAwardXpOrNotify()
+    {
+        var sut = Build();
+        sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
+        sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
+            .ReturnsAsync(new List<Submission> { MakeSub(1, userId: 10) });
+        // Another run inserted the ScoringDayResult between the pre-check and the claim.
+        sut.ResultsRepo.Setup(r => r.CreateAsync(It.IsAny<ScoringDayResult>()))
+            .ThrowsAsync(new DbUpdateException("dup", new SqliteException("UNIQUE constraint failed", 19, 2067)));
+
+        await sut.Service.FinalizeScoringDayAsync(1, Day);
+
+        sut.XpService.Verify(x => x.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
+        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
+        sut.Achievements.Verify(a => a.CheckAndAwardAsync(It.IsAny<int>(), It.IsAny<AchievementTrigger>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task FinalizeScoringDay_FailureMidway_RethrowsAndSkipsAchievements()
+    {
+        var sut = Build();
+        sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
+        sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
+            .ReturnsAsync(new List<Submission> { MakeSub(1, userId: 10) });
+        sut.NotifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.Service.FinalizeScoringDayAsync(1, Day));
+
+        sut.Achievements.Verify(a => a.CheckAndAwardAsync(It.IsAny<int>(), It.IsAny<AchievementTrigger>()), Times.Never);
     }
 
     // ── Notifications ─────────────────────────────────────────────────────────
@@ -186,7 +271,7 @@ public class ScoringDayFinalizerServiceTests
         };
 
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(subs);
 
@@ -207,7 +292,7 @@ public class ScoringDayFinalizerServiceTests
         var sut = Build();
         var winner = MakeSub(1, userId: 10, scoreValue: 200);
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { winner });
 
@@ -231,7 +316,7 @@ public class ScoringDayFinalizerServiceTests
             MakeSub(2, userId: 11, scoreValue: 100)
         };
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(subs);
 
@@ -253,7 +338,7 @@ public class ScoringDayFinalizerServiceTests
         var sut = Build();
         var anonSub = MakeSub(1, userId: null, scoreValue: 500); // anonymous top score
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { anonSub });
 
@@ -268,7 +353,7 @@ public class ScoringDayFinalizerServiceTests
         var sut = Build();
         var anonSub = MakeSub(1, userId: null);
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
-        sut.GamesRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeGame());
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { anonSub });
 

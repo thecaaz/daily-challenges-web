@@ -17,7 +17,7 @@ public class DtoMapperTests
     public void ToDto_User_MapsScalarFields()
     {
         var user = new User { Id = 7, Username = "alice", IsAdmin = true, TotalXp = 0, Level = 1, Streak = 5, LastSubmissionAt = BaseTime };
-        var dto = DtoMapper.ToDto(user, DefaultCalc());
+        var dto = DtoMapper.ToDto(user, DefaultCalc(), BaseTime);
 
         Assert.Equal(7, dto.Id);
         Assert.Equal("alice", dto.Username);
@@ -30,7 +30,7 @@ public class DtoMapperTests
     public void ToDto_User_Level1_XpToNextLevelIs100()
     {
         var user = new User { TotalXp = 0, Level = 1 };
-        var dto = DtoMapper.ToDto(user, DefaultCalc());
+        var dto = DtoMapper.ToDto(user, DefaultCalc(), BaseTime);
 
         Assert.Equal(1, dto.Level);
         Assert.Equal(0, dto.XpIntoLevel);
@@ -41,7 +41,7 @@ public class DtoMapperTests
     public void ToDto_User_TotalXpReflectedInDto()
     {
         var user = new User { TotalXp = 500, Level = 1 };
-        var dto = DtoMapper.ToDto(user, DefaultCalc());
+        var dto = DtoMapper.ToDto(user, DefaultCalc(), BaseTime);
         Assert.Equal(500, dto.TotalXp);
     }
 
@@ -69,9 +69,10 @@ public class DtoMapperTests
     }
 
     [Fact]
-    public void ToDto_Submission_WithScreenshotData_SetsScreenshotUrl()
+    public void ToDto_Submission_WithScreenshotContentType_SetsScreenshotUrl()
     {
-        var sub = new Submission { Id = 99, GameId = 1, UserId = 1, Score = "1", ScreenshotData = [0xFF, 0xD8] };
+        // Blob-free projections leave ScreenshotData empty; the content type signals a screenshot.
+        var sub = new Submission { Id = 99, GameId = 1, UserId = 1, Score = "1", ScreenshotContentType = "image/jpeg" };
         var dto = DtoMapper.ToDto(sub);
         Assert.Equal("/api/submissions/99/screenshot", dto.ScreenshotUrl);
     }
@@ -106,11 +107,18 @@ public class DtoMapperTests
     }
 
     [Fact]
-    public void ToDto_Game_WithImageData_SetsImageUrl()
+    public void ToDto_Game_WithImageContentType_SetsImageUrl()
     {
-        var game = new Game { Id = 3, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest, ScreenshotData = [0x89, 0x50] };
+        var game = new Game { Id = 3, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest, ScreenshotContentType = "image/png" };
         var dto = DtoMapper.ToDto(game);
         Assert.Equal("/api/games/3/image", dto.ImageUrl);
+    }
+
+    [Fact]
+    public void ToDto_Game_BlobWithoutContentType_HasNoImageUrl()
+    {
+        var game = new Game { Id = 3, Name = "G", ScreenshotData = [0x89, 0x50], ScreenshotContentType = null };
+        Assert.Null(DtoMapper.ToDto(game).ImageUrl);
     }
 
     [Fact]
@@ -157,7 +165,7 @@ public class DtoMapperTests
         Assert.Equal(2, dto.UserId);
         Assert.Equal(5, dto.SubmissionId);
         Assert.Equal(3, dto.GameId);
-        Assert.Equal(BaseTime.Date, dto.ScoringDay);
+        Assert.Equal(BaseTime.Date.ToString("yyyy-MM-dd"), dto.ScoringDay);
         Assert.Equal(55, dto.Amount);
         Assert.Equal("submission", dto.EventType);
         Assert.Equal("streak=2,bonus=1%", dto.Details);
@@ -224,13 +232,63 @@ public class DtoMapperTests
         Assert.Equal("accepted", dto.Status);
     }
 
+    // ── Effective streak ─────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(0, 5)]   // played today
+    [InlineData(-1, 5)]  // played yesterday: the streak is still alive
+    [InlineData(-2, 0)]  // missed yesterday: shown as 0
+    [InlineData(-60, 0)]
+    public void Streak_IsEffective_ZeroAfterAGap(int lastPlayedDaysAgo, int expected)
+    {
+        var last = BaseTime.Date.AddDays(lastPlayedDaysAgo).AddHours(23);
+        var user = new User { Id = 1, Username = "u", Streak = 5, LastSubmissionAt = last };
+
+        Assert.Equal(expected, DtoMapper.ToDto(user, DefaultCalc(), BaseTime).Streak);
+        Assert.Equal(expected, DtoMapper.ToFriendDto(user, DefaultCalc(), BaseTime).Streak);
+        Assert.Equal(expected, DtoMapper.ToUserProfileDto(user, new List<UserGameStatDto>(), DefaultCalc(), BaseTime).Streak);
+        Assert.Equal(5, user.Streak); // the stored value is untouched
+    }
+
+    [Fact]
+    public void ToUserProfileDto_LastSubmissionAt_IsTheUsersOwnTimestamp_NotTheTopGamesMax()
+    {
+        // The top-N games can miss the latest play (or hide today's): the user's own field is the truth.
+        var user = new User { Id = 1, Username = "u", LastSubmissionAt = BaseTime };
+        var topGames = new List<UserGameStatDto>
+        {
+            new() { GameId = 1, LastPlayed = BaseTime.AddDays(-3) },
+            new() { GameId = 2, LastPlayed = BaseTime.AddDays(-1) },
+        };
+
+        Assert.Equal(BaseTime, DtoMapper.ToUserProfileDto(user, topGames, DefaultCalc(), BaseTime).LastSubmissionAt);
+
+        user.LastSubmissionAt = null;
+        Assert.Null(DtoMapper.ToUserProfileDto(user, topGames, DefaultCalc(), BaseTime).LastSubmissionAt);
+    }
+
+    [Fact]
+    public void Streak_NeverPlayed_IsZero()
+    {
+        var user = new User { Id = 1, Username = "u", Streak = 3, LastSubmissionAt = null };
+        Assert.Equal(0, DtoMapper.ToDto(user, DefaultCalc(), BaseTime).Streak);
+    }
+
+    [Fact]
+    public void ToDto_Game_UsesTheGivenClockForTheCurrentScoringDay()
+    {
+        var game = new Game { Id = 1, Name = "G", ResetTime = TimeSpan.FromHours(6) };
+        var dto = DtoMapper.ToDto(game, nowUtc: new DateTime(2026, 4, 1, 5, 0, 0, DateTimeKind.Utc));
+        Assert.Equal("2026-03-31", dto.CurrentScoringDay);
+    }
+
     // ── Friend → FriendDto ────────────────────────────────────────────────────
 
     [Fact]
     public void ToFriendDto_MapsAllFields()
     {
         var user = new User { Id = 5, Username = "charlie", TotalXp = 300, Level = 2, Streak = 7, LastSubmissionAt = BaseTime };
-        var dto = DtoMapper.ToFriendDto(user, DefaultCalc());
+        var dto = DtoMapper.ToFriendDto(user, DefaultCalc(), BaseTime);
 
         Assert.Equal(5, dto.UserId);
         Assert.Equal("charlie", dto.Username);

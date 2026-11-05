@@ -3,6 +3,7 @@ import { Box, Tooltip, Typography } from '@mui/material'
 import LockIcon from '@mui/icons-material/Lock'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import { achievementIcon } from '../../utils/achievementIcons'
+import parseUtcDate from '../../utils/parseUtcDate'
 
 export default function AchievementBadge({ achievement }) {
   const unlocked = !!achievement.unlockedAt || !!achievement.UnlockedAt
@@ -17,7 +18,7 @@ export default function AchievementBadge({ achievement }) {
       <Typography variant="body2" sx={{ opacity: 0.8 }}>{description}</Typography>
       {unlockedAt && (
         <Typography variant="caption" sx={{ opacity: 0.6 }}>
-          {new Date(unlockedAt).toLocaleDateString()}
+          {parseUtcDate(unlockedAt).toLocaleDateString()}
         </Typography>
       )}
     </Box>

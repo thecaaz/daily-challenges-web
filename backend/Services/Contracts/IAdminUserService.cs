@@ -12,7 +12,7 @@ namespace DailyChallenges.Services
 
         Task<(byte[] Data, string Filename)> ExportXpEventsCsvAsync(int userId, DateTime? from = null, DateTime? to = null, string? eventType = null, int maxRows = 10000);
 
-        Task SetPasswordAsync(int userId, string newPassword);
+        Task SetPasswordAsync(int userId, string newPassword, int? requestingAdminId = null);
 
         Task DeleteUserAsync(int userId, int requestingAdminId);
     }

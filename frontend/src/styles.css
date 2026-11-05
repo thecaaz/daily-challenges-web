@@ -1,5 +1,5 @@
-/* Import centralized design tokens */
-@import './styles/tokens.css';
+/* Design tokens (--bg-1, --accent, ...) are injected as CSS variables from
+   styles/tokens.js by ThemeContext (MUI GlobalStyles). */
 
 /* ── Global base ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }

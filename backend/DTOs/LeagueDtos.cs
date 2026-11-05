@@ -48,12 +48,13 @@ namespace DailyChallenges.DTOs
 
     public class LeagueLeaderboardEntryDto
     {
-        public int Rank { get; set; }
+        // Rank, Score, ScoreValue, SubmissionId and ScreenshotUrl are null when the scores are hidden.
+        public int? Rank { get; set; }
         public int UserId { get; set; }
         public string Username { get; set; } = string.Empty;
-        public string Score { get; set; } = string.Empty;
-        public double ScoreValue { get; set; }
-        public int SubmissionId { get; set; }
+        public string? Score { get; set; }
+        public double? ScoreValue { get; set; }
+        public int? SubmissionId { get; set; }
         public string? ScreenshotUrl { get; set; }
     }
 
@@ -63,6 +64,8 @@ namespace DailyChallenges.DTOs
         public int GameId { get; set; }
         public string ScoringDay { get; set; } = string.Empty;
         public List<LeagueLeaderboardEntryDto> Entries { get; set; } = new();
+        /// <summary>True when the day is the game's current scoring day and the caller may not see its scores.</summary>
+        public bool ScoresHidden { get; set; }
     }
 
     // ── Request bodies ────────────────────────────────────────────────────────
@@ -95,5 +98,7 @@ namespace DailyChallenges.DTOs
         public double? MyBestScoreValue { get; set; }
         public int? MyRank { get; set; }
         public List<int> RecentPlays { get; set; } = new(); // counts per day, oldest->newest
+        /// <summary>The game's scoring days ("yyyy-MM-dd", oldest->newest) that RecentPlays counts, index for index.</summary>
+        public List<string> RecentPlayDays { get; set; } = new();
     }
 }

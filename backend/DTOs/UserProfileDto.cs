@@ -11,5 +11,7 @@ namespace DailyChallenges.DTOs
         public int Streak { get; set; }
         public DateTime? LastSubmissionAt { get; set; }
         public List<UserGameStatDto> TopGames { get; set; } = new();
+        /// <summary>True when current-scoring-day entries were left out (only the owner and admins see them).</summary>
+        public bool ScoresHidden { get; set; }
     }
 }

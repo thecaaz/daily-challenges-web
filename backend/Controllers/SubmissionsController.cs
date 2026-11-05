@@ -10,12 +10,10 @@ namespace DailyChallenges.Controllers
     public class SubmissionsController : ControllerBase
     {
         private readonly ISubmissionService _subs;
-        private readonly IFileValidator _validator;
 
-        public SubmissionsController(ISubmissionService subs, IFileValidator validator)
+        public SubmissionsController(ISubmissionService subs)
         {
             _subs = subs;
-            _validator = validator;
         }
 
         [HttpGet("game/{gameId}")]
@@ -24,6 +22,7 @@ namespace DailyChallenges.Controllers
             if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
                 return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
 
+            (page, pageSize) = Paging.Clamp(page, pageSize);
             var pageResult = await _subs.GetByGameAsync(gameId, User, parsedDay, page, pageSize);
             return Ok(pageResult);
         }
@@ -55,8 +54,9 @@ namespace DailyChallenges.Controllers
             if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
                 return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
 
-            var winner = await _subs.GetWinnerAsync(gameId, parsedDay);
-            if (winner == null) return NotFound();
+            var winner = await _subs.GetWinnerAsync(gameId, parsedDay, User);
+            // No winner yet, or the current day is hidden for this caller.
+            if (winner == null) return NoContent();
             return Ok(winner);
         }
 
@@ -78,9 +78,9 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpGet("{id}/screenshot")]
-        public async Task<IActionResult> GetScreenshot(int id)
+        public async Task<IActionResult> GetScreenshot(int id, [FromQuery] long? exp = null, [FromQuery] string? sig = null)
         {
-            var (data, contentType) = await _subs.GetScreenshotAsync(id);
+            var (data, contentType) = await _subs.GetScreenshotAsync(id, exp, sig);
             if (data == null) return NotFound();
             return File(data, contentType ?? "application/octet-stream");
         }
@@ -88,7 +88,7 @@ namespace DailyChallenges.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var dto = await _subs.GetByIdAsync(id);
+            var dto = await _subs.GetByIdAsync(id, User);
             if (dto == null) return NotFound();
             return Ok(dto);
         }

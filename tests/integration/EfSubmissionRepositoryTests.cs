@@ -235,4 +235,26 @@ public class EfSubmissionRepositoryTests
         Assert.Equal(Day2.Date, dates[0].Date);
         Assert.Equal(Day1.Date, dates[1].Date);
     }
+
+    // ── CountOnGameDaysAsync ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CountOnGameDays_CountsOnlyEachGamesOwnDay()
+    {
+        await using var db = new TestDb();
+        SeedGame(db.Ctx, 1);
+        SeedGame(db.Ctx, 2);
+        SeedGame(db.Ctx, 3);
+        SeedSub(db.Ctx, 1, 1, Day1);
+        SeedSub(db.Ctx, 1, 2, Day1);
+        SeedSub(db.Ctx, 1, 3, Day2); // game 1's other day
+        SeedSub(db.Ctx, 2, 4, Day1); // game 2's other day
+        SeedSub(db.Ctx, 3, 5, Day1); // game not asked for
+        var repo = new EfSubmissionRepository(db.Ctx);
+
+        var (activeGames, submissions) = await repo.CountOnGameDaysAsync(new Dictionary<int, DateTime> { [1] = Day1, [2] = Day2 });
+
+        Assert.Equal(1, activeGames);
+        Assert.Equal(2, submissions);
+    }
 }

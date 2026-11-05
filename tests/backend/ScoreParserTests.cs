@@ -1,193 +1,104 @@
+using System.Text.Json;
 using DailyChallenges.Services;
 
 namespace DailyChallenges.Tests;
 
+/// <summary>
+/// ScoreParser against the shared spec in tests/fixtures/score-parsing.json (copied to the test
+/// output by the csproj). The frontend and extension parsers run the same vectors in vitest.
+/// </summary>
 public class ScoreParserTests
 {
-    // ---- TryParseDouble ----
+    private static readonly string FixturePath = Path.Combine(AppContext.BaseDirectory, "fixtures", "score-parsing.json");
 
-    [Theory]
-    [InlineData("42", 42.0)]
-    [InlineData("-7", -7.0)]
-    [InlineData("0", 0.0)]
-    [InlineData("1000", 1000.0)]
-    public void TryParseDouble_PlainInteger_ReturnsValue(string input, double expected)
+    public static IEnumerable<object?[]> FixtureCases()
     {
-        Assert.True(ScoreParser.TryParseDouble(input, out var v));
-        Assert.Equal(expected, v);
+        using var doc = JsonDocument.Parse(File.ReadAllText(FixturePath));
+        foreach (var c in doc.RootElement.GetProperty("cases").EnumerateArray())
+        {
+            var input = c.GetProperty("input").GetString()!;
+            var expected = c.GetProperty("expected");
+            yield return new object?[] { input, expected.ValueKind == JsonValueKind.Null ? null : expected.GetDouble() };
+        }
+    }
+
+    [Fact]
+    public void Fixture_has_cases()
+    {
+        Assert.True(FixtureCases().Count() >= 40);
     }
 
     [Theory]
-    [InlineData("3.14", 3.14)]
-    [InlineData("3,14", 3.14)]
-    [InlineData("-0.5", -0.5)]
-    [InlineData("99.99", 99.99)]
-    public void TryParseDouble_AcceptsDecimalValues(string input, double expected)
+    [MemberData(nameof(FixtureCases))]
+    public void Matches_shared_spec(string input, double? expected)
     {
-        Assert.True(ScoreParser.TryParseDouble(input, out var v));
-        Assert.Equal(expected, v);
+        var ok = ScoreParser.TryParseDouble(input, out var value);
+        if (expected == null)
+        {
+            Assert.False(ok, $"'{input}' should be invalid but parsed as {value}");
+            Assert.True(double.IsNaN(ScoreParser.ParseScore(input)));
+        }
+        else
+        {
+            Assert.True(ok, $"'{input}' should parse as {expected}");
+            Assert.Equal(expected.Value, value, precision: 9);
+            Assert.Equal(expected.Value, ScoreParser.ParseScore(input), precision: 9);
+        }
+    }
+
+    // ── Extra targeted cases ─────────────────────────────────────────────────
+
+    [Fact]
+    public void Null_is_invalid()
+    {
+        Assert.False(ScoreParser.TryParseDouble(null, out _));
+        Assert.True(double.IsNaN(ScoreParser.ParseScore(null)));
     }
 
     [Theory]
-    [InlineData("3/6", 3.0)]     // Wordle-style: extracts first number
-    [InlineData("5/6", 5.0)]
-    [InlineData("2:34", 2.0)]    // Time-style: extracts first number
-    [InlineData("12 pts", 12.0)]
-    [InlineData("  15  ", 15.0)] // Whitespace
-    public void TryParseDouble_ScoreWithSuffix_ExtractsFirstNumber(string input, double expected)
-    {
-        Assert.True(ScoreParser.TryParseDouble(input, out var v));
-        Assert.Equal(expected, v);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData(null)]
-    public void TryParseDouble_NullOrEmpty_ReturnsFalse(string? input)
-    {
-        Assert.False(ScoreParser.TryParseDouble(input!, out _));
-    }
-
-    [Theory]
-    [InlineData("no numbers here")]
-    [InlineData("abc")]
-    public void TryParseDouble_NoNumericToken_ReturnsFalse(string input)
+    [InlineData("3/6")]          // the old first-number logic gave 3
+    [InlineData("12 pts")]       // ... and 12
+    [InlineData("1e+21")]        // String(Number) of a huge value
+    [InlineData("Infinity")]
+    [InlineData("NaN")]
+    public void Old_first_token_inputs_are_now_invalid(string input)
     {
         Assert.False(ScoreParser.TryParseDouble(input, out _));
     }
 
-    // ---- TryParseInt (backward compat) ----
-
     [Theory]
-    [InlineData("42", 42)]
-    [InlineData("-7", -7)]
-    [InlineData("0", 0)]
-    [InlineData("1000", 1000)]
-    public void TryParseInt_PlainInteger_ReturnsValue(string input, int expected)
+    [InlineData("١٢٣")] // Arabic-Indic digits: only ASCII digits count
+    [InlineData("１２")]               // full-width digits
+    public void Non_ascii_digits_are_invalid(string input)
     {
-        Assert.True(ScoreParser.TryParseInt(input, out var v));
-        Assert.Equal(expected, v);
-    }
-
-    [Theory]
-    [InlineData("3/6", 3)]     // Wordle-style: extracts first number
-    [InlineData("5/6", 5)]
-    [InlineData("2:34", 2)]    // Time-style: extracts first number
-    [InlineData("12 pts", 12)]
-    [InlineData("  15  ", 15)] // Whitespace
-    public void TryParseInt_ScoreWithSuffix_ExtractsFirstNumber(string input, int expected)
-    {
-        Assert.True(ScoreParser.TryParseInt(input, out var v));
-        Assert.Equal(expected, v);
-    }
-
-    [Theory]
-    [InlineData("10.0", 10)]   // Whole-number decimal → accepted
-    [InlineData("5,0", 5)]     // Comma decimal
-    public void TryParseInt_WholeNumberDecimal_ReturnsValue(string input, int expected)
-    {
-        Assert.True(ScoreParser.TryParseInt(input, out var v));
-        Assert.Equal(expected, v);
-    }
-
-    [Theory]
-    [InlineData("3.5")]        // True decimal → rejected by TryParseInt
-    [InlineData("1.23")]
-    public void TryParseInt_NonWholeDecimal_ReturnsFalse(string input)
-    {
-        Assert.False(ScoreParser.TryParseInt(input, out _));
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData(null)]
-    public void TryParseInt_NullOrEmpty_ReturnsFalse(string? input)
-    {
-        Assert.False(ScoreParser.TryParseInt(input!, out _));
-    }
-
-    [Theory]
-    [InlineData("no numbers here")]
-    [InlineData("abc")]
-    public void TryParseInt_NoNumericToken_ReturnsFalse(string input)
-    {
-        Assert.False(ScoreParser.TryParseInt(input, out _));
-    }
-
-    // ---- ParseScore ----
-
-    [Theory]
-    [InlineData("42", 42.0)]
-    [InlineData("3.14", 3.14)]
-    [InlineData("3/6", 3.0)]
-    [InlineData("-5", -5.0)]
-    public void ParseScore_ValidInputs_ReturnsDouble(string input, double expected)
-    {
-        Assert.Equal(expected, ScoreParser.ParseScore(input), precision: 5);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData("no numbers")]
-    public void ParseScore_InvalidInputs_ReturnsNaN(string input)
-    {
-        Assert.True(double.IsNaN(ScoreParser.ParseScore(input)));
+        Assert.False(ScoreParser.TryParseDouble(input, out _));
     }
 
     [Fact]
-    public void ParseScore_CommaDecimal_ParsesCorrectly()
+    public void Narrow_nbsp_grouping_and_tabs_trimmed()
     {
-        Assert.Equal(3.5, ScoreParser.ParseScore("3,5"), precision: 5);
-    }
-
-    // ---- Locale-formatted grouping separators ----
-    //
-    // Regression: a TimeGuessr score of 40456 renders as "40,456" on en-US and
-    // "40.456" on de-DE. Both previously parsed to the decimal 40.456, which
-    // sorted the submission below every single-digit score on the leaderboard.
-
-    [Theory]
-    [InlineData("40,456", 40456.0)]
-    [InlineData("40.456", 40456.0)]
-    [InlineData("1,000", 1000.0)]
-    [InlineData("1.000", 1000.0)]
-    [InlineData("50,000", 50000.0)]
-    [InlineData("1.000.000", 1000000.0)]
-    [InlineData("1,000,000", 1000000.0)]
-    [InlineData("-40.456", -40456.0)]
-    public void TryParseDouble_GroupingSeparators_ParsedAsWholeNumber(string input, double expected)
-    {
-        Assert.True(ScoreParser.TryParseDouble(input, out var v));
-        Assert.Equal(expected, v, precision: 5);
-    }
-
-    [Theory]
-    [InlineData("1.234,56", 1234.56)]   // de-DE
-    [InlineData("1,234,567.89", 1234567.89)] // en-US
-    [InlineData("1 234 567,89", 1234567.89)] // space grouping
-    public void TryParseDouble_MixedSeparators_UsesLastAsDecimal(string input, double expected)
-    {
-        Assert.True(ScoreParser.TryParseDouble(input, out var v));
-        Assert.Equal(expected, v, precision: 5);
+        Assert.True(ScoreParser.TryParseDouble("\t40 456\n", out var v));
+        Assert.Equal(40456, v);
     }
 
     [Fact]
-    public void TryParseDouble_NarrowNoBreakSpaceGrouping_ParsedAsWholeNumber()
+    public void Negative_zero_is_zero()
     {
-        // fr-FR groups with U+202F
-        Assert.True(ScoreParser.TryParseDouble("40\u202F456", out var v));
-        Assert.Equal(40456.0, v, precision: 5);
+        Assert.True(ScoreParser.TryParseDouble("-0", out var v));
+        Assert.Equal(0.0, v);
+        Assert.False(double.IsNegative(v));
     }
 
-    [Theory]
-    [InlineData("40,456", 40456)]
-    [InlineData("40.456", 40456)]
-    public void TryParseInt_GroupingSeparators_ParsedAsWholeNumber(string input, int expected)
+    [Fact]
+    public void Absurdly_long_digit_string_is_invalid()
     {
-        Assert.True(ScoreParser.TryParseInt(input, out var v));
-        Assert.Equal(expected, v);
+        Assert.False(ScoreParser.TryParseDouble(new string('9', 400), out _));
+    }
+
+    [Fact]
+    public void Time_with_three_fraction_digits()
+    {
+        Assert.True(ScoreParser.TryParseDouble("1:02.345", out var v));
+        Assert.Equal(62.345, v, precision: 9);
     }
 }

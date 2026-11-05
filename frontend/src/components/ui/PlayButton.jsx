@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import AppButton from './AppButton'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
-import { hasAdapterForUrl } from '../../utils/adapters'
+import { hasAdapterForUrl, subscribeAdapters } from '../../utils/adapters'
+import { isSafeHttpUrl } from '../../utils/safeUrl'
 
 export default function PlayButton({ game, adapter, variant = 'outlined', size = 'small', color = 'primary', children, ...props }) {
+  const safe = isSafeHttpUrl(game?.url)
   const [supports, setSupports] = useState(adapter !== undefined ? Boolean(adapter) : null)
+  // Bumped when the extension's adapters change (e.g. it showed up late).
+  const [adaptersVersion, setAdaptersVersion] = useState(0)
+
+  useEffect(() => {
+    if (adapter !== undefined) return undefined
+    return subscribeAdapters(() => setAdaptersVersion(v => v + 1))
+  }, [adapter])
 
   useEffect(() => {
     let mounted = true
@@ -14,7 +23,7 @@ export default function PlayButton({ game, adapter, variant = 'outlined', size =
     }
 
     async function check() {
-      if (!game?.url) {
+      if (!safe) {
         if (mounted) setSupports(false)
         return
       }
@@ -27,9 +36,9 @@ export default function PlayButton({ game, adapter, variant = 'outlined', size =
     }
     check()
     return () => { mounted = false }
-  }, [game?.url, adapter])
+  }, [game?.url, safe, adapter, adaptersVersion])
 
-  if (!game?.url) return null
+  if (!safe) return null
 
   const label = children || 'Play'
   const endIcon = props.endIcon ?? <OpenInNewIcon />

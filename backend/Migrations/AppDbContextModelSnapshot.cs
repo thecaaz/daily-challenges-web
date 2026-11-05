@@ -36,8 +36,6 @@ namespace DailyChallenges.Migrations
 
                     b.HasIndex("GameId");
 
-                    b.HasIndex("UserId");
-
                     b.HasIndex("UserId", "GameId")
                         .IsUnique();
 
@@ -65,11 +63,24 @@ namespace DailyChallenges.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("UserHighId")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("INTEGER")
+                        .HasComputedColumnSql("max([SenderId], [ReceiverId])", false);
+
+                    b.Property<int>("UserLowId")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("INTEGER")
+                        .HasComputedColumnSql("min([SenderId], [ReceiverId])", false);
+
                     b.HasKey("Id");
 
                     b.HasIndex("ReceiverId", "Status");
 
                     b.HasIndex("SenderId", "ReceiverId")
+                        .IsUnique();
+
+                    b.HasIndex("UserLowId", "UserHighId")
                         .IsUnique();
 
                     b.ToTable("FriendRequests");
@@ -169,9 +180,15 @@ namespace DailyChallenges.Migrations
 
                     b.HasIndex("InviterId");
 
-                    b.HasIndex("Token");
+                    b.HasIndex("LeagueId");
 
-                    b.HasIndex("LeagueId", "InviteeId");
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasFilter("[Token] IS NOT NULL");
+
+                    b.HasIndex("LeagueId", "InviteeId")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0 AND [InviteeId] IS NOT NULL");
 
                     b.ToTable("LeagueInvitations");
                 });
@@ -210,6 +227,9 @@ namespace DailyChallenges.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("ActorUserId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -238,11 +258,35 @@ namespace DailyChallenges.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ActorUserId");
+
                     b.HasIndex("GameId");
 
                     b.HasIndex("UserId", "IsRead", "CreatedAt");
 
                     b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("DailyChallenges.Models.RevokedRefreshToken", b =>
+                {
+                    b.Property<string>("Jti")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Jti");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("RevokedRefreshTokens");
                 });
 
             modelBuilder.Entity("DailyChallenges.Models.ScoringDayResult", b =>
@@ -349,14 +393,21 @@ namespace DailyChallenges.Migrations
                     b.Property<int>("Streak")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("TokenVersion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("TotalXp")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });
@@ -423,6 +474,11 @@ namespace DailyChallenges.Migrations
                     b.HasIndex("SubmissionId");
 
                     b.HasIndex("UserId", "CreatedAt");
+
+                    b.HasIndex("UserId", "GameId", "ScoringDay")
+                        .IsUnique()
+                        .HasDatabaseName("IX_XpEvents_UserId_GameId_ScoringDay_DayWin")
+                        .HasFilter("[EventType] = 'day_win'");
 
                     b.ToTable("XpEvents");
                 });
@@ -523,6 +579,11 @@ namespace DailyChallenges.Migrations
 
             modelBuilder.Entity("DailyChallenges.Models.Notification", b =>
                 {
+                    b.HasOne("DailyChallenges.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("DailyChallenges.Models.Game", "Game")
                         .WithMany()
                         .HasForeignKey("GameId")

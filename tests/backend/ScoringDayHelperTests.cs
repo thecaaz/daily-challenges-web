@@ -133,4 +133,16 @@ public class ScoringDayHelperTests
         Assert.Equal(new DateTime(2025, 4, 14, 22, 0, 0, DateTimeKind.Utc), start);
         Assert.Equal(new DateTime(2025, 4, 15, 22, 0, 0, DateTimeKind.Utc), end);
     }
+
+    // ---- Current scoring day with an explicit clock ----
+
+    [Theory]
+    [InlineData(4, 59, 14)] // before a 05:00 reset -> previous day
+    [InlineData(5, 0, 15)]  // at the reset -> new day
+    public void GetCurrentScoringDay_UsesSuppliedNow(int hour, int minute, int expectedDay)
+    {
+        var now = new DateTime(2025, 4, 15, hour, minute, 0, DateTimeKind.Utc);
+
+        Assert.Equal(new DateTime(2025, 4, expectedDay), ScoringDayHelper.GetCurrentScoringDay(TimeSpan.FromHours(5), now));
+    }
 }

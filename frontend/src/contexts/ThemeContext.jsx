@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
+import GlobalStyles from '@mui/material/GlobalStyles'
 import createAppTheme from '../theme'
+import { cssVariables } from '../styles/tokens'
 
 const ThemeContext = createContext()
 
@@ -22,14 +24,17 @@ export function ThemeProvider({ children }) {
     } catch (e) {}
   }, [mode])
 
-  const toggleMode = () => setMode((m) => (m === 'dark' ? 'light' : 'dark'))
+  const toggleMode = useCallback(() => setMode((m) => (m === 'dark' ? 'light' : 'dark')), [])
 
   const theme = useMemo(() => createAppTheme(mode), [mode])
+  const globalStyles = useMemo(() => ({ ':root': cssVariables(mode) }), [mode])
+  const value = useMemo(() => ({ mode, toggleMode }), [mode, toggleMode])
 
   return (
-    <ThemeContext.Provider value={{ mode, toggleMode }}>
+    <ThemeContext.Provider value={value}>
       <MuiThemeProvider theme={theme}>
         <CssBaseline enableColorScheme />
+        <GlobalStyles styles={globalStyles} />
         {children}
       </MuiThemeProvider>
     </ThemeContext.Provider>

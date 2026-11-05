@@ -19,11 +19,20 @@ namespace DailyChallenges.Models
         [Required]
         public string Message { get; set; } = string.Empty;
 
-        /// <summary>Discriminator: "day_win", "day_placement".</summary>
+        /// <summary>
+        /// Discriminator: "day_win", "day_placement", "friend_request", "friend_request_accepted",
+        /// "league_invite", "league_joined", "achievement". Rank is only set for day_win / day_placement.
+        /// </summary>
         [Required]
         public string Type { get; set; } = string.Empty;
 
         public int? Rank { get; set; }
+
+        /// <summary>
+        /// The user whose action caused the notification (friend request sender/accepter, league inviter/joiner).
+        /// Null for system notifications, and set to null when that user is deleted.
+        /// </summary>
+        public int? ActorUserId { get; set; }
 
         public bool IsRead { get; set; } = false;
 

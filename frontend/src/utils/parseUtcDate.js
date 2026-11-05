@@ -6,7 +6,7 @@ export default function parseUtcDate(input) {
   const s = String(input).trim()
 
   // If it already contains a timezone designator (Z or +HH:MM / -HH:MM) trust built-in parser
-  if (/[zZ]|[+\-]\d{2}:?\d{2}$/.test(s)) return new Date(s)
+  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s)
 
   // Date-only like "yyyy-mm-dd" -> midnight UTC
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(`${s}T00:00:00Z`)
