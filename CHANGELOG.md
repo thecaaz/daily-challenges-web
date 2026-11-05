@@ -1,3 +1,10 @@
+## [1.30.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.29.0...v1.30.0) (2026-11-05)
+
+
+### Features
+
+* **extension:** release extension 0.5.0 ([16544b7](https://github.com/thecaaz/daily-challenges-web/commit/16544b7c3789a8bc805c00057ddc5c84acec777a))
+
 ## [1.29.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.2...v1.29.0) (2026-11-05)
 
 
