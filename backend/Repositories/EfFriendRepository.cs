@@ -10,11 +10,14 @@ namespace DailyChallenges.Repositories
         private readonly AppDbContext _db;
         public EfFriendRepository(AppDbContext db) => _db = db;
 
+        // Reads are untracked: UpdateAsync attaches only the request itself, so the loaded Sender/Receiver
+        // users are never written back.
         public async Task<FriendRequest?> GetByIdAsync(int id)
         {
             return await _db.FriendRequests
                 .Include(fr => fr.Sender)
                 .Include(fr => fr.Receiver)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(fr => fr.Id == id);
         }
 
@@ -23,6 +26,7 @@ namespace DailyChallenges.Repositories
             return await _db.FriendRequests
                 .Include(fr => fr.Sender)
                 .Include(fr => fr.Receiver)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(fr =>
                     (fr.SenderId == userId1 && fr.ReceiverId == userId2) ||
                     (fr.SenderId == userId2 && fr.ReceiverId == userId1));
@@ -81,17 +85,41 @@ namespace DailyChallenges.Repositories
         public async Task<FriendRequest> CreateAsync(FriendRequest fr)
         {
             _db.FriendRequests.Add(fr);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // Detach the failed insert, or every later SaveChanges in this scope retries (and fails on) it.
+                _db.Entry(fr).State = EntityState.Detached;
+                throw;
+            }
             // Reload with nav props
             return (await GetByIdAsync(fr.Id))!;
         }
 
         public async Task<FriendRequest> UpdateAsync(FriendRequest fr)
         {
-            fr.UpdatedAt = DateTime.UtcNow;
-            _db.FriendRequests.Update(fr);
+            // Mark only the request itself as modified (not its Sender/Receiver graph).
+            var entry = _db.Entry(fr);
+            if (entry.State == EntityState.Detached) entry.State = EntityState.Modified;
             await _db.SaveChangesAsync();
+            entry.State = EntityState.Detached;
             return (await GetByIdAsync(fr.Id))!;
+        }
+
+        public async Task<bool> ReopenDeclinedAsync(int id, int senderId, int receiverId, DateTime nowUtc)
+        {
+            var rows = await _db.FriendRequests
+                .Where(fr => fr.Id == id && fr.Status == FriendRequestStatus.Declined)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(fr => fr.SenderId, senderId)
+                    .SetProperty(fr => fr.ReceiverId, receiverId)
+                    .SetProperty(fr => fr.Status, FriendRequestStatus.Pending)
+                    .SetProperty(fr => fr.CreatedAt, nowUtc)
+                    .SetProperty(fr => fr.UpdatedAt, (DateTime?)null));
+            return rows == 1;
         }
 
         public async Task DeleteAsync(int id)

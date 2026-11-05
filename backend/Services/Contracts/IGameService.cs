@@ -14,7 +14,7 @@ namespace DailyChallenges.Services
         Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id);
         Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user);
         Task<HighscoreResult> GetPersonalHighscoreAsync(int id, int userId);
-        Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null, int top = 0);
+        Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null);
     }
 
     public class HighscoreResult

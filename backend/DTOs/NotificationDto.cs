@@ -8,6 +8,8 @@ namespace DailyChallenges.DTOs
         public int? GameId { get; set; }
         public string? ScoringDay { get; set; }
         public int? Rank { get; set; }
+        /// <summary>The user who caused the notification (friend/league actions); null for system notifications.</summary>
+        public int? ActorUserId { get; set; }
         public bool IsRead { get; set; }
         public DateTime CreatedAt { get; set; }
     }

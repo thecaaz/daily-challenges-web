@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { TextField, Stack, Paper, Table, TableHead, TableRow, TableCell, TableBody, IconButton, Typography, Box } from '@mui/material'
 import { useNavigate, Link } from 'react-router-dom'
 import PlayButton from '../components/ui/PlayButton'
@@ -8,6 +8,8 @@ import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 import api from '../api'
 import { formatDateTime } from '../utils/dateFormat'
 import parseScore from '../utils/parseScore'
+import { utcToLocalHHmm, localToUtcHHmm } from '../utils/resetTime'
+import { getApiErrorMessage } from '../utils/apiError'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import useRequireAdmin from '../hooks/useRequireAdmin'
 import EditIcon from '@mui/icons-material/Edit'
@@ -15,102 +17,119 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import useConfirm from '../hooks/useConfirm'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 
+// The API stores and returns the reset time as UTC "HH:mm". The forms show and
+// accept the admin's local time and convert on the way in and out.
+function toLocal(utcHHmm) {
+  return utcToLocalHHmm(utcHHmm) ?? '00:00'
+}
+
 export default function Admin() {
-  const [name, setName] = useState('')
+  const navigate = useNavigate()
+  const { isAuthorized } = useRequireAdmin()
   const { showSnackbar } = useSnackbar()
   const { confirm, dialogProps } = useConfirm()
+
+  const [name, setName] = useState('')
+  const [localResetTime, setLocalResetTime] = useState('00:00')
+  const [url, setUrl] = useState('')
+  const [description, setDescription] = useState('')
+  const [rankingMode, setRankingMode] = useState('highest')
+
+  const [games, setGames] = useState([])
+  const [editingGame, setEditingGame] = useState(null)
+  const [submissions, setSubmissions] = useState([])
+  const [selectedGameId, setSelectedGameId] = useState(null)
+  const subsRequestRef = useRef(0)
+
+  // Only the active form listens for clipboard pastes: the edit form while a
+  // game is being edited, the create form otherwise.
   const {
     screenshot: createImageFile,
     previewUrl: createPreviewUrl,
     onFileChange: onCreateFileChange,
     clear: clearCreateImage
-  } = useImageUpload(showSnackbar)
+  } = useImageUpload(showSnackbar, { enabled: !editingGame })
 
   const {
     screenshot: editImageFile,
     previewUrl: editPreviewUrl,
     onFileChange: onEditFileChange,
     clear: clearEditImage
-  } = useImageUpload(showSnackbar)
-  const [resetTime, setResetTime] = useState('00:00')
-  const [url, setUrl] = useState('')
-  const [description, setDescription] = useState('')
-  const [rankingMode, setRankingMode] = useState('highest')
+  } = useImageUpload(showSnackbar, { enabled: !!editingGame })
+
+  const fetchGames = useCallback(async () => {
+    try {
+      const res = await api.get('/games')
+      setGames(res.data || [])
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, 'Failed to load games'), 'error')
+    }
+  }, [showSnackbar])
+
+  // Only load once the admin check has passed.
+  useEffect(() => { if (isAuthorized) fetchGames() }, [isAuthorized, fetchGames])
 
   const submit = async (e) => {
     e.preventDefault()
+    const utcResetTime = localToUtcHHmm(localResetTime)
+    if (!utcResetTime) {
+      showSnackbar('Enter a valid reset time', 'error')
+      return
+    }
     const fd = new FormData()
-    fd.append('name', name)
-    if (url) fd.append('url', url)
-    if (description) fd.append('description', description)
-    fd.append('resetTime', resetTime)
-    const tzOffset = new Date().getTimezoneOffset()
-    fd.append('resetTimezoneOffsetMinutes', String(tzOffset))
+    fd.append('name', name.trim())
+    fd.append('url', url.trim())
+    fd.append('description', description)
+    fd.append('resetTime', utcResetTime)
     fd.append('rankingMode', rankingMode)
     if (createImageFile) fd.append('image', createImageFile)
     try {
       await api.post('/games', fd)
       setName('')
+      setUrl('')
       setDescription('')
       setRankingMode('highest')
       clearCreateImage()
-      setResetTime('00:00')
+      setLocalResetTime('00:00')
       showSnackbar('Game created', 'success')
       // navigate back to games overview
       navigate('/')
-      fetchGames()
     } catch (err) {
-      showSnackbar('Failed to create game', 'error')
-    }
-  }
-
-  const navigate = useNavigate()
-  const { isAuthorized } = useRequireAdmin()
-
-  const goUsers = () => navigate('/admin/users')
-  const goTimeguessr = () => navigate('/debug/timeguessr')
-
-  if (!isAuthorized) return null
-
-  const [games, setGames] = useState([])
-  const [editingGame, setEditingGame] = useState(null)
-  const [submissions, setSubmissions] = useState([])
-  const [selectedGameId, setSelectedGameId] = useState(null)
-
-  useEffect(() => { fetchGames() }, [])
-
-  const fetchGames = async () => {
-    try {
-      const res = await api.get('/games')
-      setGames(res.data)
-    } catch (err) {
-      showSnackbar('Failed to load games', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Failed to create game'), 'error')
     }
   }
 
   const startEdit = (g) => {
-    setEditingGame({ ...g })
+    clearEditImage()
+    setEditingGame({ ...g, localResetTime: toLocal(g.resetTime) })
+  }
+
+  const cancelEdit = () => {
+    clearEditImage()
+    setEditingGame(null)
   }
 
   const saveEdit = async () => {
+    const utcResetTime = localToUtcHHmm(editingGame.localResetTime)
+    if (!utcResetTime) {
+      showSnackbar('Enter a valid reset time', 'error')
+      return
+    }
     try {
       const fd = new FormData()
-      if (editingGame.name) fd.append('name', editingGame.name)
-      if (editingGame.url) fd.append('url', editingGame.url)
-      if (editingGame.resetTime) fd.append('resetTime', editingGame.resetTime)
-      const tzOffsetEdit = new Date().getTimezoneOffset()
-      fd.append('resetTimezoneOffsetMinutes', String(tzOffsetEdit))
-      if (editImageFile) fd.append('image', editImageFile)
-      else if (editingGame.imageFile) fd.append('image', editingGame.imageFile)
-      if (editingGame.description !== undefined) fd.append('description', editingGame.description ?? '')
+      if (editingGame.name) fd.append('name', editingGame.name.trim())
+      // Always sent: an empty string clears the field.
+      fd.append('url', (editingGame.url ?? '').trim())
+      fd.append('description', editingGame.description ?? '')
+      fd.append('resetTime', utcResetTime)
       fd.append('rankingMode', editingGame.rankingMode ?? 'highest')
+      if (editImageFile) fd.append('image', editImageFile)
       await api.put(`/games/${editingGame.id}`, fd)
       showSnackbar('Game updated', 'success')
-      setEditingGame(null)
-      clearEditImage()
+      cancelEdit()
       fetchGames()
     } catch (err) {
-      showSnackbar('Failed to update game', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Failed to update game'), 'error')
     }
   }
 
@@ -120,30 +139,38 @@ export default function Admin() {
     try {
       await api.delete(`/games/${id}`)
       showSnackbar('Game deleted', 'success')
+      if (editingGame?.id === id) cancelEdit()
+      if (selectedGameId === id) { setSelectedGameId(null); setSubmissions([]) }
       fetchGames()
     } catch (err) {
-      showSnackbar('Failed to delete game', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Failed to delete game'), 'error')
     }
   }
 
   const manageSubs = async (gameId) => {
+    // Ignore responses that arrive after a newer request (e.g. the admin
+    // switched games quickly).
+    const requestId = ++subsRequestRef.current
+    if (gameId !== selectedGameId) setSubmissions([])
     setSelectedGameId(gameId)
     try {
       const res = await api.get(`/submissions/game/${gameId}/unfiltered`)
+      if (requestId !== subsRequestRef.current) return
       setSubmissions(res.data || [])
     } catch (err) {
-      showSnackbar('Failed to load submissions', 'error')
+      if (requestId !== subsRequestRef.current) return
+      showSnackbar(getApiErrorMessage(err, 'Failed to load submissions'), 'error')
     }
   }
 
   const updateSubmission = async (s) => {
     try {
-      const parsed = parseScore(s.score)
-      await api.put(`/submissions/${s.id}`, { score: isNaN(parsed) ? s.score : String(parsed) })
+      const trimmed = String(s.score ?? '').trim()
+      await api.put(`/submissions/${s.id}`, { score: trimmed })
       showSnackbar('Submission updated', 'success')
       manageSubs(selectedGameId)
     } catch (err) {
-      showSnackbar('Failed to update submission', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Failed to update submission'), 'error')
     }
   }
 
@@ -155,37 +182,42 @@ export default function Admin() {
       showSnackbar('Submission deleted', 'success')
       manageSubs(selectedGameId)
     } catch (err) {
-      showSnackbar('Failed to delete submission', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Failed to delete submission'), 'error')
     }
   }
+
+  if (!isAuthorized) return null
 
   return (
     <>
     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
-      <AppButton onClick={goUsers} sx={{ mb: 2, mr: 1 }}>Manage Users</AppButton>
-      <AppButton onClick={goTimeguessr} sx={{ mb: 2 }}>Debug Timeguessr Test</AppButton>
+      <AppButton onClick={() => navigate('/admin/users')} sx={{ mb: 2, mr: 1 }}>Manage Users</AppButton>
+      <AppButton onClick={() => navigate('/debug/timeguessr')} sx={{ mb: 2 }}>Debug Timeguessr Test</AppButton>
     </Box>
     <form onSubmit={submit}>
       <Stack spacing={2} maxWidth={400}>
         <TextField label="Game name" value={name} onChange={e => setName(e.target.value)} required />
-        <TextField label="Game URL (optional)" value={url} onChange={e => setUrl(e.target.value)} />
+        <TextField label="Game URL (optional)" value={url} onChange={e => setUrl(e.target.value)} type="url" helperText="Absolute http(s) URL" />
         <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} multiline rows={3} />
-          <ImageUpload onFileChange={onCreateFileChange} previewUrl={createPreviewUrl} onRemove={clearCreateImage} />
-          <div>
-            <label>Reset time (day boundary): </label>
-            <input type="time" value={resetTime} onChange={e => setResetTime(e.target.value)} />
-          </div>
- 
+        <ImageUpload onFileChange={onCreateFileChange} previewUrl={createPreviewUrl} onRemove={clearCreateImage} />
         <div>
-            <label>Ranking mode: </label>
-            <select value={rankingMode} onChange={e => setRankingMode(e.target.value)}>
-              <option value="highest">Highest (higher score wins)</option>
-              <option value="lowest">Lowest (lower score wins)</option>
-            </select>
-          </div>
+          <label>Reset time (day boundary, your local time): </label>
+          <input type="time" value={localResetTime} onChange={e => setLocalResetTime(e.target.value)} required />
+          {localToUtcHHmm(localResetTime) && (
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              = {localToUtcHHmm(localResetTime)} UTC
+            </Typography>
+          )}
+        </div>
+        <div>
+          <label>Ranking mode: </label>
+          <select value={rankingMode} onChange={e => setRankingMode(e.target.value)}>
+            <option value="highest">Highest (higher score wins)</option>
+            <option value="lowest">Lowest (lower score wins)</option>
+          </select>
+        </div>
         <AppButton type="submit">Create Game</AppButton>
       </Stack>
-      
     </form>
 
     <Typography variant="h5" sx={{ mt: 3, mb: 1 }}>Manage Games</Typography>
@@ -193,12 +225,17 @@ export default function Admin() {
       {games.map(g => (
         <Paper key={g.id} sx={{ p: 1.5, mb: 1.5 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
+            <div>
               <strong>{g.name}</strong> {g.url ? <PlayButton game={g}><span style={{ textDecoration: 'none' }}>(link)</span></PlayButton> : null}
+              {g.resetTime && (
+                <Typography variant="caption" color="text.secondary" component="div">
+                  Resets at {toLocal(g.resetTime)} local ({g.resetTime} UTC)
+                </Typography>
+              )}
             </div>
             <div>
-              <IconButton onClick={() => startEdit(g)} title="Edit"><EditIcon /></IconButton>
-              <IconButton onClick={() => removeGame(g.id)} title="Delete"><DeleteIcon /></IconButton>
+              <IconButton onClick={() => startEdit(g)} title="Edit" aria-label={`Edit ${g.name}`}><EditIcon /></IconButton>
+              <IconButton onClick={() => removeGame(g.id)} title="Delete" aria-label={`Delete ${g.name}`}><DeleteIcon /></IconButton>
               <AppButton onClick={() => manageSubs(g.id)} sx={{ ml: 1 }}>Manage Submissions</AppButton>
             </div>
           </Box>
@@ -207,15 +244,20 @@ export default function Admin() {
     </div>
 
     {editingGame && (
-      <Paper sx={{ p: 1.5, mt: 1.5 }}>
+      <Paper key={editingGame.id} sx={{ p: 1.5, mt: 1.5 }}>
         <Typography variant="h6" sx={{ mb: 1 }}>Edit Game</Typography>
         <Stack spacing={2} maxWidth={600}>
-          <TextField label="Name" value={editingGame.name} onChange={e => setEditingGame({ ...editingGame, name: e.target.value })} />
-          <TextField label="URL" value={editingGame.url ?? ''} onChange={e => setEditingGame({ ...editingGame, url: e.target.value })} />
+          <TextField label="Name" value={editingGame.name ?? ''} onChange={e => setEditingGame({ ...editingGame, name: e.target.value })} />
+          <TextField label="URL" value={editingGame.url ?? ''} onChange={e => setEditingGame({ ...editingGame, url: e.target.value })} type="url" helperText="Leave empty to remove the URL" />
           <TextField label="Description" value={editingGame.description ?? ''} onChange={e => setEditingGame({ ...editingGame, description: e.target.value })} multiline rows={3} />
           <div>
-            <label>Reset time: </label>
-            <input type="time" value={editingGame.resetTime ?? '00:00'} onChange={e => setEditingGame({ ...editingGame, resetTime: e.target.value })} />
+            <label>Reset time (your local time): </label>
+            <input type="time" value={editingGame.localResetTime} onChange={e => setEditingGame({ ...editingGame, localResetTime: e.target.value })} required />
+            {localToUtcHHmm(editingGame.localResetTime) && (
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                = {localToUtcHHmm(editingGame.localResetTime)} UTC
+              </Typography>
+            )}
           </div>
           <div>
             <label>Ranking mode: </label>
@@ -229,7 +271,7 @@ export default function Admin() {
           </div>
           <div>
             <AppButton onClick={saveEdit}>Save</AppButton>
-            <AppButton onClick={() => setEditingGame(null)}>Cancel</AppButton>
+            <AppButton onClick={cancelEdit}>Cancel</AppButton>
           </div>
         </Stack>
       </Paper>
@@ -254,7 +296,7 @@ export default function Admin() {
                 <TableCell>{s.id}</TableCell>
                 <TableCell>{s.userId ? <Box component={Link} to={`/users/${s.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>{s.username ?? ''}</Box> : (s.username ?? '')}</TableCell>
                 <TableCell>
-                  <input value={s.score ?? ''} onChange={e => setSubmissions(submissions.map(x => x.id === s.id ? { ...x, score: e.target.value } : x))} />
+                  <input value={s.score ?? ''} onChange={e => setSubmissions(prev => prev.map(x => x.id === s.id ? { ...x, score: e.target.value } : x))} />
                   {s.score !== '' && s.score != null && isNaN(parseScore(s.score)) && (
                     <div style={{ color: '#ed6c02', fontSize: '0.75rem', marginTop: 2 }}>Not a number</div>
                   )}

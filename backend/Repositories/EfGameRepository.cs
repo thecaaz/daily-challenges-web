@@ -11,12 +11,27 @@ namespace DailyChallenges.Repositories
 
         public async Task<List<Game>> GetAllAsync()
         {
-            return await _db.Games.AsNoTracking().ToListAsync();
+            return await _db.Games.SelectWithoutBlob().ToListAsync();
         }
 
+        /// <summary>Tracked, full entity (including the image blob). Write paths rely on tracking.</summary>
         public async Task<Game?> GetByIdAsync(int id)
         {
             return await _db.Games.FirstOrDefaultAsync(g => g.Id == id);
+        }
+
+        public async Task<Game?> GetByIdWithoutBlobAsync(int id)
+        {
+            return await _db.Games.Where(g => g.Id == id).SelectWithoutBlob().FirstOrDefaultAsync();
+        }
+
+        public async Task<(byte[]? Data, string? ContentType)> GetBlobAsync(int id)
+        {
+            var row = await _db.Games
+                .Where(g => g.Id == id)
+                .Select(g => new { g.ScreenshotData, g.ScreenshotContentType })
+                .FirstOrDefaultAsync();
+            return row == null ? (null, null) : (row.ScreenshotData, row.ScreenshotContentType);
         }
 
         public async Task<Game> CreateAsync(Game game)
@@ -34,6 +49,7 @@ namespace DailyChallenges.Repositories
             existing.Url = game.Url;
             existing.ResetTime = game.ResetTime;
             existing.Description = game.Description;
+            existing.RankingMode = game.RankingMode;
             if (game.ScreenshotData != null && game.ScreenshotData.Length > 0)
             {
                 existing.ScreenshotData = game.ScreenshotData;

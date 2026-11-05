@@ -5,7 +5,8 @@ namespace DailyChallenges.DTOs
         public int Id { get; set; }
         public int GameId { get; set; }
         public int? UserId { get; set; }
-        public string Score { get; set; } = string.Empty;
+        // Null when the score is hidden (current scoring day, caller has not submitted).
+        public string? Score { get; set; } = string.Empty;
         public double? ScoreValue { get; set; }
         // 1-based rank for scored submissions (computed server-side when applicable)
         public int? Rank { get; set; }

@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import useAdapter from '../hooks/useAdapter'
 import * as adapters from '../utils/adapters'
 
+const listeners = new Set()
 vi.mock('../utils/adapters', () => ({
   getAdapterForUrl: vi.fn(),
+  subscribeAdapters: vi.fn((fn) => { listeners.add(fn); return () => listeners.delete(fn) }),
 }))
 
 describe('useAdapter', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    listeners.clear()
   })
 
   it('returns null when url is empty', async () => {
@@ -66,5 +69,23 @@ describe('useAdapter', () => {
     rerender({ url: 'https://b.com' })
 
     await waitFor(() => expect(result.current).toEqual(adapterB))
+  })
+
+  it('looks the adapter up again when the extension shows up late', async () => {
+    const lateAdapter = { name: 'Late' }
+    adapters.getAdapterForUrl
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(lateAdapter)
+
+    const { result, unmount } = renderHook(() => useAdapter('https://late.example'))
+    await waitFor(() => expect(adapters.getAdapterForUrl).toHaveBeenCalledTimes(1))
+    expect(result.current).toBeNull()
+
+    act(() => { listeners.forEach(fn => fn([lateAdapter])) })
+    await waitFor(() => expect(result.current).toEqual(lateAdapter))
+    expect(adapters.getAdapterForUrl).toHaveBeenCalledTimes(2)
+
+    unmount()
+    expect(listeners.size).toBe(0)
   })
 })

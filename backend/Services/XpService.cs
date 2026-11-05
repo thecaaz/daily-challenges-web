@@ -1,8 +1,6 @@
-using DailyChallenges.Achievements;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
-using DailyChallenges.Services.Contracts;
 using Microsoft.Extensions.Options;
 
 namespace DailyChallenges.Services
@@ -20,6 +18,12 @@ namespace DailyChallenges.Services
         public int WinXp { get; set; } = 100;
     }
 
+    /// <summary>
+    /// XP bookkeeping. Every method reads and writes the user row, so callers run it inside a database
+    /// transaction (SubmissionService.CreateAsync, ScoringDayFinalizerService, AdminUserService.AdjustXpAsync);
+    /// Microsoft.Data.Sqlite's BeginTransaction is BEGIN IMMEDIATE, which serializes these read-modify-writes.
+    /// Achievement checks are the caller's job, after its commit.
+    /// </summary>
     public class XpService : IXpService
     {
         private readonly IUserRepository _userRepo;
@@ -27,16 +31,16 @@ namespace DailyChallenges.Services
         private readonly IXpEventRepository _xpEventRepo;
         private readonly LevelCalculator _levelCalc;
         private readonly XpConfig _cfg;
-        private readonly IAchievementService _achievements;
+        private readonly TimeProvider _time;
 
-        public XpService(IUserRepository userRepo, ISubmissionRepository submissionRepo, IXpEventRepository xpEventRepo, LevelCalculator levelCalc, IOptions<XpConfig> cfg, IAchievementService achievements)
+        public XpService(IUserRepository userRepo, ISubmissionRepository submissionRepo, IXpEventRepository xpEventRepo, LevelCalculator levelCalc, IOptions<XpConfig> cfg, TimeProvider time)
         {
             _userRepo = userRepo;
             _submissionRepo = submissionRepo;
             _xpEventRepo = xpEventRepo;
             _levelCalc = levelCalc;
             _cfg = cfg.Value;
-            _achievements = achievements;
+            _time = time;
         }
 
         public async Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay)
@@ -45,9 +49,10 @@ namespace DailyChallenges.Services
             if (user == null) return 0;
 
             var scoringDate = scoringDay.Date;
-            var today = DateTime.UtcNow.Date;
+            var now = _time.GetUtcNow().UtcDateTime;
+            var today = now.Date;
 
-            // --- Streak calculation ---
+            // --- Streak calculation (UTC calendar days; only the date part of LastSubmissionAt counts) ---
             int newStreak;
             if (user.LastSubmissionAt == null)
             {
@@ -59,7 +64,7 @@ namespace DailyChallenges.Services
 
                 if (today == lastDate)
                 {
-                    newStreak = user.Streak;
+                    newStreak = Math.Max(user.Streak, 1);
                 }
                 else if (today == lastDate.AddDays(1))
                 {
@@ -79,15 +84,16 @@ namespace DailyChallenges.Services
             user.TotalXp += xpAwarded;
             user.Level = _levelCalc.GetLevelFromTotalXp(user.TotalXp);
             user.Streak = newStreak;
-            if (user.LastSubmissionAt == null || today > user.LastSubmissionAt.Value.Date)
-                user.LastSubmissionAt = today;
+            // Full timestamp, so "last played" is accurate; the streak logic above compares only the date.
+            if (user.LastSubmissionAt == null || now > user.LastSubmissionAt.Value)
+                user.LastSubmissionAt = now;
 
             // --- Stamp submission XpAwarded (tracked by EF) ---
             var submission = await _submissionRepo.GetByIdAsync(submissionId);
             if (submission != null)
                 submission.XpAwarded = xpAwarded;
 
-            // --- Audit event; AddAsync flushes all pending tracked changes atomically ---
+            // --- Audit event; AddAsync flushes all pending tracked changes ---
             var details = newStreak > 1
                 ? $"streak={newStreak},bonus={bonusFraction * 100:F0}%"
                 : "streak=1,bonus=0%";
@@ -101,11 +107,8 @@ namespace DailyChallenges.Services
                 Amount = xpAwarded,
                 EventType = "submission",
                 Details = details,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = now
             });
-
-            // Check level-based achievements after the XP/level are persisted.
-            await _achievements.CheckAndAwardAsync(userId, AchievementTrigger.LevelUp);
 
             return xpAwarded;
         }
@@ -115,30 +118,83 @@ namespace DailyChallenges.Services
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) throw new KeyNotFoundException($"User {userId} not found");
 
+            // TotalXp never goes below 0, so the applied delta can be smaller than the requested one.
+            var before = user.TotalXp;
             user.TotalXp = Math.Max(0, user.TotalXp + delta);
             user.Level = _levelCalc.GetLevelFromTotalXp(user.TotalXp);
+            var applied = (int)(user.TotalXp - before);
 
-            var details = $"delta={delta},reason={reason}" +
+            var details = $"requested={delta},reason={reason}" +
                           (adminUserId.HasValue ? $",admin={adminUserId}" : string.Empty);
 
             await _xpEventRepo.AddAsync(new XpEvent
             {
                 UserId = userId,
-                Amount = delta,
+                Amount = applied,
                 EventType = "admin_adjustment",
                 Details = details,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = _time.GetUtcNow().UtcDateTime
             });
 
-            return delta;
+            return applied;
+        }
+
+        public async Task<int> RevokeSubmissionAsync(int userId, int submissionId, int gameId, DateTime scoringDay, int amount, string? reason = null)
+        {
+            if (amount <= 0) return 0;
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return 0;
+
+            var applied = ApplyDeduction(user, amount);
+
+            // SubmissionId is set to null when the submission row is deleted, so the id is kept in Details too.
+            await _xpEventRepo.AddAsync(new XpEvent
+            {
+                UserId = userId,
+                SubmissionId = submissionId,
+                GameId = gameId,
+                ScoringDay = scoringDay.Date,
+                Amount = -applied,
+                EventType = "submission_revoked",
+                Details = $"submissionId={submissionId},requested=-{amount}" + (string.IsNullOrEmpty(reason) ? string.Empty : $",reason={reason}"),
+                CreatedAt = _time.GetUtcNow().UtcDateTime
+            });
+
+            return applied;
+        }
+
+        public async Task<int> RevokeDayWinAsync(int userId, int gameId, DateTime scoringDay)
+        {
+            var ev = await _xpEventRepo.GetDayWinAsync(userId, gameId, scoringDay.Date);
+            if (ev == null) return 0;
+
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user != null) ApplyDeduction(user, ev.Amount);
+
+            // Deleted rather than offset, so the unique day_win index lets the day be won again.
+            await _xpEventRepo.RemoveAsync(ev);
+            return ev.Amount;
+        }
+
+        /// <summary>Subtracts up to <paramref name="amount"/> from TotalXp (clamped at 0), re-derives Level; returns the amount removed.</summary>
+        private int ApplyDeduction(User user, int amount)
+        {
+            var before = user.TotalXp;
+            user.TotalXp = Math.Max(0, user.TotalXp - Math.Max(0, amount));
+            user.Level = _levelCalc.GetLevelFromTotalXp(user.TotalXp);
+            return (int)(before - user.TotalXp);
         }
 
         public async Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay)
         {
+            var scoringDate = scoringDay.Date;
+
+            // Idempotent: a day is won at most once (also enforced by a filtered unique index).
+            if (await _xpEventRepo.HasDayWinAsync(userId, gameId, scoringDate)) return 0;
+
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return 0;
 
-            var scoringDate = scoringDay.Date;
             int xpAwarded = _cfg.WinXp;
 
             user.TotalXp += xpAwarded;
@@ -152,7 +208,7 @@ namespace DailyChallenges.Services
                 Amount = xpAwarded,
                 EventType = "day_win",
                 Details = $"win_xp={xpAwarded}",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = _time.GetUtcNow().UtcDateTime
             });
 
             return xpAwarded;

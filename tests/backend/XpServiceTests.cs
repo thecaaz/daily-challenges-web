@@ -1,10 +1,9 @@
-using DailyChallenges.Achievements;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services;
-using DailyChallenges.Services.Contracts;
 using Microsoft.Extensions.Options;
+using DailyChallenges.TestUtilities;
 using Moq;
 
 namespace DailyChallenges.Tests;
@@ -23,11 +22,11 @@ public class XpServiceTests
         Mock<IUserRepository> UserRepo,
         Mock<ISubmissionRepository> SubRepo,
         Mock<IXpEventRepository> XpEventRepo,
-        Mock<IAchievementService> Achievements,
         XpConfig Config
     );
 
-    private static Sut Build(Action<XpConfig>? configure = null)
+    // `now` is the wall-clock time of the submission; streaks are based on it (defaults to Day1).
+    private static Sut Build(Action<XpConfig>? configure = null, DateTime? now = null)
     {
         var cfg = new XpConfig();
         configure?.Invoke(cfg);
@@ -35,7 +34,6 @@ public class XpServiceTests
         var userRepo = new Mock<IUserRepository>();
         var subRepo = new Mock<ISubmissionRepository>();
         var xpEventRepo = new Mock<IXpEventRepository>();
-        var achievements = new Mock<IAchievementService>();
         var levelCalc = new LevelCalculator(cfg.LevelBase, cfg.LevelExponent);
 
         xpEventRepo
@@ -44,9 +42,10 @@ public class XpServiceTests
 
         var svc = new XpService(
             userRepo.Object, subRepo.Object, xpEventRepo.Object,
-            levelCalc, Options.Create(cfg), achievements.Object);
+            levelCalc, Options.Create(cfg),
+            new FixedTimeProvider(now ?? Day1));
 
-        return new Sut(svc, userRepo, subRepo, xpEventRepo, achievements, cfg);
+        return new Sut(svc, userRepo, subRepo, xpEventRepo, cfg);
     }
 
     private static User NewUser(int id = 1, int totalXp = 0, int streak = 0, DateTime? lastSubmission = null) =>
@@ -109,7 +108,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_ConsecutiveDay_IncrementsStreak()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         var user = NewUser(streak: 2, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
@@ -122,7 +121,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_NonConsecutiveDay_ResetsStreakTo1()
     {
-        var sut = Build();
+        var sut = Build(now: Day3);
         var user = NewUser(streak: 5, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
@@ -135,7 +134,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_Streak2_AppliesOneDayBonus()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         var user = NewUser(streak: 1, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
@@ -150,7 +149,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_StreakBonus_CappedAtMaxStreakBonus()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         // streak=31 → bonus would be 30*0.01=0.30 which is exactly the cap
         var user = NewUser(streak: 31, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
@@ -165,7 +164,7 @@ public class XpServiceTests
     [Fact]
     public async Task AwardForSubmission_StreakBeyondCap_StillCapped()
     {
-        var sut = Build();
+        var sut = Build(now: Day2);
         var user = NewUser(streak: 100, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
@@ -211,18 +210,6 @@ public class XpServiceTests
     }
 
     [Fact]
-    public async Task AwardForSubmission_TriggersLevelUpAchievementCheck()
-    {
-        var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewUser());
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
-
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day1);
-
-        sut.Achievements.Verify(a => a.CheckAndAwardAsync(1, AchievementTrigger.LevelUp), Times.Once);
-    }
-
-    [Fact]
     public async Task AwardForSubmission_StampsSubmissionXpAwarded()
     {
         var sut = Build();
@@ -236,16 +223,44 @@ public class XpServiceTests
     }
 
     [Fact]
-    public async Task AwardForSubmission_NewScoringDay_UpdatesLastSubmissionAt()
+    public async Task AwardForSubmission_StoresFullTimestampInLastSubmissionAt()
     {
-        var sut = Build();
+        var now = Day2.AddHours(17).AddMinutes(42);
+        var sut = Build(now: now);
         var user = NewUser(lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
 
-        Assert.Equal(Day2.Date, user.LastSubmissionAt);
+        Assert.Equal(now, user.LastSubmissionAt);
+    }
+
+    [Fact]
+    public async Task AwardForSubmission_SameDayWithTimestamp_StreakUnchanged()
+    {
+        // LastSubmissionAt holds a time of day now; the streak compares dates only.
+        var sut = Build(now: Day2.AddHours(23));
+        var user = NewUser(streak: 4, lastSubmission: Day2.AddHours(1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
+
+        Assert.Equal(4, user.Streak);
+    }
+
+    [Fact]
+    public async Task AwardForSubmission_NextDayLateTimestamp_IncrementsStreak()
+    {
+        var sut = Build(now: Day3.AddHours(0.5));
+        var user = NewUser(streak: 4, lastSubmission: Day2.AddHours(23.5));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day3);
+
+        Assert.Equal(5, user.Streak);
     }
 
     // ── AdjustXpAsync ─────────────────────────────────────────────────────────
@@ -294,6 +309,27 @@ public class XpServiceTests
         await sut.Service.AdjustXpAsync(1, -1000, "penalty");
 
         Assert.Equal(0, user.TotalXp);
+    }
+
+    [Fact]
+    public async Task AdjustXp_Clamped_RecordsAppliedDeltaAndRequestedInDetails()
+    {
+        var sut = Build();
+        var user = NewUser(totalXp: 10);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+
+        XpEvent? captured = null;
+        sut.XpEventRepo
+            .Setup(r => r.AddAsync(It.IsAny<XpEvent>()))
+            .Callback<XpEvent>(e => captured = e)
+            .ReturnsAsync((XpEvent e) => e);
+
+        var applied = await sut.Service.AdjustXpAsync(1, -1000, "penalty", adminUserId: 2);
+
+        Assert.Equal(-10, applied);
+        Assert.NotNull(captured);
+        Assert.Equal(-10, captured!.Amount);
+        Assert.Contains("requested=-1000", captured.Details);
     }
 
     [Fact]
@@ -358,5 +394,20 @@ public class XpServiceTests
         Assert.Equal("day_win", captured!.EventType);
         Assert.Equal(5, captured.GameId);
         Assert.Equal(Day1.Date, captured.ScoringDay);
+    }
+
+    [Fact]
+    public async Task AwardForDayWin_AlreadyAwarded_Returns0AndChangesNothing()
+    {
+        var sut = Build();
+        var user = NewUser(totalXp: 100);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        sut.XpEventRepo.Setup(r => r.HasDayWinAsync(1, 5, Day1.Date)).ReturnsAsync(true);
+
+        var result = await sut.Service.AwardForDayWinAsync(1, 5, Day1);
+
+        Assert.Equal(0, result);
+        Assert.Equal(100, user.TotalXp);
+        sut.XpEventRepo.Verify(r => r.AddAsync(It.IsAny<XpEvent>()), Times.Never);
     }
 }

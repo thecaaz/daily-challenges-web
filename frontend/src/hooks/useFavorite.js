@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import { useSnackbar } from '../contexts/SnackbarContext'
+import { withRedirect } from '../utils/safeRedirect'
 
 export default function useFavorite(gameId, initial = false) {
   const [isFavorite, setIsFavorite] = useState(Boolean(initial))
   const [loading, setLoading] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { showSnackbar } = useSnackbar()
 
   const toggle = async () => {
     if (!user) {
-      navigate('/login')
+      navigate(withRedirect('/login', `${location.pathname}${location.search}`))
       return
     }
 

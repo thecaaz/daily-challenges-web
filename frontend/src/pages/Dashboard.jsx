@@ -1,10 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import {
-  Box, Typography, Grid, Paper, Skeleton, Chip, Divider,
-  Avatar, List, ListItem, ListItemAvatar, ListItemText,
-  Tooltip, Stack, LinearProgress
-} from '@mui/material'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { Box, Typography, Grid, Paper, Skeleton, Stack, LinearProgress, Alert } from '@mui/material'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import PeopleIcon from '@mui/icons-material/People'
@@ -16,13 +11,13 @@ import BoltIcon from '@mui/icons-material/Bolt'
 import api from '../api'
 import useRequireAuth from '../hooks/useRequireAuth'
 import AppButton from '../components/ui/AppButton'
-import { hasAdapterForUrl } from '../utils/adapters'
-import timeAgo from '../utils/timeAgo'
+import usePlayableFavorites from '../hooks/usePlayableFavorites'
 import GameRow from '../components/dashboard/GameRow'
 import FriendActivityRow from '../components/dashboard/FriendActivityRow'
 import RankRow from '../components/dashboard/RankRow'
 import StatCard from '../components/dashboard/StatCard'
 import Section from '../components/dashboard/Section'
+import FriendsPanel from '../components/dashboard/FriendsPanel'
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -31,76 +26,32 @@ export default function Dashboard() {
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [favData, setFavData] = useState({ total: 0, submittedCount: 0, pendingGames: [], playableCount: 0 })
+  const [error, setError] = useState(false)
+  const requestRef = useRef(0)
+  const favData = usePlayableFavorites(user?.id, { enabled: !authLoading })
 
   const fetchData = useCallback(async () => {
+    const requestId = ++requestRef.current
+    setLoading(true)
+    setError(false)
     try {
       const res = await api.get('/dashboard')
-      setData(res.data)
+      if (requestRef.current === requestId) setData(res.data || {})
     } catch {
-      setData({ recentGames: [], friendActivity: [], friends: [] })
+      if (requestRef.current === requestId) {
+        setData(null)
+        setError(true)
+      }
     } finally {
-      setLoading(false)
+      if (requestRef.current === requestId) setLoading(false)
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
-
-  // Compute favorites data: total, submitted today, pending list, and extension-playable count
   useEffect(() => {
-    let mounted = true
-    const computeFavData = async () => {
-      try {
-        const res = await api.get('/games')
-        const all = Array.isArray(res.data) ? res.data : []
-        const favs = all.filter(g => g.isFavorite)
-        const pending = []
-        let playableCount = 0
-        for (const g of favs) {
-          if (!g.hasSubmittedForLatest) pending.push(g)
-          try {
-            if (!g.url || g.hasSubmittedForLatest) continue
-            const ok = await hasAdapterForUrl(g.url)
-            if (ok) playableCount++
-          } catch (e) {
-            // ignore per-game
-          }
-        }
-        if (mounted) setFavData({
-          total: favs.length,
-          submittedCount: favs.length - pending.length,
-          pendingGames: pending,
-          playableCount,
-        })
-      } catch (e) {
-        if (mounted) setFavData({ total: 0, submittedCount: 0, pendingGames: [], playableCount: 0 })
-      }
-    }
-
-    // Wait for auth to settle so server returns per-user flags
-    if (authLoading) {
-      return () => { mounted = false }
-    }
-
-    // If not authenticated, clear favorites summary
-    if (!user) {
-      if (mounted) setFavData({ total: 0, submittedCount: 0, pendingGames: [], playableCount: 0 })
-      return () => { mounted = false }
-    }
-
-    computeFavData()
-
-    const onFavChanged = () => {
-      // re-compute favorites when toggled elsewhere
-      computeFavData().catch(() => {})
-    }
-    window.addEventListener('favorite-changed', onFavChanged)
-
-    return () => {
-      mounted = false
-      window.removeEventListener('favorite-changed', onFavChanged)
-    }
-  }, [authLoading, user?.id])
+    const counter = requestRef
+    fetchData()
+    return () => { counter.current++ }
+  }, [fetchData, user?.id])
 
   // Keep dashboard in sync when favorites are toggled elsewhere
   useEffect(() => {
@@ -111,10 +62,10 @@ export default function Dashboard() {
         if (!prev) return prev
         return {
           ...prev,
-          recentGames: prev.recentGames.map(a =>
-            String(a.game.id) === String(gameId) ? { ...a, game: { ...a.game, isFavorite } } : a
+          recentGames: (prev.recentGames || []).map(a =>
+            String(a.game?.id) === String(gameId) ? { ...a, game: { ...a.game, isFavorite } } : a
           ),
-          friendActivity: prev.friendActivity.map(a =>
+          friendActivity: (prev.friendActivity || []).map(a =>
             String(a.gameId) === String(gameId) ? { ...a, isFavorite } : a
           ),
         }
@@ -145,8 +96,23 @@ export default function Dashboard() {
     )
   }
 
-  const { recentGames = [], friendActivity = [], friends = [], xpEarnedToday = 0, userTodayRanks = [] } = data || {}
-  const totalActiveToday = recentGames.reduce((sum, a) => sum + (a.todayCount || 0), 0)
+  if (error || !data) {
+    return (
+      <Alert
+        severity="error"
+        action={<AppButton color="inherit" size="small" onClick={fetchData}>Retry</AppButton>}
+      >
+        Could not load the dashboard.
+      </Alert>
+    )
+  }
+
+  const { recentGames = [], friendActivity = [], friends = [], xpEarnedToday = 0, userTodayRanks = [] } = data
+  // Prefer the server's real totals; the lists are capped at 10 items.
+  const activeGameCount = Number.isFinite(data.activeGameCount) ? data.activeGameCount : recentGames.length
+  const submissionCountToday = Number.isFinite(data.submissionCountToday)
+    ? data.submissionCountToday
+    : recentGames.reduce((sum, a) => sum + (a.todayCount || 0), 0)
 
   return (
     <Box>
@@ -156,13 +122,13 @@ export default function Dashboard() {
         <StatCard
           icon={<TodayIcon fontSize="small" />}
           label="Active today"
-          value={recentGames.length}
+          value={activeGameCount}
           color="primary"
         />
         <StatCard
           icon={<SportsSoccerIcon fontSize="small" />}
           label="Submissions today"
-          value={totalActiveToday}
+          value={submissionCountToday}
           color="success"
         />
         <StatCard
@@ -190,7 +156,9 @@ export default function Dashboard() {
 
         <Box sx={{ alignContent: 'end', mb: 3, display: 'flex', alignItems: 'flex-start' }}>
           <Box sx={{ flex: 1 }} />
-          <AppButton to="/dashboard/play" variant="contained" disabled={favData.playableCount === 0} sx={{ mt: 0.5 }}>Play ({favData.playableCount})</AppButton>
+          <AppButton to="/dashboard/play" variant="contained" disabled={favData.playableCount === 0} sx={{ mt: 0.5 }}>
+            Play ({favData.checkingPlayable ? '…' : favData.playableCount})
+          </AppButton>
         </Box>
       </Stack>
 
@@ -283,89 +251,7 @@ export default function Dashboard() {
       </Grid>
 
       {/* Friends list — full width */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor: 'divider',
-          overflow: 'hidden',
-        }}
-      >
-        <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'background.default' }}>
-          <PeopleIcon fontSize="small" color="secondary" />
-          <Typography variant="subtitle1" fontWeight={700}>Friends</Typography>
-          <Chip label={friends.length} size="small" sx={{ ml: 0.5 }} />
-        </Box>
-        <Divider />
-        {friends.length === 0
-          ? (
-            <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                No friends yet.{' '}
-                <Link to="/friends" style={{ color: 'inherit' }}>Add some!</Link>
-              </Typography>
-            </Box>
-          )
-          : (
-            <Grid container spacing={0}>
-              {friends.map((friend, i) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={friend.userId}>
-                  {i > 0 && i % 1 === 0 && <Divider />}
-                  <ListItem
-                    component={Link}
-                    to={`/users/${friend.userId}`}
-                    disableGutters
-                    sx={{
-                      px: 2,
-                      py: 1.25,
-                      gap: 1.5,
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      transition: 'background 0.15s',
-                      '&:hover': { bgcolor: 'action.hover' },
-                    }}
-                  >
-                    <ListItemAvatar sx={{ minWidth: 44 }}>
-                      <Avatar sx={{ width: 38, height: 38, bgcolor: 'secondary.main', fontWeight: 700, fontSize: '0.9rem' }}>
-                        {friend.username.slice(0, 2).toUpperCase()}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Typography variant="body2" fontWeight={600}>{friend.username}</Typography>
-                      }
-                      secondary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mt: 0.25 }}>
-                          <Chip label={`Lv ${friend.level}`} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />
-                          {friend.streak > 0 && (
-                            <Chip
-                              icon={<WhatshotIcon sx={{ fontSize: '12px !important' }} />}
-                              label={friend.streak}
-                              size="small"
-                              color="warning"
-                              sx={{ height: 18, fontSize: '0.65rem' }}
-                            />
-                          )}
-                          {friend.lastSubmissionAt && (
-                            <Typography variant="caption" color="text.secondary">
-                              {timeAgo(friend.lastSubmissionAt)}
-                            </Typography>
-                          )}
-                          {!friend.lastSubmissionAt && (
-                            <Typography variant="caption" color="text.disabled">never active</Typography>
-                          )}
-                        </Box>
-                      }
-                      disableTypography
-                    />
-                  </ListItem>
-                </Grid>
-              ))}
-            </Grid>
-          )
-        }
-      </Paper>
+      <FriendsPanel friends={friends} />
     </Box>
   )
 }

@@ -48,6 +48,12 @@ dotnet ef database update --project backend/DailyChallenges.csproj --startup-pro
 
 Migration files live in `backend/Migrations/`. Review generated migration before applying.
 
+Migration rules:
+- Never edit a migration that has been released (check `git tag --contains <commit>`). Fix data with a new migration instead.
+- Never hard-delete user data in a migration. Backfill or keep columns nullable instead.
+- Before adding a unique index, remove or merge existing duplicates in the same migration.
+- Prefer modelling indexes, collations and computed columns in `AppDbContext` over raw SQL, so EF keeps them across table rebuilds and in `EnsureCreated` test databases.
+
 ## Docker
 
 ```bash
@@ -56,6 +62,8 @@ docker compose up --detach    # start services
 ```
 
 Backend listens on `:5000`, sets `SQLITE_PATH` env var to locate the DB. A named volume `sqlite_data` persists the SQLite file.
+
+`JWT_KEY` must be set for `docker compose` (≥ 32 chars, e.g. `openssl rand -base64 48`); the backend refuses to start in Production without it. Development uses the dev-only key in `backend/appsettings.Development.json` (`dotnet run` picks the Development profile from `backend/Properties/launchSettings.json`).
 
 ## Architecture pointers
 

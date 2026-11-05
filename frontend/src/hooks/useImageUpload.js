@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import compressImage from '../utils/compressImage'
 
-export default function useImageUpload(showSnackbar) {
+/**
+ * @param {Function} [showSnackbar]
+ * @param {object} [options]
+ * @param {boolean} [options.enabled=true] - listen for clipboard pastes. Pass
+ *   false for forms that aren't active so a paste only fills one form.
+ */
+export default function useImageUpload(showSnackbar, { enabled = true } = {}) {
   const [screenshot, setScreenshot] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
 
@@ -29,6 +35,7 @@ export default function useImageUpload(showSnackbar) {
 
   // handle paste events (Ctrl+V) to accept images from clipboard
   useEffect(() => {
+    if (!enabled) return undefined
     const handler = async (e) => {
       try {
         const items = e.clipboardData?.items
@@ -38,6 +45,8 @@ export default function useImageUpload(showSnackbar) {
           if (item && item.type && item.type.startsWith('image/')) {
             const blob = item.getAsFile ? item.getAsFile() : null
             if (blob) {
+              // Must be called synchronously, before the first await.
+              e.preventDefault()
               try {
                 const compressed = await compressImage(blob)
                 setScreenshot(compressed)
@@ -46,7 +55,6 @@ export default function useImageUpload(showSnackbar) {
                 setScreenshot(file)
               }
               if (typeof showSnackbar === 'function') showSnackbar('Image pasted from clipboard', 'success')
-              e.preventDefault()
               return
             }
           }
@@ -57,7 +65,7 @@ export default function useImageUpload(showSnackbar) {
     }
     window.addEventListener('paste', handler)
     return () => window.removeEventListener('paste', handler)
-  }, [showSnackbar])
+  }, [showSnackbar, enabled])
 
   const clear = useCallback(() => setScreenshot(null), [])
 

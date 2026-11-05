@@ -1,3 +1,5 @@
+using DailyChallenges.Data;
+using DailyChallenges.Exceptions;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
@@ -5,26 +7,38 @@ using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services.Contracts;
 using DailyChallenges.Services.Ranking;
+using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Services
 {
     public class LeagueService : ILeagueService
     {
+        /// <summary>How long after a declined invitation the same user cannot be invited to the league again.</summary>
+        public static readonly TimeSpan ReinviteCooldown = TimeSpan.FromHours(24);
+
+        private readonly TimeProvider _time;
         private readonly ILeagueRepository _leagues;
         private readonly IUserProfileRepository _users;
         private readonly INotificationRepository _notifications;
         private readonly IGameRepository _games;
+        private readonly IScoreVisibilityService _visibility;
+        private readonly IScreenshotUrlSigner _signer;
 
         public LeagueService(
             ILeagueRepository leagues,
             IUserProfileRepository users,
             INotificationRepository notifications,
-            IGameRepository games)
+            IGameRepository games, TimeProvider time,
+            IScoreVisibilityService visibility,
+            IScreenshotUrlSigner signer)
         {
+            _visibility = visibility;
+            _signer = signer;
             _leagues = leagues;
             _users = users;
             _notifications = notifications;
             _games = games;
+            _time = time;
         }
 
         // ── Create / rename / delete ──────────────────────────────────────────
@@ -38,20 +52,17 @@ namespace DailyChallenges.Services
             var owner = await _users.GetByIdAsync(ownerId)
                 ?? throw new KeyNotFoundException("User not found.");
 
+            var now = _time.GetUtcNow().UtcDateTime;
+            // The league and the owner's membership are inserted together (one transaction).
             var league = await _leagues.CreateAsync(new League
             {
                 Name = name,
                 OwnerId = ownerId,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            // Add the owner as a member with Owner role
-            await _leagues.AddMemberAsync(new LeagueMember
-            {
-                LeagueId = league.Id,
-                UserId = ownerId,
-                Role = LeagueRole.Owner,
-                JoinedAt = DateTime.UtcNow
+                CreatedAt = now,
+                Members = new List<LeagueMember>
+                {
+                    new LeagueMember { UserId = ownerId, Role = LeagueRole.Owner, JoinedAt = now }
+                }
             });
 
             return LeagueToDto(league, 1, owner.Username);
@@ -68,20 +79,22 @@ namespace DailyChallenges.Services
 
             RequireOwner(league, requestingUserId);
 
+            if (!await _leagues.RenameAsync(leagueId, newName))
+                throw new KeyNotFoundException("League not found.");
             league.Name = newName;
-            await _leagues.UpdateAsync(league);
 
             return LeagueToDto(league, league.Members.Count, league.Owner?.Username ?? string.Empty);
         }
 
         public async Task DeleteLeagueAsync(int leagueId, int requestingUserId)
         {
-            var league = await _leagues.GetByIdWithMembersAsync(leagueId)
+            var league = await _leagues.GetByIdAsync(leagueId)
                 ?? throw new KeyNotFoundException("League not found.");
 
             RequireOwner(league, requestingUserId);
 
-            await _leagues.DeleteAsync(league);
+            if (!await _leagues.DeleteAsync(leagueId))
+                throw new KeyNotFoundException("League not found.");
         }
 
         // ── Queries ───────────────────────────────────────────────────────────
@@ -118,7 +131,7 @@ namespace DailyChallenges.Services
                     UserId = m.UserId,
                     Username = m.User?.Username ?? string.Empty,
                     Level = m.User?.Level ?? 1,
-                    Streak = m.User?.Streak ?? 0,
+                    Streak = m.User != null ? StreakHelper.Effective(m.User, _time.GetUtcNow().UtcDateTime) : 0,
                     Role = m.Role.ToString().ToLowerInvariant(),
                     JoinedAt = m.JoinedAt
                 }).ToList(),
@@ -141,26 +154,40 @@ namespace DailyChallenges.Services
                 ?? throw new KeyNotFoundException($"User '{username}' not found.");
 
             if (invitee.Id == inviterId)
-                throw new InvalidOperationException("You cannot invite yourself.");
+                throw new ValidationException("You cannot invite yourself.");
 
             if (league.Members.Any(m => m.UserId == invitee.Id))
-                throw new InvalidOperationException($"{username} is already a member of this league.");
+                throw new ConflictException($"{username} is already a member of this league.");
 
             var existing = await _leagues.GetPendingInvitationAsync(leagueId, invitee.Id);
             if (existing != null)
-                throw new InvalidOperationException($"A pending invitation to {username} already exists.");
+                throw new ConflictException($"A pending invitation to {invitee.Username} already exists.");
+
+            var now = _time.GetUtcNow().UtcDateTime;
+            var lastDeclinedAt = await _leagues.GetLastDeclinedAtAsync(leagueId, invitee.Id);
+            if (lastDeclinedAt.HasValue && lastDeclinedAt.Value > now - ReinviteCooldown)
+                throw new ConflictException($"{invitee.Username} declined an invitation to this league recently. Try again after 24 hours.");
 
             var inviter = await _users.GetByIdAsync(inviterId)
                 ?? throw new KeyNotFoundException("Inviter not found.");
 
-            var invitation = await _leagues.CreateInvitationAsync(new LeagueInvitation
+            LeagueInvitation invitation;
+            try
             {
-                LeagueId = leagueId,
-                InviterId = inviterId,
-                InviteeId = invitee.Id,
-                Status = LeagueInvitationStatus.Pending,
-                CreatedAt = DateTime.UtcNow
-            });
+                invitation = await _leagues.CreateInvitationAsync(new LeagueInvitation
+                {
+                    LeagueId = leagueId,
+                    InviterId = inviterId,
+                    InviteeId = invitee.Id,
+                    Status = LeagueInvitationStatus.Pending,
+                    CreatedAt = now
+                });
+            }
+            catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+            {
+                // A concurrent request created the pending invite first (filtered unique index).
+                throw new ConflictException($"A pending invitation to {invitee.Username} already exists.");
+            }
 
             // Notify the invitee
             await _notifications.CreateBatchAsync(new List<Notification>
@@ -169,10 +196,11 @@ namespace DailyChallenges.Services
                 {
                     UserId = invitee.Id,
                     GameId = null,
-                    ScoringDay = DateTime.UtcNow.Date,
+                    ScoringDay = _time.GetUtcNow().UtcDateTime.Date,
                     Message = $"{inviter.Username} invited you to join the league \"{league.Name}\".",
                     Type = "league_invite",
-                    CreatedAt = DateTime.UtcNow
+                    ActorUserId = inviterId,
+                    CreatedAt = _time.GetUtcNow().UtcDateTime
                 }
             });
 
@@ -189,19 +217,26 @@ namespace DailyChallenges.Services
 
             RequireOwner(league, inviterId);
 
-            var token = GenerateToken();
-            var expiresAt = DateTime.UtcNow.AddDays(7);
-
-            var invitation = await _leagues.CreateInvitationAsync(new LeagueInvitation
+            var now = _time.GetUtcNow().UtcDateTime;
+            LeagueInvitation? invitation = null;
+            // Tokens are unique (index). A collision of random GUIDs is practically impossible, but retry anyway.
+            for (var attempt = 0; invitation == null; attempt++)
             {
-                LeagueId = leagueId,
-                InviterId = inviterId,
-                InviteeId = null,
-                Token = token,
-                Status = LeagueInvitationStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
-                ExpiresAt = expiresAt
-            });
+                try
+                {
+                    invitation = await _leagues.CreateInvitationAsync(new LeagueInvitation
+                    {
+                        LeagueId = leagueId,
+                        InviterId = inviterId,
+                        InviteeId = null,
+                        Token = GenerateToken(),
+                        Status = LeagueInvitationStatus.Pending,
+                        CreatedAt = now,
+                        ExpiresAt = now.AddDays(7)
+                    });
+                }
+                catch (DbUpdateException ex) when (ex.IsUniqueViolation() && attempt < 2) { }
+            }
 
             var inviter = await _users.GetByIdAsync(inviterId);
             invitation.League = league;
@@ -215,12 +250,12 @@ namespace DailyChallenges.Services
                 ?? throw new KeyNotFoundException("Invitation not found.");
 
             if (invitation.InviteeId != userId)
-                throw new InvalidOperationException("This invitation was not sent to you.");
+                throw new ForbiddenException("This invitation was not sent to you.");
 
             if (invitation.Status != LeagueInvitationStatus.Pending)
-                throw new InvalidOperationException("This invitation is no longer pending.");
+                throw new ConflictException("This invitation is no longer pending.");
 
-            return await AcceptInvitationCoreAsync(invitation, userId);
+            return await AcceptInvitationCoreAsync(invitation, userId, "This invitation is no longer pending.");
         }
 
         public async Task<LeagueDetailDto> JoinByTokenAsync(string token, int userId)
@@ -228,32 +263,23 @@ namespace DailyChallenges.Services
             var invitation = await _leagues.GetInvitationByTokenAsync(token)
                 ?? throw new KeyNotFoundException("Invite link not found or already used.");
 
-            if (invitation.ExpiresAt.HasValue && invitation.ExpiresAt.Value < DateTime.UtcNow)
-                throw new InvalidOperationException("This invite link has expired.");
+            if (invitation.ExpiresAt.HasValue && invitation.ExpiresAt.Value < _time.GetUtcNow().UtcDateTime)
+                throw new ValidationException("This invite link has expired.");
 
-            return await AcceptInvitationCoreAsync(invitation, userId);
+            return await AcceptInvitationCoreAsync(invitation, userId, "Invite link not found or already used.");
         }
 
-        private async Task<LeagueDetailDto> AcceptInvitationCoreAsync(LeagueInvitation invitation, int userId)
+        private async Task<LeagueDetailDto> AcceptInvitationCoreAsync(LeagueInvitation invitation, int userId, string notPendingMessage)
         {
-            // Re-fetch league with members for membership check
-            var league = await _leagues.GetByIdWithMembersAsync(invitation.LeagueId)
+            var league = await _leagues.GetByIdAsync(invitation.LeagueId)
                 ?? throw new KeyNotFoundException("League not found.");
 
-            if (league.Members.Any(m => m.UserId == userId))
-                throw new InvalidOperationException("You are already a member of this league.");
-
-            invitation.Status = LeagueInvitationStatus.Accepted;
-            invitation.UpdatedAt = DateTime.UtcNow;
-            await _leagues.UpdateInvitationAsync(invitation);
-
-            await _leagues.AddMemberAsync(new LeagueMember
-            {
-                LeagueId = league.Id,
-                UserId = userId,
-                Role = LeagueRole.Member,
-                JoinedAt = DateTime.UtcNow
-            });
+            // Claims the invitation and adds the membership atomically; a concurrent accept gets NotPending.
+            var result = await _leagues.AcceptInvitationAsync(invitation.Id, userId, _time.GetUtcNow().UtcDateTime);
+            if (result == AcceptInvitationResult.AlreadyMember)
+                throw new ConflictException("You are already a member of this league.");
+            if (result == AcceptInvitationResult.NotPending)
+                throw new ConflictException(notPendingMessage);
 
             // Notify the owner
             var joiner = await _users.GetByIdAsync(userId);
@@ -263,10 +289,11 @@ namespace DailyChallenges.Services
                 {
                     UserId = league.OwnerId,
                     GameId = null,
-                    ScoringDay = DateTime.UtcNow.Date,
+                    ScoringDay = _time.GetUtcNow().UtcDateTime.Date,
                     Message = $"{joiner?.Username ?? "Someone"} joined your league \"{league.Name}\".",
                     Type = "league_joined",
-                    CreatedAt = DateTime.UtcNow
+                    ActorUserId = userId,
+                    CreatedAt = _time.GetUtcNow().UtcDateTime
                 }
             });
 
@@ -279,14 +306,13 @@ namespace DailyChallenges.Services
                 ?? throw new KeyNotFoundException("Invitation not found.");
 
             if (invitation.InviteeId != userId)
-                throw new InvalidOperationException("This invitation was not sent to you.");
+                throw new ForbiddenException("This invitation was not sent to you.");
 
             if (invitation.Status != LeagueInvitationStatus.Pending)
-                throw new InvalidOperationException("This invitation is no longer pending.");
+                throw new ConflictException("This invitation is no longer pending.");
 
-            invitation.Status = LeagueInvitationStatus.Declined;
-            invitation.UpdatedAt = DateTime.UtcNow;
-            await _leagues.UpdateInvitationAsync(invitation);
+            if (!await _leagues.TryCloseInvitationAsync(invitation.Id, LeagueInvitationStatus.Declined, _time.GetUtcNow().UtcDateTime))
+                throw new ConflictException("This invitation is no longer pending.");
         }
 
         public async Task CancelInvitationAsync(int invitationId, int requestingUserId)
@@ -298,14 +324,13 @@ namespace DailyChallenges.Services
                 ?? throw new KeyNotFoundException("League not found.");
 
             if (league.OwnerId != requestingUserId)
-                throw new InvalidOperationException("Only the league owner can cancel invitations.");
+                throw new ForbiddenException("Only the league owner can cancel invitations.");
 
             if (invitation.Status != LeagueInvitationStatus.Pending)
-                throw new InvalidOperationException("This invitation is no longer pending.");
+                throw new ConflictException("This invitation is no longer pending.");
 
-            invitation.Status = LeagueInvitationStatus.Cancelled;
-            invitation.UpdatedAt = DateTime.UtcNow;
-            await _leagues.UpdateInvitationAsync(invitation);
+            if (!await _leagues.TryCloseInvitationAsync(invitation.Id, LeagueInvitationStatus.Cancelled, _time.GetUtcNow().UtcDateTime))
+                throw new ConflictException("This invitation is no longer pending.");
         }
 
         public async Task<List<LeagueInvitationDto>> GetMyPendingInvitationsAsync(int userId)
@@ -322,10 +347,10 @@ namespace DailyChallenges.Services
                 ?? throw new KeyNotFoundException("League not found.");
 
             if (league.OwnerId == userId)
-                throw new InvalidOperationException("The owner cannot leave the league. Transfer ownership or delete the league.");
+                throw new ValidationException("The owner cannot leave the league. Transfer ownership or delete the league.");
 
             var member = await _leagues.GetMemberAsync(leagueId, userId)
-                ?? throw new InvalidOperationException("You are not a member of this league.");
+                ?? throw new ForbiddenException("You are not a member of this league.");
 
             await _leagues.RemoveMemberAsync(member);
         }
@@ -338,37 +363,47 @@ namespace DailyChallenges.Services
             RequireOwner(league, requestingUserId);
 
             if (targetUserId == requestingUserId)
-                throw new InvalidOperationException("The owner cannot kick themselves.");
+                throw new ValidationException("The owner cannot kick themselves.");
 
             var member = await _leagues.GetMemberAsync(leagueId, targetUserId)
-                ?? throw new InvalidOperationException("The target user is not a member of this league.");
+                ?? throw new NotFoundException("The target user is not a member of this league.");
 
             await _leagues.RemoveMemberAsync(member);
         }
 
         // ── Leaderboard ───────────────────────────────────────────────────────
 
-        public async Task<LeagueLeaderboardDto> GetLeaderboardAsync(int leagueId, int gameId, DateTime scoringDay, int requestingUserId)
+        public async Task<LeagueLeaderboardDto> GetLeaderboardAsync(int leagueId, int gameId, DateTime? scoringDay, int requestingUserId, bool isAdmin = false)
         {
             var league = await _leagues.GetByIdAsync(leagueId)
                 ?? throw new KeyNotFoundException("League not found.");
 
             var member = await _leagues.GetMemberAsync(leagueId, requestingUserId);
             if (member == null)
-                throw new InvalidOperationException("You are not a member of this league.");
+                throw new ForbiddenException("You are not a member of this league.");
 
-            var game = await _games.GetByIdAsync(gameId)
+            var game = await _games.GetByIdWithoutBlobAsync(gameId)
                 ?? throw new KeyNotFoundException("Game not found.");
 
-            var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
-            var entries = await _leagues.GetLeaderboardAsync(leagueId, gameId, scoringDay, strategy);
+            // Default day: the game's current scoring day (not the UTC calendar date).
+            var currentDay = _visibility.GetCurrentScoringDay(game);
+            var day = scoringDay?.Date ?? currentDay;
+            var isCurrentDay = day == currentDay;
+            var visible = await _visibility.CanSeeDayAsync(requestingUserId, isAdmin, game, day);
 
-            return new LeagueLeaderboardDto
+            var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
+            var entries = await _leagues.GetLeaderboardAsync(leagueId, gameId, day, strategy);
+
+            var dto = new LeagueLeaderboardDto
             {
                 LeagueId = leagueId,
                 GameId = gameId,
-                ScoringDay = scoringDay.Date.ToString("yyyy-MM-dd"),
-                Entries = entries.Select(e => new LeagueLeaderboardEntryDto
+                ScoringDay = day.ToString("yyyy-MM-dd"),
+                ScoresHidden = !visible,
+            };
+
+            dto.Entries = visible
+                ? entries.Select(e => new LeagueLeaderboardEntryDto
                 {
                     Rank = e.Rank,
                     UserId = e.UserId,
@@ -376,9 +411,15 @@ namespace DailyChallenges.Services
                     Score = e.Score,
                     ScoreValue = e.ScoreValue,
                     SubmissionId = e.SubmissionId,
-                    ScreenshotUrl = e.HasScreenshot ? $"/api/submissions/{e.SubmissionId}/screenshot" : null
+                    ScreenshotUrl = e.HasScreenshot ? _signer.Url(e.SubmissionId, isCurrentDay) : null
                 }).ToList()
-            };
+                // Hidden: who played stays visible, but not the score, rank, or order.
+                : entries
+                    .OrderBy(e => e.Username, StringComparer.OrdinalIgnoreCase)
+                    .Select(e => new LeagueLeaderboardEntryDto { UserId = e.UserId, Username = e.Username })
+                    .ToList();
+
+            return dto;
         }
 
         public async Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(int leagueId, int requestingUserId, int days = 7, int page = 1, int pageSize = 20)
@@ -388,7 +429,7 @@ namespace DailyChallenges.Services
 
             var member = await _leagues.GetMemberAsync(leagueId, requestingUserId);
             if (member == null)
-                throw new InvalidOperationException("You are not a member of this league.");
+                throw new ForbiddenException("You are not a member of this league.");
 
             return await _leagues.GetLeagueGameSummariesAsync(leagueId, requestingUserId, days, page, pageSize);
         }
@@ -398,13 +439,13 @@ namespace DailyChallenges.Services
         private static void RequireOwner(League league, int userId)
         {
             if (league.OwnerId != userId)
-                throw new InvalidOperationException("Only the league owner can perform this action.");
+                throw new ForbiddenException("Only the league owner can perform this action.");
         }
 
         private static void RequireMember(League league, int userId)
         {
             if (!league.Members.Any(m => m.UserId == userId))
-                throw new InvalidOperationException("You are not a member of this league.");
+                throw new ForbiddenException("You are not a member of this league.");
         }
 
         private static LeagueDto LeagueToDto(League l, int memberCount, string ownerUsername) =>

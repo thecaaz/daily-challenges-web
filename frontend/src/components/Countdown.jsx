@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Typography } from '@mui/material'
 import parseUtcDate from '../utils/parseUtcDate'
 
@@ -6,8 +6,21 @@ function pad(n) {
   return String(n).padStart(2, '0')
 }
 
-export default function Countdown({ targetDate }) {
+// Small grace period after the reset before `onExpire` fires, so the server has
+// rolled over to the new scoring day when the parent refetches.
+const EXPIRE_GRACE_MS = 1500
+
+/**
+ * Counts down to `targetDate` (UTC). Calls `onExpire` once per target date when
+ * the countdown reaches zero, so the parent can refetch the game.
+ */
+export default function Countdown({ targetDate, onExpire }) {
   const [remaining, setRemaining] = useState(null)
+  const onExpireRef = useRef(onExpire)
+
+  useEffect(() => {
+    onExpireRef.current = onExpire
+  }, [onExpire])
 
   useEffect(() => {
     const target = parseUtcDate(targetDate)
@@ -16,18 +29,29 @@ export default function Countdown({ targetDate }) {
       return
     }
 
+    let interval = null
+    let expireTimer = null
     const tick = () => {
       const diff = target.getTime() - Date.now()
       if (diff <= 0) {
         setRemaining(0)
+        if (interval) clearInterval(interval)
+        interval = null
+        // Fire once for this target date only (a stale target won't loop).
+        if (!expireTimer) {
+          expireTimer = setTimeout(() => { onExpireRef.current?.() }, EXPIRE_GRACE_MS)
+        }
         return
       }
       setRemaining(diff)
     }
 
+    interval = setInterval(tick, 1000)
     tick()
-    const interval = setInterval(tick, 1000)
-    return () => clearInterval(interval)
+    return () => {
+      if (interval) clearInterval(interval)
+      if (expireTimer) clearTimeout(expireTimer)
+    }
   }, [targetDate])
 
   if (remaining === null) return null

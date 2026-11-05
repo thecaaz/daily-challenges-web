@@ -4,116 +4,184 @@ on:
   workflow_run:
     workflows: ["CI Build"]
     types: [completed]
+  # Rebuild the Docker images for an existing release (e.g. when the docker job
+  # of that release failed). Runs only the docker job; never cuts a release.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to rebuild images for (e.g. v1.2.3)'
+        required: true
+        type: string
 
+# Least privilege by default; jobs widen what they need.
 permissions:
-  contents: write
-  issues: write
+  contents: read
+
+# Never run two releases at once (semantic-release pushes commits and tags).
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    # Only after a successful CI run for a *push* to main in this repository.
+    # (A PR whose head branch is called "main", or a fork, must never reach the secrets below.)
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # push release commit + tag, create GitHub release
+      issues: write         # semantic-release comments/labels on released issues
+      pull-requests: write  # semantic-release comments on released PRs
+    outputs:
+      new_release: ${{ steps.detect.outputs.new_release }}
+      tag: ${{ steps.detect.outputs.tag }}
+      version: ${{ steps.detect.outputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          ref: main
           fetch-depth: 0
           fetch-tags: true
+          # semantic-release authenticates its own pushes with GITHUB_TOKEN below
+          persist-credentials: false
+
+      # main may have moved on since the CI run that triggered this started. Only
+      # release the exact commit CI tested; the CI run for the newer commit
+      # triggers its own release run.
+      - name: Verify main is the commit CI tested
+        id: verify
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ "$HEAD_SHA" = "$TESTED_SHA" ]; then
+            echo "tested=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::main is at ${HEAD_SHA}, but CI tested ${TESTED_SHA}; skipping this release (the CI run for the newer commit handles it)."
+            echo "tested=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        if: steps.verify.outputs.tested == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install release dependencies
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+        if: steps.verify.outputs.tested == 'true'
+        run: npm ci
+
+      - name: Snapshot tags at HEAD
+        if: steps.verify.outputs.tested == 'true'
+        run: git tag --points-at HEAD | sort > "$RUNNER_TEMP/tags-before.txt"
 
       - name: Run semantic-release
+        if: steps.verify.outputs.tested == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: npm run release
 
-      - name: Create release-info.json
-        if: ${{ always() }}
+      # semantic-release (with @semantic-release/git) commits CHANGELOG.md and tags that
+      # commit locally, so a new release shows up as a tag on HEAD that wasn't there before.
+      # No new tag => no release => the docker job is skipped (existing version tags are
+      # never overwritten).
+      - name: Detect new release
+        id: detect
+        env:
+          TESTED: ${{ steps.verify.outputs.tested }}
         run: |
-          # Ensure we have tags available
-          git fetch --tags
-          TAG=$(git describe --tags --abbrev=0 || echo "")
-          # Fallback to npm package version
-          if [ -z "$TAG" ] && [ -f package.json ]; then
-            TAG="v$(node -p "require('./package.json').version")"
+          if [ "$TESTED" != "true" ]; then
+            echo "Skipped: not the tested commit."
+            echo "new_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          VERSION=${TAG#v}
-          RAW="${TAG}+${GITHUB_SHA}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          COMMIT=${GITHUB_SHA}
-          printf '%s\n' '{' \
-            "  \"version\": \"${VERSION}\"," \
-            "  \"rawVersion\": \"${RAW}\"," \
-            "  \"commit\": \"${COMMIT}\"," \
-            "  \"timestamp\": \"${TIMESTAMP}\"" \
-            '}' > release-info.json
-
-      - name: Upload release-info artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-info
-          path: release-info.json
+          git tag --points-at HEAD | sort > "$RUNNER_TEMP/tags-after.txt"
+          TAG=$(comm -13 "$RUNNER_TEMP/tags-before.txt" "$RUNNER_TEMP/tags-after.txt" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1 || true)
+          if [ -n "$TAG" ]; then
+            echo "New release: $TAG"
+            {
+              echo "new_release=true"
+              echo "tag=${TAG}"
+              echo "version=${TAG#v}"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "No new release."
+            echo "new_release=false" >> "$GITHUB_OUTPUT"
+          fi
 
   docker:
     name: Build & push Docker images
     needs: release
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    # After a new release, or on a manual run for an existing tag (the release
+    # job is skipped then, hence always()).
+    if: >-
+      always() && (
+        (github.event_name == 'workflow_run' && needs.release.result == 'success' && needs.release.outputs.new_release == 'true') ||
+        (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+      )
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Fetch tags
-        run: git fetch --tags
-
-      - name: Ensure branch head and tags
+      - name: Resolve release tag
+        id: tag
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release.outputs.tag }}
         run: |
-          git fetch origin main --tags
-          git checkout origin/main
-          git reset --hard origin/main
-
-      - name: Download release-info artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: release-info
-          path: .
-
-      - name: Place release-info.json into backend/
-        run: |
-          if [ -f release-info.json ]; then
-            mv release-info.json backend/release-info.json
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
+            echo "Not a release tag: '${TAG}'" >&2
+            exit 1
           fi
+          {
+            echo "tag=${TAG}"
+            echo "version=${TAG#v}"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Get release version
-        id: version
+      - name: Checkout release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: refs/tags/${{ steps.tag.outputs.tag }}
+          persist-credentials: false
+
+      - name: Create backend/release-info.json
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          VERSION: ${{ steps.tag.outputs.version }}
         run: |
-          TAG=$(git describe --tags --abbrev=0)
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          COMMIT=$(git rev-parse "refs/tags/${TAG}^{commit}")
+          if [ "$COMMIT" != "$(git rev-parse HEAD)" ]; then
+            echo "HEAD does not match tag ${TAG}" >&2
+            exit 1
+          fi
+          jq -n \
+            --arg version "$VERSION" \
+            --arg rawVersion "${TAG}+${COMMIT}" \
+            --arg commit "$COMMIT" \
+            --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+            '{version: $version, rawVersion: $rawVersion, commit: $commit, timestamp: $timestamp}' \
+            > backend/release-info.json
+          cat backend/release-info.json
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v4
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build and push backend
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: backend/Dockerfile
@@ -121,10 +189,10 @@ jobs:
           push: true
           tags: |
             caaz/daily-challenge-web-backend:latest
-            caaz/daily-challenge-web-backend:${{ steps.version.outputs.version }}
+            caaz/daily-challenge-web-backend:${{ steps.tag.outputs.version }}
 
       - name: Build and push frontend
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: frontend/Dockerfile
@@ -132,4 +200,4 @@ jobs:
           push: true
           tags: |
             caaz/daily-challenge-web-frontend:latest
-            caaz/daily-challenge-web-frontend:${{ steps.version.outputs.version }}
+            caaz/daily-challenge-web-frontend:${{ steps.tag.outputs.version }}

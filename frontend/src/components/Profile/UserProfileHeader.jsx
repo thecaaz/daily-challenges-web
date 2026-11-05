@@ -7,7 +7,7 @@ import FriendButton from './FriendButton'
 
 export default function UserProfileHeader({ profile }) {
   const username = profile.username || profile.Username || 'user'
-  const userId = profile.userId ?? profile.UserId ?? profile.UserId
+  const userId = profile.userId ?? profile.UserId
   const level = profile.level ?? profile.Level ?? 1
   const xpInto = profile.xpIntoLevel ?? profile.XpIntoLevel ?? 0
   const xpToNext = profile.xpToNextLevel ?? profile.XpToNextLevel ?? 0

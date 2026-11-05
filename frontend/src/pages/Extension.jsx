@@ -3,44 +3,34 @@ import { Box, Button, Typography, Paper, List, ListItem, ListItemText, Chip } fr
 import ExtensionIcon from '@mui/icons-material/Extension'
 import DownloadIcon from '@mui/icons-material/Download'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import EXTENSION_UPDATES from '../../../extension/updates.json'
+import { refreshAdapters, isExtensionDetected } from '../utils/adapters'
 
 const DOWNLOAD_URL = '/extension.xpi'
+
+// The released version is the one updates.json advertises (bumped only after
+// the signed XPI is deployed), not manifest.json, which may already be ahead
+// of the shipped /extension.xpi.
+export function releasedVersion(updates) {
+  const addons = updates && updates.addons ? Object.values(updates.addons) : []
+  const list = addons[0] && Array.isArray(addons[0].updates) ? addons[0].updates : []
+  const last = list[list.length - 1]
+  return last && typeof last.version === 'string' ? last.version : null
+}
+
+const RELEASED_VERSION = releasedVersion(EXTENSION_UPDATES)
 
 export default function Extension() {
   const [installed, setInstalled] = useState(null)
 
   useEffect(() => {
     let mounted = true
-    const nonce = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-
-    function onMessage(ev) {
-      if (!ev || !ev.data || typeof ev.data.type !== 'string') return
-      if (ev.data.type === 'ADAPTERS_RESPONSE' && ev.data.nonce === nonce) {
-        if (mounted) {
-          setInstalled(true)  
-          clearTimeout(timer)        
-        } 
-      }
-    }
-
-    window.addEventListener('message', onMessage)
-    try {
-      // Ask any injected content script for its adapters; a responding ADAPTERS_RESPONSE
-      // implies the extension (or at least a content script) is present on this page.
-      window.postMessage({ type: 'GET_ADAPTERS', nonce }, '*')
-    } catch (e) {}
-
-    const timer = setTimeout(() => {
-      if (mounted && installed !== true) {
-        setInstalled(false)
-      } 
-    }, 800)
-
-    return () => {
-      mounted = false
-      window.removeEventListener('message', onMessage)
-      clearTimeout(timer)
-    }
+    // Always ask again here: the user may have just installed the extension.
+    // A content script answering GET_ADAPTERS means the extension is present.
+    refreshAdapters()
+      .then(() => { if (mounted) setInstalled(isExtensionDetected() === true) })
+      .catch(() => { if (mounted) setInstalled(false) })
+    return () => { mounted = false }
   }, [])
 
   return (
@@ -110,7 +100,7 @@ export default function Extension() {
       </Button>
 
       <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>
-        Version 0.4.4 &mdash; Firefox only
+        {RELEASED_VERSION ? <>Version {RELEASED_VERSION} &mdash; </> : null}Firefox only
       </Typography>
     </Box>
   )

@@ -1,40 +1,34 @@
 using System.Security.Claims;
 using DailyChallenges.Repositories;
-using DailyChallenges.Models;
 
 namespace DailyChallenges.Services
 {
     public class UserSubmissionChecker : IUserSubmissionChecker
     {
+        private readonly TimeProvider _time;
         private readonly ISubmissionRepository _subs;
         private readonly IGameRepository _games;
 
-        public UserSubmissionChecker(ISubmissionRepository subs, IGameRepository games)
+        public UserSubmissionChecker(ISubmissionRepository subs, IGameRepository games, TimeProvider time)
         {
             _subs = subs;
             _games = games;
+            _time = time;
         }
 
         public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user)
         {
-            var game = await _games.GetByIdAsync(gameId);
-            var currentDay = ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero);
-            int? userId = ClaimsPrincipalExtensions.GetUserId(user);
-            return await HasUserSubmittedForDayAsync(userId, gameId, currentDay, game);
+            int? userId = user.GetUserId();
+            if (!userId.HasValue) return false;
+            var game = await _games.GetByIdWithoutBlobAsync(gameId);
+            var currentDay = ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, _time.GetUtcNow().UtcDateTime);
+            return await HasUserSubmittedForDayAsync(userId, gameId, currentDay);
         }
 
-        public async Task<bool> HasUserSubmittedForDayAsync(int? userId, int gameId, DateTime scoringDay, Game? game)
+        public async Task<bool> HasUserSubmittedForDayAsync(int? userId, int gameId, DateTime scoringDay)
         {
             if (!userId.HasValue) return false;
-            var latest = await _subs.GetByGameAndUserAsync(gameId, userId.Value);
-            if (latest == null) return false;
-
-            // Prefer stored ScoringDay when present (added by migration). Fallback to computing from CreatedAt.
-            if (latest.ScoringDay != DateTime.MinValue)
-                return latest.ScoringDay.Date == scoringDay.Date;
-
-            var fallback = ScoringDayHelper.GetScoringDay(latest.CreatedAt, game?.ResetTime ?? TimeSpan.Zero);
-            return fallback == scoringDay.Date;
+            return await _subs.ExistsForUserGameDayAsync(userId.Value, gameId, scoringDay);
         }
     }
 }

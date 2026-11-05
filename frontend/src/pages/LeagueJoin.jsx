@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Box, Typography, CircularProgress, Button } from '@mui/material'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api'
+import { getApiErrorMessage } from '../utils/apiError'
 
 export default function LeagueJoin() {
   const { token } = useParams()
@@ -11,13 +12,18 @@ export default function LeagueJoin() {
   const { showSnackbar } = useSnackbar()
   const navigate = useNavigate()
   const [status, setStatus] = useState('loading') // loading | success | error
+  // Join each token at most once, even if the effect re-runs (StrictMode,
+  // user object refreshed by fetchMe, ...).
+  const joinedTokenRef = useRef(null)
 
   useEffect(() => {
     if (loading) return  // wait for auth to restore from refresh cookie
     if (!user) {
-      navigate(`/login?redirect=/leagues/join/${token}`)
+      navigate(`/login?redirect=${encodeURIComponent(`/leagues/join/${token}`)}`, { replace: true })
       return
     }
+    if (joinedTokenRef.current === token) return
+    joinedTokenRef.current = token
 
     api.post(`/leagues/join/${token}`)
       .then(res => {
@@ -25,8 +31,7 @@ export default function LeagueJoin() {
         navigate(`/leagues/${res.data.id}`)
       })
       .catch(err => {
-        const msg = err?.response?.data?.title || err?.response?.data || 'Invalid or expired invite link.'
-        showSnackbar(typeof msg === 'string' ? msg : 'Could not join league.', 'error')
+        showSnackbar(getApiErrorMessage(err, 'Invalid or expired invite link.'), 'error')
         setStatus('error')
       })
   }, [token, user, loading, navigate, showSnackbar])

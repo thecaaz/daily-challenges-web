@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useId } from 'react'
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts'
 import { Typography } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
@@ -18,25 +18,30 @@ function SparklineTooltip({ active, payload }) {
 }
 
 export default function ScoreSparkline({ history, rankingMode }) {
+  const theme = useTheme()
+  // Unique per instance: several sparklines share a page.
+  const gradientId = `sparkGrad-${useId().replace(/:/g, '')}`
   if (!history || history.length === 0) return null
 
   const hasValues = history.some(h => (h.scoreValue ?? h.ScoreValue) != null)
   if (!hasValues) return null
 
-  const theme = useTheme()
   const color = theme.palette.primary.main
 
   const data = history.map(h => ({
     scoringDay: h.scoringDay ?? h.ScoringDay,
     scoreValue: h.scoreValue ?? h.ScoreValue,
   }))
+  // A line needs two points: with a single value, draw it as a dot so it's visible.
+  const valueCount = data.filter(d => d.scoreValue != null).length
+  const dot = valueCount === 1 ? { r: 3, fill: color, stroke: color } : false
 
   return (
     <>
       <ResponsiveContainer width="100%" height={54}>
         <AreaChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
           <defs>
-            <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={color} stopOpacity={0.3} />
               <stop offset="95%" stopColor={color} stopOpacity={0} />
             </linearGradient>
@@ -47,8 +52,8 @@ export default function ScoreSparkline({ history, rankingMode }) {
             dataKey="scoreValue"
             stroke={color}
             strokeWidth={1.5}
-            fill="url(#sparkGrad)"
-            dot={false}
+            fill={`url(#${gradientId})`}
+            dot={dot}
             activeDot={{ r: 3 }}
             connectNulls={false}
             isAnimationActive={false}

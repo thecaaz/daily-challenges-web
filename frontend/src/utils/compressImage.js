@@ -5,6 +5,14 @@ const DEFAULT_QUALITY = 0.85
 const QUALITY_STEP = 0.05
 const MIN_QUALITY = 0.5
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 // 2 MB
+const DOWNSCALE_FACTOR = 0.75
+const MAX_DOWNSCALE_STEPS = 4
+
+function extensionFor(type) {
+  if (type === 'image/webp') return 'webp'
+  if (type === 'image/jpeg') return 'jpg'
+  return 'png'
+}
 
 /**
  * Convert a base64 data-URL to a File object (no re-encoding).
@@ -80,20 +88,43 @@ export default async function compressImage(source, opts = {}) {
   }
 
   const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
   const ctx = canvas.getContext('2d')
-  ctx.drawImage(img, 0, 0, w, h)
-
-  const ext = format === 'image/webp' ? 'webp' : format === 'image/jpeg' ? 'jpg' : 'png'
-
-  // Iteratively reduce quality until under maxBytes
-  let quality = startQuality
-  let blob = await canvasToBlob(canvas, format, quality)
-  while (blob.size > maxBytes && quality > MIN_QUALITY) {
-    quality = Math.round((quality - QUALITY_STEP) * 100) / 100
-    blob = await canvasToBlob(canvas, format, quality)
+  const draw = (width, height) => {
+    canvas.width = width
+    canvas.height = height
+    ctx.drawImage(img, 0, 0, width, height)
   }
 
-  return new File([blob], `capture.${ext}`, { type: format })
+  // Encode with the requested format. Browsers that can't encode it (e.g.
+  // Safari and webp) silently return PNG; fall back to JPEG in that case so
+  // the quality setting still has an effect.
+  let outFormat = format
+  const encode = async (q) => {
+    let b = await canvasToBlob(canvas, outFormat, q)
+    if (b && outFormat !== 'image/jpeg' && outFormat !== 'image/png' && b.type !== outFormat) {
+      outFormat = 'image/jpeg'
+      b = await canvasToBlob(canvas, outFormat, q)
+    }
+    return b
+  }
+
+  draw(w, h)
+  let blob = await encode(startQuality)
+  // Reduce quality, then dimensions, until the result fits under maxBytes.
+  for (let attempt = 0; blob && blob.size > maxBytes && attempt < MAX_DOWNSCALE_STEPS + 1; attempt++) {
+    let quality = startQuality
+    while (blob && blob.size > maxBytes && quality > MIN_QUALITY) {
+      quality = Math.round((quality - QUALITY_STEP) * 100) / 100
+      blob = await encode(quality)
+    }
+    if (!blob || blob.size <= maxBytes || attempt === MAX_DOWNSCALE_STEPS) break
+    w = Math.max(1, Math.round(w * DOWNSCALE_FACTOR))
+    h = Math.max(1, Math.round(h * DOWNSCALE_FACTOR))
+    draw(w, h)
+    blob = await encode(startQuality)
+  }
+  if (!blob) throw new Error('Could not encode image')
+
+  const type = blob.type || outFormat
+  return new File([blob], `capture.${extensionFor(type)}`, { type })
 }

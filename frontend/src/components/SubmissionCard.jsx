@@ -3,16 +3,21 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardMedia, Typography, Tooltip, Box, Chip, Checkbox } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PersonIcon from '@mui/icons-material/Person'
+import LockIcon from '@mui/icons-material/Lock'
 import imageUrl from '../utils/imageUrl'
 import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function SubmissionCard({ submission, compareMode, selected, onToggleCompare }) {
-  if (!submission) return null
   const { user } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  if (!submission) return null
+
+  // Masked by the server (today's scores while the viewer hasn't submitted):
+  // score, rank and screenshot are null or missing.
+  const masked = submission.score == null || submission.score === ''
 
   const handleCompareClick = (e) => {
     e.preventDefault()
@@ -29,14 +34,14 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
     }}
     onClick={compareMode ? handleCompareClick : undefined}
     >
-        {compareMode && (
+        {compareMode && !masked && (
           <Checkbox
             checked={!!selected}
             sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1 }}
             onClick={handleCompareClick}
           />
         )}
-        {submission.screenshotUrl && (
+        {!masked && submission.screenshotUrl && (
           <CardMedia
             component="img"
             image={imageUrl(submission.screenshotUrl)}
@@ -82,17 +87,25 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
                 />
               )}
             </Box>
-            <Chip
-              label={`#${submission.rank ?? '—'}`}
-              size="small"
-              color="secondary"
-              sx={{ fontWeight: 700, fontSize: '0.7rem' }}
-            />
+            {submission.rank != null && (
+              <Chip
+                label={`#${submission.rank}`}
+                size="small"
+                color="secondary"
+                sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+              />
+            )}
           </Box>
 
-          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1 }}>
-            {formatNumber(submission.score)}
-          </Typography>
+          {masked ? (
+            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 700, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <LockIcon fontSize="small" /> Hidden
+            </Typography>
+          ) : (
+            <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1 }}>
+              {formatNumber(submission.score)}
+            </Typography>
+          )}
           <Typography variant="caption" color="text.secondary">
             {formatDateTime(submission.createdAt)}
           </Typography>
@@ -100,7 +113,7 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
       </Card>
   )
 
-  if (compareMode) {
+  if (compareMode || masked) {
     return <div style={{ display: 'block' }}>{cardContent}</div>
   }
 

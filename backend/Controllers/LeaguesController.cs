@@ -175,11 +175,12 @@ namespace DailyChallenges.Controllers
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
 
-            var day = DateTime.TryParse(scoringDay, out var parsed)
+            // Omitted or unparseable: the service uses the game's current scoring day.
+            DateTime? day = DateTime.TryParse(scoringDay, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
                 ? parsed.Date
-                : DateTime.UtcNow.Date;
+                : null;
 
-            return Ok(await _leagues.GetLeaderboardAsync(id, gameId, day, userId.Value));
+            return Ok(await _leagues.GetLeaderboardAsync(id, gameId, day, userId.Value, User.IsAdmin()));
         }
 
         [HttpGet("{id:int}/game-summaries")]
@@ -187,6 +188,8 @@ namespace DailyChallenges.Controllers
         {
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
+            days = Math.Clamp(days, 1, 31);
+            (page, pageSize) = Paging.Clamp(page, pageSize);
             var (items, total) = await _leagues.GetLeagueGameSummariesAsync(id, userId.Value, days, page, pageSize);
             return Ok(new { items, totalCount = total });
         }

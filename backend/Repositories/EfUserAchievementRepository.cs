@@ -25,7 +25,16 @@ namespace DailyChallenges.Repositories
         {
             if (achievements.Count == 0) return;
             _db.UserAchievements.AddRange(achievements);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // Detach the failed inserts, or every later SaveChanges in this scope retries (and fails on) them.
+                foreach (var a in achievements) _db.Entry(a).State = EntityState.Detached;
+                throw;
+            }
         }
     }
 }

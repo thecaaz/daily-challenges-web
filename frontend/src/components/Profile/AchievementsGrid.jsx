@@ -8,8 +8,13 @@ export default function AchievementsGrid({ userId }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId) {
+      setAchievements(null)
+      setLoading(false)
+      return
+    }
     let mounted = true
+    setLoading(true)
 
     api.get(`/users/${userId}/achievements`)
       .then(res => { if (mounted) setAchievements(res.data) })

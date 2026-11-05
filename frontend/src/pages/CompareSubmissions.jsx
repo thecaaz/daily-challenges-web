@@ -1,6 +1,6 @@
 import React from 'react'
 import useAsyncData from '../hooks/useAsyncData'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { Typography, Card, Box, Chip, Tooltip, Divider } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
@@ -14,6 +14,7 @@ import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 
 function SubmissionPanel({ submission }) {
+  const masked = submission.score == null || submission.score === ''
   return (
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Box sx={{ mb: 1 }}>
@@ -34,11 +35,11 @@ function SubmissionPanel({ submission }) {
               <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />
             </Tooltip>
           )}
-          {submission.rank && (
+          {submission.rank != null && (
             <Chip label={`#${submission.rank}`} size="small" color="secondary" sx={{ fontWeight: 700, fontSize: '0.75rem' }} />
           )}
         </Box>
-        <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{formatNumber(submission.score)}</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{masked ? 'Hidden' : formatNumber(submission.score)}</Typography>
         <Typography variant="caption" color="text.secondary">
           {formatDateTime(submission.createdAt)}
           {submission.scoringDay && ` · Day: ${submission.scoringDay}`}
@@ -48,7 +49,7 @@ function SubmissionPanel({ submission }) {
         <PanZoomImage src={imageUrl(submission.screenshotUrl)} alt={`${submission.username ?? 'Anonymous'} screenshot`} />
       ) : (
         <Card sx={{ p: 3, textAlign: 'center', height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Typography color="text.secondary">No screenshot attached</Typography>
+          <Typography color="text.secondary">{masked ? 'Screenshot hidden until you submit today' : 'No screenshot attached'}</Typography>
         </Card>
       )}
     </Box>
@@ -58,6 +59,7 @@ function SubmissionPanel({ submission }) {
 export default function CompareSubmissions() {
   const { id1, id2 } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { data, loading, error } = useAsyncData(
     () => Promise.all([
       api.get(`/submissions/${id1}`),
@@ -75,7 +77,7 @@ export default function CompareSubmissions() {
     <div>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Compare Submissions</Typography>
-        <AppButton onClick={() => goBackOrRoute(navigate, sub1.gameId ? `/games/${sub1.gameId}` : '/', {})}>Back</AppButton>
+        <AppButton onClick={() => goBackOrRoute(navigate, location, sub1.gameId ? `/games/${sub1.gameId}` : '/', {})}>Back</AppButton>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>

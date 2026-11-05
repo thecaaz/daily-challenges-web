@@ -23,7 +23,11 @@ namespace DailyChallenges.Services.Contracts
         Task LeaveLeagueAsync(int leagueId, int userId);
         Task KickMemberAsync(int leagueId, int requestingUserId, int targetUserId);
 
-        Task<LeagueLeaderboardDto> GetLeaderboardAsync(int leagueId, int gameId, DateTime scoringDay, int requestingUserId);
+        /// <summary>
+        /// <paramref name="scoringDay"/> defaults to the game's current scoring day. Entries are masked
+        /// (ScoresHidden) on the current day unless the requester submitted for it or is an admin.
+        /// </summary>
+        Task<LeagueLeaderboardDto> GetLeaderboardAsync(int leagueId, int gameId, DateTime? scoringDay, int requestingUserId, bool isAdmin = false);
 
         Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(int leagueId, int requestingUserId, int days = 7, int page = 1, int pageSize = 20);
     }

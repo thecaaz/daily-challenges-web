@@ -11,5 +11,9 @@ namespace DailyChallenges.Services
             if (int.TryParse(idClaim, out var parsed)) return parsed;
             return null;
         }
+
+        /// <summary>True for an authenticated caller in the Admin role.</summary>
+        public static bool IsAdmin(this ClaimsPrincipal? user) =>
+            user?.Identity?.IsAuthenticated == true && user.IsInRole("Admin");
     }
 }

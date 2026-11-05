@@ -1,21 +1,28 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Grid, Typography, Skeleton, Box, Chip, Card } from '@mui/material'
 import GameCard from '../components/ui/GameCard/GameCard'
+import AppButton from '../components/ui/AppButton'
 import api from '../api'
+import useAsyncData from '../hooks/useAsyncData'
 
 export default function Games() {
-  const [games, setGames] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { data, loading, error, refetch } = useAsyncData(
+    () => api.get('/games').then(r => (Array.isArray(r.data) ? r.data : [])),
+    []
+  )
+  const games = data ?? []
 
-  useEffect(() => { fetchGames() }, [])
-
-  const fetchGames = async () => {
-    const res = await api.get('/games')
-    setGames(res.data)
-    setLoading(false)
+  if (error) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 10 }}>
+        <Typography variant="h5" gutterBottom>Couldn't load the games</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Please check your connection and try again.</Typography>
+        <AppButton onClick={refetch}>Retry</AppButton>
+      </Box>
+    )
   }
 
-  if (loading) {
+  if (loading && games.length === 0) {
     return (
       <Grid container spacing={3}>
         {[1, 2, 3, 4, 5, 6].map(i => (

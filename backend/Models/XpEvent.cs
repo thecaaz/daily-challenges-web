@@ -21,14 +21,17 @@ namespace DailyChallenges.Models
         public int? GameId { get; set; }
         public Game? Game { get; set; }
 
-        // The scoring day the XP was earned for (null for non-submission events)
+        // The game's scoring day the XP was earned for ("submission" and "day_win"; null for admin adjustments)
         public DateTime? ScoringDay { get; set; }
 
-        /// <summary>XP delta (positive = gain, negative = deduction).</summary>
+        /// <summary>XP delta actually applied (positive = gain, negative = deduction). For admin adjustments
+        /// this is the delta after clamping TotalXp at 0; the requested delta is in <see cref="Details"/>.</summary>
         public int Amount { get; set; }
 
         /// <summary>
-        /// Discriminator. Known values: "submission", "streak_bonus", "admin_adjustment".
+        /// Discriminator. Known values: "submission", "day_win", "admin_adjustment", "submission_revoked".
+        /// The streak bonus is folded into the "submission" amount; there is no separate "streak_bonus" event.
+        /// At most one "day_win" per (UserId, GameId, ScoringDay) (filtered unique index).
         /// </summary>
         [Required]
         public string EventType { get; set; } = string.Empty;

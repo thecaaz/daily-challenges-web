@@ -12,29 +12,29 @@ namespace DailyChallenges.Repositories
 
         public async Task<List<Submission>> GetByGameAsync(int gameId)
         {
-            return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).AsNoTracking().ToListAsync();
+            return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).SelectWithoutBlob().ToListAsync();
         }
 
         public async Task<List<Submission>> GetByGamePagedAsync(int gameId, int page, int pageSize)
         {
             if (page < 1) page = 1;
             var skip = (page - 1) * pageSize;
-            return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).Skip(skip).Take(pageSize).AsNoTracking().ToListAsync();
+            return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).Skip(skip).Take(pageSize).SelectWithoutBlob().ToListAsync();
         }
 
-        public async Task<List<Submission>> GetTopByGameAsync(int gameId, int top)
+        public async Task<List<Submission>> GetTopByGameByScoreValueAsync(int gameId, int top, IRankingStrategy strategy, DateTime? excludeScoringDay = null)
         {
             if (top < 1) top = 10;
-            return await _db.Submissions.Where(s => s.GameId == gameId).OrderByDescending(s => s.CreatedAt).Take(top).AsNoTracking().ToListAsync();
-        }
-
-        public async Task<List<Submission>> GetTopByGameByScoreValueAsync(int gameId, int top, IRankingStrategy strategy)
-        {
-            if (top < 1) top = 10;
+            var q = _db.Submissions.Where(s => s.GameId == gameId && s.ScoreValue.HasValue);
+            if (excludeScoringDay.HasValue)
+            {
+                var ex = excludeScoringDay.Value.Date;
+                q = q.Where(s => s.ScoringDay != ex);
+            }
             return await strategy
-                .ApplyOrdering(_db.Submissions.Where(s => s.GameId == gameId && s.ScoreValue.HasValue))
+                .ApplyOrdering(q)
                 .Take(top)
-                .AsNoTracking()
+                .SelectWithoutBlob()
                 .ToListAsync();
         }
 
@@ -44,7 +44,7 @@ namespace DailyChallenges.Repositories
             return await strategy
                 .ApplyOrdering(_db.Submissions.Where(s => s.GameId == gameId && s.UserId == userId && s.ScoreValue.HasValue))
                 .Take(top)
-                .AsNoTracking()
+                .SelectWithoutBlob()
                 .ToListAsync();
         }
 
@@ -53,7 +53,7 @@ namespace DailyChallenges.Repositories
             var target = scoringDay.Date;
             return await strategy
                 .ApplyOrdering(_db.Submissions.Where(s => s.GameId == gameId && s.ScoringDay == target && s.ScoreValue.HasValue))
-                .AsNoTracking()
+                .SelectWithoutBlob()
                 .ToListAsync();
         }
 
@@ -70,7 +70,7 @@ namespace DailyChallenges.Repositories
             return dates;
         }
 
-        public async Task<(List<Submission> Items, int TotalCount, List<DateTime> AvailableDates)> GetByGameFilteredAsync(int gameId, int page, int pageSize, string? search, DateTime? scoringDay, DateTime? excludeScoringDay = null)
+        public async Task<(List<Submission> Items, int TotalCount)> GetByGameFilteredAsync(int gameId, int page, int pageSize, string? search, DateTime? scoringDay, DateTime? excludeScoringDay = null)
         {
             IQueryable<Submission> q = _db.Submissions.Where(s => s.GameId == gameId);
 
@@ -103,17 +103,9 @@ namespace DailyChallenges.Repositories
 
             if (page < 1) page = 1;
             var skip = (page - 1) * pageSize;
-            var items = await q.OrderByDescending(s => s.CreatedAt).AsNoTracking().Skip(skip).Take(pageSize).ToListAsync();
+            var items = await q.OrderByDescending(s => s.CreatedAt).Skip(skip).Take(pageSize).SelectWithoutBlob().ToListAsync();
 
-            var availableDates = await _db.Submissions
-                .Where(s => s.GameId == gameId)
-                .AsNoTracking()
-                .Select(s => s.ScoringDay)
-                .Distinct()
-                .OrderByDescending(d => d)
-                .ToListAsync();
-
-            return (items, total, availableDates);
+            return (items, total);
         }
 
         public async Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy)
@@ -121,7 +113,7 @@ namespace DailyChallenges.Repositories
             var target = scoringDay.Date;
             var numericSubs = _db.Submissions.Where(s => s.GameId == gameId && s.ScoringDay == target && s.ScoreValue.HasValue);
             if (!await numericSubs.AnyAsync()) return null;
-            var winner = await strategy.ApplyOrdering(numericSubs).FirstOrDefaultAsync();
+            var winner = await strategy.ApplyOrdering(numericSubs).SelectWithoutBlob().FirstOrDefaultAsync();
             return winner;
         }
 
@@ -131,7 +123,7 @@ namespace DailyChallenges.Repositories
 
             var submissions = await _db.Submissions
                 .Where(s => s.GameId == gameId && days.Contains(s.ScoringDay) && s.ScoreValue.HasValue)
-                .AsNoTracking()
+                .SelectWithoutBlob()
                 .ToListAsync();
 
             var winners = submissions
@@ -152,7 +144,7 @@ namespace DailyChallenges.Repositories
 
             return await _db.Submissions
                 .Where(s => s.UserId == userId && gameIds.Contains(s.GameId) && targetDates.Contains(s.ScoringDay))
-                .AsNoTracking()
+                .SelectWithoutBlob()
                 .ToListAsync();
         }
 
@@ -161,8 +153,14 @@ namespace DailyChallenges.Repositories
             // return the most recent submission for the user in this game
             return await _db.Submissions.Where(s => s.GameId == gameId && s.UserId == userId)
                 .OrderByDescending(s => s.CreatedAt)
-                .AsNoTracking()
+                .SelectWithoutBlob()
                 .FirstOrDefaultAsync();
+        }
+
+        public Task<bool> ExistsForUserGameDayAsync(int userId, int gameId, DateTime scoringDay)
+        {
+            var target = scoringDay.Date;
+            return _db.Submissions.AnyAsync(s => s.UserId == userId && s.GameId == gameId && s.ScoringDay == target);
         }
 
         public async Task<List<string>> GetUsernamesForDayAsync(int gameId, DateTime scoringDay)
@@ -182,9 +180,34 @@ namespace DailyChallenges.Repositories
             return submission;
         }
 
+        /// <summary>Tracked, full entity (including the blob). Use for write paths.</summary>
+        public async Task<DateTime?> GetFirstScoringDayAsync(int gameId)
+        {
+            var first = await _db.Submissions
+                .Where(s => s.GameId == gameId)
+                .OrderBy(s => s.ScoringDay)
+                .Select(s => (DateTime?)s.ScoringDay)
+                .FirstOrDefaultAsync();
+            return first?.Date;
+        }
+
         public async Task<Submission?> GetByIdAsync(int id)
         {
             return await _db.Submissions.FirstOrDefaultAsync(s => s.Id == id);
+        }
+
+        public async Task<Submission?> GetByIdWithoutBlobAsync(int id)
+        {
+            return await _db.Submissions.Where(s => s.Id == id).SelectWithoutBlob().FirstOrDefaultAsync();
+        }
+
+        public async Task<(byte[]? Data, string? ContentType)> GetBlobAsync(int id)
+        {
+            var row = await _db.Submissions
+                .Where(s => s.Id == id)
+                .Select(s => new { s.ScreenshotData, s.ScreenshotContentType })
+                .FirstOrDefaultAsync();
+            return row == null ? (null, null) : (row.ScreenshotData, row.ScreenshotContentType);
         }
 
         public async Task<Submission> UpdateAsync(Submission submission)
@@ -212,19 +235,78 @@ namespace DailyChallenges.Repositories
             var days = scoringDays.Select(d => d.Date).ToList();
             return await _db.Submissions
                 .Where(s => days.Contains(s.ScoringDay))
-                .AsNoTracking()
+                .SelectWithoutBlob()
                 .ToListAsync();
         }
 
-        public async Task<List<Submission>> GetByUserIdsInWindowAsync(IEnumerable<int> userIds, DateTime since)
+        public async Task<(int ActiveGameCount, int SubmissionCount)> CountOnGameDaysAsync(IReadOnlyDictionary<int, DateTime> dayByGame)
+        {
+            if (dayByGame == null || dayByGame.Count == 0) return (0, 0);
+
+            // Count per (game, day) in SQL for these games and days, then keep the rows whose day is that game's
+            // own day (EF can't translate a Contains over tuples). At most games x distinct-days rows come back.
+            var gameIds = dayByGame.Keys.ToList();
+            var days = dayByGame.Values.Select(d => d.Date).Distinct().ToList();
+            var counts = await _db.Submissions
+                .Where(s => gameIds.Contains(s.GameId) && days.Contains(s.ScoringDay))
+                .GroupBy(s => new { s.GameId, s.ScoringDay })
+                .Select(g => new { g.Key.GameId, g.Key.ScoringDay, Count = g.Count() })
+                .ToListAsync();
+
+            var matching = counts
+                .Where(c => c.ScoringDay.Date == dayByGame[c.GameId].Date)
+                .ToList();
+            return (matching.Select(c => c.GameId).Distinct().Count(), matching.Sum(c => c.Count));
+        }
+
+        public async Task<List<Submission>> GetRecentActivityByUsersAsync(IReadOnlyCollection<int> userIds, DateTime since, int maxGames, int perGame)
         {
             var ids = userIds.ToList();
-            if (ids.Count == 0) return new List<Submission>();
-            return await _db.Submissions
+            if (ids.Count == 0 || maxGames < 1 || perGame < 1) return new List<Submission>();
+
+            // 1) The games with the most recent activity of these users (grouped and limited in SQL).
+            var recentGames = await _db.Submissions
                 .Where(s => s.UserId.HasValue && ids.Contains(s.UserId.Value) && s.CreatedAt >= since)
-                .AsNoTracking()
+                .GroupBy(s => s.GameId)
+                .Select(g => new { GameId = g.Key, LastAt = g.Max(s => s.CreatedAt) })
+                .OrderByDescending(g => g.LastAt)
+                .ThenBy(g => g.GameId)
+                .Take(maxGames)
                 .ToListAsync();
+            if (recentGames.Count == 0) return new List<Submission>();
+            var gameIds = recentGames.Select(g => g.GameId).ToList();
+
+            // 2) The latest perGame submissions of each of those games (a per-game window in SQL).
+            var rows = await _db.Games
+                .Where(g => gameIds.Contains(g.Id))
+                .SelectMany(g => _db.Submissions
+                    .Where(s => s.GameId == g.Id && s.UserId.HasValue && ids.Contains(s.UserId.Value) && s.CreatedAt >= since)
+                    .OrderByDescending(s => s.CreatedAt)
+                    .ThenByDescending(s => s.Id)
+                    .Take(perGame))
+                .SelectWithoutBlob()
+                .ToListAsync();
+
+            var gameOrder = gameIds.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i);
+            return rows
+                .OrderBy(s => gameOrder[s.GameId])
+                .ThenByDescending(s => s.CreatedAt)
+                .ThenByDescending(s => s.Id)
+                .ToList();
         }
+
+        public async Task<List<(int Id, string Score, double? ScoreValue)>> GetScoreRowsAsync()
+        {
+            var rows = await _db.Submissions
+                .AsNoTracking()
+                .OrderBy(s => s.Id)
+                .Select(s => new { s.Id, s.Score, s.ScoreValue })
+                .ToListAsync();
+            return rows.Select(r => (r.Id, r.Score, r.ScoreValue)).ToList();
+        }
+
+        public Task<int> SetScoreValueAsync(int id, double? scoreValue) =>
+            _db.Submissions.Where(s => s.Id == id).ExecuteUpdateAsync(u => u.SetProperty(s => s.ScoreValue, scoreValue));
 
         public Task<int> CountByUserAsync(int userId) =>
             _db.Submissions.CountAsync(s => s.UserId == userId);
