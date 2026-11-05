@@ -1,3 +1,4 @@
+using DailyChallenges.Exceptions;
 using DailyChallenges.Achievements;
 using DailyChallenges.DTOs;
 using DailyChallenges.Models;
@@ -5,6 +6,7 @@ using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
+using DailyChallenges.TestUtilities;
 using Microsoft.Extensions.Options;
 using Moq;
 
@@ -22,6 +24,8 @@ public class FriendServiceTests
         Mock<IAchievementService> Achievements
     );
 
+    private static readonly DateTime Now = new(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
+
     private static Sut Build()
     {
         var friends   = new Mock<IFriendRepository>();
@@ -34,7 +38,7 @@ public class FriendServiceTests
         notifs.Setup(r => r.GetByUserPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
               .ReturnsAsync((new List<Notification>(), 0, 0));
 
-        var svc = new FriendService(friends.Object, users.Object, notifs.Object, levelCalc, ach.Object);
+        var svc = new FriendService(friends.Object, users.Object, notifs.Object, levelCalc, ach.Object, new FixedTimeProvider(Now));
         return new Sut(svc, friends, users, notifs, ach);
     }
 
@@ -64,27 +68,27 @@ public class FriendServiceTests
     }
 
     [Fact]
-    public async Task SendRequest_AlreadyFriends_ThrowsInvalidOperationException()
+    public async Task SendRequest_AlreadyFriends_ThrowsConflictException()
     {
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2));
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
             sut.Service.SendRequestAsync(1, 2));
         Assert.Contains("already friends", ex.Message);
     }
 
     [Fact]
-    public async Task SendRequest_PendingRequestExists_ThrowsInvalidOperationException()
+    public async Task SendRequest_PendingRequestExists_ThrowsConflictException()
     {
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2));
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2))
             .ReturnsAsync(PendingRequest(1, 1, 2));
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
             sut.Service.SendRequestAsync(1, 2));
         Assert.Contains("already exists", ex.Message);
     }
@@ -123,6 +127,91 @@ public class FriendServiceTests
             n => n.Any(x => x.UserId == 2 && x.Type == "friend_request"))), Times.Once);
     }
 
+    private static FriendRequest DeclinedRequest(int id, int senderId, int receiverId, DateTime declinedAt) =>
+        new() { Id = id, SenderId = senderId, ReceiverId = receiverId, Status = FriendRequestStatus.Declined, CreatedAt = declinedAt.AddDays(-1), UpdatedAt = declinedAt };
+
+    [Fact]
+    public async Task SendRequest_DeclinedWithin24h_ThrowsConflictAndDoesNotReopen()
+    {
+        var sut = Build();
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-23)));
+
+        await Assert.ThrowsAsync<ConflictException>(() => sut.Service.SendRequestAsync(1, 2));
+        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
+        sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SendRequest_DeclinedOver24hAgo_ReopensTheSameRow()
+    {
+        var sut = Build();
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-25)));
+        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, 1, 2, Now)).ReturnsAsync(true);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 1, 2));
+
+        var dto = await sut.Service.SendRequestAsync(1, 2);
+
+        Assert.Equal(7, dto.Id);
+        sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SendRequest_TheUserWhoDeclined_CanAskRightAway()
+    {
+        var sut = Build();
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
+        // 1 -> 2 was declined by 2 an hour ago; now 2 asks 1.
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(2, 1)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
+        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, 2, 1, Now)).ReturnsAsync(true);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 2, 1));
+
+        var dto = await sut.Service.SendRequestAsync(2, 1);
+
+        Assert.Equal(7, dto.Id);
+        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(7, 2, 1, Now), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendRequest_RecentUnreadNotificationFromSameSender_SkipsNotification()
+    {
+        var sut = Build();
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.NotifRepo.Setup(r => r.HasRecentUnreadFromActorAsync(2, "friend_request", 1, Now.AddMinutes(-15))).ReturnsAsync(true);
+
+        await sut.Service.SendRequestAsync(1, 2);
+
+        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SendRequest_Notification_CarriesActor()
+    {
+        var sut = Build();
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(1, 1, 2));
+
+        await sut.Service.SendRequestAsync(1, 2);
+
+        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(
+            n => n.Single().ActorUserId == 1 && n.Single().UserId == 2)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetRelationshipStatus_Declined_ReadsAsNone()
+    {
+        var sut = Build();
+        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
+
+        Assert.Equal("none", await sut.Service.GetRelationshipStatusAsync(1, 2));
+    }
+
     // ── RespondToRequestAsync ─────────────────────────────────────────────────
 
     [Fact]
@@ -135,21 +224,21 @@ public class FriendServiceTests
     }
 
     [Fact]
-    public async Task RespondToRequest_WrongReceiver_ThrowsInvalidOperationException()
+    public async Task RespondToRequest_WrongReceiver_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, 1, 2));
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Service.RespondToRequestAsync(1, 99, true)); // receiverId=99 but request has receiverId=2
     }
 
     [Fact]
-    public async Task RespondToRequest_AlreadyProcessed_ThrowsInvalidOperationException()
+    public async Task RespondToRequest_AlreadyProcessed_ThrowsConflictException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<ConflictException>(() =>
             sut.Service.RespondToRequestAsync(1, 2, true));
     }
 
@@ -199,17 +288,19 @@ public class FriendServiceTests
     }
 
     [Fact]
-    public async Task RespondToRequest_Decline_DeletesRequest()
+    public async Task RespondToRequest_Decline_KeepsRequestAsDeclined()
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
-        sut.FriendRepo.Setup(r => r.DeleteAsync(1)).Returns(Task.CompletedTask);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
 
         await sut.Service.RespondToRequestAsync(1, 2, false);
 
-        sut.FriendRepo.Verify(r => r.DeleteAsync(1), Times.Once);
-        sut.FriendRepo.Verify(r => r.UpdateAsync(It.IsAny<FriendRequest>()), Times.Never);
+        Assert.Equal(FriendRequestStatus.Declined, fr.Status);
+        Assert.Equal(Now, fr.UpdatedAt);
+        sut.FriendRepo.Verify(r => r.UpdateAsync(fr), Times.Once);
+        sut.FriendRepo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
@@ -218,7 +309,7 @@ public class FriendServiceTests
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
-        sut.FriendRepo.Setup(r => r.DeleteAsync(1)).Returns(Task.CompletedTask);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
 
         await sut.Service.RespondToRequestAsync(1, 2, false);
 
@@ -237,21 +328,21 @@ public class FriendServiceTests
     }
 
     [Fact]
-    public async Task CancelRequest_NotSender_ThrowsInvalidOperationException()
+    public async Task CancelRequest_NotSender_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, 1, 2));
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Service.CancelRequestAsync(1, 99)); // senderId=99 but request has senderId=1
     }
 
     [Fact]
-    public async Task CancelRequest_AlreadyAccepted_ThrowsInvalidOperationException()
+    public async Task CancelRequest_AlreadyAccepted_ThrowsConflictException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<ConflictException>(() =>
             sut.Service.CancelRequestAsync(1, 1));
     }
 
@@ -279,11 +370,11 @@ public class FriendServiceTests
     }
 
     [Fact]
-    public async Task RemoveFriend_NotAccepted_ThrowsInvalidOperationException()
+    public async Task RemoveFriend_NotAccepted_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(PendingRequest(1, 1, 2));
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Service.RemoveFriendAsync(1, 2));
     }
 

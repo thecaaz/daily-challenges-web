@@ -4,6 +4,7 @@ using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using DailyChallenges.TestUtilities;
 using Moq;
 
 namespace DailyChallenges.Tests;
@@ -39,7 +40,8 @@ public class AchievementServiceTests
         var svc = new AchievementService(
             achRepo.Object, userRepo.Object, subRepo.Object,
             sdrRepo.Object, notifRepo.Object, friendRepo.Object,
-            NullLogger<AchievementService>.Instance);
+            NullLogger<AchievementService>.Instance,
+            new FixedTimeProvider(new DateTime(2026, 4, 1, 12, 0, 0, DateTimeKind.Utc)));
 
         return new Sut(svc, achRepo, userRepo, subRepo, sdrRepo, notifRepo, friendRepo);
     }

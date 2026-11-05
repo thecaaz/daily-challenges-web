@@ -17,7 +17,8 @@ namespace DailyChallenges.Repositories
             IQueryable<XpEvent> q = _db.XpEvents.Where(e => e.UserId == userId);
 
             if (from.HasValue) q = q.Where(e => e.CreatedAt >= from.Value);
-            if (to.HasValue) q = q.Where(e => e.CreatedAt <= to.Value);
+            // `to` is exclusive: the client sends the day after the last day it wants.
+            if (to.HasValue) q = q.Where(e => e.CreatedAt < to.Value);
             if (!string.IsNullOrWhiteSpace(eventType)) q = q.Where(e => e.EventType == eventType);
 
             var total = await q.CountAsync();
@@ -26,21 +27,44 @@ namespace DailyChallenges.Repositories
             return (items, total);
         }
 
-        public async Task<int> SumAmountByUserAndDaysAndTypesAsync(int userId, List<DateTime> scoringDays, string[] eventTypes)
+        public async Task<int> SumAmountByUserAndGameDaysAsync(int userId, IReadOnlyDictionary<int, DateTime> dayByGame, IReadOnlyCollection<string> eventTypes)
         {
-            if (scoringDays == null || scoringDays.Count == 0) return 0;
-            // EF Core 7 on .NET 10 has a JIT bug (InvalidProgramException) when compiling
-            // DynamicMethods to extract captured collection parameters (List<DateTime>, string[])
-            // from expression trees. Fetch only by userId in SQL and filter the rest in-memory.
-            var days = scoringDays.Select(d => d.Date).ToHashSet();
-            var types = new HashSet<string>(eventTypes);
+            if (dayByGame == null || dayByGame.Count == 0 || eventTypes == null || eventTypes.Count == 0) return 0;
+
+            // Games, days and types are filtered in SQL; the exact (GameId, ScoringDay) pairing in memory
+            // (EF can't translate a Contains over tuples), over at most games x distinct-days rows per type.
+            var gameIds = dayByGame.Keys.ToList();
+            var days = dayByGame.Values.Select(d => d.Date).Distinct().ToList();
+            var types = eventTypes.Distinct().ToList();
             var events = await _db.XpEvents
-                .Where(e => e.UserId == userId && e.ScoringDay.HasValue)
-                .Select(e => new { ScoringDay = e.ScoringDay.GetValueOrDefault(), e.Amount, e.EventType })
+                .Where(e => e.UserId == userId
+                         && e.GameId != null && gameIds.Contains(e.GameId.Value)
+                         && e.ScoringDay != null && days.Contains(e.ScoringDay.Value)
+                         && types.Contains(e.EventType))
+                .Select(e => new { GameId = e.GameId.GetValueOrDefault(), ScoringDay = e.ScoringDay.GetValueOrDefault(), e.Amount })
                 .ToListAsync();
+
             return events
-                .Where(e => types.Contains(e.EventType) && days.Contains(e.ScoringDay.Date))
+                .Where(e => e.ScoringDay.Date == dayByGame[e.GameId].Date)
                 .Sum(e => e.Amount);
+        }
+
+        public Task<bool> HasDayWinAsync(int userId, int gameId, DateTime scoringDay)
+        {
+            var day = scoringDay.Date;
+            return _db.XpEvents.AnyAsync(e => e.UserId == userId && e.GameId == gameId && e.ScoringDay == day && e.EventType == "day_win");
+        }
+
+        public Task<XpEvent?> GetDayWinAsync(int userId, int gameId, DateTime scoringDay)
+        {
+            var day = scoringDay.Date;
+            return _db.XpEvents.FirstOrDefaultAsync(e => e.UserId == userId && e.GameId == gameId && e.ScoringDay == day && e.EventType == "day_win");
+        }
+
+        public async Task RemoveAsync(XpEvent xpEvent)
+        {
+            _db.XpEvents.Remove(xpEvent);
+            await _db.SaveChangesAsync();
         }
 
         public async Task<XpEvent> AddAsync(XpEvent xpEvent)

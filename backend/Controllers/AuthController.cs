@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using DailyChallenges.DTOs;
 using DailyChallenges.Services;
 
@@ -16,6 +17,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting(AuthRateLimitOptions.PolicyName)]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
             var u = await _auth.RegisterAsync(dto.Username, dto.Password);
@@ -23,6 +25,7 @@ namespace DailyChallenges.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting(AuthRateLimitOptions.PolicyName)]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             var result = await _auth.LoginAsync(dto.Username, dto.Password, Response);
@@ -32,7 +35,7 @@ namespace DailyChallenges.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            await _auth.LogoutAsync(Response);
+            await _auth.LogoutAsync(Request, Response);
             return Ok(new { success = true });
         }
 
@@ -40,7 +43,7 @@ namespace DailyChallenges.Controllers
         public async Task<IActionResult> Refresh()
         {
             var result = await _auth.RefreshAsync(Request, Response);
-            if (result == null) return Unauthorized();
+            if (result == null) return Unauthorized(new { message = "Session expired. Please log in again." });
             return Ok(result);
         }
 

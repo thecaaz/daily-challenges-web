@@ -92,4 +92,45 @@ public class LevelCalculatorTests
         var (level, _, _) = calc.GetLevelInfo(1_000_000);
         Assert.True(level > 50);
     }
+
+    // ── Bad configuration ─────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(0, 1.5)]
+    [InlineData(-100, 1.5)]
+    [InlineData(100, 0)]
+    [InlineData(100, -1)]
+    [InlineData(double.NaN, 1.5)]
+    [InlineData(100, double.PositiveInfinity)]
+    public void Constructor_RejectsInvalidCurve(double levelBase, double levelExponent)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new LevelCalculator(levelBase, levelExponent));
+    }
+
+    [Theory]
+    [InlineData(0, 1.5, false)]
+    [InlineData(100, -0.5, false)]
+    [InlineData(100, 1.5, true)]
+    public void XpConfigValidator_ChecksTheCurve(double levelBase, double levelExponent, bool valid)
+    {
+        var result = new XpConfigValidator().Validate(null, new XpConfig { LevelBase = levelBase, LevelExponent = levelExponent });
+        Assert.Equal(valid, result.Succeeded);
+    }
+
+    [Fact]
+    public void TinyCurve_StillTerminates()
+    {
+        // round(0.1 * L^0.1) is 0 for every realistic level: each level still costs at least 1 XP.
+        var calc = new LevelCalculator(0.1, 0.1);
+        var (level, _, toNext) = calc.GetLevelInfo(1_000);
+        Assert.Equal(1_001, level);
+        Assert.Equal(1, toNext);
+        Assert.Equal(LevelCalculator.MaxLevel, calc.GetLevelFromTotalXp(long.MaxValue));
+    }
+
+    [Fact]
+    public void NegativeXp_IsLevel1()
+    {
+        Assert.Equal(1, Default().GetLevelFromTotalXp(-50));
+    }
 }

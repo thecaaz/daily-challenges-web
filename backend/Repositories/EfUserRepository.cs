@@ -17,7 +17,11 @@ namespace DailyChallenges.Repositories
 
             var q = _db.Users.AsQueryable();
             if (!string.IsNullOrWhiteSpace(search))
-                q = q.Where(u => u.Username.Contains(search));
+            {
+                // Case-insensitive: instr() (what Contains translates to) ignores the column's NOCASE collation.
+                var term = search.Trim().ToLower();
+                q = q.Where(u => u.Username.ToLower().Contains(term));
+            }
 
             var total = await q.CountAsync();
             var users = await q.OrderBy(u => u.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
@@ -29,14 +33,14 @@ namespace DailyChallenges.Repositories
             return await _db.Users.FindAsync(userId);
         }
 
+        // Username has NOCASE collation, so these comparisons ignore case.
         public async Task<User?> GetByUsernameAsync(string username) =>
             await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
 
         public Task<bool> ExistsWithUsernameAsync(string username) =>
             _db.Users.AnyAsync(u => u.Username == username);
 
-        public Task<bool> IsEmptyAsync() =>
-            _db.Users.AnyAsync().ContinueWith(t => !t.Result);
+        public async Task<bool> IsEmptyAsync() => !await _db.Users.AnyAsync();
 
         public async Task<User> CreateAsync(User user)
         {

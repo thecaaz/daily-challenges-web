@@ -1,5 +1,6 @@
-// JS tokens to mirror the CSS variables in styles/tokens.css
-// Provide both light and dark token sets; accept a `mode` parameter.
+// Design tokens: the single source for colours, radii and shadows.
+// The MUI theme reads them directly; plain CSS (styles.css) reads them as CSS
+// custom properties, injected by ThemeContext via MUI <GlobalStyles>.
 const light = {
   bg1: '#fff7f0',
   bg2: '#fff0ff',
@@ -27,4 +28,24 @@ const dark = {
 
 export default function tokens(mode = 'light') {
   return mode === 'dark' ? dark : light
+}
+
+const CSS_VAR_NAMES = {
+  bg1: '--bg-1',
+  bg2: '--bg-2',
+  accent: '--accent',
+  accent2: '--accent-2',
+  muted: '--muted',
+  glass: '--glass',
+  radiusCard: '--radius-card',
+  radiusBtn: '--radius-btn',
+  shadowCard: '--shadow-card',
+}
+
+/** CSS custom properties (e.g. { '--bg-1': '#fff7f0' }) for a mode. */
+export function cssVariables(mode = 'light') {
+  const t = tokens(mode)
+  const vars = {}
+  for (const [key, name] of Object.entries(CSS_VAR_NAMES)) vars[name] = t[key]
+  return vars
 }

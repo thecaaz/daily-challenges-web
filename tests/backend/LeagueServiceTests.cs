@@ -1,9 +1,11 @@
+using DailyChallenges.Exceptions;
 using DailyChallenges.DTOs;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
+using DailyChallenges.TestUtilities;
 using Moq;
 
 namespace DailyChallenges.Tests;
@@ -29,7 +31,8 @@ public class LeagueServiceTests
 
         notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>())).Returns(Task.CompletedTask);
 
-        var svc = new LeagueService(leagueRepo.Object, userRepo.Object, notifRepo.Object, gameRepo.Object);
+        var svc = new LeagueService(leagueRepo.Object, userRepo.Object, notifRepo.Object, gameRepo.Object, new FixedTimeProvider(DateTime.UtcNow),
+            new Mock<IScoreVisibilityService>().Object, new Mock<IScreenshotUrlSigner>().Object);
         return new Sut(svc, leagueRepo, userRepo, notifRepo, gameRepo);
     }
 
@@ -60,10 +63,9 @@ public class LeagueServiceTests
         var owner = MakeUser(1, "alice");
 
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(owner);
+        League? created = null;
         sut.LeagueRepo.Setup(r => r.CreateAsync(It.IsAny<League>()))
-            .ReturnsAsync((League l) => { l.Id = 10; return l; });
-        sut.LeagueRepo.Setup(r => r.AddMemberAsync(It.IsAny<LeagueMember>()))
-            .ReturnsAsync((LeagueMember m) => m);
+            .ReturnsAsync((League l) => { l.Id = 10; created = l; return l; });
 
         var result = await sut.Service.CreateLeagueAsync(1, "Weekend Warriors");
 
@@ -71,6 +73,10 @@ public class LeagueServiceTests
         Assert.Equal("Weekend Warriors", result.Name);
         Assert.Equal(1, result.OwnerId);
         Assert.Equal(1, result.MemberCount);
+        // The owner's membership is inserted together with the league (one SaveChanges).
+        var membership = Assert.Single(created!.Members);
+        Assert.Equal(1, membership.UserId);
+        Assert.Equal(LeagueRole.Owner, membership.Role);
     }
 
     [Fact]
@@ -94,23 +100,23 @@ public class LeagueServiceTests
     public async Task DeleteLeague_ByOwner_Succeeds()
     {
         var sut = Build();
-        var league = MakeLeague(1, ownerId: 42);
-        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
-        sut.LeagueRepo.Setup(r => r.DeleteAsync(league)).Returns(Task.CompletedTask);
+        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 42));
+        sut.LeagueRepo.Setup(r => r.DeleteAsync(1)).ReturnsAsync(true);
 
         await sut.Service.DeleteLeagueAsync(1, 42);
 
-        sut.LeagueRepo.Verify(r => r.DeleteAsync(league), Times.Once);
+        sut.LeagueRepo.Verify(r => r.DeleteAsync(1), Times.Once);
     }
 
     [Fact]
     public async Task DeleteLeague_ByNonOwner_Throws()
     {
         var sut = Build();
-        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 42));
+        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 42));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ForbiddenException>(
             () => sut.Service.DeleteLeagueAsync(1, requestingUserId: 99));
+        sut.LeagueRepo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
     }
 
     // ── InviteByUsernameAsync ─────────────────────────────────────────────────
@@ -152,7 +158,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(invitee);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ConflictException>(
             () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
     }
 
@@ -168,8 +174,35 @@ public class LeagueServiceTests
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(invitee);
         sut.LeagueRepo.Setup(r => r.GetPendingInvitationAsync(1, 20)).ReturnsAsync(existing);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ConflictException>(
             () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
+    }
+
+    [Fact]
+    public async Task InviteByUsername_DeclinedWithin24h_Throws()
+    {
+        var sut = Build();
+        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
+        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(MakeUser(20, "bob"));
+        sut.LeagueRepo.Setup(r => r.GetLastDeclinedAtAsync(1, 20)).ReturnsAsync(DateTime.UtcNow.AddHours(-23));
+
+        await Assert.ThrowsAsync<ConflictException>(
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
+        sut.LeagueRepo.Verify(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AcceptInvitation_ClaimLost_ThrowsConflict()
+    {
+        var sut = Build();
+        sut.LeagueRepo.Setup(r => r.GetInvitationByIdAsync(5)).ReturnsAsync(new LeagueInvitation
+            { Id = 5, LeagueId = 1, InviterId = 10, InviteeId = 20, Status = LeagueInvitationStatus.Pending });
+        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
+        sut.LeagueRepo.Setup(r => r.AcceptInvitationAsync(5, 20, It.IsAny<DateTime>()))
+            .ReturnsAsync(AcceptInvitationResult.NotPending);
+
+        await Assert.ThrowsAsync<ConflictException>(() => sut.Service.AcceptInvitationAsync(5, 20));
+        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
     }
 
     [Fact]
@@ -182,7 +215,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("owner")).ReturnsAsync(self);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ValidationException>(
             () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "owner"));
     }
 
@@ -208,7 +241,7 @@ public class LeagueServiceTests
         var sut = Build();
         sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ValidationException>(
             () => sut.Service.LeaveLeagueAsync(1, userId: 10));
     }
 
@@ -234,7 +267,7 @@ public class LeagueServiceTests
         var sut = Build();
         sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ForbiddenException>(
             () => sut.Service.KickMemberAsync(1, requestingUserId: 99, targetUserId: 20));
     }
 
@@ -246,11 +279,12 @@ public class LeagueServiceTests
         var sut = Build();
         var league = MakeLeague(1, ownerId: 10);
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
-        sut.LeagueRepo.Setup(r => r.UpdateAsync(It.IsAny<League>())).Returns(Task.CompletedTask);
+        sut.LeagueRepo.Setup(r => r.RenameAsync(1, "New Name")).ReturnsAsync(true);
 
-        var result = await sut.Service.RenameLeagueAsync(1, requestingUserId: 10, "New Name");
+        var result = await sut.Service.RenameLeagueAsync(1, requestingUserId: 10, "  New Name ");
 
         Assert.Equal("New Name", result.Name);
+        sut.LeagueRepo.Verify(r => r.RenameAsync(1, "New Name"), Times.Once);
     }
 
     [Fact]
@@ -259,7 +293,7 @@ public class LeagueServiceTests
         var sut = Build();
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ForbiddenException>(
             () => sut.Service.RenameLeagueAsync(1, requestingUserId: 99, "New Name"));
     }
 
@@ -269,7 +303,7 @@ public class LeagueServiceTests
         var sut = Build();
         sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
         sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 99)).ReturnsAsync((LeagueMember?)null);
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<ForbiddenException>(
             () => sut.Service.GetLeagueGameSummariesAsync(1, requestingUserId: 99, days: 7, page: 1, pageSize: 20));
     }
 

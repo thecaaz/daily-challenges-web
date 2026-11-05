@@ -36,10 +36,11 @@ namespace DailyChallenges.Services
         }
 
         /// <summary>
-        /// Returns the current scoring day (i.e. GetScoringDay for DateTime.UtcNow).
+        /// Returns the current scoring day for the given "now" (UTC). Services pass
+        /// <c>TimeProvider.GetUtcNow().UtcDateTime</c> so tests can control the clock.
         /// </summary>
-        public static DateTime GetCurrentScoringDay(TimeSpan resetTimeUtc)
-            => GetScoringDay(DateTime.UtcNow, resetTimeUtc);
+        public static DateTime GetCurrentScoringDay(TimeSpan resetTimeUtc, DateTime nowUtc)
+            => GetScoringDay(nowUtc, resetTimeUtc);
 
         /// <summary>
         /// Returns the UTC start/end range for a given scoring-day based on a UTC reset time-of-day.

@@ -25,6 +25,8 @@ export default function createAppTheme(mode = 'light') {
   const appBarBg = isDark ? 'rgba(8,10,12,0.68)' : 'rgba(255,255,255,0.88)'
   const appBarBorder = isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)'
   const appBarColor = isDark ? '#fff' : '#222'
+  const inputBorder = isDark ? 'rgba(255,255,255,0.23)' : 'rgba(0,0,0,0.1)'
+  const tableHeadColor = isDark ? '#d6dde6' : '#444'
 
   return createTheme({
     palette: {
@@ -67,7 +69,7 @@ export default function createAppTheme(mode = 'light') {
       h5: { fontFamily: "'Baloo 2', 'Poppins', sans-serif", fontWeight: 700 },
       h6: { fontFamily: "'Baloo 2', 'Poppins', sans-serif", fontWeight: 700 },
       button: { fontWeight: 600, textTransform: 'none', letterSpacing: '0.01em' },
-      caption: { color: '#6b6b6b' },
+      caption: { color: tokens.muted },
     },
 
     shape: {
@@ -215,7 +217,7 @@ export default function createAppTheme(mode = 'light') {
             '& .MuiOutlinedInput-root': {
               borderRadius: 12,
               background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.9)',
-              '& fieldset': { borderColor: 'rgba(0,0,0,0.1)' },
+              '& fieldset': { borderColor: inputBorder },
               '&:hover fieldset': { borderColor: tokens.accent },
               '&.Mui-focused fieldset': { borderColor: tokens.accent, borderWidth: 2 },
             },
@@ -229,7 +231,7 @@ export default function createAppTheme(mode = 'light') {
           root: {
             borderRadius: 12,
             background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.9)',
-            '& fieldset': { borderColor: 'rgba(0,0,0,0.1)' },
+            '& fieldset': { borderColor: inputBorder },
             '&:hover fieldset': { borderColor: tokens.accent },
             '&.Mui-focused fieldset': { borderColor: tokens.accent, borderWidth: 2 },
           },
@@ -312,8 +314,8 @@ export default function createAppTheme(mode = 'light') {
           root: {
             '& .MuiTableCell-head': {
               fontWeight: 700,
-              color: '#444',
-              background: 'rgba(255,122,182,0.06)',
+              color: tableHeadColor,
+              background: isDark ? 'rgba(255,122,182,0.10)' : 'rgba(255,122,182,0.06)',
             },
           },
         },

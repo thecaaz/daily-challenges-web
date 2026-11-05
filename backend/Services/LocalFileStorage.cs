@@ -11,13 +11,14 @@ namespace DailyChallenges.Services
             _validator = validator;
         }
 
+        /// <summary>The file's bytes and the content type detected from them (not the client-declared one).</summary>
         public async Task<(byte[]? Data, string? ContentType)> ReadFileAsync(IFormFile? file)
         {
             if (file == null || file.Length == 0) return (null, null);
-            _validator.ValidateImage(file);
+            var contentType = _validator.ValidateImage(file);
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
-            return (ms.ToArray(), file.ContentType);
+            return (ms.ToArray(), contentType);
         }
     }
 }

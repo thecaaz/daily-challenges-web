@@ -12,7 +12,7 @@ import RecentPlaysBar from './RecentPlaysBar'
 export default function LeagueGameCard({ summary, onSelect }) {
   const {
     gameId, gameName, iconUrl, lastPlayedAt, playCount,
-    topScore, myBestScore, myRank, recentPlays,
+    topScore, myBestScore, myRank, recentPlays, recentPlayDays,
   } = summary
 
   const isTopRank = myRank === 1
@@ -104,7 +104,7 @@ export default function LeagueGameCard({ summary, onSelect }) {
             <Box sx={{ mt: 1 }} onClick={e => e.stopPropagation()}>
               <RecentPlaysBar
                 recentPlays={recentPlays}
-                days={recentPlays.length}
+                recentPlayDays={recentPlayDays}
                 onDayClick={(isoDate) => onSelect(gameId, isoDate)}
               />
             </Box>
@@ -115,7 +115,7 @@ export default function LeagueGameCard({ summary, onSelect }) {
       {/* Footer */}
       <Box sx={{ px: 2, pb: 1.5 }}>
         <Typography variant="caption" color="text.secondary">
-          Last played {timeAgo(lastPlayedAt)}
+          {lastPlayedAt ? `Last played ${timeAgo(lastPlayedAt)}` : 'Not played recently'}
         </Typography>
       </Box>
     </Card>

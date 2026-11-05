@@ -3,6 +3,33 @@ import { Link as RouterLink } from 'react-router-dom'
 import { Box, Paper, Stack, TextField, Typography } from '@mui/material'
 import AppButton from './AppButton'
 
+export const USERNAME_MIN = 3
+export const USERNAME_MAX = 32
+export const PASSWORD_MIN = 8
+export const PASSWORD_MAX = 128
+const USERNAME_PATTERN = /^[A-Za-z0-9_.-]+$/
+
+/** Server rules for a new account (Register). Returns { username?, password? } messages. */
+export function validateCredentials(username, password) {
+  const errors = {}
+  const u = username.trim()
+  if (u.length < USERNAME_MIN || u.length > USERNAME_MAX) {
+    errors.username = `Username must be ${USERNAME_MIN}–${USERNAME_MAX} characters`
+  } else if (!USERNAME_PATTERN.test(u)) {
+    errors.username = 'Use only letters, digits, "_", "." and "-"'
+  }
+  if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) {
+    errors.password = `Password must be ${PASSWORD_MIN}–${PASSWORD_MAX} characters`
+  }
+  return errors
+}
+
+/**
+ * Login/Register form. The username is trimmed before `onSubmit`.
+ * `validate` (Register) enforces the server's username/password rules on the
+ * client; Login only requires non-empty fields so existing accounts that
+ * predate the rules can still sign in.
+ */
 export default function AuthForm({
   icon,
   title,
@@ -13,17 +40,29 @@ export default function AuthForm({
   linkText,
   linkTo,
   passwordAutoComplete = 'current-password',
+  validate = false,
   onSubmit,
 }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (loading) return
+    const trimmed = username.trim()
+    const nextErrors = validate
+      ? validateCredentials(trimmed, password)
+      : {
+          ...(trimmed ? {} : { username: 'Enter your username' }),
+          ...(password ? {} : { password: 'Enter your password' }),
+        }
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
     setLoading(true)
     try {
-      if (onSubmit) await onSubmit(username, password)
+      if (onSubmit) await onSubmit(trimmed, password)
     } finally {
       setLoading(false)
     }
@@ -43,18 +82,24 @@ export default function AuthForm({
             <TextField
               label="Username"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={e => { setUsername(e.target.value); setErrors(prev => ({ ...prev, username: undefined })) }}
               required
               autoComplete="username"
               autoFocus
+              error={!!errors.username}
+              helperText={errors.username || (validate ? `${USERNAME_MIN}–${USERNAME_MAX} characters: letters, digits, _ . -` : undefined)}
+              inputProps={validate ? { maxLength: USERNAME_MAX } : undefined}
             />
             <TextField
               label="Password"
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={e => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })) }}
               required
               autoComplete={passwordAutoComplete}
+              error={!!errors.password}
+              helperText={errors.password || (validate ? `${PASSWORD_MIN}–${PASSWORD_MAX} characters` : undefined)}
+              inputProps={validate ? { maxLength: PASSWORD_MAX } : undefined}
             />
             <AppButton
               type="submit"

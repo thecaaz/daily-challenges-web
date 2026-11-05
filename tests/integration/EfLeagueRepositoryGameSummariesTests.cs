@@ -79,4 +79,35 @@ public class EfLeagueRepositoryGameSummariesTests
         // recent plays oldest->newest: day1=2, day2=1
         Assert.Equal(new List<int> { 2, 1 }, res.RecentPlays);
     }
+
+    [Theory]
+    [InlineData(RankingMode.Lowest)]
+    [InlineData(RankingMode.Highest)]
+    public async Task GetLeaderboard_orders_by_the_strategy_with_competition_ranks(RankingMode mode)
+    {
+        await using var db = new TestDb();
+        foreach (var id in new[] { 1, 2, 3, 4 }) SeedUser(db.Ctx, id);
+        db.Ctx.Leagues.Add(new League { Id = 1, OwnerId = 1, Name = "L1" });
+        db.Ctx.SaveChanges();
+        foreach (var id in new[] { 1, 2, 3, 4 })
+            db.Ctx.LeagueMembers.Add(new LeagueMember { LeagueId = 1, UserId = id });
+        db.Ctx.SaveChanges();
+        SeedGame(db.Ctx, 1, mode);
+
+        var day = new DateTime(2026, 6, 15);
+        var lowWins = mode == RankingMode.Lowest;
+        // users 1 and 2 tie for best (10 when lowest wins, 40 when highest wins); user3: 20; user4: 30
+        SeedSub(db.Ctx, 1, lowWins ? 10 : 40, day, userId: 1);
+        SeedSub(db.Ctx, 1, lowWins ? 10 : 40, day, userId: 2);
+        SeedSub(db.Ctx, 1, 20, day, userId: 3);
+        SeedSub(db.Ctx, 1, 30, day, userId: 4);
+
+        var repo = new EfLeagueRepository(db.Ctx);
+        var rows = await repo.GetLeaderboardAsync(1, 1, day, DailyChallenges.Services.Ranking.RankingStrategyFactory.GetStrategy(mode));
+
+        Assert.Equal(new[] { 1, 1, 3, 4 }, rows.Select(r => r.Rank));
+        Assert.Equal(lowWins ? new[] { 10.0, 10, 20, 30 } : new[] { 40.0, 40, 30, 20 }, rows.Select(r => r.ScoreValue));
+        Assert.Equal(lowWins ? new[] { 3, 4 } : new[] { 4, 3 }, rows.Skip(2).Select(r => r.UserId));
+        Assert.Equal(4, rows.Select(r => r.UserId).Distinct().Count());
+    }
 }

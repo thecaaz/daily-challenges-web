@@ -7,12 +7,16 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useSnackbar } from '../../contexts/SnackbarContext'
 import useFriendStatus from '../../hooks/useFriendStatus'
 import api from '../../api'
+import { getApiErrorMessage } from '../../utils/apiError'
+import useConfirm from '../../hooks/useConfirm'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
-export default function FriendButton({ targetUserId, requestId: externalRequestId }) {
+export default function FriendButton({ targetUserId }) {
   const { user } = useAuth()
   const { showSnackbar } = useSnackbar()
-  const { status, loading, refresh } = useFriendStatus(targetUserId)
+  const { status, loading, error, refresh } = useFriendStatus(targetUserId)
   const [busy, setBusy] = useState(false)
+  const { confirm, dialogProps } = useConfirm()
 
   // Don't render if not logged in or viewing own profile
   if (!user || user.id === targetUserId) return null
@@ -23,8 +27,7 @@ export default function FriendButton({ targetUserId, requestId: externalRequestI
       await action()
       refresh()
     } catch (err) {
-      const msg = err?.response?.data?.title || err?.response?.data || 'Something went wrong.'
-      showSnackbar(typeof msg === 'string' ? msg : 'Something went wrong.', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Something went wrong.'), 'error')
     } finally {
       setBusy(false)
     }
@@ -32,6 +35,14 @@ export default function FriendButton({ targetUserId, requestId: externalRequestI
 
   if (loading) {
     return <CircularProgress size={20} />
+  }
+
+  if (error) {
+    return (
+      <Button size="small" variant="outlined" color="inherit" onClick={refresh}>
+        Couldn't load friend status — Retry
+      </Button>
+    )
   }
 
   if (status === 'none') {
@@ -111,17 +122,24 @@ export default function FriendButton({ targetUserId, requestId: externalRequestI
   }
 
   if (status === 'friends') {
+    const removeFriend = async () => {
+      const ok = await confirm({ title: 'Remove friend?', message: 'Remove this user from your friends?', confirmText: 'Remove' })
+      if (ok) await handle(() => api.delete(`/friends/${targetUserId}`))
+    }
     return (
-      <Button
-        size="small"
-        variant="outlined"
-        color="error"
-        disabled={busy}
-        startIcon={busy ? <CircularProgress size={14} /> : null}
-        onClick={() => handle(() => api.delete(`/friends/${targetUserId}`))}
-      >
-        Remove Friend
-      </Button>
+      <>
+        <Button
+          size="small"
+          variant="outlined"
+          color="error"
+          disabled={busy}
+          startIcon={busy ? <CircularProgress size={14} /> : null}
+          onClick={removeFriend}
+        >
+          Remove Friend
+        </Button>
+        <ConfirmDialog {...dialogProps} />
+      </>
     )
   }
 

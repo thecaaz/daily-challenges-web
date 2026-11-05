@@ -5,5 +5,5 @@ export function formatDateTime(dateStr) {
 }
 
 export function formatDateTimeUtc(dateStr) {
-  return new Date(dateStr).toLocaleString(undefined, { timeZone: 'UTC' })
+  return parseUtcDate(dateStr).toLocaleString(undefined, { timeZone: 'UTC' })
 }

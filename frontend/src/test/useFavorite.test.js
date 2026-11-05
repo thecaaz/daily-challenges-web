@@ -5,7 +5,11 @@ import useFavorite from '../hooks/useFavorite'
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 const mockNavigate = vi.fn()
-vi.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate }))
+let mockLocation = { pathname: '/games/42', search: '?scoringDay=2026-01-02' }
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+  useLocation: () => mockLocation,
+}))
 
 const mockShowSnackbar = vi.fn()
 vi.mock('../contexts/SnackbarContext', () => ({
@@ -27,6 +31,7 @@ describe('useFavorite', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUser = { id: 1, username: 'testuser' }
+    mockLocation = { pathname: '/games/42', search: '?scoringDay=2026-01-02' }
   })
 
   it('initialises with the provided initial value', () => {
@@ -85,8 +90,20 @@ describe('useFavorite', () => {
 
     await act(async () => { result.current.toggle() })
 
-    expect(mockNavigate).toHaveBeenCalledWith('/login')
+    expect(mockNavigate).toHaveBeenCalledWith(
+      `/login?redirect=${encodeURIComponent('/games/42?scoringDay=2026-01-02')}`
+    )
     expect(mockApiPost).not.toHaveBeenCalled()
+  })
+
+  it('redirects to plain /login from the home page', async () => {
+    mockUser = null
+    mockLocation = { pathname: '/', search: '' }
+    const { result } = renderHook(() => useFavorite(42, false))
+
+    await act(async () => { result.current.toggle() })
+
+    expect(mockNavigate).toHaveBeenCalledWith('/login')
   })
 
   it('syncs isFavorite when initial prop changes', () => {

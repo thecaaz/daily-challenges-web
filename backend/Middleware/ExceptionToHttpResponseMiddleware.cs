@@ -1,12 +1,19 @@
 using System.Text.Json;
+using DailyChallenges.Exceptions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace DailyChallenges.Middleware
 {
+    /// <summary>
+    /// Turns exceptions into <c>{ "message": ... }</c> JSON responses.
+    /// Domain exceptions carry their own message; anything unexpected becomes a generic 500.
+    /// </summary>
     public class ExceptionToHttpResponseMiddleware
     {
+        public const string GenericErrorMessage = "An unexpected error occurred.";
+
         private readonly RequestDelegate _next;
         private readonly ILogger<ExceptionToHttpResponseMiddleware> _logger;
 
@@ -24,44 +31,42 @@ namespace DailyChallenges.Middleware
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception while processing request");
-                await HandleExceptionAsync(context, ex);
+                if (context.Response.HasStarted)
+                {
+                    // Too late to change the status code; let the server abort the response.
+                    _logger.LogError(ex, "Unhandled exception after the response started");
+                    throw;
+                }
+
+                var (status, message) = Map(ex);
+                if (status >= StatusCodes.Status500InternalServerError)
+                    _logger.LogError(ex, "Unhandled exception while processing request");
+                else if (ex is InvalidOperationException)
+                    // Temporary fallback: every expected failure should throw a domain exception instead.
+                    _logger.LogWarning(ex, "InvalidOperationException mapped to 400; convert this throw site to a domain exception");
+                else
+                    _logger.LogDebug("Request failed with {Status}: {Message}", status, message);
+
+                context.Response.Clear();
+                context.Response.ContentType = "application/json";
+                context.Response.StatusCode = status;
+                await context.Response.WriteAsync(JsonSerializer.Serialize(new { message }));
             }
         }
 
-        private static Task HandleExceptionAsync(HttpContext context, Exception ex)
+        private static (int Status, string Message) Map(Exception ex) => ex switch
         {
-            var payload = new { message = ex.Message };
-
-            int status;
-            switch (ex)
-            {
-                case KeyNotFoundException _:
-                    status = StatusCodes.Status404NotFound;
-                    break;
-                case UnauthorizedAccessException _:
-                    status = StatusCodes.Status401Unauthorized;
-                    break;
-                case ArgumentException _:
-                    status = StatusCodes.Status400BadRequest;
-                    break;
-                case InvalidOperationException ioe:
-                    // preserve existing behavior where some InvalidOperationExceptions are treated as Conflict
-                    if (!string.IsNullOrEmpty(ioe.Message) && ioe.Message.Contains("already submitted"))
-                        status = StatusCodes.Status409Conflict;
-                    else
-                        status = StatusCodes.Status400BadRequest;
-                    break;
-                default:
-                    status = StatusCodes.Status500InternalServerError;
-                    break;
-            }
-
-            var result = JsonSerializer.Serialize(payload);
-            context.Response.ContentType = "application/json";
-            context.Response.StatusCode = status;
-            return context.Response.WriteAsync(result);
-        }
+            NotFoundException => (StatusCodes.Status404NotFound, ex.Message),
+            ForbiddenException => (StatusCodes.Status403Forbidden, ex.Message),
+            ConflictException => (StatusCodes.Status409Conflict, ex.Message),
+            ValidationException => (StatusCodes.Status400BadRequest, ex.Message),
+            AuthenticationFailedException => (StatusCodes.Status401Unauthorized, ex.Message),
+            KeyNotFoundException => (StatusCodes.Status404NotFound, ex.Message),
+            ArgumentException => (StatusCodes.Status400BadRequest, ex.Message),
+            // Message withheld: unconverted throw sites are rare and framework IOEs can leak internals.
+            InvalidOperationException => (StatusCodes.Status400BadRequest, "The request could not be completed."),
+            _ => (StatusCodes.Status500InternalServerError, GenericErrorMessage)
+        };
     }
 
     public static class ExceptionToHttpResponseMiddlewareExtensions

@@ -1,20 +1,25 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import AuthForm from '../components/ui/AuthForm'
+import { getApiErrorMessage } from '../utils/apiError'
+import { getSafeRedirect, withRedirect } from '../utils/safeRedirect'
 
 export default function Register() {
   const { register } = useAuth()
   const { showSnackbar } = useSnackbar()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = getSafeRedirect(searchParams.get('redirect'), '/')
+  const loginPath = withRedirect('/login', redirect)
 
   const handleSubmit = async (username, password) => {
     try {
       await register(username, password)
       showSnackbar('Account created! Please log in.', 'success')
-      navigate('/login')
+      navigate(loginPath)
     } catch (err) {
-      showSnackbar('Registration failed — username may already be taken', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Registration failed — username may already be taken'), 'error')
     }
   }
 
@@ -26,9 +31,10 @@ export default function Register() {
       submitLabel="Register"
       submitLoadingLabel="Creating account…"
       passwordAutoComplete="new-password"
+      validate
       linkPrefix="Already have an account?"
       linkText="Log in"
-      linkTo="/login"
+      linkTo={loginPath}
       onSubmit={handleSubmit}
     />
   )

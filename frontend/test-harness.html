@@ -46,16 +46,25 @@
     </div>
 
     <script>
+      // Manual harness for the ScoreBridge flow. Serve it from localhost (a dev
+      // build of the extension trusts http://localhost:*; release builds don't).
       const iframe = document.getElementById('gameFrame')
       const previewImg = document.getElementById('previewImg')
       const result = document.getElementById('result')
+      const captureInfo = document.getElementById('captureInfo')
 
       function genNonce() {
-        return Math.random().toString(36).slice(2)
+        return crypto.randomUUID()
       }
 
+      function iframeOrigin() {
+        return new URL(iframe.src).origin
+      }
+
+      // Pending requests; responses must echo these nonces.
+      const pending = { score: null, capture: null }
       // State used when temporarily making the iframe fullscreen during capture
-      const captureState = { prevStyle: null, nonce: null, timeoutId: null }
+      const captureState = { prevStyle: null, timeoutId: null }
 
       function applyIframeFullscreenOverlay() {
         if (captureState.prevStyle !== null) return
@@ -70,146 +79,77 @@
       }
 
       function restoreIframeFromFullscreen() {
-        if (captureState.prevStyle === null) return
-        iframe.setAttribute('style', captureState.prevStyle)
-        captureState.prevStyle = null
-        captureState.nonce = null
         if (captureState.timeoutId) {
           clearTimeout(captureState.timeoutId)
           captureState.timeoutId = null
         }
+        if (captureState.prevStyle === null) return
+        iframe.setAttribute('style', captureState.prevStyle)
+        captureState.prevStyle = null
       }
 
       window.addEventListener('message', ev => {
         if (!ev.data || typeof ev.data.type !== 'string') return
+
         if (ev.data.type === 'SCORE_RESPONSE') {
+          if (ev.source !== iframe.contentWindow || ev.origin !== iframeOrigin()) return
+          if (!pending.score || ev.data.nonce !== pending.score) return
+          pending.score = null
           result.textContent = 'Score: ' + JSON.stringify(ev.data.score)
         }
+
         if (ev.data.type === 'CAPTURE_RESPONSE') {
-          // If this capture corresponds to our request, restore the iframe overlay
-          if (ev.data.nonce && ev.data.nonce === captureState.nonce) {
-            restoreIframeFromFullscreen()
-          } else if (!ev.data.nonce && captureState.prevStyle !== null) {
-            // best-effort restore if we still have the overlay
-            restoreIframeFromFullscreen()
-          }
+          if (ev.source !== window || ev.origin !== location.origin) return
+          if (!pending.capture || ev.data.nonce !== pending.capture) return
+          pending.capture = null
+          restoreIframeFromFullscreen()
 
           if (ev.data.error) {
-            document.getElementById('captureInfo').textContent =
-              'Capture error: ' + ev.data.error
-            document.getElementById('previewImg').src = ''
+            captureInfo.textContent = 'Capture error: ' + ev.data.error
+            previewImg.removeAttribute('src')
             return
           }
-          if (ev.data.dataUrl && ev.data.rect) {
-            const img = new Image()
-            img.onload = function () {
-              try {
-                const dpr = ev.data.dpr || 1
-                const sx = Math.round((ev.data.rect.left || 0) * dpr)
-                const sy = Math.round((ev.data.rect.top || 0) * dpr)
-                const sw = Math.max(
-                  1,
-                  Math.round((ev.data.rect.width || 0) * dpr)
-                )
-                const sh = Math.max(
-                  1,
-                  Math.round((ev.data.rect.height || 0) * dpr)
-                )
-                const out = document.createElement('canvas')
-                out.width = sw
-                out.height = sh
-                const ctx = out.getContext('2d')
-                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
-                const final = out.toDataURL('image/png')
-                previewImg.src = final
-                try {
-                  const parts = final.split(',')
-                  const base64 = parts[1] || ''
-                  const padding = base64.endsWith('==')
-                    ? 2
-                    : base64.endsWith('=')
-                      ? 1
-                      : 0
-                  const base64Length = base64.length
-                  const bytes = Math.max(0, (base64Length * 3) / 4 - padding)
-                  const kb = bytes / 1024
-                  document.getElementById('captureInfo').textContent =
-                    'Captured image size: ' + kb.toFixed(1) + ' KB'
-                } catch (e) {
-                  document.getElementById('captureInfo').textContent =
-                    'Captured image size: (unknown)'
-                }
-              } catch (err) {
-                document.getElementById('captureInfo').textContent =
-                  'Render error: ' + String(err)
-                previewImg.src = ''
-              }
-            }
-            img.onerror = function () {
-              document.getElementById('captureInfo').textContent =
-                'Image load error'
-              previewImg.src = ''
-            }
-            img.src = ev.data.dataUrl
-          }
+          // The extension crops with tabs.captureTab, so the image is the iframe.
+          previewImg.src = ev.data.dataUrl
+          const base64 = (ev.data.dataUrl.split(',')[1] || '').replace(/=+$/, '')
+          captureInfo.textContent =
+            'Captured image size: ' + ((base64.length * 3) / 4 / 1024).toFixed(1) + ' KB' +
+            (ev.data.cropped ? ' (cropped by extension)' : ' (full viewport)')
         }
       })
 
-      document.getElementById('getScore').addEventListener('click', () => {
-        getScore()
-      })
-
-      document
-        .getElementById('visibleCaptureBtn')
-        .addEventListener('click', () => {
-          visibleTabCapture()
-        })
+      document.getElementById('getScore').addEventListener('click', getScore)
+      document.getElementById('visibleCaptureBtn').addEventListener('click', visibleTabCapture)
 
       function getScore() {
-        const nonce = genNonce()
-        const origin = (function () {
-          try {
-            return new URL(iframe.src).origin
-          } catch (e) {
-            return '*'
-          }
-        })()
+        pending.score = genNonce()
         iframe.contentWindow.postMessage(
-          { source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce },
-          origin
+          { source: 'ScoreBridgeParent', type: 'GET_SCORE', nonce: pending.score },
+          iframeOrigin()
         )
       }
 
       function visibleTabCapture() {
         const nonce = genNonce()
-        captureState.nonce = nonce
+        pending.capture = nonce
         applyIframeFullscreenOverlay()
+        // Fallback: restore after 3s if no response
+        captureState.timeoutId = setTimeout(() => {
+          if (pending.capture === nonce) {
+            pending.capture = null
+            captureInfo.textContent = 'No capture response (is the dev extension loaded?)'
+          }
+          restoreIframeFromFullscreen()
+        }, 3000)
         setTimeout(() => {
-          const origin = (function () {
-            try {
-              return new URL(iframe.src).origin
-            } catch (e) {
-              return '*'
-            }
-          })()
-          document.getElementById('captureInfo').textContent =
-            'Waiting for visible-tab capture...'
+          captureInfo.textContent = 'Waiting for capture...'
+          // Arm the extension for this one capture, then ask the game frame.
+          window.postMessage({ type: 'SCOREBRIDGE_ARM', nonce }, location.origin)
           iframe.contentWindow.postMessage(
-            {
-              source: 'ScoreBridgeParent',
-              type: 'REQUEST_VISIBLE_TAB_FROM_PARENT',
-              nonce
-            },
-            origin
+            { source: 'ScoreBridgeParent', type: 'REQUEST_VISIBLE_TAB_FROM_PARENT', nonce },
+            iframeOrigin()
           )
-
-          // Fallback: restore after 1s if no response
-          captureState.timeoutId = setTimeout(() => {
-            if (captureState.prevStyle !== null) {
-              restoreIframeFromFullscreen()
-            }
-          }, 1000)
-        }, 100) // slight delay to ensure styles are applied before capture request
+        }, 300) // let the overlay layout settle before the capture
       }
     </script>
   </body>

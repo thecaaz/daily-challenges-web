@@ -2,6 +2,7 @@ import React from 'react'
 import { Box, Typography, ListItem, ListItemAvatar, Avatar, Chip } from '@mui/material'
 import { Link } from 'react-router-dom'
 import imageUrl from '../../utils/imageUrl'
+import formatNumber from '../../utils/formatNumber'
 
 export default function RankRow({ rank }) {
   const medal = rank.rank === 1 ? '🥇' : rank.rank === 2 ? '🥈' : rank.rank === 3 ? '🥉' : null
@@ -31,7 +32,7 @@ export default function RankRow({ rank }) {
         <Link to={`/games/${rank.gameId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
           <Typography variant="body2" fontWeight={600} noWrap>{rank.gameName}</Typography>
         </Link>
-        <Typography variant="caption" color="text.secondary">Score: {rank.score}</Typography>
+        <Typography variant="caption" color="text.secondary">Score: {formatNumber(rank.score)}</Typography>
       </Box>
       <Chip
         label={`${medal ? medal + ' ' : ''}#${rank.rank} / ${rank.totalSubmissions}`}

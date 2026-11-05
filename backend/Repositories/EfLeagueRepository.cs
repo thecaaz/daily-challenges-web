@@ -11,7 +11,13 @@ namespace DailyChallenges.Repositories
     public class EfLeagueRepository : ILeagueRepository
     {
         private readonly AppDbContext _db;
-        public EfLeagueRepository(AppDbContext db) => _db = db;
+        private readonly TimeProvider _time;
+
+        public EfLeagueRepository(AppDbContext db, TimeProvider? time = null)
+        {
+            _db = db;
+            _time = time ?? TimeProvider.System;
+        }
 
         // ── Leagues ───────────────────────────────────────────────────────────
 
@@ -23,6 +29,7 @@ namespace DailyChallenges.Repositories
                 .FirstOrDefaultAsync(l => l.Id == leagueId);
         }
 
+        /// <inheritdoc />
         public async Task<League?> GetByIdWithMembersAsync(int leagueId)
         {
             return await _db.Leagues
@@ -47,21 +54,29 @@ namespace DailyChallenges.Repositories
 
         public async Task<League> CreateAsync(League league)
         {
+            // The league and its Members are inserted by one SaveChanges, which EF wraps in a transaction.
             _db.Leagues.Add(league);
             await _db.SaveChangesAsync();
             return league;
         }
 
-        public async Task UpdateAsync(League league)
+        public async Task<bool> RenameAsync(int leagueId, string name)
         {
-            _db.Leagues.Update(league);
+            var league = await _db.Leagues.FindAsync(leagueId);
+            if (league == null) return false;
+            league.Name = name;
             await _db.SaveChangesAsync();
+            return true;
         }
 
-        public async Task DeleteAsync(League league)
+        public async Task<bool> DeleteAsync(int leagueId)
         {
+            var league = await _db.Leagues.FindAsync(leagueId);
+            if (league == null) return false;
+            // Members and invitations are deleted by the database (ON DELETE CASCADE).
             _db.Leagues.Remove(league);
             await _db.SaveChangesAsync();
+            return true;
         }
 
         // ── Members ───────────────────────────────────────────────────────────
@@ -70,22 +85,6 @@ namespace DailyChallenges.Repositories
         {
             return await _db.LeagueMembers
                 .FirstOrDefaultAsync(m => m.LeagueId == leagueId && m.UserId == userId);
-        }
-
-        public async Task<List<LeagueMember>> GetMembersAsync(int leagueId)
-        {
-            return await _db.LeagueMembers
-                .Where(m => m.LeagueId == leagueId)
-                .Include(m => m.User)
-                .AsNoTracking()
-                .ToListAsync();
-        }
-
-        public async Task<LeagueMember> AddMemberAsync(LeagueMember member)
-        {
-            _db.LeagueMembers.Add(member);
-            await _db.SaveChangesAsync();
-            return member;
         }
 
         public async Task RemoveMemberAsync(LeagueMember member)
@@ -102,12 +101,14 @@ namespace DailyChallenges.Repositories
                 .Include(i => i.League)
                 .Include(i => i.Inviter)
                 .Include(i => i.Invitee)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.Id == invitationId);
         }
 
         public async Task<LeagueInvitation?> GetPendingInvitationAsync(int leagueId, int inviteeId)
         {
             return await _db.LeagueInvitations
+                .AsNoTracking()
                 .FirstOrDefaultAsync(i =>
                     i.LeagueId == leagueId &&
                     i.InviteeId == inviteeId &&
@@ -119,6 +120,7 @@ namespace DailyChallenges.Repositories
             return await _db.LeagueInvitations
                 .Include(i => i.League)
                 .Include(i => i.Inviter)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.Token == token && i.Status == LeagueInvitationStatus.Pending);
         }
 
@@ -132,27 +134,84 @@ namespace DailyChallenges.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<LeagueInvitation>> GetInvitationsForLeagueAsync(int leagueId)
+        public async Task<DateTime?> GetLastDeclinedAtAsync(int leagueId, int inviteeId)
         {
             return await _db.LeagueInvitations
-                .Where(i => i.LeagueId == leagueId && i.Status == LeagueInvitationStatus.Pending)
-                .Include(i => i.Invitee)
-                .Include(i => i.Inviter)
-                .AsNoTracking()
-                .ToListAsync();
+                .Where(i => i.LeagueId == leagueId && i.InviteeId == inviteeId && i.Status == LeagueInvitationStatus.Declined)
+                .MaxAsync(i => i.UpdatedAt);
         }
 
         public async Task<LeagueInvitation> CreateInvitationAsync(LeagueInvitation invitation)
         {
             _db.LeagueInvitations.Add(invitation);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // Detach the failed insert, or every later SaveChanges in this scope retries (and fails on) it.
+                _db.Entry(invitation).State = EntityState.Detached;
+                throw;
+            }
             return invitation;
         }
 
-        public async Task UpdateInvitationAsync(LeagueInvitation invitation)
+        public async Task<bool> TryCloseInvitationAsync(int invitationId, LeagueInvitationStatus status, DateTime nowUtc)
         {
-            _db.LeagueInvitations.Update(invitation);
-            await _db.SaveChangesAsync();
+            var rows = await _db.LeagueInvitations
+                .Where(i => i.Id == invitationId && i.Status == LeagueInvitationStatus.Pending)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(i => i.Status, status)
+                    .SetProperty(i => i.UpdatedAt, (DateTime?)nowUtc));
+            return rows == 1;
+        }
+
+        public async Task<AcceptInvitationResult> AcceptInvitationAsync(int invitationId, int userId, DateTime nowUtc)
+        {
+            // BEGIN IMMEDIATE (SQLite): concurrent accepts are serialized; the second one finds the
+            // invitation no longer pending.
+            await using var tx = await _db.Database.BeginTransactionAsync();
+
+            var claimed = await _db.LeagueInvitations
+                .Where(i => i.Id == invitationId && i.Status == LeagueInvitationStatus.Pending)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(i => i.Status, LeagueInvitationStatus.Accepted)
+                    .SetProperty(i => i.UpdatedAt, (DateTime?)nowUtc));
+            if (claimed == 0)
+                return AcceptInvitationResult.NotPending; // disposing the transaction rolls it back
+
+            var leagueId = await _db.LeagueInvitations
+                .Where(i => i.Id == invitationId)
+                .Select(i => i.LeagueId)
+                .SingleAsync();
+
+            var member = new LeagueMember
+            {
+                LeagueId = leagueId,
+                UserId = userId,
+                Role = LeagueRole.Member,
+                JoinedAt = nowUtc
+            };
+            _db.LeagueMembers.Add(member);
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+            {
+                // Already a member: roll back the claim too, so an invite link is not used up.
+                _db.Entry(member).State = EntityState.Detached;
+                return AcceptInvitationResult.AlreadyMember;
+            }
+            catch
+            {
+                _db.Entry(member).State = EntityState.Detached;
+                throw;
+            }
+
+            await tx.CommitAsync();
+            return AcceptInvitationResult.Accepted;
         }
 
         // ── Leaderboard ───────────────────────────────────────────────────────
@@ -190,22 +249,18 @@ namespace DailyChallenges.Repositories
                     s.ScoreValue,
                     s.CreatedAt,
                     Username = s.Username != null ? s.Username : s.User != null ? s.User.Username : "Unknown",
-                    HasScreenshot = s.ScreenshotData != null && s.ScreenshotData.Length > 0
+                    HasScreenshot = s.ScreenshotContentType != null && s.ScreenshotContentType != ""
                 })
                 .ToListAsync();
 
-            // Take the best submission per user (strategy ordering already sorted best-first)
-            var bestPerUser = submissions
+            // Best submission per user. The rows are already in strategy order (best first), and GroupBy keeps
+            // the order in which keys first appear, so the groups (and their first rows) stay in ranking order.
+            var reordered = submissions
                 .GroupBy(s => s.UserId!.Value)
                 .Select(g => g.First())
                 .ToList();
 
-            // Re-order the grouped results using ScoreValue
-            var reordered = strategy is Services.Ranking.LowestRankingStrategy
-                ? bestPerUser.OrderBy(s => s.ScoreValue!.Value).ThenBy(s => s.CreatedAt).ToList()
-                : bestPerUser.OrderByDescending(s => s.ScoreValue!.Value).ThenBy(s => s.CreatedAt).ToList();
-
-            // Assign dense ranks (ties get the same rank)
+            // Standard competition ranks: equal scores share a rank and the next rank skips (1, 1, 3).
             var result = new List<(int UserId, string Username, int Rank, string Score, double ScoreValue, int SubmissionId, bool HasScreenshot)>();
             int rank = 1;
             for (int i = 0; i < reordered.Count; i++)
@@ -230,17 +285,23 @@ namespace DailyChallenges.Repositories
             if (memberIds.Count == 0)
                 return (new List<LeagueGameSummaryDto>(), 0);
 
-            var since = DateTime.UtcNow.Date.AddDays(-(days - 1));
+            var nowUtc = _time.GetUtcNow().UtcDateTime;
+            // The window is the last `days` scoring days of each game, ending at the game's current scoring
+            // day. A game's current day is within ±1 of the UTC date (late resets label "today" with tomorrow's
+            // date), so query the widest possible range here and narrow it per game below.
+            var rangeStart = nowUtc.Date.AddDays(-1 - (days - 1));
+            var rangeEnd = nowUtc.Date.AddDays(1);
 
             // Project only the columns we need — avoids loading ScreenshotData blobs
-            var subs = await _db.Submissions
+            var rows = await _db.Submissions
                 .Where(s => s.UserId.HasValue && memberIds.Contains(s.UserId!.Value)
-                            && s.ScoringDay >= since.Date && s.ScoringDay <= DateTime.UtcNow.Date)
+                            && s.ScoringDay >= rangeStart && s.ScoringDay <= rangeEnd)
                 .Select(s => new {
                     s.GameId,
                     GameName = s.Game!.Name,
-                    GameHasIcon = s.Game.ScreenshotData != null,
+                    GameHasIcon = s.Game.ScreenshotContentType != null && s.Game.ScreenshotContentType != "",
                     GameRankingMode = s.Game!.RankingMode,
+                    GameResetTime = s.Game!.ResetTime,
                     s.UserId,
                     s.Score,
                     s.ScoreValue,
@@ -248,6 +309,33 @@ namespace DailyChallenges.Repositories
                     s.CreatedAt,
                 })
                 .ToListAsync();
+
+            var currentDayByGame = rows
+                .GroupBy(s => s.GameId)
+                .ToDictionary(g => g.Key, g => Services.ScoringDayHelper.GetCurrentScoringDay(g.First().GameResetTime, nowUtc).Date);
+            var subs = rows
+                .Where(s => s.ScoringDay.Date <= currentDayByGame[s.GameId]
+                         && s.ScoringDay.Date > currentDayByGame[s.GameId].AddDays(-days))
+                .ToList();
+            foreach (var gameId in currentDayByGame.Keys.ToList())
+                if (!subs.Any(s => s.GameId == gameId)) currentDayByGame.Remove(gameId);
+
+            // Hidden-scores rule: for games the requester has not submitted for on the game's current
+            // scoring day, other members' current-day rows do not count towards TopScore / MyRank.
+            var currentDays = currentDayByGame.Values.Distinct().ToList();
+            var gameIds = currentDayByGame.Keys.ToList();
+            var requesterCurrentRows = currentDays.Count == 0
+                ? new List<(int GameId, DateTime ScoringDay)>()
+                : (await _db.Submissions
+                    .Where(s => s.UserId == requestingUserId && gameIds.Contains(s.GameId) && currentDays.Contains(s.ScoringDay))
+                    .Select(s => new { s.GameId, s.ScoringDay })
+                    .ToListAsync())
+                    .Select(x => (x.GameId, x.ScoringDay))
+                    .ToList();
+            var submittedToday = requesterCurrentRows
+                .Where(x => currentDayByGame[x.GameId] == x.ScoringDay.Date)
+                .Select(x => x.GameId)
+                .ToHashSet();
 
             var groups = subs.GroupBy(s => s.GameId);
             var results = new List<LeagueGameSummaryDto>();
@@ -258,8 +346,13 @@ namespace DailyChallenges.Repositories
                 var isLowest = first.GameRankingMode == RankingMode.Lowest;
                 var playCount = g.Count();
                 var lastPlayedAt = g.Max(s => s.CreatedAt);
+                var hideCurrentDay = !submittedToday.Contains(g.Key);
+                var currentDay = currentDayByGame[g.Key];
 
-                var scored = g.Where(s => s.ScoreValue.HasValue).ToList();
+                var scored = g
+                    .Where(s => s.ScoreValue.HasValue)
+                    .Where(s => !hideCurrentDay || s.UserId == requestingUserId || s.ScoringDay.Date != currentDay)
+                    .ToList();
 
                 var top = scored.Count > 0
                     ? (isLowest
@@ -301,12 +394,15 @@ namespace DailyChallenges.Repositories
                         : myBest.OrderByDescending(s => s.ScoreValue).ThenBy(s => s.CreatedAt).First())
                     : null;
 
-                // Recent plays histogram: one count per day, oldest→newest
+                // Recent plays histogram: one count per scoring day of this game, oldest→newest
+                var since = currentDay.AddDays(-(days - 1));
                 var recentPlays = new List<int>();
+                var recentPlayDays = new List<string>();
                 for (int d = 0; d < days; d++)
                 {
                     var day = since.AddDays(d).Date;
                     recentPlays.Add(g.Count(s => s.ScoringDay.Date == day));
+                    recentPlayDays.Add(Services.ScoringDayHelper.FormatScoringDay(day));
                 }
 
                 results.Add(new LeagueGameSummaryDto
@@ -322,6 +418,7 @@ namespace DailyChallenges.Repositories
                     MyBestScoreValue = myBestSub?.ScoreValue,
                     MyRank = myRank,
                     RecentPlays = recentPlays,
+                    RecentPlayDays = recentPlayDays,
                 });
             }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Box, Typography, CircularProgress, Tabs, Tab, Button,
   List, ListItem, ListItemText, ListItemAvatar, Avatar,
@@ -22,6 +22,7 @@ import api from '../api'
 import useLeagueGameSummaries from '../hooks/useLeagueGameSummaries'
 import LeagueGameCard from '../components/League/LeagueGameCard'
 import imageUrl from '../utils/imageUrl'
+import { getApiErrorMessage } from '../utils/apiError'
 
 function TabPanel({ children, value, index }) {
   return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null
@@ -56,21 +57,33 @@ export default function LeagueDetail() {
   // Leaderboard
   const [games, setGames] = useState([])
   const [selectedGameId, setSelectedGameId] = useState('')
-  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10))
+  // '' = the selected game's current scoring day (the backend default).
+  const [selectedDay, setSelectedDay] = useState('')
   const [leaderboard, setLeaderboard] = useState(null)
   const [lbLoading, setLbLoading] = useState(false)
+  // Generation counter: only the latest leaderboard request may write state.
+  const lbGenRef = useRef(0)
+  const leagueReqRef = useRef(0)
 
-  const fetchLeague = useCallback(async () => {
-    setLoading(true)
+  // `silent` refreshes (after invite/kick/...) keep the page rendered and stay
+  // on the page if they fail; the initial load redirects back to the list.
+  const fetchLeague = useCallback(async ({ silent = false } = {}) => {
+    const req = ++leagueReqRef.current
+    if (!silent) setLoading(true)
     try {
       const res = await api.get(`/leagues/${id}`)
-      setLeague(res.data)
+      if (req === leagueReqRef.current) setLeague(res.data)
     } catch (err) {
-      if (err?.response?.status === 404) showSnackbar('League not found.', 'error')
-      else showSnackbar('Failed to load league.', 'error')
-      navigate('/leagues')
+      if (req !== leagueReqRef.current) return
+      if (silent) {
+        showSnackbar(getApiErrorMessage(err, 'Failed to refresh league.'), 'error')
+      } else {
+        if (err?.response?.status === 404) showSnackbar('League not found.', 'error')
+        else showSnackbar(getApiErrorMessage(err, 'Failed to load league.'), 'error')
+        navigate('/leagues')
+      }
     } finally {
-      setLoading(false)
+      if (!silent && req === leagueReqRef.current) setLoading(false)
     }
   }, [id, navigate, showSnackbar])
 
@@ -82,23 +95,27 @@ export default function LeagueDetail() {
 
   const isOwner = league?.ownerId === user?.id
 
+  const { items: gameSummaries, totalCount: gameSummaryTotal, loading: gsLoading, error: gsError, loadMore: loadMoreGames, refresh: refreshSummaries, days, setDays } = useLeagueGameSummaries(id)
+
   const handleInvite = async () => {
-    if (!inviteUsername.trim()) return
+    const username = inviteUsername.trim()
+    if (!username || inviteBusy) return
     setInviteBusy(true)
     try {
-      await api.post(`/leagues/${id}/invitations`, { username: inviteUsername.trim() })
-      showSnackbar(`Invitation sent to ${inviteUsername.trim()}.`)
+      await api.post(`/leagues/${id}/invitations`, { username })
+      showSnackbar(`Invitation sent to ${username}.`)
       setInviteOpen(false)
       setInviteUsername('')
+      fetchLeague({ silent: true })
     } catch (err) {
-      const msg = err?.response?.data?.title || err?.response?.data || 'Could not send invitation.'
-      showSnackbar(typeof msg === 'string' ? msg : 'Something went wrong.', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Could not send invitation.'), 'error')
     } finally {
       setInviteBusy(false)
     }
   }
 
   const handleCreateLink = async () => {
+    if (linkBusy) return
     setLinkBusy(true)
     try {
       const res = await api.post(`/leagues/${id}/invite-link`)
@@ -106,8 +123,9 @@ export default function LeagueDetail() {
       const url = `${window.location.origin}/leagues/join/${token}`
       setInviteLink(url)
       setLinkDialogOpen(true)
-    } catch {
-      showSnackbar('Failed to create invite link.', 'error')
+      fetchLeague({ silent: true })
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, 'Failed to create invite link.'), 'error')
     } finally {
       setLinkBusy(false)
     }
@@ -117,9 +135,9 @@ export default function LeagueDetail() {
     try {
       await api.delete(`/leagues/invitations/${invId}`)
       showSnackbar('Invitation cancelled.')
-      fetchLeague()
-    } catch {
-      showSnackbar('Failed to cancel invitation.', 'error')
+      fetchLeague({ silent: true })
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, 'Failed to cancel invitation.'), 'error')
     }
   }
 
@@ -128,9 +146,10 @@ export default function LeagueDetail() {
     try {
       await api.delete(`/leagues/${id}/members/${memberId}`)
       showSnackbar(`${username} removed.`)
-      fetchLeague()
-    } catch {
-      showSnackbar('Failed to remove member.', 'error')
+      fetchLeague({ silent: true })
+      refreshSummaries()
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, 'Failed to remove member.'), 'error')
     }
   }
 
@@ -141,8 +160,7 @@ export default function LeagueDetail() {
       showSnackbar('You left the league.')
       navigate('/leagues')
     } catch (err) {
-      const msg = err?.response?.data?.title || err?.response?.data || 'Failed to leave.'
-      showSnackbar(typeof msg === 'string' ? msg : 'Something went wrong.', 'error')
+      showSnackbar(getApiErrorMessage(err, 'Failed to leave.'), 'error')
     }
   }
 
@@ -152,49 +170,55 @@ export default function LeagueDetail() {
       await api.delete(`/leagues/${id}`)
       showSnackbar('League deleted.')
       navigate('/leagues')
-    } catch {
-      showSnackbar('Failed to delete league.', 'error')
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, 'Failed to delete league.'), 'error')
     }
   }
 
   const handleRename = async () => {
-    if (!newName.trim()) return
+    if (!newName.trim() || renameBusy) return
     setRenameBusy(true)
     try {
       const res = await api.patch(`/leagues/${id}/name`, { name: newName.trim() })
       setLeague(prev => ({ ...prev, name: res.data.name }))
       showSnackbar('League renamed.')
       setRenameOpen(false)
-    } catch {
-      showSnackbar('Failed to rename league.', 'error')
+    } catch (err) {
+      showSnackbar(getApiErrorMessage(err, 'Failed to rename league.'), 'error')
     } finally {
       setRenameBusy(false)
     }
   }
 
-  const { items: gameSummaries, totalCount: gameSummaryTotal, loading: gsLoading, loadMore: loadMoreGames, days, setDays } = useLeagueGameSummaries(id)
-
   const fetchLeaderboard = useCallback(async () => {
     if (!selectedGameId) return
+    const gen = ++lbGenRef.current
     setLbLoading(true)
     try {
-      const res = await api.get(`/leagues/${id}/leaderboard`, {
-        params: { gameId: selectedGameId, scoringDay: selectedDay }
-      })
-      setLeaderboard(res.data)
-    } catch {
-      showSnackbar('Failed to load leaderboard.', 'error')
+      // Without an explicit day the backend uses the game's current scoring day.
+      const params = { gameId: selectedGameId }
+      if (selectedDay) params.scoringDay = selectedDay
+      const res = await api.get(`/leagues/${id}/leaderboard`, { params })
+      if (gen === lbGenRef.current) setLeaderboard(res.data)
+    } catch (err) {
+      if (gen !== lbGenRef.current) return
+      setLeaderboard(null)
+      showSnackbar(getApiErrorMessage(err, 'Failed to load leaderboard.'), 'error')
     } finally {
-      setLbLoading(false)
+      if (gen === lbGenRef.current) setLbLoading(false)
     }
   }, [id, selectedGameId, selectedDay, showSnackbar])
 
   // Auto-load leaderboard when on that tab or when game/date selection changes
-  useEffect(() => { if (tab === 2 && selectedGameId) fetchLeaderboard() }, [tab, fetchLeaderboard])
+  useEffect(() => { if (tab === 2 && selectedGameId) fetchLeaderboard() }, [tab, selectedGameId, fetchLeaderboard])
+
+  // Default day for a game: its current scoring day (depends on its reset
+  // time), not the browser's/UTC calendar date. '' lets the backend decide.
+  const currentDayFor = (gameId) => games.find(g => String(g.id) === String(gameId))?.currentScoringDay || ''
 
   const handleGameSelect = (gameId, day = null) => {
     setSelectedGameId(gameId)
-    setSelectedDay(day ?? new Date().toISOString().slice(0, 10))
+    setSelectedDay(day ?? currentDayFor(gameId))
     setTab(2)
   }
 
@@ -215,7 +239,7 @@ export default function LeagueDetail() {
                 Invite
               </Button>
               <Button size="small" startIcon={<LinkIcon />} onClick={handleCreateLink} disabled={linkBusy}>
-                Invite Link
+                Create invite link
               </Button>
               <Button size="small" onClick={() => { setNewName(league.name); setRenameOpen(true) }}>
                 Rename
@@ -268,6 +292,13 @@ export default function LeagueDetail() {
               </Grid>
             ))}
           </Grid>
+        ) : gameSummaries.length === 0 && gsError ? (
+          <Alert
+            severity="error"
+            action={<Button color="inherit" size="small" onClick={refreshSummaries}>Retry</Button>}
+          >
+            Failed to load games.
+          </Alert>
         ) : gameSummaries.length === 0 ? (
           <Alert severity="info">No games played in this league in the last {days} days.</Alert>
         ) : (
@@ -279,7 +310,16 @@ export default function LeagueDetail() {
                 </Grid>
               ))}
             </Grid>
-            {gameSummaries.length < gameSummaryTotal && (
+            {gsError && (
+          <Alert
+            severity="error"
+            sx={{ mt: 2 }}
+            action={<Button color="inherit" size="small" onClick={loadMoreGames} disabled={gsLoading}>Retry</Button>}
+          >
+            Failed to load more games.
+          </Alert>
+        )}
+        {gameSummaries.length < gameSummaryTotal && (
               <Box sx={{ textAlign: 'center', mt: 2 }}>
                 <Button onClick={loadMoreGames} disabled={gsLoading}>
                   {gsLoading ? <CircularProgress size={20} /> : 'Load more'}
@@ -308,7 +348,7 @@ export default function LeagueDetail() {
                       <Link to={`/users/${m.userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                         {m.username}
                       </Link>
-                      {m.role === 'owner' && <Chip label="Owner" size="small" color="primary" />}
+                      {(m.role === 'owner' || m.userId === league.ownerId) && <Chip label="Owner" size="small" color="primary" />}
                     </Box>
                   }
                   secondary={`Level ${m.level} · Streak ${m.streak}`}
@@ -334,7 +374,10 @@ export default function LeagueDetail() {
             <Select
               value={selectedGameId}
               label="Game"
-              onChange={e => setSelectedGameId(e.target.value)}
+              onChange={e => {
+                setSelectedGameId(e.target.value)
+                if (!selectedDay) setSelectedDay(currentDayFor(e.target.value))
+              }}
             >
               {games.map(g => (
                 <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
@@ -345,7 +388,7 @@ export default function LeagueDetail() {
             type="date"
             size="small"
             label="Date"
-            value={selectedDay}
+            value={selectedDay || leaderboard?.scoringDay || ''}
             onChange={e => setSelectedDay(e.target.value)}
             InputLabelProps={{ shrink: true }}
           />
@@ -356,8 +399,14 @@ export default function LeagueDetail() {
           <Alert severity="info">Select a game above, or pick one from the Games tab.</Alert>
         )}
 
+        {leaderboard && !lbLoading && leaderboard.scoresHidden && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Scores for this day are hidden until you submit your own.
+          </Alert>
+        )}
+
         {leaderboard && !lbLoading && (
-          leaderboard.entries.length === 0 ? (
+          (leaderboard.entries || []).length === 0 ? (
             <Alert severity="info">No submissions from league members for this game and date.</Alert>
           ) : (
             <Table size="small">
@@ -370,21 +419,29 @@ export default function LeagueDetail() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {leaderboard.entries.map(entry => (
+                {leaderboard.entries.map(entry => {
+                  const hidden = leaderboard.scoresHidden || entry.score == null
+                  return (
                   <TableRow key={entry.userId} sx={entry.userId === user?.id ? { bgcolor: 'action.selected' } : {}}>
                     <TableCell>
-                      {entry.rank === 1
-                        ? <EmojiEventsIcon fontSize="small" sx={{ color: 'gold', verticalAlign: 'middle' }} />
-                        : entry.rank}
+                      {hidden
+                        ? '–'
+                        : entry.rank === 1
+                          ? <EmojiEventsIcon fontSize="small" sx={{ color: 'gold', verticalAlign: 'middle' }} />
+                          : entry.rank}
                     </TableCell>
                     <TableCell>
                       <Link to={`/users/${entry.userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                         {entry.username}
                       </Link>
                     </TableCell>
-                    <TableCell>{entry.score}</TableCell>
+                    <TableCell>
+                      {hidden
+                        ? <Typography variant="body2" color="text.secondary" component="span">Hidden</Typography>
+                        : entry.score}
+                    </TableCell>
                     <TableCell sx={{ py: 0.5 }}>
-                      {entry.screenshotUrl ? (
+                      {!hidden && entry.screenshotUrl && entry.submissionId != null ? (
                         <Link to={`/submission/${entry.submissionId}`}>
                           <Box
                             component="img"
@@ -408,7 +465,8 @@ export default function LeagueDetail() {
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
           )
@@ -453,7 +511,7 @@ export default function LeagueDetail() {
             fullWidth
             value={inviteUsername}
             onChange={e => setInviteUsername(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleInvite() }}
+            onKeyDown={e => { if (e.key === 'Enter' && !inviteBusy) handleInvite() }}
             sx={{ mt: 1 }}
           />
         </DialogContent>
@@ -469,7 +527,10 @@ export default function LeagueDetail() {
       <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Invite Link</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ mb: 1 }}>Share this link to invite anyone (expires in 7 days):</Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            This is a single-use link for one person: the first person who opens it joins the league,
+            then it stops working. It expires in 7 days. Create a new link for each person you want to invite.
+          </Typography>
           <TextField
             fullWidth
             value={inviteLink}
@@ -478,7 +539,14 @@ export default function LeagueDetail() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { navigator.clipboard.writeText(inviteLink); showSnackbar('Link copied!') }}>
+          <Button
+            onClick={() => {
+              Promise.resolve()
+                .then(() => navigator.clipboard.writeText(inviteLink))
+                .then(() => showSnackbar('Link copied!'))
+                .catch(() => showSnackbar('Could not copy the link. Select it and copy it manually.', 'error'))
+            }}
+          >
             Copy
           </Button>
           <Button onClick={() => setLinkDialogOpen(false)}>Close</Button>
@@ -496,7 +564,7 @@ export default function LeagueDetail() {
             value={newName}
             onChange={e => setNewName(e.target.value)}
             inputProps={{ maxLength: 100 }}
-            onKeyDown={e => { if (e.key === 'Enter') handleRename() }}
+            onKeyDown={e => { if (e.key === 'Enter' && !renameBusy) handleRename() }}
             sx={{ mt: 1 }}
           />
         </DialogContent>

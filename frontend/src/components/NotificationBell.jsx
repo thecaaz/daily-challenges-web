@@ -8,11 +8,43 @@ import AppButton from './ui/AppButton'
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import PersonAddIcon from '@mui/icons-material/PersonAdd'
+import GroupsIcon from '@mui/icons-material/Groups'
+import MilitaryTechIcon from '@mui/icons-material/MilitaryTech'
 import api from '../api'
 import timeAgo from '../utils/timeAgo'
 import { useAuth } from '../contexts/AuthContext'
 
 const POLL_INTERVAL = 30000 // 30 seconds
+
+/**
+ * Where a notification leads, by its `type`, or null if it has nowhere to go.
+ * Types: day_win, day_placement, friend_request, friend_request_accepted,
+ * league_invite, league_joined, achievement.
+ */
+export function notificationRoute(n, user) {
+  const type = n?.type ?? ''
+  if (type === 'friend_request' || type === 'friend_request_accepted') return '/friends'
+  if (type.startsWith('league_')) return '/leagues'
+  if (type === 'achievement') return user?.id != null ? `/users/${user.id}` : null
+  if (n?.gameId) {
+    return n.scoringDay
+      ? `/games/${n.gameId}?scoringDay=${encodeURIComponent(n.scoringDay)}`
+      : `/games/${n.gameId}`
+  }
+  return null
+}
+
+function NotificationIcon({ n }) {
+  if (n.type === 'day_win') return <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.3rem' }} />
+  if (n.rank != null) {
+    return <Chip label={`#${n.rank}`} size="small" sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
+  }
+  if (n.type === 'friend_request' || n.type === 'friend_request_accepted') return <PersonAddIcon color="action" sx={{ fontSize: '1.2rem' }} />
+  if (n.type?.startsWith('league_')) return <GroupsIcon color="action" sx={{ fontSize: '1.2rem' }} />
+  if (n.type === 'achievement') return <MilitaryTechIcon color="action" sx={{ fontSize: '1.2rem' }} />
+  return <NotificationsIcon color="action" sx={{ fontSize: '1.2rem' }} />
+}
 
 export default function NotificationBell() {
   const { user } = useAuth()
@@ -70,20 +102,8 @@ export default function NotificationBell() {
     }
     handleClose()
 
-    if (n.type === 'friend_request') {
-      navigate('/friends?tab=incoming')
-      return
-    }
-
-    if (n.type === 'friend_request_accepted') {
-      navigate('/friends?tab=friends')
-      return
-    }
-
-    if (n.gameId && n.scoringDay) {
-      navigate(`/games/${n.gameId}?scoringDay=${n.scoringDay}`)
-      return
-    }
+    const route = notificationRoute(n, user)
+    if (route) navigate(route)
   }
 
   const handleMarkAllRead = async () => {
@@ -96,12 +116,20 @@ export default function NotificationBell() {
 
   const handleDeleteNotification = async (e, n) => {
     e.stopPropagation()
+    // Optimistic removal; put it back where it was if the delete fails.
+    const index = notifications.findIndex(x => x.id === n.id)
+    setNotifications(prev => prev.filter(x => x.id !== n.id))
+    if (!n.isRead) setUnreadCount(prev => Math.max(0, prev - 1))
     try {
-      setNotifications(prev => prev.filter(x => x.id !== n.id))
-      if (!n.isRead) setUnreadCount(prev => Math.max(0, prev - 1))
       await api.delete(`/notifications/${n.id}`)
     } catch {
-      // ignore
+      setNotifications(prev => {
+        if (prev.some(x => x.id === n.id)) return prev
+        const next = [...prev]
+        next.splice(index >= 0 ? Math.min(index, next.length) : next.length, 0, n)
+        return next
+      })
+      if (!n.isRead) setUnreadCount(prev => prev + 1)
     }
   }
 
@@ -155,10 +183,7 @@ export default function NotificationBell() {
                 }}
               >
                 <Box sx={{ mr: 1, flexShrink: 0 }}>
-                  {n.type === 'day_win'
-                    ? <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.3rem' }} />
-                    : <Chip label={`#${n.rank ?? '—'}`} size="small" sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
-                  }
+                  <NotificationIcon n={n} />
                 </Box>
 
                 <ListItemText

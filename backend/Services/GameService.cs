@@ -1,38 +1,54 @@
+using DailyChallenges.Data;
 using DailyChallenges.DTOs;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services.Ranking;
+using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Security.Claims;
 
 namespace DailyChallenges.Services
 {
     public class GameService : IGameService
     {
+        private readonly TimeProvider _time;
         private readonly IGameRepository _games;
         private readonly IFileStorage _files;
         private readonly ISubmissionRepository _subsRepo;
         private readonly ISubmissionService _submissionService;
         private readonly IFavoriteRepository _favRepo;
+        private readonly IScoreVisibilityService _visibility;
+        private readonly IScreenshotUrlSigner _signer;
+        private readonly AppDbContext _db;
+        private readonly IScoringDayResultRepository _results;
 
-        public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo, ISubmissionService submissionService, IFavoriteRepository favRepo)
+        public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo, ISubmissionService submissionService, IFavoriteRepository favRepo, TimeProvider time,
+            IScoreVisibilityService visibility, IScreenshotUrlSigner signer, AppDbContext db, IScoringDayResultRepository results)
         {
+            _db = db;
+            _results = results;
+            _visibility = visibility;
+            _signer = signer;
             _games = games;
             _files = files;
             _subsRepo = subsRepo;
             _submissionService = submissionService;
             _favRepo = favRepo;
+            _time = time;
         }
 
         public async Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user = null)
         {
+            var now = _time.GetUtcNow().UtcDateTime;
             var games = await _games.GetAllAsync();
-            var dtos = games.Select(g => DtoMapper.ToDto(g)).ToList();
+            var dtos = games.Select(g => DtoMapper.ToDto(g, nowUtc: now)).ToList();
 
             var userId = user.GetUserId();
             if (!userId.HasValue) return dtos;
 
-            var gameDays = games.Select(g => new { g.Id, Day = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime).Date }).ToList();
+            var gameDays = games.Select(g => new { g.Id, Day = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, now).Date }).ToList();
 
             var distinctDays = gameDays.Select(x => x.Day).Distinct().ToList();
             var gameIds = gameDays.Select(x => x.Id).ToList();
@@ -56,21 +72,16 @@ namespace DailyChallenges.Services
 
         public async Task<GameDto> CreateAsync(GameCreateRequest request)
         {
+            // Validate everything before writing anything.
+            var resetTime = ParseResetTime(request.ResetTime);
+            var url = ParseUrl(request.Url);
+            var rankingMode = ParseRankingMode(request.RankingMode);
+
             var game = new Game { Name = request.Name };
-            if (!string.IsNullOrWhiteSpace(request.ResetTime))
-            {
-                if (TryParseResetTime(request.ResetTime, out var ts))
-                {
-                    if (request.ResetTimezoneOffsetMinutes.HasValue)
-                    {
-                        ts = NormalizeToUtc(ts, request.ResetTimezoneOffsetMinutes.Value);
-                    }
-                    game.ResetTime = ts;
-                }
-            }
-            if (!string.IsNullOrWhiteSpace(request.Url)) game.Url = request.Url;
+            if (resetTime.HasValue) game.ResetTime = resetTime.Value;
+            if (!string.IsNullOrEmpty(url)) game.Url = url;
             if (!string.IsNullOrWhiteSpace(request.Description)) game.Description = request.Description;
-            if (Enum.TryParse<RankingMode>(request.RankingMode, ignoreCase: true, out var mode)) game.RankingMode = mode;
+            if (rankingMode.HasValue) game.RankingMode = rankingMode.Value;
 
             if (request.Image != null && request.Image.Length > 0)
             {
@@ -80,89 +91,154 @@ namespace DailyChallenges.Services
             }
 
             var created = await _games.CreateAsync(game);
-            return DtoMapper.ToDto(created);
+            return DtoMapper.ToDto(created, nowUtc: _time.GetUtcNow().UtcDateTime);
         }
 
         public async Task<Game?> GetByIdAsync(int id) => await _games.GetByIdAsync(id);
 
+        /// <summary>
+        /// Updates a game. Omitted (null) fields stay unchanged; "" clears Url and Description.
+        /// A ResetTime change re-derives the stored ScoringDay of the game's not-yet-finalized submissions
+        /// (and of their XpEvents) in the same transaction, or fails with a ConflictException.
+        /// </summary>
         public async Task<GameDto> UpdateAsync(int id, GameUpdateRequest request)
         {
-            var g = await _games.GetByIdAsync(id);
-            if (g == null) throw new KeyNotFoundException("Game not found");
-            if (!string.IsNullOrWhiteSpace(request.Name)) g.Name = request.Name;
-            if (!string.IsNullOrWhiteSpace(request.Url)) g.Url = request.Url;
-            if (!string.IsNullOrWhiteSpace(request.ResetTime))
-            {
-                if (TryParseResetTime(request.ResetTime, out var ts))
-                {
-                    if (request.ResetTimezoneOffsetMinutes.HasValue)
-                    {
-                        ts = NormalizeToUtc(ts, request.ResetTimezoneOffsetMinutes.Value);
-                    }
-                    g.ResetTime = ts;
-                }
-            }
-            if (request.Description != null) g.Description = request.Description;
-            if (!string.IsNullOrWhiteSpace(request.RankingMode) && Enum.TryParse<RankingMode>(request.RankingMode, ignoreCase: true, out var mode)) g.RankingMode = mode;
+            // Validate everything before writing anything.
+            var resetTime = ParseResetTime(request.ResetTime);
+            var url = ParseUrl(request.Url);
+            var rankingMode = ParseRankingMode(request.RankingMode);
 
+            byte[]? imageData = null;
+            string? imageContentType = null;
             if (request.Image != null && request.Image.Length > 0)
-            {
-                var (data, contentType) = await _files.ReadFileAsync(request.Image);
-                g.ScreenshotData = data;
-                g.ScreenshotContentType = contentType;
-            }
+                (imageData, imageContentType) = await _files.ReadFileAsync(request.Image);
 
-            var updated = await _games.UpdateAsync(g);
-            return DtoMapper.ToDto(updated);
+            await using var tx = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var g = await _games.GetByIdAsync(id);
+                if (g == null) throw new KeyNotFoundException("Game not found");
+
+                if (!string.IsNullOrWhiteSpace(request.Name)) g.Name = request.Name;
+                if (url != null) g.Url = url.Length == 0 ? null : url;
+                if (request.Description != null) g.Description = request.Description.Length == 0 ? null : request.Description;
+                if (rankingMode.HasValue) g.RankingMode = rankingMode.Value;
+                if (imageData != null && imageData.Length > 0)
+                {
+                    g.ScreenshotData = imageData;
+                    g.ScreenshotContentType = imageContentType;
+                }
+
+                if (resetTime.HasValue && resetTime.Value != g.ResetTime)
+                {
+                    await RederiveScoringDaysAsync(g.Id, resetTime.Value);
+                    g.ResetTime = resetTime.Value;
+                }
+
+                var updated = await _games.UpdateAsync(g);
+                await tx.CommitAsync();
+                return DtoMapper.ToDto(updated, nowUtc: _time.GetUtcNow().UtcDateTime);
+            }
+            catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+            {
+                await tx.RollbackAsync();
+                _db.ChangeTracker.Clear();
+                throw new ConflictException("Changing the reset time would merge two submissions of the same user into one scoring day.");
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                _db.ChangeTracker.Clear();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Recomputes Submission.ScoringDay (and the matching XpEvents.ScoringDay) of every submission of the
+        /// game after its last finalized day, for the new reset time. Finalized days are never touched, so
+        /// results, win XP and notifications stay consistent. Runs inside the caller's transaction.
+        /// </summary>
+        private async Task RederiveScoringDaysAsync(int gameId, TimeSpan newResetTime)
+        {
+            var now = _time.GetUtcNow().UtcDateTime;
+            var lastFinalized = await _results.GetLastFinalizedDayAsync(gameId);
+
+            // The new current day must not be a finalized day either, or new submissions would land in it.
+            var newCurrentDay = ScoringDayHelper.GetCurrentScoringDay(newResetTime, now).Date;
+            if (lastFinalized.HasValue && newCurrentDay <= lastFinalized.Value)
+                throw new ConflictException($"With this reset time the current scoring day would be {ScoringDayHelper.FormatScoringDay(newCurrentDay)}, which is already finalized. Try again after the new reset time has passed.");
+
+            var query = _db.Submissions.Where(s => s.GameId == gameId);
+            if (lastFinalized.HasValue)
+            {
+                var after = lastFinalized.Value;
+                query = query.Where(s => s.ScoringDay > after);
+            }
+            var rows = await query
+                .Select(s => new { s.Id, s.UserId, s.CreatedAt, s.ScoringDay })
+                .ToListAsync();
+
+            var moves = rows
+                .Select(r => new { r.Id, r.UserId, OldDay = r.ScoringDay.Date, NewDay = ScoringDayHelper.GetScoringDay(r.CreatedAt, newResetTime).Date })
+                .ToList();
+
+            if (lastFinalized.HasValue && moves.Any(m => m.NewDay <= lastFinalized.Value))
+                throw new ConflictException("Changing the reset time would move submissions into an already finalized scoring day.");
+
+            if (moves.Where(m => m.UserId.HasValue).GroupBy(m => (m.UserId, m.NewDay)).Any(grp => grp.Count() > 1))
+                throw new ConflictException("Changing the reset time would merge two submissions of the same user into one scoring day.");
+
+            var changed = moves.Where(m => m.NewDay != m.OldDay).ToList();
+            if (changed.Count == 0) return;
+
+            // Two passes so the (UserId, GameId, ScoringDay) unique index never sees a transient duplicate
+            // (SQLite checks it row by row): park each moved row on its own placeholder day, then set the real day.
+            var placeholderBase = new DateTime(1000, 1, 1);
+            for (int i = 0; i < changed.Count; i++)
+            {
+                var subId = changed[i].Id;
+                var placeholder = placeholderBase.AddDays(i);
+                await _db.Submissions.Where(s => s.Id == subId)
+                    .ExecuteUpdateAsync(set => set.SetProperty(s => s.ScoringDay, placeholder));
+            }
+            foreach (var m in changed)
+            {
+                var subId = m.Id;
+                var newDay = m.NewDay;
+                await _db.Submissions.Where(s => s.Id == subId)
+                    .ExecuteUpdateAsync(set => set.SetProperty(s => s.ScoringDay, newDay));
+                DateTime? newEventDay = newDay;
+                await _db.XpEvents.Where(e => e.SubmissionId == subId)
+                    .ExecuteUpdateAsync(set => set.SetProperty(e => e.ScoringDay, newEventDay));
+            }
         }
 
         public async Task DeleteAsync(int id) => await _games.DeleteAsync(id);
 
         public async Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id)
         {
-            var g = await _games.GetByIdAsync(id);
-            if (g == null) return (null, null);
-            if (g.ScreenshotData == null || g.ScreenshotData.Length == 0) return (null, null);
-            return (g.ScreenshotData, g.ScreenshotContentType);
+            var (data, contentType) = await _games.GetBlobAsync(id);
+            if (data == null || data.Length == 0) return (null, null);
+            return (data, contentType);
         }
 
 
         public async Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user)
         {
-            var g = await _games.GetByIdAsync(id);
+            var g = await _games.GetByIdWithoutBlobAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
             var strategy = RankingStrategyFactory.GetStrategy(g.RankingMode);
-            // Determine whether the current user has already submitted today
-            var currentDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime);
-            bool hasSubmittedToday = false;
-            if (user != null)
-            {
-                hasSubmittedToday = await _submissionService.HasUserSubmittedForLatestAsync(id, user);
-            }
 
-            // Prefer numeric ScoreValue ordering (handled in the DB) to avoid heavy in-memory parsing/sorts.
-            var numericCandidates = (await _subsRepo.GetTopByGameByScoreValueAsync(id, 2000, strategy)) ?? new List<Submission>();
-            var usedNumeric = numericCandidates.Count > 0;
+            // Hidden-scores rule: the current scoring day is left out (in SQL, on the stored ScoringDay)
+            // unless the caller may see it. Ordering and the top-50 limit also run in SQL.
+            var currentDay = _visibility.GetCurrentScoringDay(g);
+            var canSeeCurrent = await _visibility.CanSeeDayAsync(user, g, currentDay);
+            var subs = await _subsRepo.GetTopByGameByScoreValueAsync(id, 50, strategy, canSeeCurrent ? null : currentDay);
 
-            List<Submission> subs = usedNumeric
-                ? numericCandidates
-                : (await _subsRepo.GetTopByGameAsync(id, 2000)) ?? new List<Submission>();
-
-            if (user == null || !user.IsInRole("Admin"))
-            {
-                    if (!hasSubmittedToday)
-                    subs = subs.Where(s => ScoringDayHelper.GetScoringDay(s.CreatedAt, g.ResetTime) != currentDay).ToList();
-            }
-
-            List<SubmissionDto> topDtos;
-            if (usedNumeric)
-            {
-                topDtos = subs.Take(50).Select(s => DtoMapper.ToDto(s)).ToList();
-            }
-            else
-            {
-                topDtos = SortSubmissionsInMemory(subs, g.RankingMode).Take(50).Select(s => DtoMapper.ToDto(s)).ToList();
-            }
+            var topDtos = subs
+                .Select(s => SubmissionDtoHelper.SignScreenshot(
+                    SubmissionDtoHelper.ToDtoWithScoringDay(s, s.ScoringDay.Date), _signer, s.ScoringDay.Date == currentDay))
+                .ToList();
 
             AssignSequentialRanks(topDtos);
             return new HighscoreResult { Highscore = topDtos.FirstOrDefault(), Top = topDtos };
@@ -170,24 +246,29 @@ namespace DailyChallenges.Services
 
         public async Task<HighscoreResult> GetPersonalHighscoreAsync(int id, int userId)
         {
-            var g = await _games.GetByIdAsync(id);
+            var g = await _games.GetByIdWithoutBlobAsync(id);
             if (g == null) throw new KeyNotFoundException("Game not found");
             var strategy = RankingStrategyFactory.GetStrategy(g.RankingMode);
+            var currentDay = _visibility.GetCurrentScoringDay(g);
             var userSubs = (await _subsRepo.GetTopByGameByUserByScoreValueAsync(id, userId, 50, strategy)) ?? new List<Submission>();
-            var topDtos = userSubs.Select(s => DtoMapper.ToDto(s)).ToList();
+            // The caller's own submissions: always visible, current-day screenshots signed.
+            var topDtos = userSubs
+                .Select(s => SubmissionDtoHelper.SignScreenshot(
+                    SubmissionDtoHelper.ToDtoWithScoringDay(s, s.ScoringDay.Date), _signer, s.ScoringDay.Date == currentDay))
+                .ToList();
 
             AssignSequentialRanks(topDtos);
             return new HighscoreResult { Highscore = topDtos.FirstOrDefault(), Top = topDtos };
         }
 
-        public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null, int top = 0)
+        public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null)
         {
-            var g = await _games.GetByIdAsync(gameId);
+            var g = await _games.GetByIdWithoutBlobAsync(gameId);
             if (g == null) throw new KeyNotFoundException("Game not found");
 
             var dto = new GameOverviewDto
             {
-                Game = DtoMapper.ToDto(g)
+                Game = DtoMapper.ToDto(g, nowUtc: _time.GetUtcNow().UtcDateTime)
             };
 
             var errors = new List<OverviewErrorDto>();
@@ -207,16 +288,12 @@ namespace DailyChallenges.Services
             var wantHasSubmitted = includeAll || (includeSet != null && includeSet.Contains("hasSubmitted"));
             List<string>? availableDates = null;
             bool hasSubmitted = false;
-            List<SubmissionDto>? topDtos = null;
 
-            // Run sub-requests in parallel where possible, but handle failures individually
-            var availTask = wantAvailable ? _submissionService.GetAvailableDatesAsync(gameId) : Task.FromResult(new List<string>());
-            var hasTask = wantHasSubmitted ? _submissionService.HasUserSubmittedForLatestAsync(gameId, user) : Task.FromResult(false);
-            Task<List<Submission>>? topTask = top > 0 ? _subsRepo.GetTopByGameAsync(gameId, top) : null;
-
+            // Sub-requests run one after another (they share the scoped DbContext, which allows only one
+            // operation at a time), and failures are reported per part.
             try
             {
-                availableDates = await availTask;
+                availableDates = wantAvailable ? await _submissionService.GetAvailableDatesAsync(gameId) : new List<string>();
             }
             catch (Exception ex)
             {
@@ -226,7 +303,7 @@ namespace DailyChallenges.Services
 
             try
             {
-                hasSubmitted = await hasTask;
+                hasSubmitted = wantHasSubmitted && await _submissionService.HasUserSubmittedForLatestAsync(gameId, user);
             }
             catch (Exception ex)
             {
@@ -234,23 +311,8 @@ namespace DailyChallenges.Services
                 hasSubmitted = false;
             }
 
-            if (topTask != null)
-            {
-                try
-                {
-                    var topSubs = await topTask;
-                    topDtos = topSubs.Select(s => DtoMapper.ToDto(s)).ToList();
-                }
-                catch (Exception ex)
-                {
-                    errors.Add(new OverviewErrorDto { Part = "top", Message = ex.Message });
-                    topDtos = new List<SubmissionDto>();
-                }
-            }
-
             dto.AvailableDates = availableDates;
             dto.HasSubmittedForLatest = hasSubmitted;
-            dto.Top = topDtos;
             dto.Errors = errors.Count > 0 ? errors : null;
 
             // mark favorite flag for the requesting user when available
@@ -262,14 +324,6 @@ namespace DailyChallenges.Services
             }
 
             return dto;
-        }
-
-        private static IEnumerable<Submission> SortSubmissionsInMemory(List<Submission> subs, RankingMode mode)
-        {
-            var parsed = subs.Select(s => (Sub: s, Num: ScoreParser.ParseScore(s.Score)));
-            return mode == RankingMode.Lowest
-                ? parsed.OrderBy(x => double.IsNaN(x.Num) ? double.MaxValue : x.Num).ThenBy(x => x.Sub.CreatedAt).Select(x => x.Sub)
-                : parsed.OrderByDescending(x => double.IsNaN(x.Num) ? double.NegativeInfinity : x.Num).ThenBy(x => x.Sub.CreatedAt).Select(x => x.Sub);
         }
 
         private void AssignSequentialRanks(List<SubmissionDto>? dtos)        {
@@ -288,31 +342,40 @@ namespace DailyChallenges.Services
             }
         }
 
-        private static bool TryParseResetTime(string input, out TimeSpan result)
+        /// <summary>Null/blank → null (unchanged). Otherwise UTC "HH:mm", 00:00–23:59, or a ValidationException.</summary>
+        private static TimeSpan? ParseResetTime(string? input)
         {
-            if (TimeSpan.TryParse(input, out var ts))
-            {
-                result = ts;
-                return true;
-            }
-
-            if (TimeSpan.TryParseExact(input, @"hh\:mm", null, out var ts2))
-            {
-                result = ts2;
-                return true;
-            }
-
-            result = default;
-            return false;
+            if (string.IsNullOrWhiteSpace(input)) return null;
+            if (TimeSpan.TryParseExact(input.Trim(), @"hh\:mm", CultureInfo.InvariantCulture, out var ts)
+                && ts >= TimeSpan.Zero && ts < TimeSpan.FromDays(1))
+                return ts;
+            throw new ValidationException("resetTime must be a UTC time \"HH:mm\" between 00:00 and 23:59.");
         }
 
-        private static TimeSpan NormalizeToUtc(TimeSpan localTime, int offsetMinutes)
+        /// <summary>
+        /// Null → null (unchanged). "" (or blank) → "" (clear). Otherwise an absolute http(s) URL,
+        /// or a ValidationException.
+        /// </summary>
+        private static string? ParseUrl(string? input)
         {
-            
-            var utc = localTime + TimeSpan.FromMinutes(offsetMinutes);
-            var dayTicks = TimeSpan.TicksPerDay;
-            var ticks = ((utc.Ticks % dayTicks) + dayTicks) % dayTicks;
-            return new TimeSpan(ticks);
+            if (input == null) return null;
+            var trimmed = input.Trim();
+            if (trimmed.Length == 0) return string.Empty;
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+                && !string.IsNullOrEmpty(uri.Host))
+                return trimmed;
+            throw new ValidationException("url must be an absolute http:// or https:// URL.");
+        }
+
+        /// <summary>Null/blank → null (unchanged). Otherwise a RankingMode name (case-insensitive), or a ValidationException.</summary>
+        private static RankingMode? ParseRankingMode(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return null;
+            var name = Enum.GetNames<RankingMode>().FirstOrDefault(n => string.Equals(n, input.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (name == null)
+                throw new ValidationException($"rankingMode must be one of: {string.Join(", ", Enum.GetNames<RankingMode>().Select(n => n.ToLowerInvariant()))}.");
+            return Enum.Parse<RankingMode>(name);
         }
     }
 }

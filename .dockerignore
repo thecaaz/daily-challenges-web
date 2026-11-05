@@ -1,0 +1,48 @@
+# Build context for backend/Dockerfile and frontend/Dockerfile (context: repo root).
+# Keep this list to things the images never need. Both builds DO need:
+#   backend/**            (sources, csproj, appsettings.json, release-info.json)
+#   frontend/**           (sources, package*.json, nginx.conf, docker-entrypoint.sh, public/)
+#   extension/**          (manifest.json etc. are imported by the frontend build)
+
+# VCS / editor / tooling
+.git
+.github
+.vscode
+.idea
+.roo
+**/.DS_Store
+
+# Build outputs and dependencies
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/build
+**/publish
+**/TestResults
+coverage
+**/coverage
+
+# Local databases (SQLite + WAL/SHM, copies like "app copy.db")
+**/*.db
+**/*.db-*
+
+# Secrets / local config
+**/.env
+**/.env.local
+**/.env.*.local
+backend/appsettings.Development.json
+
+# Logs / temp
+**/*.log
+**/*.tmp
+tmp
+
+# Not needed in any image
+backend/fixes
+tests
+ai-ideas
+scripts
+docker-compose*.yml
+**/Dockerfile
+*.md

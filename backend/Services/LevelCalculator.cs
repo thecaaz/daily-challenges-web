@@ -25,17 +25,32 @@ namespace DailyChallenges.Services
         private readonly double _base;
         private readonly double _exponent;
 
+        /// <summary>Hard cap on levels, so a pathological curve can never loop (practically) forever.</summary>
+        public const int MaxLevel = 100_000;
+
+        // Keeps per-level requirements far from long overflow when summed.
+        private const double MaxXpPerLevel = 1e15;
+
         public LevelCalculator(double levelBase = 100, double levelExponent = 1.5)
         {
+            if (!IsValidBase(levelBase))
+                throw new ArgumentOutOfRangeException(nameof(levelBase), levelBase, "Xp:LevelBase must be a finite number > 0");
+            if (!IsValidExponent(levelExponent))
+                throw new ArgumentOutOfRangeException(nameof(levelExponent), levelExponent, "Xp:LevelExponent must be a finite number > 0");
             _base = levelBase;
             _exponent = levelExponent;
         }
 
-        /// <summary>XP required to advance from level <paramref name="level"/> to level+1.</summary>
+        public static bool IsValidBase(double levelBase) => double.IsFinite(levelBase) && levelBase > 0;
+        public static bool IsValidExponent(double levelExponent) => double.IsFinite(levelExponent) && levelExponent > 0;
+
+        /// <summary>XP required to advance from level <paramref name="level"/> to level+1 (always at least 1).</summary>
         public long XpRequiredForLevel(int level)
         {
             if (level < 1) throw new ArgumentOutOfRangeException(nameof(level), "Level must be >= 1");
-            return (long)Math.Round(_base * Math.Pow(level, _exponent));
+            var xp = Math.Round(_base * Math.Pow(level, _exponent));
+            if (!(xp < MaxXpPerLevel)) return (long)MaxXpPerLevel;
+            return Math.Max(1L, (long)xp);
         }
 
         /// <summary>Total cumulative XP needed to enter <paramref name="level"/> (level 1 = 0).</summary>
@@ -54,19 +69,22 @@ namespace DailyChallenges.Services
         /// </summary>
         public (int Level, long XpIntoLevel, long XpToNextLevel) GetLevelInfo(long totalXp)
         {
+            if (totalXp < 0) totalXp = 0;
             int level = 1;
             long consumed = 0;
 
-            while (true)
+            // Every level needs at least 1 XP and levels stop at MaxLevel, so this always terminates.
+            while (level < MaxLevel)
             {
                 long needed = XpRequiredForLevel(level);
-                if (consumed + needed > totalXp)
+                if (needed > totalXp - consumed) // (no overflow: consumed <= totalXp)
                 {
                     return (level, totalXp - consumed, needed - (totalXp - consumed));
                 }
                 consumed += needed;
                 level++;
             }
+            return (MaxLevel, totalXp - consumed, 0);
         }
 
         /// <summary>Returns just the level for a given total XP amount.</summary>

@@ -1,17 +1,20 @@
-version: '3.8'
-
 services:
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     environment:
+      ASPNETCORE_ENVIRONMENT: Production
       SQLITE_PATH: /data/app.db
       ASPNETCORE_URLS: "http://+:5000"
       Frontend__DevOrigin: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      # Required: JWT signing secret (>= 32 chars). Generate with: openssl rand -base64 48
+      Jwt__Key: ${JWT_KEY:?JWT_KEY is required (openssl rand -base64 48)}
     image: caaz/daily-challenge-web-backend
     ports:
-      - "5000:5000"
+      # Local access only. Browsers reach the API through the frontend's nginx (/api).
+      # Publishing this on all interfaces would let clients bypass nginx and spoof X-Forwarded-For.
+      - "127.0.0.1:5000:5000"
     volumes:
       - sqlite_data:/data
 
@@ -20,11 +23,13 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     environment:
-      # Runtime backend URL that will be written to /usr/share/nginx/html/env.js
-      BACKEND_URL: http://localhost:5000
+      # Runtime backend URL written to env.js (window.__BACKEND_URL).
+      # Empty = same origin: the SPA calls /api and nginx proxies it to the backend service.
+      BACKEND_URL: ""
     image: caaz/daily-challenge-web-frontend
     ports:
-      - "5173:80"
+      # nginx-unprivileged listens on 8080 inside the container
+      - "5173:8080"
     depends_on:
       - backend
 

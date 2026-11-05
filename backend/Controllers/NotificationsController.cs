@@ -22,6 +22,7 @@ namespace DailyChallenges.Controllers
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
 
+            (page, pageSize) = Paging.Clamp(page, pageSize);
             var dto = await _notificationService.GetNotificationsAsync(userId.Value, page, pageSize);
             return Ok(dto);
         }
@@ -62,15 +63,9 @@ namespace DailyChallenges.Controllers
             var userId = User.GetUserId();
             if (!userId.HasValue) return Forbid();
 
-            try
-            {
-                await _notificationService.DeleteAsync(id, userId.Value, User.IsInRole("Admin"));
-                return NoContent();
-            }
-            catch (InvalidOperationException)
-            {
-                return Forbid();
-            }
+            // Missing or someone else's notification -> NotFoundException (404) via the middleware.
+            await _notificationService.DeleteAsync(id, userId.Value, User.IsInRole("Admin"));
+            return NoContent();
         }
     }
 }
