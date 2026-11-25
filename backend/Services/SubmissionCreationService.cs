@@ -30,7 +30,8 @@ public sealed class SubmissionCreationService(
 
     /// <summary>
     /// Saves the submission and awards its XP in one transaction, so both succeed or both roll back. A unique
-    /// index violation means a concurrent submission for the same user/game/day won the race.
+    /// index violation means a concurrent submission for the same user/game/day won the race. Any other database
+    /// failure is logged with the game and user, then rethrown to the exception middleware.
     /// </summary>
     private async Task<(Submission Created, int XpGain)> SaveAsync(Submission draft)
     {
@@ -42,7 +43,7 @@ public sealed class SubmissionCreationService(
         {
             throw new ConflictException(SubmissionDraftBuilder.AlreadySubmittedMessage);
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
         {
             logger.LogError(ex, "Error creating submission for game {GameId} by user {UserId}", draft.GameId, draft.UserId);
             throw;

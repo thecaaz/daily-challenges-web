@@ -47,7 +47,7 @@ public sealed class EfLeagueInvitationRepository(AppDbContext db) : ILeagueInvit
     public async Task<LeagueInvitation> CreateInvitationAsync(LeagueInvitation invitation)
     {
         db.LeagueInvitations.Add(invitation);
-        await SaveOrDetachOnFailureAsync(invitation);
+        await db.SaveInsertsOrDetachAsync([invitation]);
         return invitation;
     }
 
@@ -92,41 +92,13 @@ public sealed class EfLeagueInvitationRepository(AppDbContext db) : ILeagueInvit
             .Select(i => i.LeagueId)
             .SingleAsync();
 
-    private async Task<bool> TryAddMemberAsync(int leagueId, int userId, DateTime nowUtc)
-    {
-        var member = new LeagueMember
+    /// <summary>False, with the context left clean, when the user already is a member (unique violation).</summary>
+    private Task<bool> TryAddMemberAsync(int leagueId, int userId, DateTime nowUtc) =>
+        db.TryInsertAsync(new LeagueMember
         {
             LeagueId = leagueId,
             UserId = userId,
             Role = LeagueRole.Member,
             JoinedAt = nowUtc
-        };
-        db.LeagueMembers.Add(member);
-        try
-        {
-            await SaveOrDetachOnFailureAsync(member);
-            return true;
-        }
-        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// A failed insert stays tracked, so every later SaveChanges in this scope would retry (and fail on) it;
-    /// detach it before rethrowing.
-    /// </summary>
-    private async Task SaveOrDetachOnFailureAsync(object insertedEntity)
-    {
-        try
-        {
-            await db.SaveChangesAsync();
-        }
-        catch
-        {
-            db.Entry(insertedEntity).State = EntityState.Detached;
-            throw;
-        }
-    }
+        });
 }

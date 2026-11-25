@@ -45,20 +45,26 @@ public sealed class FinalizedDayWinnerReconciler(
     /// Re-runs the (idempotent) finalizer for the day on a fresh scope, as the background job does.
     /// Called after the admin change has committed, so a failure here must not fail the request: the
     /// change is applied, and the day is merely left un-finalized until the background job, which
-    /// rescans recent un-finalized days every tick, retries it.
+    /// rescans recent un-finalized days every tick, retries it. This is therefore an error boundary:
+    /// any exception is logged as a warning and not rethrown.
     /// </summary>
     public async Task RefinalizeAsync(int gameId, DateTime scoringDay)
     {
         try
         {
-            using var scope = scopeFactory.CreateScope();
-            var finalizer = scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>();
-            await finalizer.FinalizeScoringDayAsync(gameId, scoringDay.Date);
+            await FinalizeOnFreshScopeAsync(gameId, scoringDay.Date);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Re-finalizing game {GameId} day {Day} failed; the background job will retry it",
-                gameId, scoringDay.ToString("yyyy-MM-dd"));
+                gameId, ScoringDayCalculator.FormatScoringDay(scoringDay));
         }
+    }
+
+    private async Task FinalizeOnFreshScopeAsync(int gameId, DateTime day)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var finalizer = scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>();
+        await finalizer.FinalizeScoringDayAsync(gameId, day);
     }
 }
