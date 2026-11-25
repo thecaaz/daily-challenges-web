@@ -125,6 +125,8 @@ builder.Services.AddScoped<DailyChallenges.Services.Contracts.IScoreMaintenanceS
 
 // Dashboard service
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IDashboardService, DailyChallenges.Services.DashboardService>();
+builder.Services.AddScoped<DailyChallenges.Services.Dashboard.DashboardTodaySnapshotLoader>();
+builder.Services.AddScoped<DailyChallenges.Services.Dashboard.DashboardFriendActivityBuilder>();
 
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
 builder.Services.AddHttpClient(DailyChallenges.Services.InfoService.ChangelogClientName,
