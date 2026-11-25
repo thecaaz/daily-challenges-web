@@ -2,32 +2,25 @@ using DailyChallenges.DTOs;
 
 namespace DailyChallenges.Services.Contracts;
 
+/// <summary>League lifecycle (create, rename, delete), league views and roster changes.</summary>
 public interface ILeagueService
 {
+    /// <summary>Creates the league with <paramref name="ownerId"/> as its owner and first member.</summary>
+    /// <exception cref="ArgumentException">The trimmed name is empty or longer than 100 characters.</exception>
     Task<LeagueDto> CreateLeagueAsync(int ownerId, string name);
+
     Task<LeagueDto> RenameLeagueAsync(int leagueId, int requestingUserId, string newName);
+
     Task DeleteLeagueAsync(int leagueId, int requestingUserId);
 
     Task<List<LeagueDto>> GetMyLeaguesAsync(int userId);
+
+    /// <summary>Members only. Pending invitations are listed for the owner only.</summary>
     Task<LeagueDetailDto> GetLeagueDetailAsync(int leagueId, int requestingUserId);
 
-    Task<LeagueInvitationDto> InviteByUsernameAsync(int leagueId, int inviterId, string username);
-    Task<LeagueInvitationDto> CreateInviteLinkAsync(int leagueId, int inviterId);
-    Task<LeagueDetailDto> AcceptInvitationAsync(int invitationId, int userId);
-    Task<LeagueDetailDto> JoinByTokenAsync(string token, int userId);
-    Task DeclineInvitationAsync(int invitationId, int userId);
-    Task CancelInvitationAsync(int invitationId, int requestingUserId);
-
-    Task<List<LeagueInvitationDto>> GetMyPendingInvitationsAsync(int userId);
-
+    /// <summary>Any member except the owner may leave.</summary>
     Task LeaveLeagueAsync(int leagueId, int userId);
+
+    /// <summary>The owner removes another member.</summary>
     Task KickMemberAsync(int leagueId, int requestingUserId, int targetUserId);
-
-    /// <summary>
-    /// <paramref name="scoringDay"/> defaults to the game's current scoring day. Entries are masked
-    /// (ScoresHidden) on the current day unless the requester submitted for it or is an admin.
-    /// </summary>
-    Task<LeagueLeaderboardDto> GetLeaderboardAsync(int leagueId, int gameId, DateTime? scoringDay, int requestingUserId, bool isAdmin = false);
-
-    Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(int leagueId, int requestingUserId, int days = 7, int page = 1, int pageSize = 20);
 }
