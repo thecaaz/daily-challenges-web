@@ -33,7 +33,7 @@ public class Submission
     // Date-only scoring day calculated based on the game's reset time/timezone.
     public DateTime ScoringDay { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     /// <summary>XP granted to the submitting user for this submission (null for anonymous or before XP system).</summary>
     public int? XpAwarded { get; set; }

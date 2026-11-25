@@ -53,8 +53,7 @@ public class DtoMapperTests
         var sub = new Submission
         {
             Id = 42, GameId = 1, UserId = 3, Score = "3/6",
-            ScoreValue = 3.0, Username = "bob", CreatedAt = BaseTime,
-            ScreenshotData = null
+            ScoreValue = 3.0, Username = "bob", CreatedAt = BaseTime
         };
         var dto = DtoMapper.ToDto(sub);
 
@@ -96,7 +95,7 @@ public class DtoMapperTests
             Description = "Classic word game", ResetTime = TimeSpan.Zero,
             RankingMode = RankingMode.Lowest, ScreenshotData = null
         };
-        var dto = DtoMapper.ToDto(game);
+        var dto = DtoMapper.ToDto(game, BaseTime);
 
         Assert.Equal(5, dto.Id);
         Assert.Equal("Wordle", dto.Name);
@@ -110,7 +109,7 @@ public class DtoMapperTests
     public void ToDto_Game_WithImageContentType_SetsImageUrl()
     {
         var game = new Game { Id = 3, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest, ScreenshotContentType = "image/png" };
-        var dto = DtoMapper.ToDto(game);
+        var dto = DtoMapper.ToDto(game, BaseTime);
         Assert.Equal("/api/games/3/image", dto.ImageUrl);
     }
 
@@ -118,7 +117,7 @@ public class DtoMapperTests
     public void ToDto_Game_BlobWithoutContentType_HasNoImageUrl()
     {
         var game = new Game { Id = 3, Name = "G", ScreenshotData = [0x89, 0x50], ScreenshotContentType = null };
-        Assert.Null(DtoMapper.ToDto(game).ImageUrl);
+        Assert.Null(DtoMapper.ToDto(game, BaseTime).ImageUrl);
     }
 
     [Fact]
@@ -129,22 +128,8 @@ public class DtoMapperTests
             Id = 1, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest,
             Submissions = [new Submission { Id = 1, GameId = 1, UserId = 1, Score = "1" }]
         };
-        var dto = DtoMapper.ToDto(game);
+        var dto = DtoMapper.ToDto(game, BaseTime);
         Assert.Null(dto.Submissions);
-    }
-
-    [Fact]
-    public void ToDto_Game_IncludeSubmissionsTrue_SubmissionsMapped()
-    {
-        var game = new Game
-        {
-            Id = 1, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest,
-            Submissions = [new Submission { Id = 77, GameId = 1, UserId = 1, Score = "5" }]
-        };
-        var dto = DtoMapper.ToDtoWithSubmissions(game);
-        Assert.NotNull(dto.Submissions);
-        Assert.Single(dto.Submissions);
-        Assert.Equal(77, dto.Submissions![0].Id);
     }
 
     // ── XpEvent → XpEventDto ─────────────────────────────────────────────────

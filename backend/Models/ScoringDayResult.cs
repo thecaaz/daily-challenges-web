@@ -20,5 +20,5 @@ public class ScoringDayResult
     public int? WinnerUserId { get; set; }
     public User? WinnerUser { get; set; }
 
-    public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ProcessedAt { get; set; }
 }

@@ -14,5 +14,5 @@ public class UserAchievement
     [Required]
     public string AchievementId { get; set; } = string.Empty;
 
-    public DateTime UnlockedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UnlockedAt { get; set; }
 }

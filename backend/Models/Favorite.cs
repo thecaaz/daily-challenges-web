@@ -11,7 +11,7 @@ public class Favorite
 
     public int GameId { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     // Optional navigation properties
     public User? User { get; set; }

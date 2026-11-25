@@ -21,7 +21,7 @@ public class FriendRequest
 
     public FriendRequestStatus Status { get; set; } = FriendRequestStatus.Pending;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     /// <summary>Last status change (accept or decline). For a Declined request this is the decline time.</summary>
     public DateTime? UpdatedAt { get; set; }

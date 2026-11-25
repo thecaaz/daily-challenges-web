@@ -1,17 +1,20 @@
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services;
+using DailyChallenges.TestUtilities;
 using Moq;
 
 namespace DailyChallenges.Tests;
 
 public class FavoriteServiceTests
 {
+    private static readonly DateTime Now = new(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc);
+
     private static (FavoriteService Service, Mock<IFavoriteRepository> Favorites, Mock<IGameRepository> Games) Build()
     {
         var favorites = new Mock<IFavoriteRepository>();
         var games = new Mock<IGameRepository>();
-        return (new FavoriteService(favorites.Object, games.Object), favorites, games);
+        return (new FavoriteService(favorites.Object, games.Object, new FixedTimeProvider(Now)), favorites, games);
     }
 
     [Fact]
@@ -33,7 +36,7 @@ public class FavoriteServiceTests
 
         await service.AddFavoriteAsync(1, 9);
 
-        favorites.Verify(r => r.AddAsync(It.Is<Favorite>(f => f.UserId == 1 && f.GameId == 9)), Times.Once);
+        favorites.Verify(r => r.AddAsync(It.Is<Favorite>(f => f.UserId == 1 && f.GameId == 9 && f.CreatedAt == Now)), Times.Once);
     }
 
     [Fact]

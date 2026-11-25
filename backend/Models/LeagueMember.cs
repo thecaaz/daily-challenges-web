@@ -23,5 +23,5 @@ public class LeagueMember
 
     public LeagueRole Role { get; set; } = LeagueRole.Member;
 
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+    public DateTime JoinedAt { get; set; }
 }

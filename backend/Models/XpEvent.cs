@@ -39,5 +39,5 @@ public class XpEvent
     /// <summary>Freeform context (e.g. streak count, admin reason, etc.).</summary>
     public string? Details { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 }
