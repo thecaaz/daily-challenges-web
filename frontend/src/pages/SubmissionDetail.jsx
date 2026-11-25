@@ -12,20 +12,31 @@ import formatNumber from '../utils/formatNumber'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 import useAsyncData from '../hooks/useAsyncData'
+import { isScoreHidden } from '../components/SubmissionCard'
+
+function getSubmissionOrNull(id) {
+  return api.get(`/submissions/${id}`)
+    .then(r => r.data ?? null)
+    .catch(err => {
+      if (err?.response?.status === 404) return null
+      throw err
+    })
+}
+
+function SubmitterName({ submission }) {
+  if (!submission.userId) return submission.username
+  return (
+    <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+      {submission.username}
+    </Box>
+  )
+}
 
 export default function SubmissionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { data: submission, loading, error, refetch } = useAsyncData(
-    () => api.get(`/submissions/${id}`)
-      .then(r => r.data ?? null)
-      .catch(err => {
-        if (err?.response?.status === 404) return null
-        throw err
-      }),
-    [id]
-  )
+  const { data: submission, loading, error, refetch } = useAsyncData(() => getSubmissionOrNull(id), [id])
 
   if (loading) return <Loading />
   if (error) {
@@ -38,23 +49,21 @@ export default function SubmissionDetail() {
   }
   if (!submission) return <NotFound message="Submission not found" />
 
-  // Masked by the server: today's score while the viewer hasn't submitted yet.
-  const masked = submission.score == null || submission.score === ''
+  const masked = isScoreHidden(submission)
+  const scoreText = masked ? 'hidden until you submit today' : formatNumber(submission.score)
+  const missingScreenshotText = masked ? 'The screenshot is hidden until you submit your own score for today.' : 'No screenshot attached.'
+  const goBack = () => goBackOrRoute(navigate, location, `/games/${submission.gameId}`, { locationSearch: location.search, scoringDay: submission.scoringDay })
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Typography variant="h5">
-            Submission — {submission.userId ? (
-              <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
-                {submission.username}
-              </Box>
-            ) : submission.username}
+            Submission — <SubmitterName submission={submission} />
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="caption">
-              Score: {masked ? 'hidden until you submit today' : formatNumber(submission.score)} — {formatDateTime(submission.createdAt)}
+              Score: {scoreText} — {formatDateTime(submission.createdAt)}
               {submission.scoringDay && ` · Day: ${submission.scoringDay}`}
             </Typography>
             {submission.rank != null && (
@@ -67,7 +76,7 @@ export default function SubmissionDetail() {
             )}
           </Box>
         </div>
-        <AppButton onClick={() => goBackOrRoute(navigate, location, `/games/${submission.gameId}`, { locationSearch: location.search, scoringDay: submission?.scoringDay })}>Back</AppButton>
+        <AppButton onClick={goBack}>Back</AppButton>
       </div>
 
       {submission.screenshotUrl ? (
@@ -79,7 +88,7 @@ export default function SubmissionDetail() {
         />
       ) : (
         <Card sx={{ p: 2 }}>
-          <Typography variant="body1">{masked ? 'The screenshot is hidden until you submit your own score for today.' : 'No screenshot attached.'}</Typography>
+          <Typography variant="body1">{missingScreenshotText}</Typography>
         </Card>
       )}
 
