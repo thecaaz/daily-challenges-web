@@ -56,3 +56,26 @@ export function postToContentScript(message) {
 export function postToGameFrame({ gameWindow, origin }, message) {
   gameWindow.postMessage({ source: GAME_FRAME_SENDER, ...message }, origin)
 }
+
+/** The game iframe's window and origin, or null while it has neither. */
+export function gameFrameOf(iframe) {
+  const origin = iframe ? originOf(iframe.src) : null
+  if (!iframe?.contentWindow || !origin) return null
+  return { gameWindow: iframe.contentWindow, origin }
+}
+
+/**
+ * Whether `event` answers `request` ({ nonce, source, origin }): it must come
+ * from the game window the request went to, at its origin, with its nonce.
+ */
+export function isResponseToScoreRequest(event, request) {
+  if (!request?.source || event.source !== request.source) return false
+  if (!request.origin || event.origin !== request.origin) return false
+  return !!request.nonce && event.data.nonce === request.nonce
+}
+
+/** Arms one capture in the content script, then asks the game frame to request it. */
+export function requestScreenshot(gameFrame, nonce) {
+  postToContentScript({ type: MessageType.ARM_CAPTURE, nonce })
+  postToGameFrame(gameFrame, { type: MessageType.REQUEST_VISIBLE_TAB, nonce })
+}
