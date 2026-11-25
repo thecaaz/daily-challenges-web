@@ -3,7 +3,7 @@ namespace DailyChallenges.Services;
 /// <summary>
 /// Fixed-window, per-client-IP limit for /api/auth/login and /api/auth/register (config section "RateLimiting:Auth").
 /// </summary>
-public class AuthRateLimitOptions
+public sealed class AuthRateLimitOptions
 {
     public const string SectionName = "RateLimiting:Auth";
     public const string PolicyName = "auth";
@@ -14,5 +14,6 @@ public class AuthRateLimitOptions
     /// <summary>Requests allowed per client IP per window.</summary>
     public int PermitLimit { get; set; } = 10;
 
+    /// <summary>Length of one fixed window, in seconds.</summary>
     public int WindowSeconds { get; set; } = 60;
 }

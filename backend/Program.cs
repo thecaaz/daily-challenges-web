@@ -149,7 +149,7 @@ builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundS
 
 // JWT Authentication: bind typed options. The key guard lives in JwtOptionsValidator.
 builder.Services.AddOptions<JwtOptions>()
-    .Bind(builder.Configuration.GetSection("Jwt"))
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
 
