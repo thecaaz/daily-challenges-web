@@ -23,7 +23,8 @@ vi.mock('../api', () => ({
   getApiRoot: () => '',
 }))
 
-import GameSubmissions, { appendUniqueById } from '../pages/GameSubmissions'
+import GameSubmissions from '../pages/GameSubmissions'
+import { appendUniqueById } from '../hooks/useSubmissionPages'
 
 const TODAY = '2026-11-04'
 const YESTERDAY = '2026-11-03'
