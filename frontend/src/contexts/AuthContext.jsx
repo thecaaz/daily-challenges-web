@@ -95,7 +95,7 @@ function useRestoredSession(fetchMe) {
   return loading
 }
 
-/** api.js fires AUTH_EXPIRED_EVENT when a 401 couldn't be fixed by refreshing. */
+/** The api client (src/api) fires AUTH_EXPIRED_EVENT when a 401 couldn't be fixed by refreshing. */
 function useAuthExpiredListener(onExpired) {
   useEffect(() => {
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired)
