@@ -133,4 +133,22 @@ public class LevelCalculatorTests
     {
         Assert.Equal(1, Default().GetLevelFromTotalXp(-50));
     }
+
+    [Theory]
+    [InlineData(2, 100)]
+    [InlineData(3, 383)]
+    [InlineData(4, 903)]
+    [InlineData(5, 1_703)]
+    [InlineData(10, 11_106)]
+    [InlineData(20, 67_135)]
+    [InlineData(50, 689_513)]
+    public void DefaultCurve_DocumentedThresholds(int level, long totalXp)
+    {
+        var calc = Default();
+
+        Assert.Equal(totalXp, calc.TotalXpForLevel(level));
+        Assert.Equal((level, 0L, calc.XpRequiredForLevel(level)), calc.GetLevelInfo(totalXp));
+        Assert.Equal((level - 1, calc.XpRequiredForLevel(level - 1) - 1, 1L), calc.GetLevelInfo(totalXp - 1));
+    }
 }
+

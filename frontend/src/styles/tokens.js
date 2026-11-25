@@ -13,8 +13,8 @@ const light = {
   shadowCard: '0 8px 20px rgba(34,34,34,0.08), inset 0 1px 0 rgba(255,255,255,0.6)'
 }
 
+/** Dark variant chosen for readable contrast on text and surfaces. */
 const dark = {
-  // Dark variant chosen for readable contrast on text and surfaces
   bg1: '#0b1220',
   bg2: '#0f1724',
   accent: '#ff7ab6',
@@ -25,6 +25,9 @@ const dark = {
   radiusBtn: '999px',
   shadowCard: '0 8px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02)'
 }
+
+/** Trophy colour of a scoring-day winner; the same in both modes. */
+export const winnerGold = '#FFD700'
 
 export default function tokens(mode = 'light') {
   return mode === 'dark' ? dark : light

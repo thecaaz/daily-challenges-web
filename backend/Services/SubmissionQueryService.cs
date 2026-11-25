@@ -121,19 +121,19 @@ public sealed class SubmissionQueryService(
     /// </summary>
     private SubmissionDto ToAdminDto(Submission submission, DateTime currentDay)
     {
-        var dto = DtoMapper.ToDto(submission) with { ScoringDay = ScoringDayHelper.FormatScoringDay(submission.ScoringDay) };
+        var dto = DtoMapper.ToDto(submission) with { ScoringDay = ScoringDayCalculator.FormatScoringDay(submission.ScoringDay) };
         return SignScreenshotOnCurrentDay(dto, submission.ScoringDay.Date, currentDay);
     }
 
     /// <summary>A missing game falls back to a midnight UTC reset.</summary>
     private DateTime GetCurrentScoringDay(Game? game) =>
-        ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, time.GetUtcNow().UtcDateTime).Date;
+        ScoringDayCalculator.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, time.GetUtcNow().UtcDateTime).Date;
 
     public async Task<List<string>> GetAvailableDatesAsync(int gameId)
     {
         var dates = await submissions.GetAvailableDatesAsync(gameId);
         return dates
-            .Select(ScoringDayHelper.FormatScoringDay)
+            .Select(ScoringDayCalculator.FormatScoringDay)
             .Distinct()
             .OrderByDescending(day => day)
             .ToList();

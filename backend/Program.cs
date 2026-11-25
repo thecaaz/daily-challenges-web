@@ -108,7 +108,16 @@ builder.Services.AddScoped<DailyChallenges.Services.IAdminUserDeletionService, D
 builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserDeletionRepository, DailyChallenges.Repositories.EfUserDeletionRepository>();
 
 // Register services
-builder.Services.AddScoped<DailyChallenges.Services.IAuthService, DailyChallenges.Services.AuthService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IRegistrationService, DailyChallenges.Services.RegistrationService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.ILoginService, DailyChallenges.Services.LoginService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.ISessionService, DailyChallenges.Services.SessionService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.ICurrentUserService, DailyChallenges.Services.CurrentUserService>();
+builder.Services.AddScoped<DailyChallenges.Services.SessionIssuer>();
+builder.Services.AddScoped<DailyChallenges.Services.RefreshTokenRevocations>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.ISessionRepository, DailyChallenges.Repositories.EfSessionRepository>();
+builder.Services.AddSingleton<DailyChallenges.Services.JwtTokenFactory>();
+builder.Services.AddSingleton<DailyChallenges.Services.RefreshTokenReader>();
+builder.Services.AddSingleton<DailyChallenges.Services.RefreshTokenCookie>();
 builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenges.Services.LocalFileStorage>();
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
 builder.Services.AddScoped<DailyChallenges.Services.IGameQueryService, DailyChallenges.Services.GameQueryService>();
@@ -132,6 +141,8 @@ builder.Services.AddScoped<DailyChallenges.Services.Contracts.IScoreMaintenanceS
 
 // Dashboard service
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IDashboardService, DailyChallenges.Services.DashboardService>();
+builder.Services.AddScoped<DailyChallenges.Services.Dashboard.DashboardTodaySnapshotLoader>();
+builder.Services.AddScoped<DailyChallenges.Services.Dashboard.DashboardFriendActivityBuilder>();
 
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
 builder.Services.AddHttpClient(DailyChallenges.Services.ChangelogCache.ClientName,
@@ -142,14 +153,17 @@ builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, D
 
 // Achievement system
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IAchievementService, DailyChallenges.Services.AchievementService>();
+builder.Services.AddScoped<DailyChallenges.Achievements.AchievementProgressReader>();
 
 // Scoring day finalization
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
+builder.Services.AddScoped<DailyChallenges.Services.ScoringDayOutcomeRecorder>();
+builder.Services.AddScoped<DailyChallenges.Services.ScoringDayNotificationFactory>();
 builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundService>();
 
 // JWT Authentication: bind typed options. The key guard lives in JwtOptionsValidator.
 builder.Services.AddOptions<JwtOptions>()
-    .Bind(builder.Configuration.GetSection("Jwt"))
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
 

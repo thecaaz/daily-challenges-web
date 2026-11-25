@@ -57,7 +57,7 @@ internal sealed class LeagueGameSummaryCalculator(int requestingUserId, int days
             MyBestScoreValue = myBest?.ScoreValue,
             MyRank = RankOfRequester(countedRows, rankingMode),
             RecentPlays = recentDays.Select(day => gameRows.Count(r => r.ScoringDay.Date == day)).ToList(),
-            RecentPlayDays = recentDays.Select(ScoringDayHelper.FormatScoringDay).ToList(),
+            RecentPlayDays = recentDays.Select(ScoringDayCalculator.FormatScoringDay).ToList(),
         };
     }
 

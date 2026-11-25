@@ -34,5 +34,5 @@ public static class SubmissionDtoHelper
         s.ScoringDay != DateTime.MinValue ? s.ScoringDay.Date : null;
 
     private static string? FormatDayOrNull(DateTime? day) =>
-        day.HasValue ? ScoringDayHelper.FormatScoringDay(day.Value) : null;
+        day.HasValue ? ScoringDayCalculator.FormatScoringDay(day.Value) : null;
 }

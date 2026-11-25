@@ -24,7 +24,7 @@ public sealed class LeagueStandingsService(
 
         var currentDay = visibility.GetCurrentScoringDay(game);
         var day = query.ScoringDay?.Date ?? currentDay;
-        var canSeeScores = await visibility.CanSeeDayAsync(query.RequestingUserId, query.RequesterIsAdmin, game, day);
+        var canSeeScores = await visibility.CanSeeDayAsync(new ScoreViewer(query.RequestingUserId, query.RequesterIsAdmin), game, day);
         var rows = await standings.GetLeaderboardAsync(
             new LeagueGameDay(query.LeagueId, query.GameId, day),
             RankingStrategyFactory.GetStrategy(game.RankingMode));
@@ -33,7 +33,7 @@ public sealed class LeagueStandingsService(
         {
             LeagueId = query.LeagueId,
             GameId = query.GameId,
-            ScoringDay = ScoringDayHelper.FormatScoringDay(day),
+            ScoringDay = ScoringDayCalculator.FormatScoringDay(day),
             ScoresHidden = !canSeeScores,
             Entries = canSeeScores
                 ? RankedEntries(rows, ScreenshotUrlFor(day, currentDay))

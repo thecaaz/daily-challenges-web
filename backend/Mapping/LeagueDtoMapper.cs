@@ -60,7 +60,7 @@ public static class LeagueDtoMapper
             UserId = member.UserId,
             Username = member.User?.Username ?? string.Empty,
             Level = member.User?.Level ?? StartingLevel,
-            Streak = member.User != null ? StreakHelper.Effective(member.User, nowUtc) : 0,
+            Streak = member.User != null ? StreakCalculator.GetEffectiveStreak(member.User, nowUtc) : 0,
             Role = member.Role.ToString().ToLowerInvariant(),
             JoinedAt = member.JoinedAt
         };

@@ -5,7 +5,11 @@ namespace DailyChallenges.Repositories;
 public interface IScoringDayResultRepository
 {
     Task<bool> ExistsAsync(int gameId, DateTime scoringDay);
-    Task<ScoringDayResult> CreateAsync(ScoringDayResult result);
+    /// <summary>
+    /// Inserts the result row, which claims the day for one finalizer run. Returns false, leaving the row
+    /// untracked, when the day is already finalized (unique GameId/ScoringDay index); other failures throw.
+    /// </summary>
+    Task<bool> TryCreateAsync(ScoringDayResult result);
     /// <summary>The tracked result row of the game and day, or null when the day is not finalized.</summary>
     Task<ScoringDayResult?> GetAsync(int gameId, DateTime scoringDay);
     /// <summary>Deletes the row (un-finalizes the day) and flushes all pending tracked changes.</summary>

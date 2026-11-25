@@ -1,13 +1,17 @@
 namespace DailyChallenges.Achievements;
 
-public class AchievementDefinition
-{
-    public string Id { get; init; } = string.Empty;
-    public string Name { get; init; } = string.Empty;
-    public string Description { get; init; } = string.Empty;
-    /// <summary>Slug used by the frontend to map to an icon or emoji.</summary>
-    public string IconKey { get; init; } = string.Empty;
-}
+/// <summary>
+/// One achievement: unlocked when, on <see cref="Trigger"/>, the user's <see cref="Metric"/> reaches
+/// <see cref="Threshold"/>. <see cref="IconKey"/> is the slug the frontend maps to an icon or emoji.
+/// </summary>
+public sealed record AchievementDefinition(
+    string Id,
+    string Name,
+    string Description,
+    string IconKey,
+    AchievementTrigger Trigger,
+    AchievementMetric Metric,
+    int Threshold);
 
 public enum AchievementTrigger
 {
@@ -17,32 +21,41 @@ public enum AchievementTrigger
     FriendAccepted,
 }
 
+/// <summary>The user statistic an achievement threshold is compared with.</summary>
+public enum AchievementMetric
+{
+    /// <summary>All submissions the user ever made.</summary>
+    SubmissionCount,
+    /// <summary>The stored <c>User.Streak</c> (not the effective, decayed streak).</summary>
+    Streak,
+    /// <summary>Scoring days the user won.</summary>
+    DayWins,
+    Level,
+    /// <summary>1 once the user has an accepted friend, else 0.</summary>
+    AcceptedFriends,
+}
+
 public static class AchievementCatalog
 {
     public static readonly IReadOnlyList<AchievementDefinition> All = new[]
     {
-        // ── Submissions ─────────────────────────────────────────────────────
-        new AchievementDefinition { Id = "submission_first",  Name = "First Step",       Description = "Submit your first score.",               IconKey = "submit_first"  },
-        new AchievementDefinition { Id = "submission_50",     Name = "Committed",         Description = "Submit 50 scores.",                      IconKey = "submit_50"     },
-        new AchievementDefinition { Id = "submission_250",    Name = "Dedicated",         Description = "Submit 250 scores.",                     IconKey = "submit_250"    },
+        new AchievementDefinition("submission_first", "First Step",      "Submit your first score.",              "submit_first", AchievementTrigger.Submission,     AchievementMetric.SubmissionCount, 1),
+        new AchievementDefinition("submission_50",    "Committed",       "Submit 50 scores.",                     "submit_50",    AchievementTrigger.Submission,     AchievementMetric.SubmissionCount, 50),
+        new AchievementDefinition("submission_250",   "Dedicated",       "Submit 250 scores.",                    "submit_250",   AchievementTrigger.Submission,     AchievementMetric.SubmissionCount, 250),
 
-        // ── Streaks ─────────────────────────────────────────────────────────
-        new AchievementDefinition { Id = "streak_7",          Name = "Week Warrior",      Description = "Maintain a 7-day submission streak.",    IconKey = "streak_7"      },
-        new AchievementDefinition { Id = "streak_30",         Name = "Monthly Habit",     Description = "Maintain a 30-day submission streak.",   IconKey = "streak_30"     },
-        new AchievementDefinition { Id = "streak_100",        Name = "Centurion",         Description = "Maintain a 100-day submission streak.",  IconKey = "streak_100"    },
+        new AchievementDefinition("streak_7",         "Week Warrior",    "Maintain a 7-day submission streak.",   "streak_7",     AchievementTrigger.Submission,     AchievementMetric.Streak,          7),
+        new AchievementDefinition("streak_30",        "Monthly Habit",   "Maintain a 30-day submission streak.",  "streak_30",    AchievementTrigger.Submission,     AchievementMetric.Streak,          30),
+        new AchievementDefinition("streak_100",       "Centurion",       "Maintain a 100-day submission streak.", "streak_100",   AchievementTrigger.Submission,     AchievementMetric.Streak,          100),
 
-        // ── Daily wins ──────────────────────────────────────────────────────
-        new AchievementDefinition { Id = "win_1",             Name = "Winner",            Description = "Win your first scoring day.",            IconKey = "win_1"         },
-        new AchievementDefinition { Id = "win_10",            Name = "Champion",          Description = "Win 10 scoring days.",                   IconKey = "win_10"        },
-        new AchievementDefinition { Id = "win_50",            Name = "Unstoppable",       Description = "Win 50 scoring days.",                   IconKey = "win_50"        },
+        new AchievementDefinition("win_1",            "Winner",          "Win your first scoring day.",           "win_1",        AchievementTrigger.DayWin,         AchievementMetric.DayWins,         1),
+        new AchievementDefinition("win_10",           "Champion",        "Win 10 scoring days.",                  "win_10",       AchievementTrigger.DayWin,         AchievementMetric.DayWins,         10),
+        new AchievementDefinition("win_50",           "Unstoppable",     "Win 50 scoring days.",                  "win_50",       AchievementTrigger.DayWin,         AchievementMetric.DayWins,         50),
 
-        // ── Levels ──────────────────────────────────────────────────────────
-        new AchievementDefinition { Id = "level_5",           Name = "Rising Up",         Description = "Reach level 5.",                         IconKey = "level_5"       },
-        new AchievementDefinition { Id = "level_10",          Name = "Veteran",           Description = "Reach level 10.",                        IconKey = "level_10"      },
-        new AchievementDefinition { Id = "level_25",          Name = "Legend",            Description = "Reach level 25.",                        IconKey = "level_25"      },
+        new AchievementDefinition("level_5",          "Rising Up",       "Reach level 5.",                        "level_5",      AchievementTrigger.LevelUp,        AchievementMetric.Level,           5),
+        new AchievementDefinition("level_10",         "Veteran",         "Reach level 10.",                       "level_10",     AchievementTrigger.LevelUp,        AchievementMetric.Level,           10),
+        new AchievementDefinition("level_25",         "Legend",          "Reach level 25.",                       "level_25",     AchievementTrigger.LevelUp,        AchievementMetric.Level,           25),
 
-        // ── Social ──────────────────────────────────────────────────────────
-        new AchievementDefinition { Id = "first_friend",      Name = "Better Together",   Description = "Add your first friend.",                 IconKey = "first_friend"  },
+        new AchievementDefinition("first_friend",     "Better Together", "Add your first friend.",                "first_friend", AchievementTrigger.FriendAccepted, AchievementMetric.AcceptedFriends, 1),
     };
 
     private static readonly Dictionary<string, AchievementDefinition> _byId =

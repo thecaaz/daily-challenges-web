@@ -19,8 +19,8 @@ function SparklineTooltip({ active, payload }) {
 
 export default function ScoreSparkline({ history, rankingMode }) {
   const theme = useTheme()
-  // Unique per instance: several sparklines share a page.
-  const gradientId = `sparkGrad-${useId().replace(/:/g, '')}`
+  const instanceId = useId()
+  const gradientId = `sparkGrad-${instanceId.replace(/:/g, '')}`
   if (!history || history.length === 0) return null
 
   const hasValues = history.some(h => (h.scoreValue ?? h.ScoreValue) != null)
@@ -32,9 +32,9 @@ export default function ScoreSparkline({ history, rankingMode }) {
     scoringDay: h.scoringDay ?? h.ScoringDay,
     scoreValue: h.scoreValue ?? h.ScoreValue,
   }))
-  // A line needs two points: with a single value, draw it as a dot so it's visible.
   const valueCount = data.filter(d => d.scoreValue != null).length
-  const dot = valueCount === 1 ? { r: 3, fill: color, stroke: color } : false
+  const isSinglePoint = valueCount === 1
+  const singlePointAsDot = isSinglePoint ? { r: 3, fill: color, stroke: color } : false
 
   return (
     <>
@@ -53,7 +53,7 @@ export default function ScoreSparkline({ history, rankingMode }) {
             stroke={color}
             strokeWidth={1.5}
             fill={`url(#${gradientId})`}
-            dot={dot}
+            dot={singlePointAsDot}
             activeDot={{ r: 3 }}
             connectNulls={false}
             isAnimationActive={false}

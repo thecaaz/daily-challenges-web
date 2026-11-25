@@ -18,6 +18,9 @@ function sameDeps(a, b) {
  *   are ignored.
  * - `refetch()` keeps the current data visible while reloading.
  *
+ * The reset on a deps change happens during render (React's "adjust state on
+ * prop change" pattern), so stale data is never rendered with the new deps.
+ *
  * @param {() => Promise<T>} fetcher - Function returning a promise resolving to the data.
  * @param {Array} deps - Dependencies that trigger a re-fetch (like useEffect deps).
  * @returns {{ data: T|null, loading: boolean, error: boolean, refetch: () => void }}
@@ -29,8 +32,6 @@ export default function useAsyncData(fetcher, deps = []) {
   const [epoch, setEpoch] = useState(0)
   const [prevDeps, setPrevDeps] = useState(deps)
 
-  // Reset during render when the deps change (React's "adjust state on prop
-  // change" pattern) so the stale data is never rendered with the new deps.
   if (!sameDeps(prevDeps, deps)) {
     setPrevDeps(deps)
     setData(null)
@@ -61,7 +62,7 @@ export default function useAsyncData(fetcher, deps = []) {
         setLoading(false)
       })
     return () => { active = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the caller's deps decide when to refetch; fetcher is usually an inline closure
   }, [epoch, ...deps])
 
   const refetch = useCallback(() => setEpoch(e => e + 1), [])

@@ -10,6 +10,10 @@ import FavoriteButton from '../FavoriteButton'
 import useAdapter from '../../../hooks/useAdapter'
 import imageUrl from '../../../utils/imageUrl'
 
+/**
+ * A game tile linking to the game. The favourite button sits in the card
+ * actions, outside the CardActionArea link: a button can't be nested in an <a>.
+ */
 export default function GameCard({ game, sx, showSubmit = true }) {
   const adapter = useAdapter(game?.url)
 
@@ -79,7 +83,6 @@ export default function GameCard({ game, sx, showSubmit = true }) {
         {game.url && (
           <PlayButton game={game} adapter={adapter} />
         )}
-        {/* Kept outside the CardActionArea link: a button can't be nested in an <a>. */}
         <Box sx={{ ml: 'auto' }}>
           <FavoriteButton game={game} />
         </Box>

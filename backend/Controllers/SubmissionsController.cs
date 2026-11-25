@@ -19,7 +19,7 @@ public sealed class SubmissionsController(
     [HttpGet("game/{gameId}")]
     public async Task<IActionResult> GetByGame(int gameId, [FromQuery] string? scoringDay = null, [FromQuery] int page = Paging.FirstPage, [FromQuery] int pageSize = DefaultPageSize)
     {
-        if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
+        if (!ScoringDayCalculator.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
             return InvalidScoringDay();
 
         var (clampedPage, clampedPageSize) = Paging.Clamp(page, pageSize);
@@ -41,7 +41,7 @@ public sealed class SubmissionsController(
     [HttpGet("game/{gameId}/winner")]
     public async Task<IActionResult> GetWinner(int gameId, [FromQuery] string? scoringDay = null)
     {
-        if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
+        if (!ScoringDayCalculator.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
             return InvalidScoringDay();
 
         var winner = await submissionQueries.GetWinnerAsync(gameId, parsedDay, User);

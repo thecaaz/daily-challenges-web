@@ -8,6 +8,41 @@ import PlayButton from '../ui/PlayButton'
 import useAdapter from '../../hooks/useAdapter'
 import imageUrl from '../../utils/imageUrl'
 
+function GameSummary({ game, adapter, badge, badgeLabel }) {
+  const hasBadge = badge !== undefined
+
+  return (
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+        <Link to={`/games/${game.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 160 }}>
+            {game.name}
+          </Typography>
+        </Link>
+        {adapter && (
+          <Tooltip title="Playable in browser via extension">
+            <ExtensionIcon sx={{ fontSize: 15, color: 'primary.main', flexShrink: 0 }} />
+          </Tooltip>
+        )}
+        {game.hasSubmittedForLatest && (
+          <Tooltip title="Already submitted today">
+            <CheckCircleIcon sx={{ fontSize: 15, color: 'success.main', flexShrink: 0 }} />
+          </Tooltip>
+        )}
+      </Box>
+      {hasBadge && (
+        <Chip
+          label={badgeLabel}
+          size="small"
+          color="primary"
+          variant="outlined"
+          sx={{ height: 18, fontSize: '0.65rem', mt: 0.25 }}
+        />
+      )}
+    </Box>
+  )
+}
+
 export default function GameRow({ game, badge, badgeLabel }) {
   const adapter = useAdapter(game?.url)
 
@@ -24,7 +59,6 @@ export default function GameRow({ game, badge, badgeLabel }) {
         alignItems: 'center',
       }}
     >
-      {/* Game image */}
       <ListItemAvatar sx={{ minWidth: 44 }}>
         <Avatar
           src={game.imageUrl ? imageUrl(game.imageUrl) : undefined}
@@ -35,37 +69,8 @@ export default function GameRow({ game, badge, badgeLabel }) {
         </Avatar>
       </ListItemAvatar>
 
-      {/* Name + icons */}
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-          <Link to={`/games/${game.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-            <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 160 }}>
-              {game.name}
-            </Typography>
-          </Link>
-          {adapter && (
-            <Tooltip title="Playable in browser via extension">
-              <ExtensionIcon sx={{ fontSize: 15, color: 'primary.main', flexShrink: 0 }} />
-            </Tooltip>
-          )}
-          {game.hasSubmittedForLatest && (
-            <Tooltip title="Already submitted today">
-              <CheckCircleIcon sx={{ fontSize: 15, color: 'success.main', flexShrink: 0 }} />
-            </Tooltip>
-          )}
-        </Box>
-        {badge !== undefined && (
-          <Chip
-            label={badgeLabel}
-            size="small"
-            color="primary"
-            variant="outlined"
-            sx={{ height: 18, fontSize: '0.65rem', mt: 0.25 }}
-          />
-        )}
-      </Box>
+      <GameSummary game={game} adapter={adapter} badge={badge} badgeLabel={badgeLabel} />
 
-      {/* Favourite */}
       <FavoriteButton
         game={game}
         size="small"
@@ -74,7 +79,6 @@ export default function GameRow({ game, badge, badgeLabel }) {
         inactiveIconSx={{ color: 'text.secondary' }}
       />
 
-      {/* Play */}
       <PlayButton game={game} size="small" adapter={adapter} sx={{ flexShrink: 0 }} />
     </ListItem>
   )

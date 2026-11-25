@@ -138,17 +138,21 @@ public class ScoringDayFinalizationTests
         using (var scope = f.Services.CreateScope())
         {
             var sp = scope.ServiceProvider;
-            var finalizer = new ScoringDayFinalizerService(
-                sp.GetRequiredService<AppDbContext>(),
-                sp.GetRequiredService<IScoringDayResultRepository>(),
+            var recorder = new ScoringDayOutcomeRecorder(
                 sp.GetRequiredService<ISubmissionRepository>(),
-                sp.GetRequiredService<IGameRepository>(),
-                new ThrowingNotificationRepository(),
+                sp.GetRequiredService<IScoringDayResultRepository>(),
                 sp.GetRequiredService<IXpService>(),
+                new ThrowingNotificationRepository(),
+                sp.GetRequiredService<ScoringDayNotificationFactory>(),
+                f.Clock,
+                NullLogger<ScoringDayOutcomeRecorder>.Instance);
+            var finalizer = new ScoringDayFinalizerService(
+                sp.GetRequiredService<IScoringDayResultRepository>(),
+                sp.GetRequiredService<IGameRepository>(),
+                recorder,
+                sp.GetRequiredService<ITransactionRunner>(),
                 sp.GetRequiredService<IAchievementService>(),
-                sp.GetRequiredService<IOptions<XpConfig>>(),
-                NullLogger<ScoringDayFinalizerService>.Instance,
-                f.Clock);
+                NullLogger<ScoringDayFinalizerService>.Instance);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => finalizer.FinalizeScoringDayAsync(seed.GameId, Yesterday));
         }

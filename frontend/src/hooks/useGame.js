@@ -66,11 +66,14 @@ export default function useGame(gameId) {
     }
   }, [gameId])
 
-  // userId is a real dependency: hasSubmittedForLatest depends on who asks, so
-  // re-fetch when the user logs in or out.
+  useRefetchWhenViewerChanges(fetchOverview, userId)
+
+  return { game, availableDates, hasSubmittedForLatest, notFound, error, loading, refresh: fetchOverview }
+}
+
+/** hasSubmittedForLatest depends on who asks, so log-in and log-out refetch. */
+function useRefetchWhenViewerChanges(fetchOverview, userId) {
   useEffect(() => {
     fetchOverview()
   }, [fetchOverview, userId])
-
-  return { game, availableDates, hasSubmittedForLatest, notFound, error, loading, refresh: fetchOverview }
 }

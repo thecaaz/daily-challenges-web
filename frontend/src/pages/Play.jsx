@@ -25,6 +25,12 @@ export default function Play() {
     submitScore, canCapture, capturing, captureError,
   } = useScoreCapture(iframeRef, { isMaximized, url })
 
+  const cancelSubmission = () => {
+    setShowSubmission(false)
+    setCapturedFile(null)
+    setScore('')
+  }
+
   if (notFound) return <NotFound message="Game not found." />
 
   if (error && !game) {
@@ -38,6 +44,12 @@ export default function Play() {
   if (loading && !game) return <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>
   if (!game) return null
 
+  const isPlaying = Boolean(url) && !showSubmission
+  const isSubmitting = Boolean(url) && showSubmission
+  const canSubmit = canCapture && !showSubmission
+  const canMaximize = !isMaximized && !showSubmission
+  const hasCaptureFailed = showSubmission && Boolean(captureError)
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2 }}>
@@ -45,12 +57,12 @@ export default function Play() {
         {url && (
           <Box sx={{ display: 'flex', gap: 1 }}>
             <AppButton href={url} target="_blank" rel="noopener noreferrer" variant="outlined">Open in new tab</AppButton>
-            {canCapture && !showSubmission && (
+            {canSubmit && (
               <AppButton onClick={submitScore} variant="contained" disabled={capturing}>
                 {capturing ? 'Capturing…' : 'Submit score'}
               </AppButton>
             )}
-            {!isMaximized && !showSubmission && (
+            {canMaximize && (
               <Tooltip title="Maximize">
                 <IconButton onClick={() => setIsMaximized(true)} size="small" aria-label="Maximize">
                   <FullscreenIcon fontSize="small" />
@@ -61,21 +73,21 @@ export default function Play() {
         )}
       </Box>
 
-      {showSubmission && captureError && (
+      {hasCaptureFailed && (
         <Alert severity="warning" sx={{ mb: 2 }}>Automatic capture failed ({captureError}). Enter the score and add a screenshot manually.</Alert>
       )}
 
-      {!url ? (
-        <Typography>No playable URL for this game.</Typography>
-      ) : !showSubmission ? (
+      {!url && <Typography>No playable URL for this game.</Typography>}
+      {isPlaying && (
         <GameIframePlayer src={url} title={game.name} iframeRef={iframeRef} isMaximized={isMaximized} onRestore={() => setIsMaximized(false)} />
-      ) : (
+      )}
+      {isSubmitting && (
         <SubmissionForm
           gameId={gameId}
           initialScore={score}
           initialScreenshot={capturedFile}
           hasSubmitted={hasSubmittedForLatest}
-          onCancel={() => { setShowSubmission(false); setCapturedFile(null); setScore('') }}
+          onCancel={cancelSubmission}
         />
       )}
     </Box>

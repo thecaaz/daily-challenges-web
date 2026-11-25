@@ -25,7 +25,7 @@ public static class DtoMapper
             Level = level,
             XpIntoLevel = xpInto,
             XpToNextLevel = xpToNext,
-            Streak = StreakHelper.Effective(u, todayUtc),
+            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
             LastSubmissionAt = u.LastSubmissionAt
         };
     }
@@ -77,7 +77,7 @@ public static class DtoMapper
         UserId = e.UserId,
         SubmissionId = e.SubmissionId,
         GameId = e.GameId,
-        ScoringDay = e.ScoringDay.HasValue ? ScoringDayHelper.FormatScoringDay(e.ScoringDay.Value) : null,
+        ScoringDay = e.ScoringDay.HasValue ? ScoringDayCalculator.FormatScoringDay(e.ScoringDay.Value) : null,
         Amount = e.Amount,
         EventType = e.EventType,
         Details = e.Details,
@@ -90,7 +90,7 @@ public static class DtoMapper
         Message = n.Message,
         Type = n.Type,
         GameId = n.GameId,
-        ScoringDay = ScoringDayHelper.FormatScoringDay(n.ScoringDay),
+        ScoringDay = ScoringDayCalculator.FormatScoringDay(n.ScoringDay),
         Rank = n.Rank,
         ActorUserId = n.ActorUserId,
         IsRead = n.IsRead,
@@ -108,7 +108,7 @@ public static class DtoMapper
             Level = level,
             XpIntoLevel = xpInto,
             XpToNextLevel = xpToNext,
-            Streak = StreakHelper.Effective(u, todayUtc),
+            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
             LastSubmissionAt = u.LastSubmissionAt,
             TopGames = topGames ?? []
         };
@@ -134,7 +134,7 @@ public static class DtoMapper
             Username = u.Username,
             Level = level,
             TotalXp = u.TotalXp,
-            Streak = StreakHelper.Effective(u, todayUtc),
+            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
             LastSubmissionAt = u.LastSubmissionAt
         };
     }
@@ -149,10 +149,10 @@ public static class DtoMapper
         {
             try
             {
-                var day = ScoringDayHelper.GetCurrentScoringDay(resetTimeUtc, nowUtc);
-                var (utcStart, utcEnd) = ScoringDayHelper.GetScoringDayUtcRange(day, resetTimeUtc);
+                var day = ScoringDayCalculator.GetCurrentScoringDay(resetTimeUtc, nowUtc);
+                var (utcStart, utcEnd) = ScoringDayCalculator.GetScoringDayUtcRange(day, resetTimeUtc);
                 return new CurrentScoringDayWindow(
-                    ScoringDayHelper.FormatScoringDay(day),
+                    ScoringDayCalculator.FormatScoringDay(day),
                     utcStart.ToString(UtcTimestampFormat),
                     utcEnd.ToString(UtcTimestampFormat));
             }

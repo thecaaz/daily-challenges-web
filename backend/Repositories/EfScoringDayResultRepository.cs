@@ -12,11 +12,19 @@ public sealed class EfScoringDayResultRepository(AppDbContext db) : IScoringDayR
         return db.ScoringDayResults.AnyAsync(r => r.GameId == gameId && r.ScoringDay == day);
     }
 
-    public async Task<ScoringDayResult> CreateAsync(ScoringDayResult result)
+    public async Task<bool> TryCreateAsync(ScoringDayResult result)
     {
         db.ScoringDayResults.Add(result);
-        await db.SaveChangesAsync();
-        return result;
+        try
+        {
+            await db.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            db.Entry(result).State = EntityState.Detached;
+            return false;
+        }
     }
 
     public Task<ScoringDayResult?> GetAsync(int gameId, DateTime scoringDay)

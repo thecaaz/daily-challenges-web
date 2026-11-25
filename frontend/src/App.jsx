@@ -33,7 +33,6 @@ const TimeguessrDebug = lazy(() => import('./pages/TimeguessrDebug'))
 export default function App() {
   const location = useLocation()
   const { user } = useAuth()
-  // The Timeguessr debug page is a dev/admin tool only.
   const showDebugRoute = import.meta.env.DEV || !!user?.isAdmin
 
   return (

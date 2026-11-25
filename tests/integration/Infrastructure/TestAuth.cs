@@ -8,7 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DailyChallenges.IntegrationTests.Infrastructure;
 
-/// <summary>Mints access tokens with the same claims AuthService puts in a real login token.</summary>
+/// <summary>Mints access tokens with the same claims JwtTokenFactory puts in a real login token.</summary>
 public static class TestAuth
 {
     public static string CreateToken(IServiceProvider services, int userId, string username, bool isAdmin = false, TimeSpan? lifetime = null)
