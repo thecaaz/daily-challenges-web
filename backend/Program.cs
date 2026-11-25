@@ -105,6 +105,8 @@ builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenge
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
 builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionService, DailyChallenges.Services.SubmissionService>();
+builder.Services.AddScoped<DailyChallenges.Repositories.ITransactionRunner, DailyChallenges.Repositories.EfTransactionRunner>();
+builder.Services.AddScoped<DailyChallenges.Services.FinalizedDayWinnerReconciler>();
 builder.Services.AddScoped<DailyChallenges.Services.INotificationService, DailyChallenges.Services.NotificationService>();
 
 // User profile service

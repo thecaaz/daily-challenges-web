@@ -19,39 +19,33 @@ public class SubmissionService : ISubmissionService
     private readonly IGameRepository _games;
     private readonly IFileStorage _files;
     private readonly IXpService _xp;
-    private readonly AppDbContext _db;
     private readonly IUserSubmissionChecker _userSubmissionChecker;
     private readonly IAchievementService _achievements;
     private readonly ILogger<SubmissionService> _logger;
     private readonly IScoreVisibilityService _visibility;
     private readonly IScreenshotUrlSigner _signer;
-    private readonly IScoringDayResultRepository _results;
-    private readonly INotificationRepository _notifications;
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ITransactionRunner _transactions;
+    private readonly FinalizedDayWinnerReconciler _finalizedDays;
 
     public SubmissionService(
         ISubmissionRepository subs,
         IGameRepository games,
         IFileStorage files,
         IXpService xp,
-        AppDbContext db,
         IUserSubmissionChecker userSubmissionChecker,
         IAchievementService achievements,
         ILogger<SubmissionService> logger, TimeProvider time,
         IScoreVisibilityService visibility,
         IScreenshotUrlSigner signer,
-        IScoringDayResultRepository results,
-        INotificationRepository notifications,
-        IServiceScopeFactory scopeFactory)
+        ITransactionRunner transactions,
+        FinalizedDayWinnerReconciler finalizedDays)
     {
-        _results = results;
-        _notifications = notifications;
-        _scopeFactory = scopeFactory;
+        _transactions = transactions;
+        _finalizedDays = finalizedDays;
         _subs = subs;
         _games = games;
         _files = files;
         _xp = xp;
-        _db = db;
         _userSubmissionChecker = userSubmissionChecker;
         _achievements = achievements;
         _logger = logger;
@@ -245,31 +239,23 @@ public class SubmissionService : ISubmissionService
         // read-modify-write with other writers; the user row is first loaded inside it.
         Submission created;
         int xpGain = 0;
-        await using (var tx = await _db.Database.BeginTransactionAsync())
+        try
         {
-            try
+            (created, xpGain) = await _transactions.RunAsync(async () =>
             {
-                created = await _subs.CreateAsync(submission);
-
-                if (userId.HasValue)
-                    xpGain = await _xp.AwardForSubmissionAsync(userId.Value, created.Id, created.ScoringDay);
-
-                await tx.CommitAsync();
-            }
-            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.IsUniqueViolation())
-            {
-                // Lost a race with a concurrent submission for the same user/game/day (unique index).
-                await tx.RollbackAsync();
-                _db.ChangeTracker.Clear();
-                throw new ConflictException("User has already submitted for this game");
-            }
-            catch (Exception ex)
-            {
-                await tx.RollbackAsync();
-                _db.ChangeTracker.Clear();
-                _logger.LogError(ex, "Error creating submission for game {GameId} by user {UserId}", gameId, userId);
-                throw;
-            }
+                var saved = await _subs.CreateAsync(submission);
+                var gain = userId.HasValue ? await _xp.AwardForSubmissionAsync(userId.Value, saved.Id, saved.ScoringDay) : 0;
+                return (saved, gain);
+            });
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            throw new ConflictException("User has already submitted for this game");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating submission for game {GameId} by user {UserId}", gameId, userId);
+            throw;
         }
 
         // After the commit (outside the try above, so a committed transaction is never rolled back):
@@ -340,32 +326,21 @@ public class SubmissionService : ISubmissionService
     /// </summary>
     public async Task<SubmissionDto> UpdateAsync(int id, string? score)
     {
-        Submission updated;
-        bool refinalize;
-        await using (var tx = await _db.Database.BeginTransactionAsync())
+        var (updated, refinalize) = await _transactions.RunAsync(async () =>
         {
-            try
+            var s = await _subs.GetByIdAsync(id);
+            if (s == null) throw new KeyNotFoundException("Submission not found");
+            if (!string.IsNullOrWhiteSpace(score))
             {
-                var s = await _subs.GetByIdAsync(id);
-                if (s == null) throw new KeyNotFoundException("Submission not found");
-                if (!string.IsNullOrWhiteSpace(score))
-                {
-                    s.Score = score.Trim();
-                    s.ScoreValue = ScoreParser.TryParseDouble(s.Score, out var parsedScore) ? parsedScore : null;
-                }
-                updated = await _subs.UpdateAsync(s);
-                refinalize = await UnfinalizeIfWinnerChangedAsync(updated.GameId, updated.ScoringDay);
-                await tx.CommitAsync();
+                s.Score = score.Trim();
+                s.ScoreValue = ScoreParser.TryParseDouble(s.Score, out var parsedScore) ? parsedScore : null;
             }
-            catch
-            {
-                await tx.RollbackAsync();
-                _db.ChangeTracker.Clear();
-                throw;
-            }
-        }
+            var saved = await _subs.UpdateAsync(s);
+            var unfinalized = await _finalizedDays.UnfinalizeIfWinnerChangedAsync(saved.GameId, saved.ScoringDay);
+            return (saved, unfinalized);
+        });
 
-        if (refinalize) await RefinalizeAsync(updated.GameId, updated.ScoringDay);
+        if (refinalize) await _finalizedDays.RefinalizeAsync(updated.GameId, updated.ScoringDay);
 
         // Admin-only endpoint: admins may see the current day.
         var game = await _games.GetByIdWithoutBlobAsync(updated.GameId);
@@ -382,84 +357,24 @@ public class SubmissionService : ISubmissionService
     /// </summary>
     public async Task DeleteAsync(int id)
     {
-        int gameId;
-        DateTime day;
-        bool refinalize;
-        await using (var tx = await _db.Database.BeginTransactionAsync())
+        var deleted = await _transactions.RunAsync<(int GameId, DateTime Day, bool Refinalize)?>(async () =>
         {
-            try
-            {
-                var s = await _subs.GetByIdWithoutBlobAsync(id);
-                if (s == null)
-                {
-                    await tx.RollbackAsync();
-                    return;
-                }
-                gameId = s.GameId;
-                day = s.ScoringDay.Date;
+            var s = await _subs.GetByIdWithoutBlobAsync(id);
+            if (s == null) return null;
+            var day = s.ScoringDay.Date;
 
-                if (s.UserId.HasValue && s.XpAwarded is > 0)
-                    await _xp.RevokeSubmissionAsync(s.UserId.Value, s.Id, s.GameId, day, s.XpAwarded.Value, "submission_deleted");
+            if (s.UserId.HasValue && s.XpAwarded is > 0)
+                await _xp.RevokeSubmissionAsync(s.UserId.Value, s.Id, s.GameId, day, s.XpAwarded.Value, "submission_deleted");
 
-                await _subs.DeleteAsync(id);
-                refinalize = await UnfinalizeIfWinnerChangedAsync(gameId, day);
-                await tx.CommitAsync();
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                _db.ChangeTracker.Clear();
-                throw;
-            }
-        }
+            await _subs.DeleteAsync(id);
+            var unfinalized = await _finalizedDays.UnfinalizeIfWinnerChangedAsync(s.GameId, day);
+            return (s.GameId, day, unfinalized);
+        });
+        if (deleted is not (var gameId, var day, var refinalize)) return;
 
         _logger.LogInformation("Deleted submission {SubmissionId} (game {GameId}, day {Day}); re-finalizing: {Refinalize}",
             id, gameId, day.ToString("yyyy-MM-dd"), refinalize);
 
-        if (refinalize) await RefinalizeAsync(gameId, day);
-    }
-
-    /// <summary>
-    /// Runs inside the caller's transaction, after the change was saved. When the day is finalized and its
-    /// recorded winner differs from the current leader, it revokes the old winner's day_win XP (deleting the
-    /// event, so the unique index allows a new award), deletes the day's result notifications and the
-    /// ScoringDayResult row. Returns true when the caller must re-run the finalizer after committing.
-    /// </summary>
-    private async Task<bool> UnfinalizeIfWinnerChangedAsync(int gameId, DateTime scoringDay)
-    {
-        var day = scoringDay.Date;
-        var result = await _results.GetAsync(gameId, day);
-        if (result == null) return false;
-
-        var game = await _games.GetByIdWithoutBlobAsync(gameId);
-        if (game == null) return false;
-        var leader = await _subs.GetWinnerForGameAndDayAsync(gameId, day, RankingStrategyFactory.GetStrategy(game.RankingMode));
-        if (leader?.UserId == result.WinnerUserId) return false;
-
-        if (result.WinnerUserId.HasValue)
-            await _xp.RevokeDayWinAsync(result.WinnerUserId.Value, gameId, day);
-        await _notifications.DeleteDayResultNotificationsAsync(gameId, day);
-        await _results.DeleteAsync(result);
-        return true;
-    }
-
-    /// <summary>
-    /// Re-runs the (idempotent) finalizer for the day on a fresh scope, as the background job does.
-    /// Called after the admin change has committed, so a failure here must not fail the request: the
-    /// change is applied, and the day is merely left un-finalized for now.
-    /// </summary>
-    private async Task RefinalizeAsync(int gameId, DateTime scoringDay)
-    {
-        try
-        {
-            using var scope = _scopeFactory.CreateScope();
-            await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, scoringDay.Date);
-        }
-        catch (Exception ex)
-        {
-            // The background job rescans recent un-finalized days every tick and retries this one.
-            _logger.LogWarning(ex, "Re-finalizing game {GameId} day {Day} failed; the background job will retry it",
-                gameId, scoringDay.ToString("yyyy-MM-dd"));
-        }
+        if (refinalize) await _finalizedDays.RefinalizeAsync(gameId, day);
     }
 }
