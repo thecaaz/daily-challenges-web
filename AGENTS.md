@@ -67,11 +67,11 @@ Backend listens on `:5000`, sets `SQLITE_PATH` env var to locate the DB. A named
 
 ## Architecture pointers
 
-- `backend/Program.cs` — DI registration, auth setup, middleware pipeline, DB migration on startup
+- `backend/Program.cs` — composition root; calls the extension methods in `backend/Startup/` (DI registration per feature, auth setup, middleware pipeline, DB migration on startup)
 - `backend/Controllers/` — API endpoints
 - `backend/Services/` — business logic (interfaces in `Services/Contracts/`)
 - `backend/Repositories/` — data access (Ef* implementations)
-- `backend/Data/AppDbContext.cs` — EF context
+- `backend/Data/AppDbContext.cs` — EF context; per-entity model configuration in `backend/Data/Configurations/`
 - `backend/Migrations/` — EF migration files
 - `backend/Middleware/` — custom middleware (e.g., exception handling)
 - `frontend/src/main.jsx` — React entry point
