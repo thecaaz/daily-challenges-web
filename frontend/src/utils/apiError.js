@@ -10,6 +10,8 @@
 // It never stringifies an object and never returns HTML.
 
 const DEFAULT_FALLBACK = 'Something went wrong'
+/** Anything that looks like markup (e.g. an nginx error page) is unusable. */
+const MARKUP = /<[a-z!/][^>]*>/i
 const MAX_TEXT_LENGTH = 300
 
 const STATUS_MESSAGES = {
@@ -23,8 +25,7 @@ function cleanString(value) {
   if (typeof value !== 'string') return null
   const s = value.trim()
   if (!s || s.length > MAX_TEXT_LENGTH) return null
-  // Anything that looks like markup (e.g. an nginx error page) is unusable.
-  if (/<[a-z!/][^>]*>/i.test(s)) return null
+  if (MARKUP.test(s)) return null
   return s
 }
 
@@ -70,9 +71,12 @@ function messageFromStatus(status) {
   return null
 }
 
+/**
+ * Without a response at all (network error, CORS failure, timeout, or a
+ * non-axios error) the fallback is the only honest message.
+ */
 export function getApiErrorMessage(err, fallback = DEFAULT_FALLBACK) {
   const response = err?.response
-  // No response at all: network error, CORS failure, timeout, or a non-axios error.
   if (!response) return fallback
   return messageFromData(response.data) || messageFromStatus(response.status) || fallback
 }

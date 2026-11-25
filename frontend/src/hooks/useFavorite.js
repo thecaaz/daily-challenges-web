@@ -5,6 +5,12 @@ import { useAuth } from '../contexts/AuthContext'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { withRedirect } from '../utils/safeRedirect'
 
+/**
+ * Optimistic favourite toggle for a game; anonymous users are sent to log in.
+ * The local state follows `initial` when the parent updates it.
+ *
+ * @returns {{ isFavorite: boolean, toggle: () => Promise<void>, loading: boolean }}
+ */
 export default function useFavorite(gameId, initial = false) {
   const [isFavorite, setIsFavorite] = useState(Boolean(initial))
   const [loading, setLoading] = useState(false)
@@ -40,7 +46,6 @@ export default function useFavorite(gameId, initial = false) {
     }
   }
 
-  // Keep local state in sync if the parent updates the `initial` value
   useEffect(() => {
     setIsFavorite(Boolean(initial))
   }, [initial])
