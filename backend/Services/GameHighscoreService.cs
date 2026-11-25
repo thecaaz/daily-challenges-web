@@ -26,7 +26,8 @@ public sealed class GameHighscoreService(
         var currentDay = visibility.GetCurrentScoringDay(game);
         var canSeeCurrent = await visibility.CanSeeDayAsync(user, game, currentDay);
 
-        var top = await submissions.GetTopByGameByScoreValueAsync(id, TopLimit, strategy, canSeeCurrent ? null : currentDay);
+        var top = await submissions.GetTopByScoreValueAsync(
+            new TopScoresQuery(id, TopLimit) { ExcludeScoringDay = canSeeCurrent ? null : currentDay }, strategy);
         return ToRankedResult(top, currentDay);
     }
 
@@ -37,7 +38,7 @@ public sealed class GameHighscoreService(
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
         var currentDay = visibility.GetCurrentScoringDay(game);
 
-        var top = await submissions.GetTopByGameByUserByScoreValueAsync(id, userId, TopLimit, strategy);
+        var top = await submissions.GetTopByScoreValueAsync(new TopScoresQuery(id, TopLimit) { UserId = userId }, strategy);
         return ToRankedResult(top, currentDay);
     }
 

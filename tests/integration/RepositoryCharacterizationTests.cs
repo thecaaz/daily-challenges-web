@@ -43,9 +43,9 @@ public class RepositoryCharacterizationTests
         var carol = SeedSub(db.Ctx, 1, 42.5, Day1, "carol", 3);
         var repo = new EfSubmissionRepository(db.Ctx);
 
-        var byName = await repo.GetByGameFilteredAsync(1, 1, 10, "ALI", null);
-        var byNumber = await repo.GetByGameFilteredAsync(1, 1, 10, "42", null);
-        var byScoreText = await repo.GetByGameFilteredAsync(1, 1, 10, "7", null);
+        var byName = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "ALI" });
+        var byNumber = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "42" });
+        var byScoreText = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "7" });
 
         Assert.Equal(new[] { alice.Id }, byName.Items.Select(s => s.Id));
         Assert.Equal(new[] { carol.Id, alice.Id }, byNumber.Items.Select(s => s.Id));
@@ -62,10 +62,10 @@ public class RepositoryCharacterizationTests
         var third = SeedSub(db.Ctx, 1, 3, Day2, "c", 3);
         var repo = new EfSubmissionRepository(db.Ctx);
 
-        var pageZero = await repo.GetByGameFilteredAsync(1, 0, 2, null, null);
-        var pageTwo = await repo.GetByGameFilteredAsync(1, 2, 2, null, null);
-        var onDay1 = await repo.GetByGameFilteredAsync(1, 1, 10, null, Day1.AddHours(5));
-        var withoutDay2 = await repo.GetByGameFilteredAsync(1, 1, 10, "  ", null, Day2.AddHours(5));
+        var pageZero = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 0, 2));
+        var pageTwo = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 2, 2));
+        var onDay1 = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { ScoringDay = Day1.AddHours(5) });
+        var withoutDay2 = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "  ", ExcludeScoringDay = Day2.AddHours(5) });
 
         Assert.Equal(3, pageZero.TotalCount);
         Assert.Equal(new[] { third.Id, second.Id }, pageZero.Items.Select(s => s.Id));
@@ -99,8 +99,8 @@ public class RepositoryCharacterizationTests
         var repo = new EfSubmissionRepository(db.Ctx);
         var strategy = new HighestRankingStrategy();
 
-        var defaulted = await repo.GetTopByGameByScoreValueAsync(1, 0, strategy);
-        var withoutDay2 = await repo.GetTopByGameByScoreValueAsync(1, 3, strategy, Day2.AddHours(1));
+        var defaulted = await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 0), strategy);
+        var withoutDay2 = await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 3) { ExcludeScoringDay = Day2.AddHours(1) }, strategy);
 
         Assert.Equal(10, defaulted.Count);
         Assert.Equal(best.Id, defaulted[0].Id);

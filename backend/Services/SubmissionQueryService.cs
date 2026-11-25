@@ -28,7 +28,8 @@ public sealed class SubmissionQueryService(
         var excludedDay = scoringDay.HasValue || hasSubmittedForLatest ? (DateTime?)null : currentDay;
         var areScoresHidden = scoringDay?.Date == currentDay && !await visibility.CanSeeDayAsync(user, game, currentDay);
 
-        var (pageItems, totalCount) = await submissions.GetByGameFilteredAsync(gameId, page, pageSize, null, scoringDay, excludedDay);
+        var (pageItems, totalCount) = await submissions.GetByGameFilteredAsync(
+            new SubmissionPageQuery(gameId, page, pageSize) { ScoringDay = scoringDay, ExcludeScoringDay = excludedDay });
         if (areScoresHidden)
             return SubmissionDtoHelper.ToPageDto(ToMaskedDtos(pageItems), page, pageSize, hasSubmittedForLatest, totalCount, scoresHidden: true);
 

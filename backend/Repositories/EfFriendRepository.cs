@@ -5,69 +5,41 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Repositories;
 
-public class EfFriendRepository : IFriendRepository
+/// <summary>
+/// Reads are untracked and include both users: <see cref="UpdateAsync"/> attaches only the request itself,
+/// so the loaded Sender/Receiver users are never written back.
+/// </summary>
+public sealed class EfFriendRepository(AppDbContext db) : IFriendRepository
 {
-    private readonly AppDbContext _db;
-    public EfFriendRepository(AppDbContext db) => _db = db;
+    public Task<FriendRequest?> GetByIdAsync(int id) =>
+        WithUsers().FirstOrDefaultAsync(fr => fr.Id == id);
 
-    // Reads are untracked: UpdateAsync attaches only the request itself, so the loaded Sender/Receiver
-    // users are never written back.
-    public async Task<FriendRequest?> GetByIdAsync(int id)
-    {
-        return await _db.FriendRequests
-            .Include(fr => fr.Sender)
-            .Include(fr => fr.Receiver)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(fr => fr.Id == id);
-    }
+    public Task<FriendRequest?> GetExistingAsync(int userId1, int userId2) =>
+        WithUsers().FirstOrDefaultAsync(fr =>
+            (fr.SenderId == userId1 && fr.ReceiverId == userId2) ||
+            (fr.SenderId == userId2 && fr.ReceiverId == userId1));
 
-    public async Task<FriendRequest?> GetExistingAsync(int userId1, int userId2)
-    {
-        return await _db.FriendRequests
-            .Include(fr => fr.Sender)
-            .Include(fr => fr.Receiver)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(fr =>
-                (fr.SenderId == userId1 && fr.ReceiverId == userId2) ||
-                (fr.SenderId == userId2 && fr.ReceiverId == userId1));
-    }
+    public Task<FriendRequest?> GetRelationshipAsync(int requestingUserId, int targetUserId) =>
+        GetExistingAsync(requestingUserId, targetUserId);
 
-    public async Task<FriendRequest?> GetRelationshipAsync(int requestingUserId, int targetUserId)
-    {
-        return await GetExistingAsync(requestingUserId, targetUserId);
-    }
-
-    public async Task<List<FriendRequest>> GetIncomingPendingAsync(int userId)
-    {
-        return await _db.FriendRequests
-            .Include(fr => fr.Sender)
-            .Include(fr => fr.Receiver)
+    public Task<List<FriendRequest>> GetIncomingPendingAsync(int userId) =>
+        WithUsers()
             .Where(fr => fr.ReceiverId == userId && fr.Status == FriendRequestStatus.Pending)
             .OrderByDescending(fr => fr.CreatedAt)
-            .AsNoTracking()
             .ToListAsync();
-    }
 
-    public async Task<List<FriendRequest>> GetOutgoingPendingAsync(int userId)
-    {
-        return await _db.FriendRequests
-            .Include(fr => fr.Sender)
-            .Include(fr => fr.Receiver)
+    public Task<List<FriendRequest>> GetOutgoingPendingAsync(int userId) =>
+        WithUsers()
             .Where(fr => fr.SenderId == userId && fr.Status == FriendRequestStatus.Pending)
             .OrderByDescending(fr => fr.CreatedAt)
-            .AsNoTracking()
             .ToListAsync();
-    }
 
     public async Task<List<User>> GetFriendsAsync(int userId)
     {
-        var friendships = await _db.FriendRequests
-            .Include(fr => fr.Sender)
-            .Include(fr => fr.Receiver)
+        var friendships = await WithUsers()
             .Where(fr =>
                 (fr.SenderId == userId || fr.ReceiverId == userId) &&
                 fr.Status == FriendRequestStatus.Accepted)
-            .AsNoTracking()
             .ToListAsync();
 
         return friendships
@@ -75,43 +47,32 @@ public class EfFriendRepository : IFriendRepository
             .ToList();
     }
 
-    public async Task<bool> HasAcceptedFriendAsync(int userId)
-    {
-        return await _db.FriendRequests.AnyAsync(fr =>
+    public Task<bool> HasAcceptedFriendAsync(int userId) =>
+        db.FriendRequests.AnyAsync(fr =>
             fr.Status == FriendRequestStatus.Accepted &&
             (fr.SenderId == userId || fr.ReceiverId == userId));
-    }
 
+    /// <summary>Returns the saved request reloaded with its users.</summary>
     public async Task<FriendRequest> CreateAsync(FriendRequest fr)
     {
-        _db.FriendRequests.Add(fr);
-        try
-        {
-            await _db.SaveChangesAsync();
-        }
-        catch
-        {
-            // Detach the failed insert, or every later SaveChanges in this scope retries (and fails on) it.
-            _db.Entry(fr).State = EntityState.Detached;
-            throw;
-        }
-        // Reload with nav props
-        return (await GetByIdAsync(fr.Id))!;
+        db.FriendRequests.Add(fr);
+        await db.SaveInsertsOrDetachAsync([fr]);
+        return await GetSavedAsync(fr.Id);
     }
 
+    /// <summary>Marks only the request itself as modified (not its Sender/Receiver graph).</summary>
     public async Task<FriendRequest> UpdateAsync(FriendRequest fr)
     {
-        // Mark only the request itself as modified (not its Sender/Receiver graph).
-        var entry = _db.Entry(fr);
+        var entry = db.Entry(fr);
         if (entry.State == EntityState.Detached) entry.State = EntityState.Modified;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         entry.State = EntityState.Detached;
-        return (await GetByIdAsync(fr.Id))!;
+        return await GetSavedAsync(fr.Id);
     }
 
     public async Task<bool> ReopenDeclinedAsync(int id, int senderId, int receiverId, DateTime nowUtc)
     {
-        var rows = await _db.FriendRequests
+        var rows = await db.FriendRequests
             .Where(fr => fr.Id == id && fr.Status == FriendRequestStatus.Declined)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(fr => fr.SenderId, senderId)
@@ -124,9 +85,19 @@ public class EfFriendRepository : IFriendRepository
 
     public async Task DeleteAsync(int id)
     {
-        var fr = await _db.FriendRequests.FirstOrDefaultAsync(f => f.Id == id);
+        var fr = await db.FriendRequests.FirstOrDefaultAsync(f => f.Id == id);
         if (fr == null) return;
-        _db.FriendRequests.Remove(fr);
-        await _db.SaveChangesAsync();
+
+        db.FriendRequests.Remove(fr);
+        await db.SaveChangesAsync();
     }
+
+    private IQueryable<FriendRequest> WithUsers() =>
+        db.FriendRequests
+            .Include(fr => fr.Sender)
+            .Include(fr => fr.Receiver)
+            .AsNoTracking();
+
+    /// <summary>The row was just saved in this scope, so the reload finds it.</summary>
+    private async Task<FriendRequest> GetSavedAsync(int id) => (await GetByIdAsync(id))!;
 }

@@ -7,9 +7,8 @@ public interface ISubmissionRepository
 {
     Task<List<Submission>> GetByGameAsync(int gameId);
     Task<List<Submission>> GetByGamePagedAsync(int gameId, int page, int pageSize);
-    /// <summary>Best scored submissions, ordered and limited in SQL. Rows of <paramref name="excludeScoringDay"/> are left out.</summary>
-    Task<List<Submission>> GetTopByGameByScoreValueAsync(int gameId, int top, IRankingStrategy strategy, DateTime? excludeScoringDay = null);
-    Task<List<Submission>> GetTopByGameByUserByScoreValueAsync(int gameId, int userId, int top, IRankingStrategy strategy);
+    /// <summary>Best scored submissions, ordered and limited in SQL (see <see cref="TopScoresQuery"/>).</summary>
+    Task<List<Submission>> GetTopByScoreValueAsync(TopScoresQuery query, IRankingStrategy strategy);
     Task<List<Submission>> GetByGameAndDayByScoreValueAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy);
     Task<Submission?> GetByGameAndUserAsync(int gameId, int userId);
     /// <summary>True when the user has a submission for the game on the stored scoring day.</summary>
@@ -27,7 +26,8 @@ public interface ISubmissionRepository
     /// of each. Blob-free; ordered by game recency, then newest first within a game.
     /// </summary>
     Task<List<Submission>> GetRecentActivityByUsersAsync(IReadOnlyCollection<int> userIds, DateTime since, int maxGames, int perGame);
-    Task<(List<Submission> Items, int TotalCount)> GetByGameFilteredAsync(int gameId, int page, int pageSize, string? search, DateTime? scoringDay, DateTime? excludeScoringDay = null);
+    /// <summary>One page of the game's submissions, newest first, and the total count of matching rows.</summary>
+    Task<(List<Submission> Items, int TotalCount)> GetByGameFilteredAsync(SubmissionPageQuery query);
     Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy);
     Task<List<Submission>> GetWinnersForGameAndDaysAsync(int gameId, List<DateTime> days, IRankingStrategy strategy);
     Task<List<DateTime>> GetAvailableDatesAsync(int gameId);
@@ -55,4 +55,25 @@ public interface ISubmissionRepository
     Task<(byte[]? Data, string? ContentType)> GetBlobAsync(int id);
     Task<Submission> UpdateAsync(Submission submission);
     Task DeleteAsync(int id);
+}
+
+/// <summary>
+/// The best <see cref="Top"/> scored submissions of a game (10 when <see cref="Top"/> is below 1),
+/// optionally only one user's, and without the rows of <see cref="ExcludeScoringDay"/>.
+/// </summary>
+public sealed record TopScoresQuery(int GameId, int Top)
+{
+    public int? UserId { get; init; }
+    public DateTime? ExcludeScoringDay { get; init; }
+}
+
+/// <summary>
+/// A 1-based page (a page below 1 reads as the first) of a game's submissions. <see cref="Search"/> matches
+/// username or score text case-insensitively, and for an integer term also score values within 0.01 of it.
+/// </summary>
+public sealed record SubmissionPageQuery(int GameId, int Page, int PageSize)
+{
+    public string? Search { get; init; }
+    public DateTime? ScoringDay { get; init; }
+    public DateTime? ExcludeScoringDay { get; init; }
 }

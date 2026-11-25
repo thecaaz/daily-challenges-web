@@ -4,94 +4,76 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Repositories;
 
-public class EfNotificationRepository : INotificationRepository
+public sealed class EfNotificationRepository(AppDbContext db) : INotificationRepository
 {
-    private readonly AppDbContext _db;
-    public EfNotificationRepository(AppDbContext db) => _db = db;
+    private const int DefaultPageSize = 20;
 
+    /// <summary>Newest first. A page below 1 reads as the first page, a page size below 1 as <see cref="DefaultPageSize"/>.</summary>
     public async Task<(List<Notification> Items, int TotalCount, int UnreadCount)> GetByUserPagedAsync(int userId, int page, int pageSize)
     {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 20;
-
-        var q = _db.Notifications.Where(n => n.UserId == userId);
-        var total = await q.CountAsync();
-        var unread = await q.CountAsync(n => !n.IsRead);
-
-        var items = await q
+        var forUser = db.Notifications.Where(n => n.UserId == userId);
+        var total = await forUser.CountAsync();
+        var unread = await forUser.CountAsync(n => !n.IsRead);
+        var items = await forUser
             .OrderByDescending(n => n.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .TakePage(page, pageSize.ValidPageSizeOr(DefaultPageSize))
             .AsNoTracking()
             .ToListAsync();
 
         return (items, total, unread);
     }
 
-    public async Task<int> GetUnreadCountAsync(int userId)
-    {
-        return await _db.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
-    }
+    public Task<int> GetUnreadCountAsync(int userId) =>
+        db.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
 
     public async Task MarkReadAsync(int id, int userId)
     {
-        var n = await _db.Notifications.FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
-        if (n == null) return;
-        n.IsRead = true;
-        await _db.SaveChangesAsync();
+        var notification = await db.Notifications.FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+        if (notification == null) return;
+
+        notification.IsRead = true;
+        await db.SaveChangesAsync();
     }
 
-    public async Task MarkAllReadAsync(int userId)
-    {
-        await _db.Notifications
+    public Task MarkAllReadAsync(int userId) =>
+        db.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
-    }
 
     public async Task CreateBatchAsync(List<Notification> notifications)
     {
         if (notifications.Count == 0) return;
-        _db.Notifications.AddRange(notifications);
-        try
-        {
-            await _db.SaveChangesAsync();
-        }
-        catch
-        {
-            // Detach the failed inserts, or every later SaveChanges in this scope retries (and fails on) them.
-            foreach (var n in notifications) _db.Entry(n).State = EntityState.Detached;
-            throw;
-        }
+
+        db.Notifications.AddRange(notifications);
+        await db.SaveInsertsOrDetachAsync(notifications);
     }
 
-    public async Task<bool> HasRecentUnreadFromActorAsync(int userId, string type, int actorUserId, DateTime sinceUtc)
-    {
-        return await _db.Notifications.AnyAsync(n =>
+    public Task<bool> HasRecentUnreadFromActorAsync(int userId, string type, int actorUserId, DateTime sinceUtc) =>
+        db.Notifications.AnyAsync(n =>
             n.UserId == userId &&
             n.Type == type &&
             n.ActorUserId == actorUserId &&
             !n.IsRead &&
             n.CreatedAt >= sinceUtc);
-    }
 
-    public async Task<Notification?> GetByIdAsync(int id)
-    {
-        return await _db.Notifications.FirstOrDefaultAsync(n => n.Id == id);
-    }
+    public Task<Notification?> GetByIdAsync(int id) =>
+        db.Notifications.FirstOrDefaultAsync(n => n.Id == id);
 
     public async Task DeleteAsync(int id)
     {
-        var n = await _db.Notifications.FirstOrDefaultAsync(n => n.Id == id);
-        if (n == null) return;
-        _db.Notifications.Remove(n);
-        await _db.SaveChangesAsync();
+        var notification = await db.Notifications.FirstOrDefaultAsync(n => n.Id == id);
+        if (notification == null) return;
+
+        db.Notifications.Remove(notification);
+        await db.SaveChangesAsync();
     }
 
     public Task<int> DeleteDayResultNotificationsAsync(int gameId, DateTime scoringDay)
     {
         var day = scoringDay.Date;
-        return _db.Notifications
-            .Where(n => n.GameId == gameId && n.ScoringDay == day && (n.Type == "day_win" || n.Type == "day_placement"))
+        return db.Notifications
+            .Where(n => n.GameId == gameId && n.ScoringDay == day
+                && (n.Type == NotificationTypes.DayWin || n.Type == NotificationTypes.DayPlacement))
             .ExecuteDeleteAsync();
     }
 }

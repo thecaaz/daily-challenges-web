@@ -4,30 +4,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Repositories;
 
-public class EfGameRepository : IGameRepository
+public sealed class EfGameRepository(AppDbContext db) : IGameRepository
 {
-    private readonly AppDbContext _db;
-    public EfGameRepository(AppDbContext db) => _db = db;
-
-    public async Task<List<Game>> GetAllAsync()
-    {
-        return await _db.Games.SelectWithoutBlob().ToListAsync();
-    }
+    public Task<List<Game>> GetAllAsync() =>
+        db.Games.SelectWithoutBlob().ToListAsync();
 
     /// <summary>Tracked, full entity (including the image blob). Write paths rely on tracking.</summary>
-    public async Task<Game?> GetByIdAsync(int id)
-    {
-        return await _db.Games.FirstOrDefaultAsync(g => g.Id == id);
-    }
+    public Task<Game?> GetByIdAsync(int id) =>
+        db.Games.FirstOrDefaultAsync(g => g.Id == id);
 
-    public async Task<Game?> GetByIdWithoutBlobAsync(int id)
-    {
-        return await _db.Games.Where(g => g.Id == id).SelectWithoutBlob().FirstOrDefaultAsync();
-    }
+    public Task<Game?> GetByIdWithoutBlobAsync(int id) =>
+        db.Games.Where(g => g.Id == id).SelectWithoutBlob().FirstOrDefaultAsync();
 
     public async Task<(byte[]? Data, string? ContentType)> GetBlobAsync(int id)
     {
-        var row = await _db.Games
+        var row = await db.Games
             .Where(g => g.Id == id)
             .Select(g => new { g.ScreenshotData, g.ScreenshotContentType })
             .FirstOrDefaultAsync();
@@ -36,34 +27,38 @@ public class EfGameRepository : IGameRepository
 
     public async Task<Game> CreateAsync(Game game)
     {
-        _db.Games.Add(game);
-        await _db.SaveChangesAsync();
+        db.Games.Add(game);
+        await db.SaveChangesAsync();
         return game;
     }
 
+    /// <summary>Copies the editable fields; the image only when a new, non-empty one is given.</summary>
     public async Task<Game> UpdateAsync(Game game)
     {
-        var existing = await _db.Games.FirstOrDefaultAsync(g => g.Id == game.Id);
-        if (existing == null) throw new KeyNotFoundException("Game not found");
+        var existing = await db.Games.FirstOrDefaultAsync(g => g.Id == game.Id)
+            ?? throw new KeyNotFoundException("Game not found");
+
         existing.Name = game.Name;
         existing.Url = game.Url;
         existing.ResetTime = game.ResetTime;
         existing.Description = game.Description;
         existing.RankingMode = game.RankingMode;
-        if (game.ScreenshotData != null && game.ScreenshotData.Length > 0)
+        if (game.ScreenshotData is { Length: > 0 })
         {
             existing.ScreenshotData = game.ScreenshotData;
             existing.ScreenshotContentType = game.ScreenshotContentType;
         }
-        await _db.SaveChangesAsync();
+
+        await db.SaveChangesAsync();
         return existing;
     }
 
     public async Task DeleteAsync(int id)
     {
-        var existing = await _db.Games.FindAsync(id);
+        var existing = await db.Games.FindAsync(id);
         if (existing == null) return;
-        _db.Games.Remove(existing);
-        await _db.SaveChangesAsync();
+
+        db.Games.Remove(existing);
+        await db.SaveChangesAsync();
     }
 }

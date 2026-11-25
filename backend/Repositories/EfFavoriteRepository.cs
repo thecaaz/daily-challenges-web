@@ -4,50 +4,33 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Repositories;
 
-public class EfFavoriteRepository : IFavoriteRepository
+public sealed class EfFavoriteRepository(AppDbContext db) : IFavoriteRepository
 {
-    private readonly AppDbContext _db;
-    public EfFavoriteRepository(AppDbContext db) => _db = db;
+    public Task<bool> ExistsAsync(int userId, int gameId) =>
+        db.Favorites.AnyAsync(f => f.UserId == userId && f.GameId == gameId);
 
-    public async Task<bool> ExistsAsync(int userId, int gameId)
-    {
-        return await _db.Favorites.AnyAsync(f => f.UserId == userId && f.GameId == gameId);
-    }
-
-    /// <summary>Adds the favorite; adding one that already exists (also concurrently) is a no-op.</summary>
+    /// <summary>
+    /// Adds the favorite; adding one that already exists is a no-op. A concurrent request (double click)
+    /// that inserted it first fails the unique index, which also means the favorite exists, as asked.
+    /// </summary>
     public async Task AddAsync(Favorite favorite)
     {
         if (await ExistsAsync(favorite.UserId, favorite.GameId)) return;
-        _db.Favorites.Add(favorite);
-        try
-        {
-            await _db.SaveChangesAsync();
-        }
-        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
-        {
-            // A concurrent request (double click) inserted it first: the favorite exists, which is what was asked.
-            _db.Entry(favorite).State = EntityState.Detached;
-        }
-        catch
-        {
-            _db.Entry(favorite).State = EntityState.Detached;
-            throw;
-        }
+        await db.TryInsertAsync(favorite);
     }
 
     public async Task RemoveAsync(int userId, int gameId)
     {
-        var existing = await _db.Favorites.FirstOrDefaultAsync(f => f.UserId == userId && f.GameId == gameId);
+        var existing = await db.Favorites.FirstOrDefaultAsync(f => f.UserId == userId && f.GameId == gameId);
         if (existing == null) return;
-        _db.Favorites.Remove(existing);
-        await _db.SaveChangesAsync();
+
+        db.Favorites.Remove(existing);
+        await db.SaveChangesAsync();
     }
 
-    public async Task<List<int>> GetFavoriteGameIdsForUserAsync(int userId)
-    {
-        return await _db.Favorites
+    public Task<List<int>> GetFavoriteGameIdsForUserAsync(int userId) =>
+        db.Favorites
             .Where(f => f.UserId == userId)
             .Select(f => f.GameId)
             .ToListAsync();
-    }
 }
