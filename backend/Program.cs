@@ -107,7 +107,16 @@ builder.Services.AddScoped<DailyChallenges.Services.IAdminUserDeletionService, D
 builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserDeletionRepository, DailyChallenges.Repositories.EfUserDeletionRepository>();
 
 // Register services
-builder.Services.AddScoped<DailyChallenges.Services.IAuthService, DailyChallenges.Services.AuthService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IRegistrationService, DailyChallenges.Services.RegistrationService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.ILoginService, DailyChallenges.Services.LoginService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.ISessionService, DailyChallenges.Services.SessionService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.ICurrentUserService, DailyChallenges.Services.CurrentUserService>();
+builder.Services.AddScoped<DailyChallenges.Services.SessionIssuer>();
+builder.Services.AddScoped<DailyChallenges.Services.RefreshTokenRevocations>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.ISessionRepository, DailyChallenges.Repositories.EfSessionRepository>();
+builder.Services.AddSingleton<DailyChallenges.Services.JwtTokenFactory>();
+builder.Services.AddSingleton<DailyChallenges.Services.RefreshTokenReader>();
+builder.Services.AddSingleton<DailyChallenges.Services.RefreshTokenCookie>();
 builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenges.Services.LocalFileStorage>();
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
 builder.Services.AddScoped<DailyChallenges.Services.IGameQueryService, DailyChallenges.Services.GameQueryService>();
@@ -146,7 +155,7 @@ builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundS
 
 // JWT Authentication: bind typed options. The key guard lives in JwtOptionsValidator.
 builder.Services.AddOptions<JwtOptions>()
-    .Bind(builder.Configuration.GetSection("Jwt"))
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
 

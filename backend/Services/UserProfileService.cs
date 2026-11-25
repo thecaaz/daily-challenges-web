@@ -1,95 +1,71 @@
 using System.Security.Claims;
 using DailyChallenges.DTOs;
 using DailyChallenges.Mapping;
+using DailyChallenges.Models;
 using DailyChallenges.Repositories;
+using DailyChallenges.Services.Contracts;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace DailyChallenges.Services;
 
-public class UserProfileService : Contracts.IUserProfileService
+public sealed class UserProfileService(
+    IUserProfileRepository profiles,
+    ISubmissionRepository submissions,
+    IGameRepository games,
+    LevelCalculator levels,
+    IMemoryCache cache,
+    TimeProvider time) : IUserProfileService
 {
-    private readonly TimeProvider _time;
-    private readonly IUserProfileRepository _repo;
-    private readonly ISubmissionRepository _submissionRepo;
-    private readonly IGameRepository _games;
-    private readonly LevelCalculator _levelCalc;
-    private readonly IMemoryCache _cache;
-    private readonly TimeSpan _cacheTtl = TimeSpan.FromSeconds(60);
+    private const int SparklineDays = 30;
+    private const string SparklineDayFormat = "yyyy-MM-dd";
+    private const string AllDaysCacheScope = "all";
+    private const string PastDaysCacheScope = "past";
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
-    public UserProfileService(IUserProfileRepository repo, ISubmissionRepository submissionRepo, IGameRepository games, LevelCalculator levelCalc, IMemoryCache cache, TimeProvider time)
-    {
-        _repo = repo;
-        _submissionRepo = submissionRepo;
-        _games = games;
-        _levelCalc = levelCalc;
-        _cache = cache;
-        _time = time;
-    }
+    /// <summary>The user, the games' current scoring days and the submissions the viewer may not see.</summary>
+    private sealed record ProfileScope(int UserId, Dictionary<int, DateTime> CurrentDayByGame, HashSet<int> HiddenSubmissionIds);
 
+    /// <summary>
+    /// Hidden-scores rule, simplified so the cache still works: each game's current scoring day is
+    /// left out unless the viewer is the profile owner or an admin (stricter than the full rule).
+    /// </summary>
     public async Task<UserProfileDto?> GetProfileAsync(int userId, int topGames = 10, ClaimsPrincipal? viewer = null)
     {
-        // Hidden-scores rule, simplified so the cache still works: each game's current scoring day is
-        // left out unless the viewer is the profile owner or an admin (stricter than the full rule).
-        var canSeeCurrent = viewer.GetUserId() == userId || viewer.IsAdmin();
+        var canSeeCurrentDay = viewer.GetUserId() == userId || viewer.IsAdmin();
+        var cacheKey = CacheKey(userId, topGames, canSeeCurrentDay);
+        if (cache.TryGetValue<UserProfileDto?>(cacheKey, out var cached)) return cached;
 
-        var key = $"UserProfile:{userId}:{topGames}:{(canSeeCurrent ? "all" : "past")}";
-        if (_cache.TryGetValue<UserProfileDto?>(key, out var cached)) return cached;
+        var profile = await BuildProfileAsync(userId, topGames, canSeeCurrentDay);
+        if (profile == null) return null;
 
-        var user = await _repo.GetByIdAsync(userId);
+        cache.Set(cacheKey, profile, CacheTtl);
+        return profile;
+    }
+
+    private static string CacheKey(int userId, int topGames, bool canSeeCurrentDay) =>
+        $"UserProfile:{userId}:{topGames}:{(canSeeCurrentDay ? AllDaysCacheScope : PastDaysCacheScope)}";
+
+    private async Task<UserProfileDto?> BuildProfileAsync(int userId, int topGames, bool canSeeCurrentDay)
+    {
+        var user = await profiles.GetByIdAsync(userId);
         if (user == null) return null;
 
-        var now = _time.GetUtcNow().UtcDateTime;
-        var games = await _games.GetAllAsync();
-        var currentDayByGame = games.ToDictionary(g => g.Id, g => ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, now).Date);
+        var now = time.GetUtcNow().UtcDateTime;
+        var scope = await GetProfileScopeAsync(userId, canSeeCurrentDay, now);
+        var top = await profiles.GetMostPlayedGamesAsync(userId, topGames, scope.HiddenSubmissionIds);
+        await AttachScoreHistoryAsync(scope, top, now);
 
-        var hiddenIds = canSeeCurrent ? new HashSet<int>() : await GetCurrentDaySubmissionIdsAsync(userId, currentDayByGame);
+        var profile = DtoMapper.ToUserProfileDto(user, top, levels, now);
+        profile.ScoresHidden = scope.HiddenSubmissionIds.Count > 0;
+        return profile;
+    }
 
-        var top = await _repo.GetMostPlayedGamesAsync(userId, topGames, hiddenIds);
-
-        if (top.Count > 0)
-        {
-            var gameIds = top.Select(g => g.GameId).ToList();
-
-            // Sparkline: the last 30 scoring days of each game, ending at that game's current scoring day
-            // (a late reset can make "today" tomorrow's UTC date). Query the union, filter per game.
-            const int window = 30;
-            var gameDays = gameIds.Where(currentDayByGame.ContainsKey).Select(id => currentDayByGame[id]).ToList();
-            var maxDay = gameDays.Count > 0 ? gameDays.Max() : now.Date;
-            var minDay = (gameDays.Count > 0 ? gameDays.Min() : now.Date).AddDays(-(window - 1));
-            var unionDays = Enumerable.Range(0, (maxDay - minDay).Days + 1).Select(i => minDay.AddDays(i)).ToList();
-
-            var history = (await _submissionRepo.GetByUserAndGamesAndDaysAsync(userId, gameIds, unionDays))
-                .Where(s => !hiddenIds.Contains(s.Id))
-                .Where(s => currentDayByGame.TryGetValue(s.GameId, out var current)
-                         && s.ScoringDay.Date <= current
-                         && s.ScoringDay.Date > current.AddDays(-window));
-
-            var historyByGame = history
-                .GroupBy(s => s.GameId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderBy(s => s.ScoringDay)
-                          .Select(s => new ScoreHistoryEntryDto
-                          {
-                              ScoringDay = s.ScoringDay.ToString("yyyy-MM-dd"),
-                              ScoreValue = s.ScoreValue
-                          })
-                          .ToList()
-                );
-
-            foreach (var game in top)
-            {
-                if (historyByGame.TryGetValue(game.GameId, out var gameHistory))
-                    game.ScoreHistory = gameHistory;
-            }
-        }
-
-        var dto = DtoMapper.ToUserProfileDto(user, top, _levelCalc, _time.GetUtcNow().UtcDateTime);
-        dto.ScoresHidden = hiddenIds.Count > 0;
-
-        _cache.Set(key, dto, _cacheTtl);
-
-        return dto;
+    private async Task<ProfileScope> GetProfileScopeAsync(int userId, bool canSeeCurrentDay, DateTime now)
+    {
+        var allGames = await games.GetAllAsync();
+        var currentDayByGame = allGames.ToDictionary(g => g.Id, g => ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, now).Date);
+        var hiddenIds = canSeeCurrentDay ? new HashSet<int>() : await GetCurrentDaySubmissionIdsAsync(userId, currentDayByGame);
+        return new ProfileScope(userId, currentDayByGame, hiddenIds);
     }
 
     /// <summary>Ids of the user's submissions that are on their game's current scoring day.</summary>
@@ -97,7 +73,7 @@ public class UserProfileService : Contracts.IUserProfileService
     {
         if (currentDayByGame.Count == 0) return new HashSet<int>();
 
-        var candidates = await _submissionRepo.GetByUserAndGamesAndDaysAsync(
+        var candidates = await submissions.GetByUserAndGamesAndDaysAsync(
             userId, currentDayByGame.Keys.ToList(), currentDayByGame.Values.Distinct().ToList());
 
         return candidates
@@ -105,4 +81,53 @@ public class UserProfileService : Contracts.IUserProfileService
             .Select(s => s.Id)
             .ToHashSet();
     }
+
+    /// <summary>
+    /// Sparkline: the last 30 scoring days of each game, ending at that game's current scoring day
+    /// (a late reset can make "today" tomorrow's UTC date). One query over the union of those days,
+    /// then filtered per game.
+    /// </summary>
+    private async Task AttachScoreHistoryAsync(ProfileScope scope, List<UserGameStatDto> topGames, DateTime now)
+    {
+        if (topGames.Count == 0) return;
+
+        var gameIds = topGames.Select(g => g.GameId).ToList();
+        var candidates = await submissions.GetByUserAndGamesAndDaysAsync(
+            scope.UserId, gameIds, GetSparklineDayUnion(gameIds, scope.CurrentDayByGame, now));
+
+        var historyByGame = candidates
+            .Where(s => !scope.HiddenSubmissionIds.Contains(s.Id))
+            .Where(s => IsInSparklineWindow(s, scope.CurrentDayByGame))
+            .GroupBy(s => s.GameId)
+            .ToDictionary(g => g.Key, ToScoreHistory);
+
+        foreach (var game in topGames)
+        {
+            if (historyByGame.TryGetValue(game.GameId, out var gameHistory))
+                game.ScoreHistory = gameHistory;
+        }
+    }
+
+    private static List<DateTime> GetSparklineDayUnion(List<int> gameIds, Dictionary<int, DateTime> currentDayByGame, DateTime now)
+    {
+        var gameDays = gameIds.Where(currentDayByGame.ContainsKey).Select(id => currentDayByGame[id]).ToList();
+        var lastDay = gameDays.Count > 0 ? gameDays.Max() : now.Date;
+        var firstDay = (gameDays.Count > 0 ? gameDays.Min() : now.Date).AddDays(-(SparklineDays - 1));
+        return Enumerable.Range(0, (lastDay - firstDay).Days + 1).Select(i => firstDay.AddDays(i)).ToList();
+    }
+
+    private static bool IsInSparklineWindow(Submission submission, Dictionary<int, DateTime> currentDayByGame) =>
+        currentDayByGame.TryGetValue(submission.GameId, out var current)
+        && submission.ScoringDay.Date <= current
+        && submission.ScoringDay.Date > current.AddDays(-SparklineDays);
+
+    private static List<ScoreHistoryEntryDto> ToScoreHistory(IEnumerable<Submission> gameSubmissions) =>
+        gameSubmissions
+            .OrderBy(s => s.ScoringDay)
+            .Select(s => new ScoreHistoryEntryDto
+            {
+                ScoringDay = s.ScoringDay.ToString(SparklineDayFormat),
+                ScoreValue = s.ScoreValue
+            })
+            .ToList();
 }
