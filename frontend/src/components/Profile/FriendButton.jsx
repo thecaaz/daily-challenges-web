@@ -11,6 +11,27 @@ import { getApiErrorMessage } from '../../utils/apiError'
 import useConfirm from '../../hooks/useConfirm'
 import ConfirmDialog from '../ui/ConfirmDialog'
 
+async function cancelSentRequestTo(targetUserId) {
+  const res = await api.get('/friends/requests/sent')
+  const sentRequest = res.data.find(r => r.receiverId === targetUserId)
+  if (sentRequest) await api.delete(`/friends/requests/${sentRequest.id}`)
+}
+
+async function findIncomingRequestFrom(targetUserId) {
+  const res = await api.get('/friends/requests/incoming')
+  return res.data.find(r => r.senderId === targetUserId)
+}
+
+async function acceptRequestFrom(targetUserId) {
+  const incomingRequest = await findIncomingRequestFrom(targetUserId)
+  if (incomingRequest) await api.post(`/friends/requests/${incomingRequest.id}/accept`)
+}
+
+async function declineRequestFrom(targetUserId) {
+  const incomingRequest = await findIncomingRequestFrom(targetUserId)
+  if (incomingRequest) await api.post(`/friends/requests/${incomingRequest.id}/reject`)
+}
+
 export default function FriendButton({ targetUserId }) {
   const { user } = useAuth()
   const { showSnackbar } = useSnackbar()
@@ -18,8 +39,8 @@ export default function FriendButton({ targetUserId }) {
   const [busy, setBusy] = useState(false)
   const { confirm, dialogProps } = useConfirm()
 
-  // Don't render if not logged in or viewing own profile
-  if (!user || user.id === targetUserId) return null
+  const isOwnProfileOrLoggedOut = !user || user.id === targetUserId
+  if (isOwnProfileOrLoggedOut) return null
 
   const handle = async (action) => {
     setBusy(true)
@@ -68,14 +89,7 @@ export default function FriendButton({ targetUserId }) {
           color="inherit"
           startIcon={busy ? <CircularProgress size={14} /> : <HourglassEmptyIcon />}
           disabled={busy}
-          onClick={() =>
-            handle(async () => {
-              // Need the request id — fetch sent requests to find it
-              const res = await api.get('/friends/requests/sent')
-              const req = res.data.find(r => r.receiverId === targetUserId)
-              if (req) await api.delete(`/friends/requests/${req.id}`)
-            })
-          }
+          onClick={() => handle(() => cancelSentRequestTo(targetUserId))}
         >
           Request Sent — Cancel
         </Button>
@@ -92,13 +106,7 @@ export default function FriendButton({ targetUserId }) {
           color="success"
           startIcon={busy ? <CircularProgress size={14} /> : <CheckIcon />}
           disabled={busy}
-          onClick={() =>
-            handle(async () => {
-              const res = await api.get('/friends/requests/incoming')
-              const req = res.data.find(r => r.senderId === targetUserId)
-              if (req) await api.post(`/friends/requests/${req.id}/accept`)
-            })
-          }
+          onClick={() => handle(() => acceptRequestFrom(targetUserId))}
         >
           Accept
         </Button>
@@ -107,13 +115,7 @@ export default function FriendButton({ targetUserId }) {
           variant="outlined"
           color="error"
           disabled={busy}
-          onClick={() =>
-            handle(async () => {
-              const res = await api.get('/friends/requests/incoming')
-              const req = res.data.find(r => r.senderId === targetUserId)
-              if (req) await api.post(`/friends/requests/${req.id}/reject`)
-            })
-          }
+          onClick={() => handle(() => declineRequestFrom(targetUserId))}
         >
           Decline
         </Button>

@@ -6,8 +6,10 @@ function pad(n) {
   return String(n).padStart(2, '0')
 }
 
-// Small grace period after the reset before `onExpire` fires, so the server has
-// rolled over to the new scoring day when the parent refetches.
+/**
+ * Small grace period after the reset before `onExpire` fires, so the server has
+ * rolled over to the new scoring day when the parent refetches.
+ */
 const EXPIRE_GRACE_MS = 1500
 
 /**
@@ -31,19 +33,23 @@ export default function Countdown({ targetDate, onExpire }) {
 
     let interval = null
     let expireTimer = null
+    const stopTicking = () => {
+      if (interval) clearInterval(interval)
+      interval = null
+    }
+    const scheduleExpireOncePerTarget = () => {
+      if (expireTimer) return
+      expireTimer = setTimeout(() => { onExpireRef.current?.() }, EXPIRE_GRACE_MS)
+    }
     const tick = () => {
       const diff = target.getTime() - Date.now()
-      if (diff <= 0) {
-        setRemaining(0)
-        if (interval) clearInterval(interval)
-        interval = null
-        // Fire once for this target date only (a stale target won't loop).
-        if (!expireTimer) {
-          expireTimer = setTimeout(() => { onExpireRef.current?.() }, EXPIRE_GRACE_MS)
-        }
+      if (diff > 0) {
+        setRemaining(diff)
         return
       }
-      setRemaining(diff)
+      setRemaining(0)
+      stopTicking()
+      scheduleExpireOncePerTarget()
     }
 
     interval = setInterval(tick, 1000)
