@@ -17,6 +17,10 @@ vi.mock('../api', () => ({
 import { AuthProvider, useAuth } from '../contexts/AuthContext'
 
 const firstRenderUsers = []
+function httpError(status) {
+  return Object.assign(new Error(String(status)), { response: { status } })
+}
+
 function Child() {
   const { user, loading } = useAuth()
   const seen = React.useRef(false)
@@ -58,7 +62,7 @@ describe('AuthProvider', () => {
   })
 
   it('renders anonymously when there is no session, without calling /auth/me', async () => {
-    mockRefresh.mockRejectedValue(Object.assign(new Error('401'), { response: { status: 401 } }))
+    mockRefresh.mockRejectedValue(httpError(401))
 
     render(<AuthProvider><Child /></AuthProvider>)
 
@@ -102,11 +106,11 @@ describe('AuthProvider', () => {
     render(<AuthProvider><Child /><Grab /></AuthProvider>)
     await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('hello alice'))
 
-    mockGet.mockRejectedValueOnce(Object.assign(new Error('500'), { response: { status: 500 } }))
+    mockGet.mockRejectedValueOnce(httpError(500))
     await act(async () => { await ctx.fetchMe() })
     expect(screen.getByTestId('child')).toHaveTextContent('hello alice')
 
-    mockGet.mockRejectedValueOnce(Object.assign(new Error('401'), { response: { status: 401 } }))
+    mockGet.mockRejectedValueOnce(httpError(401))
     await act(async () => { await ctx.fetchMe() })
     expect(screen.getByTestId('child')).toHaveTextContent('anonymous')
   })

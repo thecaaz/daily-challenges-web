@@ -18,7 +18,7 @@ function reply(data, { source = window, origin = window.location.origin } = {}) 
   window.dispatchEvent(new MessageEvent('message', { data, source, origin }))
 }
 
-// Simulates the extension's content script: answers requests posted to this window.
+/** Simulates the extension's content script: answers requests posted to this window. */
 function installExtension({ adapters = ADAPTERS, hasAdapter = false, source, origin } = {}) {
   return vi.spyOn(window, 'postMessage').mockImplementation(msg => {
     queueMicrotask(() => {

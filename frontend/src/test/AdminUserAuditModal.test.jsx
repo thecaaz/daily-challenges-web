@@ -72,8 +72,9 @@ describe('AdminUserAuditModal', () => {
   it('offers day_win and submission_revoked, not streak_bonus', async () => {
     renderModal()
     await waitFor(() => expect(mockGet).toHaveBeenCalled())
-    const select = document.querySelector('[aria-haspopup="listbox"]')
-    fireEvent.mouseDown(select)
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Event Type' }))
+
     expect(await screen.findByRole('option', { name: 'Day Win' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Submission Revoked' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /Streak/i })).toBeNull()
