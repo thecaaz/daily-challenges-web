@@ -10,7 +10,7 @@ public enum LeagueInvitationStatus
     Cancelled
 }
 
-public class LeagueInvitation
+public sealed class LeagueInvitation
 {
     [Key]
     public int Id { get; set; }

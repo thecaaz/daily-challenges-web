@@ -8,7 +8,7 @@ public enum LeagueRole
     Owner
 }
 
-public class LeagueMember
+public sealed class LeagueMember
 {
     [Key]
     public int Id { get; set; }

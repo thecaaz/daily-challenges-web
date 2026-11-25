@@ -6,7 +6,7 @@ namespace DailyChallenges.Models;
 /// Idempotency guard: tracks which game+scoring-day combos have been finalized
 /// so the background job never double-processes a day.
 /// </summary>
-public class ScoringDayResult
+public sealed class ScoringDayResult
 {
     [Key]
     public int Id { get; set; }

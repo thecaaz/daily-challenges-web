@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class Notification
+public sealed class Notification
 {
     [Key]
     public int Id { get; set; }

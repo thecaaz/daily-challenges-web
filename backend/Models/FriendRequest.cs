@@ -6,7 +6,7 @@ namespace DailyChallenges.Models;
 /// At most one request row exists per pair of users, in either direction; see
 /// <see cref="Data.Configurations.FriendRequestConfiguration"/>.
 /// </summary>
-public class FriendRequest
+public sealed class FriendRequest
 {
     [Key]
     public int Id { get; set; }

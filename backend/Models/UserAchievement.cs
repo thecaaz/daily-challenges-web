@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class UserAchievement
+public sealed class UserAchievement
 {
     [Key]
     public int Id { get; set; }
