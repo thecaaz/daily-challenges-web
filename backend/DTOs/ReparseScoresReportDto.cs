@@ -1,28 +1,28 @@
 namespace DailyChallenges.DTOs;
 
 /// <summary>Result of POST /api/admin/maintenance/reparse-scores.</summary>
-public class ReparseScoresReportDto
+public sealed record ReparseScoresReportDto
 {
     /// <summary>True when nothing was written.</summary>
-    public bool DryRun { get; set; }
+    public bool DryRun { get; init; }
     /// <summary>Submissions examined.</summary>
-    public int Total { get; set; }
+    public int Total { get; init; }
     /// <summary>Submissions whose ScoreValue differs under the current parser (includes the two counts below).</summary>
-    public int Changed { get; set; }
+    public int Changed { get; init; }
     /// <summary>Had a value, now unparseable: becomes unranked.</summary>
-    public int BecameNull { get; set; }
+    public int BecameNull { get; init; }
     /// <summary>Had no value, now parses: becomes ranked.</summary>
-    public int BecameNumeric { get; set; }
+    public int BecameNumeric { get; init; }
     /// <summary>Up to <see cref="SampleLimit"/> changed rows.</summary>
-    public List<ReparseScoreSampleDto> Samples { get; set; } = new();
-    public int SampleLimit { get; set; }
-    public string Note { get; set; } = string.Empty;
+    public List<ReparseScoreSampleDto> Samples { get; init; } = new();
+    public int SampleLimit { get; init; }
+    public string Note { get; init; } = string.Empty;
 }
 
-public class ReparseScoreSampleDto
+public sealed record ReparseScoreSampleDto
 {
-    public int Id { get; set; }
-    public string Score { get; set; } = string.Empty;
-    public double? OldValue { get; set; }
-    public double? NewValue { get; set; }
+    public int Id { get; init; }
+    public string Score { get; init; } = string.Empty;
+    public double? OldValue { get; init; }
+    public double? NewValue { get; init; }
 }

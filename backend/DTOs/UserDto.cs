@@ -1,12 +1,11 @@
 namespace DailyChallenges.DTOs;
 
-public class UserDto
+public sealed record UserDto
 {
     public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public bool IsAdmin { get; set; }
 
-    // ── XP / Level (populated for authenticated endpoints) ──────────────────
     public long TotalXp { get; set; }
     public int Level { get; set; } = 1;
     /// <summary>XP accumulated within the current level.</summary>

@@ -47,6 +47,6 @@ public sealed class SubmissionScoreEditService(
         var game = await games.GetByIdWithoutBlobAsync(updated.GameId);
         var isCurrentDay = game != null && visibility.IsCurrentDay(game, updated.ScoringDay);
         var dto = SubmissionDtoHelper.ToDtoWithScoringDay(updated, updated.ScoringDay.Date);
-        return SubmissionDtoHelper.SignScreenshot(dto, screenshotSigner, isCurrentDay);
+        return SubmissionDtoHelper.WithScreenshotUrl(dto, isCurrentDay ? screenshotSigner.SignedUrl : screenshotSigner.UnsignedUrl);
     }
 }

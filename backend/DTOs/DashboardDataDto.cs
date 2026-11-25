@@ -1,6 +1,6 @@
 namespace DailyChallenges.DTOs;
 
-public class DashboardDataDto
+public sealed record DashboardDataDto
 {
     public List<GameActivityDto> RecentGames { get; set; } = new();
     public List<FriendActivityDto> FriendActivity { get; set; } = new();

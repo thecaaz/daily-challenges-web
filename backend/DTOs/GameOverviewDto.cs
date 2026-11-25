@@ -1,12 +1,12 @@
 namespace DailyChallenges.DTOs;
 
-public class OverviewErrorDto
+public sealed record OverviewErrorDto
 {
-    public string? Part { get; set; }
-    public string? Message { get; set; }
+    public string? Part { get; init; }
+    public string? Message { get; init; }
 }
 
-public class GameOverviewDto
+public sealed record GameOverviewDto
 {
     public GameDto? Game { get; set; }
     public List<string>? AvailableDates { get; set; }

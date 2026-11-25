@@ -6,61 +6,33 @@ namespace DailyChallenges.Mapping;
 
 public static class SubmissionDtoHelper
 {
-    public static SubmissionDto ToDtoWithScoringDay(Submission s, DateTime? scoringDay = null, bool isDayWinner = false)
-    {
-        var dto = DtoMapper.ToDto(s);
-        if (scoringDay.HasValue)
-            dto.ScoringDay = ScoringDayHelper.FormatScoringDay(scoringDay.Value);
-        else if (s.ScoringDay != DateTime.MinValue)
-            dto.ScoringDay = ScoringDayHelper.FormatScoringDay(s.ScoringDay.Date);
-
-        dto.IsDayWinner = isDayWinner;
-        return dto;
-    }
+    /// <summary>
+    /// Maps a submission with <paramref name="scoringDay"/>, or else its stored scoring day
+    /// (left empty when the stored day was never set).
+    /// </summary>
+    public static SubmissionDto ToDtoWithScoringDay(Submission s, DateTime? scoringDay = null) =>
+        DtoMapper.ToDto(s) with { ScoringDay = FormatDayOrNull(scoringDay ?? StoredDayOrNull(s)) };
 
     /// <summary>
     /// Hides everything that reveals the score: Score, ScoreValue, Rank, ScreenshotUrl and the winner flag.
     /// Id, GameId, UserId, Username, CreatedAt and ScoringDay stay.
     /// </summary>
-    public static SubmissionDto Mask(SubmissionDto dto)
-    {
-        dto.Score = null;
-        dto.ScoreValue = null;
-        dto.Rank = null;
-        dto.ScreenshotUrl = null;
-        dto.IsDayWinner = false;
-        return dto;
-    }
+    public static SubmissionDto Mask(SubmissionDto dto) =>
+        dto with { Score = null, ScoreValue = null, Rank = null, ScreenshotUrl = null, IsDayWinner = false };
 
     /// <summary>
-    /// Replaces the plain screenshot URL with a signed one when <paramref name="sign"/> is true
-    /// (current-day submissions the caller may see). Does nothing when there is no screenshot.
+    /// Replaces the plain screenshot URL with <paramref name="screenshotUrl"/>, e.g. a signed one for
+    /// current-day submissions the caller may see. Does nothing when there is no screenshot.
     /// </summary>
-    public static SubmissionDto SignScreenshot(SubmissionDto dto, IScreenshotUrlSigner signer, bool sign)
-    {
-        if (dto.ScreenshotUrl != null) dto.ScreenshotUrl = signer.Url(dto.Id, sign);
-        return dto;
-    }
+    public static SubmissionDto WithScreenshotUrl(SubmissionDto dto, Func<int, string> screenshotUrl) =>
+        dto.ScreenshotUrl == null ? dto : dto with { ScreenshotUrl = screenshotUrl(dto.Id) };
 
-    public static SubmissionPageDto ToPageDto(List<SubmissionDto> items, int page, int pageSize, bool hasSubmittedForLatest, int totalCount, bool scoresHidden = false)
-    {
-        var result = new SubmissionPageDto
-        {
-            Items = items,
-            HasSubmittedForLatest = hasSubmittedForLatest,
-            ScoresHidden = scoresHidden,
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = totalCount
-        };
+    public static TodaySubmittersDto ToTodaySubmittersDto(List<string> usernames) =>
+        new() { Count = usernames.Count, Usernames = usernames };
 
-        result.TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-        result.HasMore = page < result.TotalPages;
-        return result;
-    }
+    private static DateTime? StoredDayOrNull(Submission s) =>
+        s.ScoringDay != DateTime.MinValue ? s.ScoringDay.Date : null;
 
-    public static TodaySubmittersDto ToTodaySubmittersDto(List<string> usernames)
-    {
-        return new TodaySubmittersDto { Count = usernames.Count, Usernames = usernames };
-    }
+    private static string? FormatDayOrNull(DateTime? day) =>
+        day.HasValue ? ScoringDayHelper.FormatScoringDay(day.Value) : null;
 }

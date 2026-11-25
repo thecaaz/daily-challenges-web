@@ -1,7 +1,7 @@
 namespace DailyChallenges.DTOs;
 
-public class TodaySubmittersDto
+public sealed record TodaySubmittersDto
 {
-    public int Count { get; set; }
-    public List<string> Usernames { get; set; } = new();
+    public int Count { get; init; }
+    public List<string> Usernames { get; init; } = new();
 }

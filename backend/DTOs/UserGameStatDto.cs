@@ -1,6 +1,6 @@
 namespace DailyChallenges.DTOs;
 
-public class UserGameStatDto
+public sealed record UserGameStatDto
 {
     public int GameId { get; set; }
     public string Name { get; set; } = string.Empty;

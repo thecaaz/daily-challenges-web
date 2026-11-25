@@ -6,6 +6,9 @@ namespace DailyChallenges.Mapping;
 
 public static class DtoMapper
 {
+    private const string ResetTimeFormat = @"hh\:mm";
+    private const string UtcTimestampFormat = "yyyy-MM-ddTHH:mm:ss'Z'";
+
     /// <summary>
     /// Maps a User entity to a UserDto, computing XP-into-level and XP-to-next-level.
     /// <paramref name="todayUtc"/> (from the caller's TimeProvider) decides the effective streak.
@@ -27,94 +30,72 @@ public static class DtoMapper
         };
     }
 
-    public static SubmissionDto ToDto(Submission s)
+    /// <summary>Signals a screenshot by its content type, not the blob (list queries do not load the blob).</summary>
+    public static SubmissionDto ToDto(Submission s) => new()
     {
-        return new SubmissionDto
-        {
-            Id = s.Id,
-            GameId = s.GameId,
-            UserId = s.UserId,
-            Score = s.Score,
-            ScoreValue = s.ScoreValue,
-            Rank = null,
-            Username = s.Username,
-            ScreenshotUrl = !string.IsNullOrEmpty(s.ScreenshotContentType) ? $"/api/submissions/{s.Id}/screenshot" : null,
-            CreatedAt = s.CreatedAt
-        };
-    }
+        Id = s.Id,
+        GameId = s.GameId,
+        UserId = s.UserId,
+        Score = s.Score,
+        ScoreValue = s.ScoreValue,
+        Rank = null,
+        Username = s.Username,
+        ScreenshotUrl = !string.IsNullOrEmpty(s.ScreenshotContentType) ? $"/api/submissions/{s.Id}/screenshot" : null,
+        CreatedAt = s.CreatedAt
+    };
 
     /// <summary>
     /// Maps a game, including its current scoring day. Services pass <paramref name="nowUtc"/> from their
     /// TimeProvider so the DTO uses the same clock as the rest of the request; without it the system clock is used.
+    /// ResetTime is UTC and exported as "hh:mm"; the image is signalled by its content type, not the blob.
     /// </summary>
-    public static GameDto ToDto(Game g, bool includeSubmissions = false, DateTime? nowUtc = null)
+    public static GameDto ToDto(Game g, DateTime? nowUtc = null)
     {
-        var dto = new GameDto
+        var window = CurrentScoringDayWindow.For(g.ResetTime, nowUtc ?? DateTime.UtcNow);
+        return new GameDto
         {
             Id = g.Id,
             Name = g.Name,
             Url = g.Url,
             Description = g.Description,
-            // Content type, not the blob: list queries do not load the blob.
             ImageUrl = !string.IsNullOrEmpty(g.ScreenshotContentType) ? $"/api/games/{g.Id}/image" : null,
-            // ResetTime is exported as hh:mm (UTC)
-            ResetTime = g.ResetTime.ToString(@"hh\:mm"),
+            ResetTime = g.ResetTime.ToString(ResetTimeFormat),
             RankingMode = g.RankingMode.ToString().ToLowerInvariant(),
-            Submissions = includeSubmissions && g.Submissions != null
-                ? g.Submissions.Select(ToDto).ToList()
-                : null
+            CurrentScoringDay = window.Day,
+            CurrentScoringDayUtcStart = window.UtcStart,
+            CurrentScoringDayUtcEnd = window.UtcEnd
         };
-
-        try
-        {
-            // Compute current scoring day on the server side (ResetTime is UTC)
-            var currentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, nowUtc ?? DateTime.UtcNow);
-            dto.CurrentScoringDay = currentScoringDay.ToString("yyyy-MM-dd");
-            var (utcStart, utcEnd) = ScoringDayHelper.GetScoringDayUtcRange(currentScoringDay, g.ResetTime);
-            dto.CurrentScoringDayUtcStart = utcStart.ToString("yyyy-MM-ddTHH:mm:ss'Z'");
-            dto.CurrentScoringDayUtcEnd = utcEnd.ToString("yyyy-MM-ddTHH:mm:ss'Z'");
-        }
-        catch
-        {
-            dto.CurrentScoringDay = null;
-            dto.CurrentScoringDayUtcStart = null;
-            dto.CurrentScoringDayUtcEnd = null;
-        }
-
-        return dto;
     }
 
-    public static XpEventDto ToDto(XpEvent e)
+    /// <summary>Like <see cref="ToDto(Game, DateTime?)"/>, plus the game's loaded submissions (null when not loaded).</summary>
+    public static GameDto ToDtoWithSubmissions(Game g, DateTime? nowUtc = null) =>
+        ToDto(g, nowUtc) with { Submissions = g.Submissions?.Select(ToDto).ToList() };
+
+    public static XpEventDto ToDto(XpEvent e) => new()
     {
-        return new XpEventDto
-        {
-            Id = e.Id,
-            UserId = e.UserId,
-            SubmissionId = e.SubmissionId,
-            GameId = e.GameId,
-            ScoringDay = e.ScoringDay.HasValue ? ScoringDayHelper.FormatScoringDay(e.ScoringDay.Value) : null,
-            Amount = e.Amount,
-            EventType = e.EventType,
-            Details = e.Details,
-            CreatedAt = e.CreatedAt
-        };
-    }
-    
-    public static NotificationDto ToDto(Notification n)
+        Id = e.Id,
+        UserId = e.UserId,
+        SubmissionId = e.SubmissionId,
+        GameId = e.GameId,
+        ScoringDay = e.ScoringDay.HasValue ? ScoringDayHelper.FormatScoringDay(e.ScoringDay.Value) : null,
+        Amount = e.Amount,
+        EventType = e.EventType,
+        Details = e.Details,
+        CreatedAt = e.CreatedAt
+    };
+
+    public static NotificationDto ToDto(Notification n) => new()
     {
-        return new NotificationDto
-        {
-            Id = n.Id,
-            Message = n.Message,
-            Type = n.Type,
-            GameId = n.GameId,
-            ScoringDay = ScoringDayHelper.FormatScoringDay(n.ScoringDay),
-            Rank = n.Rank,
-            ActorUserId = n.ActorUserId,
-            IsRead = n.IsRead,
-            CreatedAt = n.CreatedAt
-        };
-    }
+        Id = n.Id,
+        Message = n.Message,
+        Type = n.Type,
+        GameId = n.GameId,
+        ScoringDay = ScoringDayHelper.FormatScoringDay(n.ScoringDay),
+        Rank = n.Rank,
+        ActorUserId = n.ActorUserId,
+        IsRead = n.IsRead,
+        CreatedAt = n.CreatedAt
+    };
 
     public static UserProfileDto ToUserProfileDto(User u, List<UserGameStatDto> topGames, LevelCalculator levelCalc, DateTime todayUtc)
     {
@@ -133,19 +114,16 @@ public static class DtoMapper
         };
     }
 
-    public static FriendRequestDto ToDto(FriendRequest fr)
+    public static FriendRequestDto ToDto(FriendRequest fr) => new()
     {
-        return new FriendRequestDto
-        {
-            Id = fr.Id,
-            SenderId = fr.SenderId,
-            SenderUsername = fr.Sender?.Username ?? string.Empty,
-            ReceiverId = fr.ReceiverId,
-            ReceiverUsername = fr.Receiver?.Username ?? string.Empty,
-            Status = fr.Status.ToString().ToLowerInvariant(),
-            CreatedAt = fr.CreatedAt
-        };
-    }
+        Id = fr.Id,
+        SenderId = fr.SenderId,
+        SenderUsername = fr.Sender?.Username ?? string.Empty,
+        ReceiverId = fr.ReceiverId,
+        ReceiverUsername = fr.Receiver?.Username ?? string.Empty,
+        Status = fr.Status.ToString().ToLowerInvariant(),
+        CreatedAt = fr.CreatedAt
+    };
 
     public static FriendDto ToFriendDto(User u, LevelCalculator levelCalc, DateTime todayUtc)
     {
@@ -159,5 +137,29 @@ public static class DtoMapper
             Streak = StreakHelper.Effective(u, todayUtc),
             LastSubmissionAt = u.LastSubmissionAt
         };
+    }
+
+    /// <summary>A game's current scoring day ("yyyy-MM-dd") and its UTC range (start inclusive, end exclusive).</summary>
+    private sealed record CurrentScoringDayWindow(string? Day, string? UtcStart, string? UtcEnd)
+    {
+        private static readonly CurrentScoringDayWindow Unknown = new(null, null, null);
+
+        /// <summary>Unknown when the reset time pushes the range outside the representable dates.</summary>
+        public static CurrentScoringDayWindow For(TimeSpan resetTimeUtc, DateTime nowUtc)
+        {
+            try
+            {
+                var day = ScoringDayHelper.GetCurrentScoringDay(resetTimeUtc, nowUtc);
+                var (utcStart, utcEnd) = ScoringDayHelper.GetScoringDayUtcRange(day, resetTimeUtc);
+                return new CurrentScoringDayWindow(
+                    ScoringDayHelper.FormatScoringDay(day),
+                    utcStart.ToString(UtcTimestampFormat),
+                    utcEnd.ToString(UtcTimestampFormat));
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return Unknown;
+            }
+        }
     }
 }

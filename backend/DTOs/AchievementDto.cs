@@ -1,6 +1,6 @@
 namespace DailyChallenges.DTOs;
 
-public class AchievementDto
+public sealed record AchievementDto
 {
     public string AchievementId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;

@@ -1,6 +1,6 @@
 namespace DailyChallenges.DTOs;
 
-public class XpEventDto
+public sealed record XpEventDto
 {
     public int Id { get; set; }
     public int UserId { get; set; }

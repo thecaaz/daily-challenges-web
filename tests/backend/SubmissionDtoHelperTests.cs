@@ -43,16 +43,9 @@ public class SubmissionDtoHelperTests
     }
 
     [Fact]
-    public void ToDtoWithScoringDay_CarriesTheWinnerFlag()
-    {
-        Assert.True(SubmissionDtoHelper.ToDtoWithScoringDay(WithScreenshot(), Day, isDayWinner: true).IsDayWinner);
-    }
-
-    [Fact]
     public void Mask_HidesEverythingThatRevealsTheScore()
     {
-        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(WithScreenshot(), Day, isDayWinner: true);
-        dto.Rank = 1;
+        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(WithScreenshot(), Day) with { IsDayWinner = true, Rank = 1 };
 
         var masked = SubmissionDtoHelper.Mask(dto);
 
@@ -67,23 +60,23 @@ public class SubmissionDtoHelperTests
     }
 
     [Fact]
-    public void SignScreenshot_SignsOnlyWhenAsked()
+    public void WithScreenshotUrl_UsesTheGivenUrl()
     {
         var signer = new Mock<IScreenshotUrlSigner>();
-        signer.Setup(s => s.Url(5, true)).Returns("signed");
-        signer.Setup(s => s.Url(5, false)).Returns("/api/submissions/5/screenshot");
+        signer.Setup(s => s.SignedUrl(5)).Returns("signed");
+        signer.Setup(s => s.UnsignedUrl(5)).Returns("/api/submissions/5/screenshot");
 
-        Assert.Equal("signed", SubmissionDtoHelper.SignScreenshot(DtoMapper.ToDto(WithScreenshot()), signer.Object, true).ScreenshotUrl);
-        Assert.Equal("/api/submissions/5/screenshot", SubmissionDtoHelper.SignScreenshot(DtoMapper.ToDto(WithScreenshot()), signer.Object, false).ScreenshotUrl);
+        Assert.Equal("signed", SubmissionDtoHelper.WithScreenshotUrl(DtoMapper.ToDto(WithScreenshot()), signer.Object.SignedUrl).ScreenshotUrl);
+        Assert.Equal("/api/submissions/5/screenshot", SubmissionDtoHelper.WithScreenshotUrl(DtoMapper.ToDto(WithScreenshot()), signer.Object.UnsignedUrl).ScreenshotUrl);
     }
 
     [Fact]
-    public void SignScreenshot_WithoutScreenshotStaysEmpty()
+    public void WithScreenshotUrl_WithoutScreenshotStaysEmpty()
     {
         var submission = WithScreenshot();
         submission.ScreenshotContentType = null;
 
-        var dto = SubmissionDtoHelper.SignScreenshot(DtoMapper.ToDto(submission), Mock.Of<IScreenshotUrlSigner>(), true);
+        var dto = SubmissionDtoHelper.WithScreenshotUrl(DtoMapper.ToDto(submission), Mock.Of<IScreenshotUrlSigner>().SignedUrl);
 
         Assert.Null(dto.ScreenshotUrl);
     }
@@ -92,9 +85,9 @@ public class SubmissionDtoHelperTests
     [InlineData(1, 10, 25, 3, true)]
     [InlineData(3, 10, 25, 3, false)]
     [InlineData(1, 10, 0, 0, false)]
-    public void ToPageDto_ComputesPages(int page, int pageSize, int totalCount, int expectedPages, bool expectedHasMore)
+    public void PageDto_ComputesPages(int page, int pageSize, int totalCount, int expectedPages, bool expectedHasMore)
     {
-        var dto = SubmissionDtoHelper.ToPageDto(new List<SubmissionDto>(), page, pageSize, true, totalCount);
+        var dto = new SubmissionPageDto { Page = page, PageSize = pageSize, TotalCount = totalCount, HasSubmittedForLatest = true };
 
         Assert.Equal(expectedPages, dto.TotalPages);
         Assert.Equal(expectedHasMore, dto.HasMore);
@@ -106,9 +99,13 @@ public class SubmissionDtoHelperTests
     }
 
     [Fact]
-    public void ToPageDto_CarriesScoresHidden()
+    public void PageDto_SerializesThePagingFieldsInOrder()
     {
-        Assert.True(SubmissionDtoHelper.ToPageDto(new List<SubmissionDto>(), 1, 10, false, 0, scoresHidden: true).ScoresHidden);
+        var dto = new SubmissionPageDto { Page = 1, PageSize = 10, TotalCount = 11, ScoresHidden = true };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(dto, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+
+        Assert.Equal("""{"items":[],"hasSubmittedForLatest":false,"scoresHidden":true,"hasMore":true,"page":1,"pageSize":10,"totalCount":11,"totalPages":2}""", json);
     }
 
     [Fact]

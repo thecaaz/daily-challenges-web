@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace DailyChallenges.DTOs;
 
-public class SubmissionCreateRequest
+public sealed record SubmissionCreateRequest
 {
     [Required]
     public int GameId { get; set; }

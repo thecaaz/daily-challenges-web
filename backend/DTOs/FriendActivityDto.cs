@@ -1,13 +1,13 @@
 namespace DailyChallenges.DTOs;
 
-public class FriendSubmissionItem
+public sealed record FriendSubmissionItem
 {
     public int UserId { get; set; }
     public string Username { get; set; } = string.Empty;
     public DateTime SubmittedAt { get; set; }
 }
 
-public class FriendActivityDto
+public sealed record FriendActivityDto
 {
     public int GameId { get; set; }
     public string GameName { get; set; } = string.Empty;

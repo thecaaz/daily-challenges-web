@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace DailyChallenges.DTOs;
 
-public class GameCreateRequest
+public sealed record GameCreateRequest
 {
     [Required]
     [StringLength(200)]

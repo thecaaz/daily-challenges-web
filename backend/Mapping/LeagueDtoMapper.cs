@@ -6,6 +6,9 @@ namespace DailyChallenges.Mapping;
 
 public static class LeagueDtoMapper
 {
+    /// <summary>Shown for a member whose user row was not loaded.</summary>
+    private const int StartingLevel = 1;
+
     public static LeagueDto ToDto(League league) => ToDto(league, league.Owner?.Username ?? string.Empty);
 
     /// <summary>For a league whose <see cref="League.Owner"/> was not loaded.</summary>
@@ -56,7 +59,7 @@ public static class LeagueDtoMapper
         {
             UserId = member.UserId,
             Username = member.User?.Username ?? string.Empty,
-            Level = member.User?.Level ?? 1,
+            Level = member.User?.Level ?? StartingLevel,
             Streak = member.User != null ? StreakHelper.Effective(member.User, nowUtc) : 0,
             Role = member.Role.ToString().ToLowerInvariant(),
             JoinedAt = member.JoinedAt

@@ -129,7 +129,7 @@ public class DtoMapperTests
             Id = 1, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest,
             Submissions = [new Submission { Id = 1, GameId = 1, UserId = 1, Score = "1" }]
         };
-        var dto = DtoMapper.ToDto(game, includeSubmissions: false);
+        var dto = DtoMapper.ToDto(game);
         Assert.Null(dto.Submissions);
     }
 
@@ -141,7 +141,7 @@ public class DtoMapperTests
             Id = 1, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest,
             Submissions = [new Submission { Id = 77, GameId = 1, UserId = 1, Score = "5" }]
         };
-        var dto = DtoMapper.ToDto(game, includeSubmissions: true);
+        var dto = DtoMapper.ToDtoWithSubmissions(game);
         Assert.NotNull(dto.Submissions);
         Assert.Single(dto.Submissions);
         Assert.Equal(77, dto.Submissions![0].Id);

@@ -72,6 +72,6 @@ public sealed class SubmissionCreationService(
     private SubmissionDto ToCreatorDto(Submission created)
     {
         var dto = SubmissionDtoHelper.ToDtoWithScoringDay(created, created.ScoringDay.Date);
-        return SubmissionDtoHelper.SignScreenshot(dto, screenshotSigner, sign: true);
+        return SubmissionDtoHelper.WithScreenshotUrl(dto, screenshotSigner.SignedUrl);
     }
 }

@@ -21,7 +21,7 @@ public sealed class SubmissionQueryService(
     public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, DateTime? scoringDay = null, int page = 1, int pageSize = 50)
     {
         var game = await games.GetByIdWithoutBlobAsync(gameId);
-        if (game == null) return SubmissionDtoHelper.ToPageDto([], page, pageSize, false, 0);
+        if (game == null) return new SubmissionPageDto { Page = page, PageSize = pageSize };
 
         var currentDay = visibility.GetCurrentScoringDay(game);
         var hasSubmittedForLatest = await submissionChecker.HasUserSubmittedForDayAsync(user.GetUserId(), gameId, currentDay);
@@ -31,14 +31,29 @@ public sealed class SubmissionQueryService(
         var (pageItems, totalCount) = await submissions.GetByGameFilteredAsync(
             new SubmissionPageQuery(gameId, page, pageSize) { ScoringDay = scoringDay, ExcludeScoringDay = excludedDay });
         if (areScoresHidden)
-            return SubmissionDtoHelper.ToPageDto(ToMaskedDtos(pageItems), page, pageSize, hasSubmittedForLatest, totalCount, scoresHidden: true);
+            return new SubmissionPageDto
+            {
+                Items = ToMaskedDtos(pageItems),
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                HasSubmittedForLatest = hasSubmittedForLatest,
+                ScoresHidden = true
+            };
 
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
         var dtos = await ToDtosWithWinnerFlagsAsync(gameId, pageItems, strategy, currentDay);
         if (scoringDay.HasValue)
             await AssignRanksForDayAsync(gameId, scoringDay.Value.Date, strategy, dtos);
 
-        return SubmissionDtoHelper.ToPageDto(dtos, page, pageSize, hasSubmittedForLatest, totalCount);
+        return new SubmissionPageDto
+        {
+            Items = dtos,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            HasSubmittedForLatest = hasSubmittedForLatest
+        };
     }
 
     private static List<SubmissionDto> ToMaskedDtos(List<Submission> pageItems) =>
@@ -66,7 +81,7 @@ public sealed class SubmissionQueryService(
     {
         var day = submission.ScoringDay.Date;
         var isWinner = winnersByDay.TryGetValue(day, out var winner) && winner.Id == submission.Id;
-        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(submission, day, isWinner);
+        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(submission, day) with { IsDayWinner = isWinner };
         return SignScreenshotOnCurrentDay(dto, day, currentDay);
     }
 
@@ -106,8 +121,7 @@ public sealed class SubmissionQueryService(
     /// </summary>
     private SubmissionDto ToAdminDto(Submission submission, DateTime currentDay)
     {
-        var dto = DtoMapper.ToDto(submission);
-        dto.ScoringDay = ScoringDayHelper.FormatScoringDay(submission.ScoringDay);
+        var dto = DtoMapper.ToDto(submission) with { ScoringDay = ScoringDayHelper.FormatScoringDay(submission.ScoringDay) };
         return SignScreenshotOnCurrentDay(dto, submission.ScoringDay.Date, currentDay);
     }
 
@@ -139,8 +153,7 @@ public sealed class SubmissionQueryService(
         if (winner == null) return null;
 
         var winnerDay = winner.ScoringDay.Date;
-        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(winner, winnerDay, isDayWinner: true);
-        dto.Rank = FirstPlace;
+        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(winner, winnerDay) with { IsDayWinner = true, Rank = FirstPlace };
         return SignScreenshotOnCurrentDay(dto, winnerDay, currentDay);
     }
 
@@ -159,7 +172,7 @@ public sealed class SubmissionQueryService(
         if (!await CanSeeSubmissionAsync(user, game, submission)) return SubmissionDtoHelper.Mask(dto);
 
         await AssignRankAndWinnerFlagAsync(dto, game, submission);
-        return SubmissionDtoHelper.SignScreenshot(dto, screenshotSigner, visibility.IsCurrentDay(game, day));
+        return SignScreenshotOnCurrentDay(dto, day, visibility.GetCurrentScoringDay(game));
     }
 
     /// <summary>The owner always sees their own submission; anyone else follows the hidden-scores rule.</summary>
@@ -203,5 +216,5 @@ public sealed class SubmissionQueryService(
 
     /// <summary>Current-day screenshots need a signed URL (the screenshot endpoint checks it); past days do not.</summary>
     private SubmissionDto SignScreenshotOnCurrentDay(SubmissionDto dto, DateTime day, DateTime currentDay) =>
-        SubmissionDtoHelper.SignScreenshot(dto, screenshotSigner, day == currentDay);
+        SubmissionDtoHelper.WithScreenshotUrl(dto, day == currentDay ? screenshotSigner.SignedUrl : screenshotSigner.UnsignedUrl);
 }

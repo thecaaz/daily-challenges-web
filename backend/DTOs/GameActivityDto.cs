@@ -1,6 +1,6 @@
 namespace DailyChallenges.DTOs;
 
-public class GameActivityDto
+public sealed record GameActivityDto
 {
     public GameDto Game { get; set; } = new();
     public int TodayCount { get; set; }

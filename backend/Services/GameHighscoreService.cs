@@ -49,8 +49,9 @@ public sealed class GameHighscoreService(
     private HighscoreResult ToRankedResult(List<Submission> top, DateTime currentDay)
     {
         var dtos = top
-            .Select(s => SubmissionDtoHelper.SignScreenshot(
-                SubmissionDtoHelper.ToDtoWithScoringDay(s, s.ScoringDay.Date), signer, s.ScoringDay.Date == currentDay))
+            .Select(s => SubmissionDtoHelper.WithScreenshotUrl(
+                SubmissionDtoHelper.ToDtoWithScoringDay(s, s.ScoringDay.Date),
+                s.ScoringDay.Date == currentDay ? signer.SignedUrl : signer.UnsignedUrl))
             .ToList();
 
         AssignSequentialRanks(dtos);
