@@ -186,4 +186,92 @@ public class DashboardApiTests
         Assert.Equal(new[] { Now, Now.AddMinutes(-1) }, rows.Take(2).Select(r => r.CreatedAt));
         Assert.All(rows, r => Assert.Empty(r.ScreenshotData));
     }
+
+    private static Submission Scored(Game game, User? user, double? scoreValue, DateTime createdAt) => new()
+    {
+        GameId = game.Id,
+        UserId = user?.Id,
+        Username = user?.Username,
+        Score = scoreValue?.ToString() ?? "n/a",
+        ScoreValue = scoreValue,
+        CreatedAt = createdAt,
+        ScoringDay = Today,
+    };
+
+    [Fact]
+    public async Task User_today_ranks_follow_leaderboard_order_with_earliest_tie_first_and_skip_unscored()
+    {
+        using var f = new FixedClockApiFactory();
+        User viewer = null!;
+        Game highest = null!, lowest = null!;
+        await f.WithDbAsync(async db =>
+        {
+            viewer = new User { Username = "rank-viewer", PasswordHash = "x" };
+            var u1 = new User { Username = "rank-u1", PasswordHash = "x" };
+            var u2 = new User { Username = "rank-u2", PasswordHash = "x" };
+            var u3 = new User { Username = "rank-u3", PasswordHash = "x" };
+            highest = new Game { Name = "Highest", ResetTime = TimeSpan.Zero, ScreenshotContentType = "image/png" };
+            lowest = new Game { Name = "Lowest", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Lowest };
+            var unscored = new Game { Name = "Unscored", ResetTime = TimeSpan.Zero };
+            db.AddRange(viewer, u1, u2, u3, highest, lowest, unscored);
+            await db.SaveChangesAsync();
+
+            db.Submissions.AddRange(
+                Scored(highest, u1, 100, Today.AddHours(1)),
+                Scored(highest, u2, 50, Today.AddMinutes(90)),
+                Scored(highest, viewer, 50, Today.AddHours(2)),
+                Scored(highest, u3, null, Today.AddMinutes(30)),
+                Scored(lowest, u1, 10, Today.AddHours(3)),
+                Scored(lowest, viewer, 20, Today.AddHours(1)),
+                Scored(lowest, u3, null, Today.AddMinutes(30)),
+                Scored(unscored, viewer, null, Today.AddHours(1)));
+            await db.SaveChangesAsync();
+        });
+
+        var ranks = (await GetDashboardAsync(f, viewer)).GetProperty("userTodayRanks").EnumerateArray().ToList();
+
+        Assert.Equal(new[] { lowest.Id, highest.Id }, ranks.Select(r => r.GetProperty("gameId").GetInt32()));
+        Assert.Equal(new[] { 2, 3 }, ranks.Select(r => r.GetProperty("rank").GetInt32()));
+        Assert.Equal(new[] { 2, 3 }, ranks.Select(r => r.GetProperty("totalSubmissions").GetInt32()));
+        Assert.Equal(new[] { "20", "50" }, ranks.Select(r => r.GetProperty("score").GetString()));
+        Assert.Equal(new[] { "Lowest", "Highest" }, ranks.Select(r => r.GetProperty("gameName").GetString()));
+        Assert.False(ranks[0].TryGetProperty("gameImageUrl", out _));
+        Assert.Equal($"/api/games/{highest.Id}/image", ranks[1].GetProperty("gameImageUrl").GetString());
+    }
+
+    [Fact]
+    public async Task Recent_games_list_anonymous_players_once_and_flag_the_viewers_own_submissions()
+    {
+        using var f = new FixedClockApiFactory();
+        User viewer = null!;
+        Game played = null!, other = null!;
+        await f.WithDbAsync(async db =>
+        {
+            viewer = new User { Username = "recent-viewer", PasswordHash = "x" };
+            var u1 = new User { Username = "recent-u1", PasswordHash = "x" };
+            played = new Game { Name = "Played", ResetTime = TimeSpan.Zero };
+            other = new Game { Name = "Other", ResetTime = TimeSpan.Zero };
+            db.AddRange(viewer, u1, played, other);
+            await db.SaveChangesAsync();
+
+            db.Favorites.Add(new Favorite { UserId = viewer.Id, GameId = other.Id });
+            db.Submissions.AddRange(
+                Scored(played, viewer, 1, Today.AddHours(1)),
+                Scored(played, null, 2, Today.AddHours(2)),
+                Scored(played, null, 3, Today.AddHours(3)),
+                Scored(other, u1, 4, Today.AddHours(1)));
+            await db.SaveChangesAsync();
+        });
+
+        var recent = (await GetDashboardAsync(f, viewer)).GetProperty("recentGames").EnumerateArray().ToList();
+
+        Assert.Equal(new[] { played.Id, other.Id }, recent.Select(r => r.GetProperty("game").GetProperty("id").GetInt32()));
+        Assert.Equal(new[] { 3, 1 }, recent.Select(r => r.GetProperty("todayCount").GetInt32()));
+        Assert.Equal(new[] { "recent-viewer", "Anonymous" },
+            recent[0].GetProperty("todayUsernames").EnumerateArray().Select(u => u.GetString()));
+        Assert.True(recent[0].GetProperty("game").GetProperty("hasSubmittedForLatest").GetBoolean());
+        Assert.False(recent[0].GetProperty("game").GetProperty("isFavorite").GetBoolean());
+        Assert.False(recent[1].GetProperty("game").GetProperty("hasSubmittedForLatest").GetBoolean());
+        Assert.True(recent[1].GetProperty("game").GetProperty("isFavorite").GetBoolean());
+    }
 }

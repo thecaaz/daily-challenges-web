@@ -362,4 +362,46 @@ public class ScoringDayFinalizerServiceTests : IDisposable
         sut.ResultsRepo.Verify(r => r.CreateAsync(It.Is<ScoringDayResult>(
             r => r.WinnerUserId == null)), Times.Once);
     }
+
+    [Fact]
+    public async Task FinalizeScoringDay_Notifications_CarryMessageDayAndClock()
+    {
+        var sut = Build(cfg => cfg.WinXp = 123);
+        sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
+        sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
+            .ReturnsAsync(new List<Submission> { MakeSub(1, userId: 10, scoreValue: 200), MakeSub(2, userId: null, scoreValue: 150), MakeSub(3, userId: 12, scoreValue: 100) });
+        List<Notification>? notifs = null;
+        sut.NotifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()))
+            .Callback<List<Notification>>(n => notifs = n)
+            .Returns(Task.CompletedTask);
+
+        await sut.Service.FinalizeScoringDayAsync(1, Day.AddHours(15));
+
+        Assert.Equal(new[] { "You won on TestGame! +123 XP", "You placed #3 on TestGame" }, notifs!.Select(n => n.Message));
+        Assert.Equal(new int?[] { 1, 3 }, notifs!.Select(n => n.Rank));
+        Assert.All(notifs!, n =>
+        {
+            Assert.Equal(1, n.GameId);
+            Assert.Equal(Day.Date, n.ScoringDay);
+            Assert.Equal(Day.AddDays(1), n.CreatedAt);
+            Assert.False(n.IsRead);
+        });
+    }
+
+    [Fact]
+    public async Task FinalizeScoringDay_RecordsResultAtTheClocksTimeForTheDatePart()
+    {
+        var sut = Build();
+        sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
+        sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync(MakeGame());
+        sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
+            .ReturnsAsync(new List<Submission>());
+
+        await sut.Service.FinalizeScoringDayAsync(1, Day.AddHours(15));
+
+        sut.ResultsRepo.Verify(r => r.CreateAsync(It.Is<ScoringDayResult>(
+            r => r.ScoringDay == Day.Date && r.ProcessedAt == Day.AddDays(1))), Times.Once);
+    }
 }
+
