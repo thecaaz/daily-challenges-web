@@ -7,11 +7,11 @@ namespace DailyChallenges.Services;
 public interface ISubmissionQueryService
 {
     /// <summary>
-    /// One page of a game's submissions. Without <paramref name="scoringDay"/>, the current day is left out for
-    /// callers who have not submitted for it. With the current day, its rows are listed but masked unless the
-    /// caller may see them. With a day, scored rows carry their 1-based rank on that day.
+    /// One page of a game's submissions. Without a <see cref="GameSubmissionsPageRequest.ScoringDay"/>, the
+    /// current day is left out for callers who have not submitted for it. With the current day, its rows are
+    /// listed but masked unless the caller may see them. With a day, scored rows carry their 1-based rank on that day.
     /// </summary>
-    Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, DateTime? scoringDay = null, int page = 1, int pageSize = 50);
+    Task<SubmissionPageDto> GetByGameAsync(GameSubmissionsPageRequest request, ClaimsPrincipal? user);
     /// <summary>Admin view: every submission of the game, with its stored scoring day.</summary>
     Task<List<SubmissionDto>> GetUnfilteredByGameAsync(int gameId);
     Task<List<string>> GetAvailableDatesAsync(int gameId);
@@ -24,3 +24,6 @@ public interface ISubmissionQueryService
     Task<SubmissionDto?> GetWinnerAsync(int gameId, DateTime? scoringDay, ClaimsPrincipal? user);
     Task<TodaySubmittersDto> GetTodaySubmittersAsync(int gameId);
 }
+
+/// <summary>One page (1-based) of a game's submissions, optionally restricted to one scoring day.</summary>
+public sealed record GameSubmissionsPageRequest(int GameId, DateTime? ScoringDay, int Page, int PageSize);

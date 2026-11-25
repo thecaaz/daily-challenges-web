@@ -20,9 +20,9 @@ public sealed class SubmissionCreationService(
     IScreenshotUrlSigner screenshotSigner,
     ILogger<SubmissionCreationService> logger) : ISubmissionCreationService
 {
-    public async Task<(SubmissionDto Dto, int XpGain)> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user)
+    public async Task<(SubmissionDto Dto, int XpGain)> CreateAsync(SubmissionDraftRequest request, ClaimsPrincipal user)
     {
-        var draft = await drafts.BuildAsync(new SubmissionDraftRequest(gameId, score, username, screenshot), user);
+        var draft = await drafts.BuildAsync(request, user);
         var (created, xpGain) = await SaveAsync(draft);
         await CheckAchievementsAsync(created.UserId);
         return (ToCreatorDto(created), xpGain);

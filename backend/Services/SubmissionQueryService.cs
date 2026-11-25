@@ -18,8 +18,9 @@ public sealed class SubmissionQueryService(
 {
     private const int FirstPlace = 1;
 
-    public async Task<SubmissionPageDto> GetByGameAsync(int gameId, ClaimsPrincipal? user, DateTime? scoringDay = null, int page = 1, int pageSize = 50)
+    public async Task<SubmissionPageDto> GetByGameAsync(GameSubmissionsPageRequest request, ClaimsPrincipal? user)
     {
+        var (gameId, scoringDay, page, pageSize) = request;
         var game = await games.GetByIdWithoutBlobAsync(gameId);
         if (game == null) return new SubmissionPageDto { Page = page, PageSize = pageSize };
 

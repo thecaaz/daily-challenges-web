@@ -11,5 +11,8 @@ public interface ISubmissionCreationService
     /// already submitted for the day, and ArgumentException when the screenshot is missing or empty.
     /// </summary>
     /// <returns>Tuple of the created SubmissionDto and the XP awarded (0 for anonymous users).</returns>
-    Task<(SubmissionDto Dto, int XpGain)> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user);
+    Task<(SubmissionDto Dto, int XpGain)> CreateAsync(SubmissionDraftRequest request, ClaimsPrincipal user);
 }
+
+/// <summary>A new submission as entered; <see cref="Username"/> is only used for anonymous submitters.</summary>
+public sealed record SubmissionDraftRequest(int GameId, string Score, string? Username, IFormFile? Screenshot);
