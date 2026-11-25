@@ -15,5 +15,5 @@ public sealed class AdminMaintenanceController(IScoreMaintenanceService scores) 
     /// </summary>
     [HttpPost("reparse-scores")]
     public async Task<IActionResult> ReparseScores([FromQuery] bool dryRun = true) =>
-        Ok(await scores.ReparseScoresAsync(dryRun));
+        Ok(dryRun ? await scores.PreviewReparseScoresAsync() : await scores.ReparseScoresAsync());
 }

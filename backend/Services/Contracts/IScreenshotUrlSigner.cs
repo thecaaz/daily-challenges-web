@@ -8,9 +8,6 @@ public interface IScreenshotUrlSigner
     /// <summary>URL with <c>?exp=&lt;unix&gt;&amp;sig=&lt;hex&gt;</c>, valid for about an hour.</summary>
     string SignedUrl(int submissionId);
 
-    /// <summary>Signs only when <paramref name="sign"/> is true (current-day submissions).</summary>
-    string Url(int submissionId, bool sign);
-
     /// <summary>The signature for <c>{id}|{exp}</c> as lowercase hex.</summary>
     string ComputeSignature(int submissionId, long exp);
 
