@@ -17,6 +17,8 @@ public class LeagueServiceTests
     private record Sut(
         LeagueService Service,
         Mock<ILeagueRepository> LeagueRepo,
+        Mock<ILeagueInvitationRepository> InvitationRepo,
+        Mock<ILeagueStandingsRepository> StandingsRepo,
         Mock<IUserProfileRepository> UserRepo,
         Mock<INotificationRepository> NotifRepo,
         Mock<IGameRepository> GameRepo
@@ -25,15 +27,17 @@ public class LeagueServiceTests
     private static Sut Build()
     {
         var leagueRepo = new Mock<ILeagueRepository>();
+        var invitationRepo = new Mock<ILeagueInvitationRepository>();
+        var standingsRepo = new Mock<ILeagueStandingsRepository>();
         var userRepo = new Mock<IUserProfileRepository>();
         var notifRepo = new Mock<INotificationRepository>();
         var gameRepo = new Mock<IGameRepository>();
 
         notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>())).Returns(Task.CompletedTask);
 
-        var svc = new LeagueService(leagueRepo.Object, userRepo.Object, notifRepo.Object, gameRepo.Object, new FixedTimeProvider(DateTime.UtcNow),
+        var svc = new LeagueService(leagueRepo.Object, invitationRepo.Object, standingsRepo.Object, userRepo.Object, notifRepo.Object, gameRepo.Object, new FixedTimeProvider(DateTime.UtcNow),
             new Mock<IScoreVisibilityService>().Object, new Mock<IScreenshotUrlSigner>().Object);
-        return new Sut(svc, leagueRepo, userRepo, notifRepo, gameRepo);
+        return new Sut(svc, leagueRepo, invitationRepo, standingsRepo, userRepo, notifRepo, gameRepo);
     }
 
     private static User MakeUser(int id, string username = "user") =>
@@ -132,8 +136,8 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(invitee);
         sut.UserRepo.Setup(r => r.GetByIdAsync(10)).ReturnsAsync(inviter);
-        sut.LeagueRepo.Setup(r => r.GetPendingInvitationAsync(1, 20)).ReturnsAsync((LeagueInvitation?)null);
-        sut.LeagueRepo.Setup(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()))
+        sut.InvitationRepo.Setup(r => r.GetPendingInvitationAsync(1, 20)).ReturnsAsync((LeagueInvitation?)null);
+        sut.InvitationRepo.Setup(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()))
             .ReturnsAsync((LeagueInvitation i) => { i.Id = 5; return i; });
 
         var result = await sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob");
@@ -172,7 +176,7 @@ public class LeagueServiceTests
 
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(invitee);
-        sut.LeagueRepo.Setup(r => r.GetPendingInvitationAsync(1, 20)).ReturnsAsync(existing);
+        sut.InvitationRepo.Setup(r => r.GetPendingInvitationAsync(1, 20)).ReturnsAsync(existing);
 
         await Assert.ThrowsAsync<ConflictException>(
             () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
@@ -184,21 +188,21 @@ public class LeagueServiceTests
         var sut = Build();
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(MakeUser(20, "bob"));
-        sut.LeagueRepo.Setup(r => r.GetLastDeclinedAtAsync(1, 20)).ReturnsAsync(DateTime.UtcNow.AddHours(-23));
+        sut.InvitationRepo.Setup(r => r.GetLastDeclinedAtAsync(1, 20)).ReturnsAsync(DateTime.UtcNow.AddHours(-23));
 
         await Assert.ThrowsAsync<ConflictException>(
             () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
-        sut.LeagueRepo.Verify(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()), Times.Never);
+        sut.InvitationRepo.Verify(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()), Times.Never);
     }
 
     [Fact]
     public async Task AcceptInvitation_ClaimLost_ThrowsConflict()
     {
         var sut = Build();
-        sut.LeagueRepo.Setup(r => r.GetInvitationByIdAsync(5)).ReturnsAsync(new LeagueInvitation
+        sut.InvitationRepo.Setup(r => r.GetInvitationByIdAsync(5)).ReturnsAsync(new LeagueInvitation
             { Id = 5, LeagueId = 1, InviterId = 10, InviteeId = 20, Status = LeagueInvitationStatus.Pending });
         sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
-        sut.LeagueRepo.Setup(r => r.AcceptInvitationAsync(5, 20, It.IsAny<DateTime>()))
+        sut.InvitationRepo.Setup(r => r.AcceptInvitationAsync(5, 20, It.IsAny<DateTime>()))
             .ReturnsAsync(AcceptInvitationResult.NotPending);
 
         await Assert.ThrowsAsync<ConflictException>(() => sut.Service.AcceptInvitationAsync(5, 20));
@@ -319,7 +323,7 @@ public class LeagueServiceTests
             new LeagueGameSummaryDto { GameId = 5, GameName = "G" }
         }, 1);
 
-        sut.LeagueRepo.Setup(r => r.GetLeagueGameSummariesAsync(1, 1, 7, 1, 20)).ReturnsAsync(expected);
+        sut.StandingsRepo.Setup(r => r.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, 7, 1, 20))).ReturnsAsync(expected);
 
         var result = await sut.Service.GetLeagueGameSummariesAsync(1, 1, 7, 1, 20);
         Assert.Equal(expected, result);

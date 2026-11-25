@@ -18,6 +18,8 @@ public class LeagueService : ILeagueService
 
     private readonly TimeProvider _time;
     private readonly ILeagueRepository _leagues;
+    private readonly ILeagueInvitationRepository _invitations;
+    private readonly ILeagueStandingsRepository _standings;
     private readonly IUserProfileRepository _users;
     private readonly INotificationRepository _notifications;
     private readonly IGameRepository _games;
@@ -26,6 +28,8 @@ public class LeagueService : ILeagueService
 
     public LeagueService(
         ILeagueRepository leagues,
+        ILeagueInvitationRepository invitations,
+        ILeagueStandingsRepository standings,
         IUserProfileRepository users,
         INotificationRepository notifications,
         IGameRepository games, TimeProvider time,
@@ -35,6 +39,8 @@ public class LeagueService : ILeagueService
         _visibility = visibility;
         _signer = signer;
         _leagues = leagues;
+        _invitations = invitations;
+        _standings = standings;
         _users = users;
         _notifications = notifications;
         _games = games;
@@ -159,12 +165,12 @@ public class LeagueService : ILeagueService
         if (league.Members.Any(m => m.UserId == invitee.Id))
             throw new ConflictException($"{username} is already a member of this league.");
 
-        var existing = await _leagues.GetPendingInvitationAsync(leagueId, invitee.Id);
+        var existing = await _invitations.GetPendingInvitationAsync(leagueId, invitee.Id);
         if (existing != null)
             throw new ConflictException($"A pending invitation to {invitee.Username} already exists.");
 
         var now = _time.GetUtcNow().UtcDateTime;
-        var lastDeclinedAt = await _leagues.GetLastDeclinedAtAsync(leagueId, invitee.Id);
+        var lastDeclinedAt = await _invitations.GetLastDeclinedAtAsync(leagueId, invitee.Id);
         if (lastDeclinedAt.HasValue && lastDeclinedAt.Value > now - ReinviteCooldown)
             throw new ConflictException($"{invitee.Username} declined an invitation to this league recently. Try again after 24 hours.");
 
@@ -174,7 +180,7 @@ public class LeagueService : ILeagueService
         LeagueInvitation invitation;
         try
         {
-            invitation = await _leagues.CreateInvitationAsync(new LeagueInvitation
+            invitation = await _invitations.CreateInvitationAsync(new LeagueInvitation
             {
                 LeagueId = leagueId,
                 InviterId = inviterId,
@@ -224,7 +230,7 @@ public class LeagueService : ILeagueService
         {
             try
             {
-                invitation = await _leagues.CreateInvitationAsync(new LeagueInvitation
+                invitation = await _invitations.CreateInvitationAsync(new LeagueInvitation
                 {
                     LeagueId = leagueId,
                     InviterId = inviterId,
@@ -246,7 +252,7 @@ public class LeagueService : ILeagueService
 
     public async Task<LeagueDetailDto> AcceptInvitationAsync(int invitationId, int userId)
     {
-        var invitation = await _leagues.GetInvitationByIdAsync(invitationId)
+        var invitation = await _invitations.GetInvitationByIdAsync(invitationId)
             ?? throw new KeyNotFoundException("Invitation not found.");
 
         if (invitation.InviteeId != userId)
@@ -260,7 +266,7 @@ public class LeagueService : ILeagueService
 
     public async Task<LeagueDetailDto> JoinByTokenAsync(string token, int userId)
     {
-        var invitation = await _leagues.GetInvitationByTokenAsync(token)
+        var invitation = await _invitations.GetInvitationByTokenAsync(token)
             ?? throw new KeyNotFoundException("Invite link not found or already used.");
 
         if (invitation.ExpiresAt.HasValue && invitation.ExpiresAt.Value < _time.GetUtcNow().UtcDateTime)
@@ -275,7 +281,7 @@ public class LeagueService : ILeagueService
             ?? throw new KeyNotFoundException("League not found.");
 
         // Claims the invitation and adds the membership atomically; a concurrent accept gets NotPending.
-        var result = await _leagues.AcceptInvitationAsync(invitation.Id, userId, _time.GetUtcNow().UtcDateTime);
+        var result = await _invitations.AcceptInvitationAsync(invitation.Id, userId, _time.GetUtcNow().UtcDateTime);
         if (result == AcceptInvitationResult.AlreadyMember)
             throw new ConflictException("You are already a member of this league.");
         if (result == AcceptInvitationResult.NotPending)
@@ -302,7 +308,7 @@ public class LeagueService : ILeagueService
 
     public async Task DeclineInvitationAsync(int invitationId, int userId)
     {
-        var invitation = await _leagues.GetInvitationByIdAsync(invitationId)
+        var invitation = await _invitations.GetInvitationByIdAsync(invitationId)
             ?? throw new KeyNotFoundException("Invitation not found.");
 
         if (invitation.InviteeId != userId)
@@ -311,13 +317,13 @@ public class LeagueService : ILeagueService
         if (invitation.Status != LeagueInvitationStatus.Pending)
             throw new ConflictException("This invitation is no longer pending.");
 
-        if (!await _leagues.TryCloseInvitationAsync(invitation.Id, LeagueInvitationStatus.Declined, _time.GetUtcNow().UtcDateTime))
+        if (!await _invitations.TryCloseInvitationAsync(invitation.Id, LeagueInvitationStatus.Declined, _time.GetUtcNow().UtcDateTime))
             throw new ConflictException("This invitation is no longer pending.");
     }
 
     public async Task CancelInvitationAsync(int invitationId, int requestingUserId)
     {
-        var invitation = await _leagues.GetInvitationByIdAsync(invitationId)
+        var invitation = await _invitations.GetInvitationByIdAsync(invitationId)
             ?? throw new KeyNotFoundException("Invitation not found.");
 
         var league = await _leagues.GetByIdAsync(invitation.LeagueId)
@@ -329,13 +335,13 @@ public class LeagueService : ILeagueService
         if (invitation.Status != LeagueInvitationStatus.Pending)
             throw new ConflictException("This invitation is no longer pending.");
 
-        if (!await _leagues.TryCloseInvitationAsync(invitation.Id, LeagueInvitationStatus.Cancelled, _time.GetUtcNow().UtcDateTime))
+        if (!await _invitations.TryCloseInvitationAsync(invitation.Id, LeagueInvitationStatus.Cancelled, _time.GetUtcNow().UtcDateTime))
             throw new ConflictException("This invitation is no longer pending.");
     }
 
     public async Task<List<LeagueInvitationDto>> GetMyPendingInvitationsAsync(int userId)
     {
-        var invitations = await _leagues.GetPendingInvitationsForUserAsync(userId);
+        var invitations = await _invitations.GetPendingInvitationsForUserAsync(userId);
         return invitations.Select(InvitationToDto).ToList();
     }
 
@@ -392,7 +398,7 @@ public class LeagueService : ILeagueService
         var visible = await _visibility.CanSeeDayAsync(requestingUserId, isAdmin, game, day);
 
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
-        var entries = await _leagues.GetLeaderboardAsync(leagueId, gameId, day, strategy);
+        var entries = await _standings.GetLeaderboardAsync(new LeagueGameDay(leagueId, gameId, day), strategy);
 
         var dto = new LeagueLeaderboardDto
         {
@@ -431,7 +437,7 @@ public class LeagueService : ILeagueService
         if (member == null)
             throw new ForbiddenException("You are not a member of this league.");
 
-        return await _leagues.GetLeagueGameSummariesAsync(leagueId, requestingUserId, days, page, pageSize);
+        return await _standings.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(leagueId, requestingUserId, days, page, pageSize));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

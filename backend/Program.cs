@@ -79,6 +79,8 @@ builder.Services.AddScoped<DailyChallenges.Services.Contracts.IFriendService, Da
 
 // Leagues
 builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.ILeagueRepository, DailyChallenges.Repositories.EfLeagueRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.ILeagueInvitationRepository, DailyChallenges.Repositories.EfLeagueInvitationRepository>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.ILeagueStandingsRepository, DailyChallenges.Repositories.EfLeagueStandingsRepository>();
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.ILeagueService, DailyChallenges.Services.LeagueService>();
 
 // XP system
