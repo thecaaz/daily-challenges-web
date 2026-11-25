@@ -1,186 +1,39 @@
-import { useRef, useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import './gamebar.css'
-import { Link, useNavigate } from 'react-router-dom'
-import { AppBar, Toolbar, Box, Typography, Chip, LinearProgress, Tooltip, IconButton } from '@mui/material'
-import AppButton from './ui/AppButton'
-import DarkModeIcon from '@mui/icons-material/DarkMode'
-import LightModeIcon from '@mui/icons-material/LightMode'
+import { AppBar, Toolbar, Box, IconButton } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
-import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'
 import NavDrawer from './NavDrawer'
-import { useAuth } from '../contexts/AuthContext'
-import { useThemeMode } from '../contexts/ThemeContext'
-import NotificationBell from './NotificationBell'
 import VersionBadge from './VersionBadge'
-import formatNumber from '../utils/formatNumber'
+import BrandLogo from './AppHeader/BrandLogo'
+import XpStatus from './AppHeader/XpStatus'
+import AccountActions, { GuestActions } from './AppHeader/AccountActions'
+import { useAuth } from '../contexts/AuthContext'
+
+const isFocusNavigationKey = event => event?.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')
 
 export default function GameBar() {
-  const { user, logout } = useAuth()
-  const { mode, toggleMode } = useThemeMode()
-  const navigate = useNavigate()
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const { user } = useAuth()
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
-  const toggleDrawer = (open) => (event) => {
-    if (event && event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) return
-    setDrawerOpen(open)
-  }
-
-  // Real XP data from the authenticated user object
-  const level = user?.level ?? 1
-  const xpInto = user?.xpIntoLevel ?? 0
-  const xpToNext = user?.xpToNextLevel ?? 100
-  const xpForLevel = xpInto + xpToNext
-  const streak = user?.streak ?? 0
-  const progress = xpForLevel > 0 ? Math.min(100, Math.round((xpInto / xpForLevel) * 100)) : 0
-
-  // Flash "+N XP" whenever totalXp increases
-  const totalXp = user ? (user.totalXp ?? 0) : null
-  const prevXpRef = useRef(null)
-  const gainIdRef = useRef(0)
-  const [gain, setGain] = useState(null) // { amount, id }
-
-  useEffect(() => {
-    const previous = prevXpRef.current
-    prevXpRef.current = totalXp
-    if (totalXp === null || previous === null || totalXp <= previous) return undefined
-    gainIdRef.current += 1
-    setGain({ amount: totalXp - previous, id: gainIdRef.current })
-    const timer = setTimeout(() => setGain(null), 2500)
-    return () => {
-      clearTimeout(timer)
-      setGain(null)
-    }
-  }, [totalXp])
-
-  const handleLogout = async () => {
-    try {
-      await logout()
-    } catch (e) {
-      // local state is cleared by logout() regardless
-    } finally {
-      navigate('/')
-    }
+  const closeDrawer = event => {
+    if (isFocusNavigationKey(event)) return
+    setIsDrawerOpen(false)
   }
 
   return (
     <AppBar position="sticky" elevation={0}>
       <Toolbar sx={{ gap: 1, minHeight: { xs: 56, sm: 64 } }}>
-        <IconButton edge="start" color="inherit" aria-label="open navigation" onClick={toggleDrawer(true)} sx={{ mr: 1 }}>
+        <IconButton edge="start" color="inherit" aria-label="open navigation" onClick={() => setIsDrawerOpen(true)} sx={{ mr: 1 }}>
           <MenuIcon />
         </IconButton>
-        <NavDrawer open={drawerOpen} onClose={toggleDrawer(false)} user={user} />
-        {/* Logo + title */}
-        <Box
-          component={Link}
-          to="/"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            textDecoration: 'none',
-            color: 'inherit',
-            flexShrink: 0,
-            mr: 2,
-          }}
-        >
-          <Box
-            sx={{
-              fontSize: '1.6rem',
-              lineHeight: 1,
-              borderRadius: '10px',
-              p: '6px',
-              background: 'linear-gradient(180deg,#fff,#ffeef8)',
-              boxShadow: '0 4px 12px rgba(255,122,182,0.15)',
-            }}
-          >
-            🎮
-          </Box>
-          <Box>
-            <Typography
-              variant="subtitle1"
-              sx={{ fontFamily: "'Baloo 2', 'Poppins', sans-serif", fontWeight: 800, lineHeight: 1.1 }}
-            >
-              Daily Challenges
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-              Play, compete, repeat
-            </Typography>
-          </Box>
-        </Box>
-
-        {/* Spacer (center area) */}
+        <NavDrawer open={isDrawerOpen} onClose={closeDrawer} user={user} />
+        <BrandLogo />
         <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
           <VersionBadge />
         </Box>
-
-        {/* XP bar (only when logged in) */}
-        {user && (
-          <Box className="xp" sx={{ minWidth: { xs: 140, sm: 220 }, mr: 1 }}>
-            <Box className="xp-bar-wrapper">
-              <Tooltip
-                title={`${formatNumber(xpInto)} / ${formatNumber(xpForLevel)} XP`}
-                placement="bottom"
-              >
-                <LinearProgress
-                  variant="determinate"
-                  value={progress}
-                  aria-label={`XP progress: ${formatNumber(xpInto)} of ${formatNumber(xpForLevel)}`}
-                />
-              </Tooltip>
-              {gain && (
-                <span className="xp-gain" key={gain.id}>+{formatNumber(gain.amount)} XP</span>
-              )}
-            </Box>
-            <Box
-              className="xp-meta"
-              sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: '4px', flexWrap: 'wrap' }}
-            >
-              <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
-                Level <Box component="strong" sx={{ ml: 0.5, fontWeight: 700 }}>{level}</Box> &nbsp;•&nbsp; {formatNumber(xpInto)}/{formatNumber(xpForLevel)} XP
-              </Typography>
-
-              <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>
-                Lvl <Box component="strong" sx={{ ml: 0.5, fontWeight: 700 }}>{level}</Box>
-              </Typography>
-
-              {streak > 1 && (
-                <Chip
-                  icon={<LocalFireDepartmentIcon sx={{ fontSize: '0.9rem !important' }} />}
-                  label={streak}
-                  size="small"
-                  color="secondary"
-                  sx={{ height: 18, fontSize: '0.7rem', fontWeight: 700, ml: 0.5 }}
-                />
-              )}
-            </Box>
-          </Box>
-        )}
-
-        {/* Nav actions */}
-        {user ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <IconButton aria-label="Toggle color scheme" size="small" onClick={toggleMode} sx={{ color: 'inherit' }}>
-              {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-            </IconButton>
-            <NotificationBell />
-            <Box component={Link} to={`/users/${user.id}`} sx={{ textDecoration: 'none', color: 'inherit', mx: 1, display: { xs: 'none', sm: 'block' } }}>
-              <Typography variant="body2" color="text.secondary">
-                {user.username}
-              </Typography>
-            </Box>
-            <AppButton variant="contained" color="primary" size="small" onClick={handleLogout}>
-              Logout
-            </AppButton>
-          </Box>
-        ) : (
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <AppButton to="/login" variant="outlined" color="primary" size="small">Login</AppButton>
-            <AppButton to="/register" variant="contained" color="primary" size="small">Register</AppButton>
-          </Box>
-        )}
+        {user && <XpStatus user={user} />}
+        {user ? <AccountActions user={user} /> : <GuestActions />}
       </Toolbar>
     </AppBar>
   )
 }
-
-
