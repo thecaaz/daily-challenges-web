@@ -98,6 +98,9 @@ builder.Services.AddScoped<DailyChallenges.Services.IXpService, DailyChallenges.
 
 // Admin users service
 builder.Services.AddScoped<DailyChallenges.Services.IAdminUserService, DailyChallenges.Services.AdminUserService>();
+builder.Services.AddScoped<DailyChallenges.Services.IAdminXpEventService, DailyChallenges.Services.AdminXpEventService>();
+builder.Services.AddScoped<DailyChallenges.Services.IAdminUserDeletionService, DailyChallenges.Services.AdminUserDeletionService>();
+builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserDeletionRepository, DailyChallenges.Repositories.EfUserDeletionRepository>();
 
 // Register services
 builder.Services.AddScoped<DailyChallenges.Services.IAuthService, DailyChallenges.Services.AuthService>();
