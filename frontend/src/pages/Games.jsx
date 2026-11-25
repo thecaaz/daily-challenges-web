@@ -50,12 +50,14 @@ export default function Games() {
     )
   }
 
+  const gameCountLabel = `${games.length} game${games.length !== 1 ? 's' : ''}`
+
   return (
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <Typography variant="h5" component="h1">Todays Challenges</Typography>
         <Chip
-          label={`${games.length} game${games.length !== 1 ? 's' : ''}`}
+          label={gameCountLabel}
           size="small"
           color="primary"
           sx={{ fontWeight: 700 }}

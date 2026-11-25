@@ -1,22 +1,15 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef } from 'react'
 import { Box, Typography } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import { useScoreCapture } from '../hooks/useScoreCapture'
+import useObjectUrl from '../hooks/useObjectUrl'
 
 const GAME_URL = 'https://timeguessr.com/roundonedaily'
 
 export default function TimeguessrDebug() {
   const iframeRef = useRef(null)
   const { score, capturedFile, submitScore, canCapture, capturing, captureError } = useScoreCapture(iframeRef, { url: GAME_URL })
-
-  // Derive a preview URL from the captured File for display
-  const [previewUrl, setPreviewUrl] = useState(null)
-  useEffect(() => {
-    if (!capturedFile) { setPreviewUrl(null); return }
-    const url = URL.createObjectURL(capturedFile)
-    setPreviewUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [capturedFile])
+  const previewUrl = useObjectUrl(capturedFile)
 
   return (
     <Box sx={{ mt: 2 }}>

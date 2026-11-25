@@ -12,26 +12,30 @@ import imageUrl from '../utils/imageUrl'
 import goBackOrRoute from '../utils/navigation'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
+import { isScoreHidden } from '../components/SubmissionCard'
+
+function SubmitterName({ submission }) {
+  const name = <Typography variant="h6" sx={{ fontWeight: 700 }}>{submission.username}</Typography>
+  if (!submission.userId) return name
+  return (
+    <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+      {name}
+    </Box>
+  )
+}
 
 function SubmissionPanel({ submission }) {
-  const masked = submission.score == null || submission.score === ''
+  const masked = isScoreHidden(submission)
+  const winnerTitle = submission.scoringDay ? `Winner for ${submission.scoringDay}` : 'Winner'
+  const scoreText = masked ? 'Hidden' : formatNumber(submission.score)
+  const missingScreenshotText = masked ? 'Screenshot hidden until you submit today' : 'No screenshot attached'
   return (
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Box sx={{ mb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          {submission.userId ? (
-            <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {submission.username}
-              </Typography>
-            </Box>
-          ) : (
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {submission.username}
-            </Typography>
-          )}
+          <SubmitterName submission={submission} />
           {submission.isDayWinner && (
-            <Tooltip title={submission.scoringDay ? `Winner for ${submission.scoringDay}` : 'Winner'}>
+            <Tooltip title={winnerTitle}>
               <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />
             </Tooltip>
           )}
@@ -39,7 +43,7 @@ function SubmissionPanel({ submission }) {
             <Chip label={`#${submission.rank}`} size="small" color="secondary" sx={{ fontWeight: 700, fontSize: '0.75rem' }} />
           )}
         </Box>
-        <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{masked ? 'Hidden' : formatNumber(submission.score)}</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{scoreText}</Typography>
         <Typography variant="caption" color="text.secondary">
           {formatDateTime(submission.createdAt)}
           {submission.scoringDay && ` · Day: ${submission.scoringDay}`}
@@ -49,7 +53,7 @@ function SubmissionPanel({ submission }) {
         <PanZoomImage src={imageUrl(submission.screenshotUrl)} alt={`${submission.username ?? 'Anonymous'} screenshot`} />
       ) : (
         <Card sx={{ p: 3, textAlign: 'center', height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Typography color="text.secondary">{masked ? 'Screenshot hidden until you submit today' : 'No screenshot attached'}</Typography>
+          <Typography color="text.secondary">{missingScreenshotText}</Typography>
         </Card>
       )}
     </Box>
@@ -73,11 +77,13 @@ export default function CompareSubmissions() {
   if (loading) return <Loading />
   if (error || !sub1 || !sub2) return <NotFound message="Could not load submissions for comparison" />
 
+  const goBack = () => goBackOrRoute(navigate, location, sub1.gameId ? `/games/${sub1.gameId}` : '/', {})
+
   return (
     <div>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Compare Submissions</Typography>
-        <AppButton onClick={() => goBackOrRoute(navigate, location, sub1.gameId ? `/games/${sub1.gameId}` : '/', {})}>Back</AppButton>
+        <AppButton onClick={goBack}>Back</AppButton>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>

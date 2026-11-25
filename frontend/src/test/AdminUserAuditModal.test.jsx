@@ -3,6 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
+const mockDownloadBlob = vi.fn()
+vi.mock('../utils/downloadBlob', () => ({
+  default: (...a) => mockDownloadBlob(...a),
+}))
+
 const mockShowSnackbar = vi.fn()
 vi.mock('../contexts/SnackbarContext', () => ({
   useSnackbar: () => ({ showSnackbar: mockShowSnackbar }),
@@ -72,5 +77,57 @@ describe('AdminUserAuditModal', () => {
     expect(await screen.findByRole('option', { name: 'Day Win' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Submission Revoked' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /Streak/i })).toBeNull()
+  })
+
+  it('pages with the applied filters, not the ones still being edited', async () => {
+    mockGet.mockResolvedValue({ data: { items: [{ id: 1, amount: 10, eventType: 'day_win', createdAt: '2026-01-02T10:00:00Z' }], totalCount: 45 } })
+    renderModal()
+    await screen.findByText('Showing 1 of 45')
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('button', { name: 'Prev' })).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-05-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(3))
+    expect(lastParams()).toEqual({ page: 2, pageSize: 20, from: '2026-03-01' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Prev' })).not.toBeDisabled())
+  })
+
+  it('disables Next on the last page', async () => {
+    renderModal()
+
+    await screen.findByText('Showing 1 of 1')
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+  })
+
+  it('exports the applied filters as CSV', async () => {
+    renderModal()
+    await screen.findByText('2026-01-01')
+    fireEvent.change(screen.getByLabelText('To (inclusive)'), { target: { value: '2026-03-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2))
+    mockGet.mockResolvedValueOnce({ data: 'csv' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }))
+
+    await waitFor(() => expect(mockDownloadBlob).toHaveBeenCalled())
+    expect(mockGet).toHaveBeenLastCalledWith('/admin/users/5/xp-events/export', { params: { to: '2026-04-01' }, responseType: 'blob' })
+    expect(mockDownloadBlob.mock.calls[0][0]).toBe('xp-events-user-5.csv')
+  })
+
+  it('shows a snackbar when loading fails', async () => {
+    mockGet.mockRejectedValue(new Error('boom'))
+    renderModal()
+
+    await waitFor(() => expect(mockShowSnackbar).toHaveBeenCalledWith('Failed to load XP events', 'error'))
+  })
+
+  it('titles the dialog with the user id when the username is unknown', async () => {
+    render(<MemoryRouter><AdminUserAuditModal open onClose={() => {}} userId={5} username={null} /></MemoryRouter>)
+
+    expect(await screen.findByText(/User 5/)).toBeInTheDocument()
   })
 })
