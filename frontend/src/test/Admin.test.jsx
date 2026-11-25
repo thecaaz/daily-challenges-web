@@ -27,6 +27,7 @@ vi.mock('../api', () => ({
 }))
 
 import Admin from '../pages/Admin'
+import { letPendingWorkSettle } from './timing'
 
 const wordle = { id: 7, name: 'Wordle', resetTime: '00:00', url: 'https://wordle.test', description: '', rankingMode: 'highest' }
 const tango = { id: 8, name: 'Tango', resetTime: '00:00', rankingMode: 'lowest' }
@@ -250,7 +251,7 @@ describe('Admin page', () => {
     await screen.findByText('bob')
     resolveWordle({ data: [submission(1, 'alice', '10')] })
 
-    await new Promise(r => setTimeout(r, 20))
+    await letPendingWorkSettle()
     expect(screen.queryByText('alice')).not.toBeInTheDocument()
     expect(screen.getByText('bob')).toBeInTheDocument()
   })

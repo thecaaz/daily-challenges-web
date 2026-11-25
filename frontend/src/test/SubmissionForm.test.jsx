@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 const mockFetchMe = vi.fn()
@@ -127,7 +127,7 @@ describe('SubmissionForm', () => {
 
     submit()
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(Array.from(dialog.querySelectorAll('button')).find(b => b.textContent === 'Submit'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Submit' }))
 
     await waitFor(() => expect(mockPost).toHaveBeenCalled())
   })

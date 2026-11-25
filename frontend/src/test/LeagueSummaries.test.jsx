@@ -18,10 +18,11 @@ describe('buildRecentPlaysData', () => {
     expect(data.map(d => d.count)).toEqual([1, 0, 3])
   })
 
-  it('falls back to UTC days counted back from now', () => {
-    // 23:30 UTC on Nov 4 — must not jump to Nov 5 in a UTC+ zone or similar.
-    const now = new Date(Date.UTC(2026, 10, 4, 23, 30))
-    const data = buildRecentPlaysData([1, 2, 3], undefined, now)
+  it('falls back to UTC days counted back from now, without jumping to the next local day late in the UTC day', () => {
+    const lateOnNov4Utc = new Date(Date.UTC(2026, 10, 4, 23, 30))
+
+    const data = buildRecentPlaysData([1, 2, 3], undefined, lateOnNov4Utc)
+
     expect(data.map(d => d.isoDate)).toEqual(['2026-11-02', '2026-11-03', '2026-11-04'])
   })
 
