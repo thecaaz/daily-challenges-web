@@ -7,25 +7,28 @@ namespace DailyChallenges.Services;
 
 public sealed class AdminXpEventService(IXpEventRepository xpEvents) : IAdminXpEventService
 {
+    public const int MaxExportRows = 10000;
+
     private const string CsvHeader = "Id,UserId,SubmissionId,GameId,ScoringDay,Amount,EventType,Details,CreatedAt";
 
-    public async Task<(List<XpEventDto> Items, int TotalCount)> GetXpEventsAsync(int userId, int page = 1, int pageSize = 20, DateTime? from = null, DateTime? to = null, string? eventType = null)
+    public async Task<(List<XpEventDto> Items, int TotalCount)> GetXpEventsAsync(XpEventQuery query, int page, int pageSize)
     {
-        var (items, total) = await xpEvents.GetByUserPagedAsync(new XpEventFilter(userId) { From = from, To = to, EventType = eventType }, page, pageSize);
+        var filter = new XpEventFilter(query.UserId) { From = query.From, To = query.To, EventType = query.EventType };
+        var (items, total) = await xpEvents.GetByUserPagedAsync(filter, page, pageSize);
         var dtos = items.Select(e => DtoMapper.ToDto(e)).ToList();
         return (dtos, total);
     }
 
-    public async Task<(byte[] Data, string Filename)> ExportXpEventsCsvAsync(int userId, DateTime? from = null, DateTime? to = null, string? eventType = null, int maxRows = 10000)
+    public async Task<(byte[] Data, string Filename)> ExportXpEventsCsvAsync(XpEventQuery query)
     {
-        var (items, _) = await GetXpEventsAsync(userId, 1, maxRows, from, to, eventType);
+        var (items, _) = await GetXpEventsAsync(query, Paging.FirstPage, MaxExportRows);
 
         var csv = new StringBuilder();
         csv.AppendLine(CsvHeader);
         foreach (var item in items)
             csv.AppendLine(ToCsvLine(item));
 
-        return (Encoding.UTF8.GetBytes(csv.ToString()), $"xp-events-user-{userId}.csv");
+        return (Encoding.UTF8.GetBytes(csv.ToString()), $"xp-events-user-{query.UserId}.csv");
     }
 
     /// <summary>

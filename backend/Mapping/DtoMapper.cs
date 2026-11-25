@@ -45,13 +45,12 @@ public static class DtoMapper
     };
 
     /// <summary>
-    /// Maps a game, including its current scoring day. Services pass <paramref name="nowUtc"/> from their
-    /// TimeProvider so the DTO uses the same clock as the rest of the request; without it the system clock is used.
+    /// Maps a game, including its current scoring day at <paramref name="nowUtc"/> (from the caller's TimeProvider).
     /// ResetTime is UTC and exported as "hh:mm"; the image is signalled by its content type, not the blob.
     /// </summary>
-    public static GameDto ToDto(Game g, DateTime? nowUtc = null)
+    public static GameDto ToDto(Game g, DateTime nowUtc)
     {
-        var window = CurrentScoringDayWindow.For(g.ResetTime, nowUtc ?? DateTime.UtcNow);
+        var window = CurrentScoringDayWindow.For(g.ResetTime, nowUtc);
         return new GameDto
         {
             Id = g.Id,
@@ -66,10 +65,6 @@ public static class DtoMapper
             CurrentScoringDayUtcEnd = window.UtcEnd
         };
     }
-
-    /// <summary>Like <see cref="ToDto(Game, DateTime?)"/>, plus the game's loaded submissions (null when not loaded).</summary>
-    public static GameDto ToDtoWithSubmissions(Game g, DateTime? nowUtc = null) =>
-        ToDto(g, nowUtc) with { Submissions = g.Submissions?.Select(ToDto).ToList() };
 
     public static XpEventDto ToDto(XpEvent e) => new()
     {

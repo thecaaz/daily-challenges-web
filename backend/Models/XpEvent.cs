@@ -5,7 +5,7 @@ namespace DailyChallenges.Models;
 /// <summary>
 /// Immutable audit record of every XP change for a user.
 /// </summary>
-public class XpEvent
+public sealed class XpEvent
 {
     [Key]
     public int Id { get; set; }
@@ -14,14 +14,14 @@ public class XpEvent
     public int UserId { get; set; }
     public User? User { get; set; }
 
-    // The submission that triggered this event (null for admin adjustments etc.)
+    /// <summary>The submission that triggered this event (null for admin adjustments etc.).</summary>
     public int? SubmissionId { get; set; }
     public Submission? Submission { get; set; }
 
     public int? GameId { get; set; }
     public Game? Game { get; set; }
 
-    // The game's scoring day the XP was earned for ("submission" and "day_win"; null for admin adjustments)
+    /// <summary>The game's scoring day the XP was earned for ("submission" and "day_win"; null for admin adjustments).</summary>
     public DateTime? ScoringDay { get; set; }
 
     /// <summary>XP delta actually applied (positive = gain, negative = deduction). For admin adjustments
@@ -39,5 +39,5 @@ public class XpEvent
     /// <summary>Freeform context (e.g. streak count, admin reason, etc.).</summary>
     public string? Details { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 }

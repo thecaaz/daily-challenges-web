@@ -24,4 +24,7 @@ public sealed class EfSessionRepository(AppDbContext db) : ISessionRepository
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.TokenVersion, u => u.TokenVersion + 1));
         return bumped == 1;
     }
+
+    public Task<int> DeleteExpiredRevocationsAsync(DateTime nowUtc, CancellationToken ct) =>
+        db.RevokedRefreshTokens.Where(t => t.ExpiresAt < nowUtc).ExecuteDeleteAsync(ct);
 }

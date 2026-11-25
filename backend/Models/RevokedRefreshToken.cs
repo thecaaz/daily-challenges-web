@@ -6,7 +6,7 @@ namespace DailyChallenges.Models;
 /// A refresh token (by its "jti") that was rotated or logged out and must not be accepted again.
 /// Rows are purged once the token would have expired anyway.
 /// </summary>
-public class RevokedRefreshToken
+public sealed class RevokedRefreshToken
 {
     [Key]
     [MaxLength(64)]

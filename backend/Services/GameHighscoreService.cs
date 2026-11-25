@@ -49,13 +49,13 @@ public sealed class GameHighscoreService(
     private HighscoreResult ToRankedResult(List<Submission> top, DateTime currentDay)
     {
         var dtos = top
-            .Select(s => SubmissionDtoHelper.WithScreenshotUrl(
-                SubmissionDtoHelper.ToDtoWithScoringDay(s, s.ScoringDay.Date),
+            .Select(s => SubmissionDtoMapper.WithScreenshotUrl(
+                SubmissionDtoMapper.ToDtoWithScoringDay(s, s.ScoringDay.Date),
                 s.ScoringDay.Date == currentDay ? signer.SignedUrl : signer.UnsignedUrl))
             .ToList();
 
         AssignSequentialRanks(dtos);
-        return new HighscoreResult { Highscore = dtos.FirstOrDefault(), Top = dtos };
+        return new HighscoreResult(dtos.FirstOrDefault(), dtos);
     }
 
     private static void AssignSequentialRanks(List<SubmissionDto> dtos)

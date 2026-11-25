@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class User
+public sealed class User
 {
     [Key]
     public int Id { get; set; }
@@ -21,7 +21,6 @@ public class User
     /// </summary>
     public int TokenVersion { get; set; } = 0;
 
-    // ── XP / Level ──────────────────────────────────────────────────────────
     /// <summary>Lifetime XP from every source (submissions, day wins, admin adjustments); never below 0.</summary>
     public long TotalXp { get; set; } = 0;
 

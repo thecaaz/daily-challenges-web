@@ -47,6 +47,6 @@ public sealed class SubmissionDeletionService(
     {
         if (submission is not { UserId: int userId, XpAwarded: int xpAwarded and > 0 }) return;
 
-        await xp.RevokeSubmissionAsync(userId, submission.Id, submission.GameId, day, xpAwarded, XpRevocationReason);
+        await xp.RevokeSubmissionAsync(new SubmissionXpRevocation(userId, submission.Id, submission.GameId, day, xpAwarded, XpRevocationReason));
     }
 }

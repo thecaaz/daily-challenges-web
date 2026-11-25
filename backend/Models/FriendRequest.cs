@@ -2,7 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class FriendRequest
+/// <summary>
+/// At most one request row exists per pair of users, in either direction; see
+/// <see cref="Data.Configurations.FriendRequestConfiguration"/>.
+/// </summary>
+public sealed class FriendRequest
 {
     [Key]
     public int Id { get; set; }
@@ -17,11 +21,8 @@ public class FriendRequest
 
     public FriendRequestStatus Status { get; set; } = FriendRequestStatus.Pending;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     /// <summary>Last status change (accept or decline). For a Declined request this is the decline time.</summary>
     public DateTime? UpdatedAt { get; set; }
-
-    // UserLowId / UserHighId are shadow, virtual computed columns (min/max of SenderId and ReceiverId)
-    // configured in AppDbContext. Their unique index allows one request row per pair of users, in either direction.
 }

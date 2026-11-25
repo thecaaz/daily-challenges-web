@@ -20,9 +20,9 @@ public sealed class SubmissionCreationService(
     IScreenshotUrlSigner screenshotSigner,
     ILogger<SubmissionCreationService> logger) : ISubmissionCreationService
 {
-    public async Task<(SubmissionDto Dto, int XpGain)> CreateAsync(int gameId, string score, string? username, IFormFile? screenshot, ClaimsPrincipal user)
+    public async Task<(SubmissionDto Dto, int XpGain)> CreateAsync(SubmissionDraftRequest request, ClaimsPrincipal user)
     {
-        var draft = await drafts.BuildAsync(new SubmissionDraftRequest(gameId, score, username, screenshot), user);
+        var draft = await drafts.BuildAsync(request, user);
         var (created, xpGain) = await SaveAsync(draft);
         await CheckAchievementsAsync(created.UserId);
         return (ToCreatorDto(created), xpGain);
@@ -30,7 +30,8 @@ public sealed class SubmissionCreationService(
 
     /// <summary>
     /// Saves the submission and awards its XP in one transaction, so both succeed or both roll back. A unique
-    /// index violation means a concurrent submission for the same user/game/day won the race.
+    /// index violation means a concurrent submission for the same user/game/day won the race. Any other database
+    /// failure is logged with the game and user, then rethrown to the exception middleware.
     /// </summary>
     private async Task<(Submission Created, int XpGain)> SaveAsync(Submission draft)
     {
@@ -42,7 +43,7 @@ public sealed class SubmissionCreationService(
         {
             throw new ConflictException(SubmissionDraftBuilder.AlreadySubmittedMessage);
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
         {
             logger.LogError(ex, "Error creating submission for game {GameId} by user {UserId}", draft.GameId, draft.UserId);
             throw;
@@ -71,7 +72,7 @@ public sealed class SubmissionCreationService(
     /// <summary>The creator may always see their own submission; it is on the current day, so its screenshot URL is signed.</summary>
     private SubmissionDto ToCreatorDto(Submission created)
     {
-        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(created, created.ScoringDay.Date);
-        return SubmissionDtoHelper.WithScreenshotUrl(dto, screenshotSigner.SignedUrl);
+        var dto = SubmissionDtoMapper.ToDtoWithScoringDay(created, created.ScoringDay.Date);
+        return SubmissionDtoMapper.WithScreenshotUrl(dto, screenshotSigner.SignedUrl);
     }
 }

@@ -19,4 +19,10 @@ public interface ISessionRepository
     /// still equals <paramref name="tokenVersion"/>, so concurrent callers bump it once. True when bumped.
     /// </summary>
     Task<bool> EndAllSessionsAsync(int userId, int tokenVersion);
+
+    /// <summary>
+    /// Deletes revocations whose token expired before <paramref name="nowUtc"/> (an expired token can't be
+    /// replayed any more). Returns the number of rows deleted.
+    /// </summary>
+    Task<int> DeleteExpiredRevocationsAsync(DateTime nowUtc, CancellationToken ct);
 }

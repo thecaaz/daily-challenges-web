@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class League
+public sealed class League
 {
     [Key]
     public int Id { get; set; }
@@ -16,7 +16,7 @@ public class League
     public int OwnerId { get; set; }
     public User? Owner { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     public ICollection<LeagueMember> Members { get; set; } = new List<LeagueMember>();
     public ICollection<LeagueInvitation> Invitations { get; set; } = new List<LeagueInvitation>();

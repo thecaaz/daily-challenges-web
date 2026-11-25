@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class Favorite
+public sealed class Favorite
 {
     [Key]
     public int Id { get; set; }
@@ -11,9 +11,8 @@ public class Favorite
 
     public int GameId { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
-    // Optional navigation properties
     public User? User { get; set; }
     public Game? Game { get; set; }
 }

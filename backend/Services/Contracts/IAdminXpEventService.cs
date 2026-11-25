@@ -4,9 +4,18 @@ namespace DailyChallenges.Services;
 
 public interface IAdminXpEventService
 {
-    /// <summary>One page of the user's XP events; <paramref name="from"/> is inclusive, <paramref name="to"/> exclusive.</summary>
-    Task<(List<XpEventDto> Items, int TotalCount)> GetXpEventsAsync(int userId, int page = 1, int pageSize = 20, DateTime? from = null, DateTime? to = null, string? eventType = null);
+    /// <summary>One page (1-based) of the user's XP events matching <paramref name="query"/>.</summary>
+    Task<(List<XpEventDto> Items, int TotalCount)> GetXpEventsAsync(XpEventQuery query, int page, int pageSize);
 
-    /// <summary>Up to <paramref name="maxRows"/> XP events as a UTF-8 CSV file, with formula-like text cells neutralized.</summary>
-    Task<(byte[] Data, string Filename)> ExportXpEventsCsvAsync(int userId, DateTime? from = null, DateTime? to = null, string? eventType = null, int maxRows = 10000);
+    /// <summary>
+    /// Up to <see cref="AdminXpEventService.MaxExportRows"/> XP events as a UTF-8 CSV file, with formula-like
+    /// text cells neutralized.
+    /// </summary>
+    Task<(byte[] Data, string Filename)> ExportXpEventsCsvAsync(XpEventQuery query);
 }
+
+/// <summary>
+/// The XP events of one user, optionally filtered: <see cref="From"/> is inclusive, <see cref="To"/> exclusive,
+/// and <see cref="EventType"/> matches exactly.
+/// </summary>
+public sealed record XpEventQuery(int UserId, DateTime? From, DateTime? To, string? EventType);

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class UserAchievement
+public sealed class UserAchievement
 {
     [Key]
     public int Id { get; set; }
@@ -14,5 +14,5 @@ public class UserAchievement
     [Required]
     public string AchievementId { get; set; } = string.Empty;
 
-    public DateTime UnlockedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UnlockedAt { get; set; }
 }

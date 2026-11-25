@@ -5,8 +5,6 @@ using System.Security.Claims;
 
 namespace DailyChallenges.Services;
 
-public sealed record SubmissionDraftRequest(int GameId, string Score, string? Username, IFormFile? Screenshot);
-
 /// <summary>
 /// Validates a new submission and builds the unsaved entity. The scoring day is fixed at write time so
 /// reads can query it directly.

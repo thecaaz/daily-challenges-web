@@ -12,8 +12,5 @@ public interface IGameHighscoreService
     Task<HighscoreResult> GetPersonalHighscoreAsync(int id, int userId);
 }
 
-public class HighscoreResult
-{
-    public SubmissionDto? Highscore { get; set; }
-    public List<SubmissionDto> Top { get; set; } = new();
-}
+/// <summary>The ranked <paramref name="Top"/> list and its first entry (null when the list is empty).</summary>
+public sealed record HighscoreResult(SubmissionDto? Highscore, List<SubmissionDto> Top);

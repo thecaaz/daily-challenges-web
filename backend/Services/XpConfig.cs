@@ -3,6 +3,8 @@ namespace DailyChallenges.Services;
 /// <summary>The "Xp" configuration section: submission and win XP, the streak bonus and the level curve.</summary>
 public sealed class XpConfig
 {
+    public const string SectionName = "Xp";
+
     public int BaseXpPerSubmission { get; set; } = 50;
     /// <summary>Fraction added per streak day beyond the first (default 1 %).</summary>
     public double StreakBonusPerDay { get; set; } = 0.01;

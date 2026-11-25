@@ -34,7 +34,7 @@ public sealed class AdminUsersController(
         if (dto == null) return BadRequest();
         if (dto.Delta == 0) return BadRequest(new { message = "Delta must be non-zero" });
 
-        return Ok(await adminUsers.AdjustXpAsync(id, dto.Delta, dto.Reason, User.GetUserId()));
+        return Ok(await adminUsers.AdjustXpAsync(new XpAdjustment(id, dto.Delta, dto.Reason, User.GetUserId())));
     }
 
     /// <summary>`from` is inclusive, `to` is exclusive.</summary>
@@ -42,14 +42,14 @@ public sealed class AdminUsersController(
     public async Task<IActionResult> GetXpEvents(int id, [FromQuery] int page = Paging.FirstPage, [FromQuery] int pageSize = DefaultXpEventPageSize, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] string? eventType = null)
     {
         var (clampedPage, clampedPageSize) = Paging.Clamp(page, pageSize);
-        var (items, total) = await adminXpEvents.GetXpEventsAsync(id, clampedPage, clampedPageSize, from, to, eventType);
+        var (items, total) = await adminXpEvents.GetXpEventsAsync(new XpEventQuery(id, from, to, eventType), clampedPage, clampedPageSize);
         return Ok(new { items, totalCount = total });
     }
 
     [HttpGet("{id}/xp-events/export")]
     public async Task<IActionResult> ExportXpEvents(int id, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] string? eventType = null)
     {
-        var (data, filename) = await adminXpEvents.ExportXpEventsCsvAsync(id, from, to, eventType);
+        var (data, filename) = await adminXpEvents.ExportXpEventsCsvAsync(new XpEventQuery(id, from, to, eventType));
         return File(data, ContentTypes.CsvUtf8, filename);
     }
 

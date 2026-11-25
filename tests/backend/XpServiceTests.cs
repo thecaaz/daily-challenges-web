@@ -272,7 +272,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((User?)null);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            sut.Service.AdjustXpAsync(99, 100, "test"));
+            sut.Service.AdjustXpAsync(new XpAdjustment(99, 100, "test")));
     }
 
     [Fact]
@@ -282,7 +282,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 100);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(1, 50, "bonus");
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "bonus"));
 
         Assert.Equal(150, user.TotalXp);
     }
@@ -294,7 +294,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 100);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(1, -30, "penalty");
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -30, "penalty"));
 
         Assert.Equal(70, user.TotalXp);
     }
@@ -306,7 +306,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 10);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(1, -1000, "penalty");
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty"));
 
         Assert.Equal(0, user.TotalXp);
     }
@@ -324,7 +324,7 @@ public class XpServiceTests
             .Callback<XpEvent>(e => captured = e)
             .ReturnsAsync((XpEvent e) => e);
 
-        var applied = await sut.Service.AdjustXpAsync(1, -1000, "penalty", adminUserId: 2);
+        var applied = await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty", AdminUserId: 2));
 
         Assert.Equal(-10, applied);
         Assert.NotNull(captured);
@@ -344,7 +344,7 @@ public class XpServiceTests
             .Callback<XpEvent>(e => captured = e)
             .ReturnsAsync((XpEvent e) => e);
 
-        await sut.Service.AdjustXpAsync(1, 50, "reward", adminUserId: 2);
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "reward", AdminUserId: 2));
 
         Assert.NotNull(captured);
         Assert.Equal("admin_adjustment", captured!.EventType);

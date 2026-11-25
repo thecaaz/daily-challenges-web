@@ -21,7 +21,7 @@ public interface IXpService
     /// applied delta as Amount and the requested delta in Details.
     /// </summary>
     /// <returns>The delta actually applied.</returns>
-    Task<int> AdjustXpAsync(int userId, int delta, string reason, int? adminUserId = null);
+    Task<int> AdjustXpAsync(XpAdjustment adjustment);
 
     /// <summary>
     /// Awards win XP for winning a scoring day on a game. Idempotent: returns 0 without changes when a
@@ -30,12 +30,12 @@ public interface IXpService
     Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay);
 
     /// <summary>
-    /// Takes back the XP of a submission that is being deleted: subtracts <paramref name="amount"/> from TotalXp
+    /// Takes back the XP of a submission that is being deleted: subtracts the amount from TotalXp
     /// (clamped at 0), re-derives Level and writes a negative "submission_revoked" XpEvent with the applied amount.
     /// Streak and LastSubmissionAt are left alone.
     /// </summary>
     /// <returns>The XP actually removed.</returns>
-    Task<int> RevokeSubmissionAsync(int userId, int submissionId, int gameId, DateTime scoringDay, int amount, string? reason = null);
+    Task<int> RevokeSubmissionAsync(SubmissionXpRevocation revocation);
 
     /// <summary>
     /// Takes back a day win: deletes the user's "day_win" XpEvent for the game and day and subtracts its amount
@@ -44,3 +44,9 @@ public interface IXpService
     /// <returns>The amount of the removed event (0 when there was none).</returns>
     Task<int> RevokeDayWinAsync(int userId, int gameId, DateTime scoringDay);
 }
+
+/// <summary>A manual XP change of <see cref="Delta"/> for a user, made by <see cref="AdminUserId"/> when known.</summary>
+public sealed record XpAdjustment(int UserId, int Delta, string? Reason, int? AdminUserId = null);
+
+/// <summary>The XP <see cref="Amount"/> a deleted submission had awarded, to be taken back on its scoring day.</summary>
+public sealed record SubmissionXpRevocation(int UserId, int SubmissionId, int GameId, DateTime ScoringDay, int Amount, string? Reason = null);

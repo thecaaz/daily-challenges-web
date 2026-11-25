@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class Notification
+public sealed class Notification
 {
     [Key]
     public int Id { get; set; }
@@ -36,5 +36,5 @@ public class Notification
 
     public bool IsRead { get; set; } = false;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 }

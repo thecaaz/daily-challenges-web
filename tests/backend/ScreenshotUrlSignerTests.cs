@@ -45,15 +45,6 @@ public class ScreenshotUrlSignerTests
     }
 
     [Fact]
-    public void Url_signs_only_when_asked()
-    {
-        var (signer, _) = Create();
-
-        Assert.Equal(signer.UnsignedUrl(7), signer.Url(7, sign: false));
-        Assert.Equal(signer.SignedUrl(7), signer.Url(7, sign: true));
-    }
-
-    [Fact]
     public void IsValid_accepts_a_fresh_signature_in_either_hex_case()
     {
         var (signer, _) = Create();

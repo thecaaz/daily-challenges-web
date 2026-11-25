@@ -37,8 +37,6 @@ public sealed class ScreenshotUrlSigner(IOptions<JwtOptions> jwt, TimeProvider t
         return $"{UnsignedUrl(submissionId)}?exp={exp.ToString(CultureInfo.InvariantCulture)}&sig={ComputeSignature(submissionId, exp)}";
     }
 
-    public string Url(int submissionId, bool sign) => sign ? SignedUrl(submissionId) : UnsignedUrl(submissionId);
-
     public string ComputeSignature(int submissionId, long exp) =>
         Convert.ToHexString(Hash(submissionId, exp)).ToLowerInvariant();
 

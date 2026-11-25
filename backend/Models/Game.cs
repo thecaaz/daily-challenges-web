@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DailyChallenges.Models;
 
-public class Game
+public sealed class Game
 {
     [Key]
     public int Id { get; set; }
@@ -10,21 +10,21 @@ public class Game
     [Required]
     public string Name { get; set; } = string.Empty;
 
-    // Stored image as blob
+    /// <summary>The game image, stored as a blob.</summary>
     public byte[]? ScreenshotData { get; set; }
     public string? ScreenshotContentType { get; set; }
 
-    // Daily reset time in UTC (time-of-day). Timezone is no longer stored.
-    // ResetTime represents the UTC time-of-day at which a scoring day rolls over.
+    /// <summary>The UTC time of day at which a scoring day rolls over. No time zone is stored.</summary>
     public TimeSpan ResetTime { get; set; } = TimeSpan.Zero;
 
-    // Navigation property
     public List<Submission> Submissions { get; set; } = new();
 
-    // Optional URL where the game can be played or viewed
+    /// <summary>Where the game can be played or viewed.</summary>
     public string? Url { get; set; }
-    // Optional description for game detail page
+
+    /// <summary>Shown on the game detail page.</summary>
     public string? Description { get; set; }
-    // Determines how ranks are calculated
+
+    /// <summary>How ranks are calculated.</summary>
     public RankingMode RankingMode { get; set; } = RankingMode.Highest;
 }

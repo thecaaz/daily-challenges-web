@@ -10,7 +10,7 @@ public enum LeagueInvitationStatus
     Cancelled
 }
 
-public class LeagueInvitation
+public sealed class LeagueInvitation
 {
     [Key]
     public int Id { get; set; }
@@ -34,7 +34,7 @@ public class LeagueInvitation
 
     public LeagueInvitationStatus Status { get; set; } = LeagueInvitationStatus.Pending;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 
     /// <summary>When null, the invite never expires.</summary>

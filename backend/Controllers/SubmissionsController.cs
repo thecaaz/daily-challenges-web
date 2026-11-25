@@ -23,7 +23,7 @@ public sealed class SubmissionsController(
             return InvalidScoringDay();
 
         var (clampedPage, clampedPageSize) = Paging.Clamp(page, pageSize);
-        return Ok(await submissionQueries.GetByGameAsync(gameId, User, parsedDay, clampedPage, clampedPageSize));
+        return Ok(await submissionQueries.GetByGameAsync(new GameSubmissionsPageRequest(gameId, parsedDay, clampedPage, clampedPageSize), User));
     }
 
     [HttpGet("game/{gameId}/available-dates")]
@@ -57,7 +57,8 @@ public sealed class SubmissionsController(
     [Authorize]
     public async Task<IActionResult> Create([FromForm] SubmissionCreateRequest request)
     {
-        var (submissionDto, xpGain) = await submissionCreation.CreateAsync(request.GameId, request.Score, request.Username, request.Screenshot, User);
+        var draft = new SubmissionDraftRequest(request.GameId, request.Score, request.Username, request.Screenshot);
+        var (submissionDto, xpGain) = await submissionCreation.CreateAsync(draft, User);
         var response = new { submission = submissionDto, xpGain };
         return CreatedAtAction(nameof(GetByGame), new { gameId = request.GameId }, response);
     }

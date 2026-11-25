@@ -6,7 +6,7 @@ using Moq;
 
 namespace DailyChallenges.Tests;
 
-public class SubmissionDtoHelperTests
+public class SubmissionDtoMapperTests
 {
     private static readonly DateTime Day = new(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -19,7 +19,7 @@ public class SubmissionDtoHelperTests
     [Fact]
     public void ToDtoWithScoringDay_UsesTheGivenDay()
     {
-        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(WithScreenshot(), Day.AddDays(3));
+        var dto = SubmissionDtoMapper.ToDtoWithScoringDay(WithScreenshot(), Day.AddDays(3));
 
         Assert.Equal("2026-04-04", dto.ScoringDay);
         Assert.False(dto.IsDayWinner);
@@ -28,7 +28,7 @@ public class SubmissionDtoHelperTests
     [Fact]
     public void ToDtoWithScoringDay_FallsBackToTheStoredDay()
     {
-        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(WithScreenshot());
+        var dto = SubmissionDtoMapper.ToDtoWithScoringDay(WithScreenshot());
 
         Assert.Equal("2026-04-01", dto.ScoringDay);
     }
@@ -39,15 +39,15 @@ public class SubmissionDtoHelperTests
         var submission = WithScreenshot();
         submission.ScoringDay = DateTime.MinValue;
 
-        Assert.Null(SubmissionDtoHelper.ToDtoWithScoringDay(submission).ScoringDay);
+        Assert.Null(SubmissionDtoMapper.ToDtoWithScoringDay(submission).ScoringDay);
     }
 
     [Fact]
     public void Mask_HidesEverythingThatRevealsTheScore()
     {
-        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(WithScreenshot(), Day) with { IsDayWinner = true, Rank = 1 };
+        var dto = SubmissionDtoMapper.ToDtoWithScoringDay(WithScreenshot(), Day) with { IsDayWinner = true, Rank = 1 };
 
-        var masked = SubmissionDtoHelper.Mask(dto);
+        var masked = SubmissionDtoMapper.Mask(dto);
 
         Assert.Null(masked.Score);
         Assert.Null(masked.ScoreValue);
@@ -66,17 +66,17 @@ public class SubmissionDtoHelperTests
         signer.Setup(s => s.SignedUrl(5)).Returns("signed");
         signer.Setup(s => s.UnsignedUrl(5)).Returns("/api/submissions/5/screenshot");
 
-        Assert.Equal("signed", SubmissionDtoHelper.WithScreenshotUrl(DtoMapper.ToDto(WithScreenshot()), signer.Object.SignedUrl).ScreenshotUrl);
-        Assert.Equal("/api/submissions/5/screenshot", SubmissionDtoHelper.WithScreenshotUrl(DtoMapper.ToDto(WithScreenshot()), signer.Object.UnsignedUrl).ScreenshotUrl);
+        Assert.Equal("signed", SubmissionDtoMapper.WithScreenshotUrl(DtoMapper.ToDto(WithScreenshot()), signer.Object.SignedUrl).ScreenshotUrl);
+        Assert.Equal("/api/submissions/5/screenshot", SubmissionDtoMapper.WithScreenshotUrl(DtoMapper.ToDto(WithScreenshot()), signer.Object.UnsignedUrl).ScreenshotUrl);
     }
 
     [Fact]
     public void WithScreenshotUrl_WithoutScreenshotStaysEmpty()
     {
         var submission = WithScreenshot();
-        submission.ScreenshotContentType = null;
+        submission.ScreenshotContentType = string.Empty;
 
-        var dto = SubmissionDtoHelper.WithScreenshotUrl(DtoMapper.ToDto(submission), Mock.Of<IScreenshotUrlSigner>().SignedUrl);
+        var dto = SubmissionDtoMapper.WithScreenshotUrl(DtoMapper.ToDto(submission), Mock.Of<IScreenshotUrlSigner>().SignedUrl);
 
         Assert.Null(dto.ScreenshotUrl);
     }
@@ -111,7 +111,7 @@ public class SubmissionDtoHelperTests
     [Fact]
     public void ToTodaySubmittersDto_CountsTheNames()
     {
-        var dto = SubmissionDtoHelper.ToTodaySubmittersDto(new List<string> { "a", "b" });
+        var dto = SubmissionDtoMapper.ToTodaySubmittersDto(new List<string> { "a", "b" });
 
         Assert.Equal(2, dto.Count);
         Assert.Equal(new[] { "a", "b" }, dto.Usernames);
