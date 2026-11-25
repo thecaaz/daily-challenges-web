@@ -67,6 +67,13 @@ public class EfXpEventRepository : IXpEventRepository
         await _db.SaveChangesAsync();
     }
 
+    public Task SetScoringDayForSubmissionAsync(int submissionId, DateTime scoringDay)
+    {
+        DateTime? eventDay = scoringDay;
+        return _db.XpEvents.Where(e => e.SubmissionId == submissionId)
+            .ExecuteUpdateAsync(set => set.SetProperty(e => e.ScoringDay, eventDay));
+    }
+
     public async Task<XpEvent> AddAsync(XpEvent xpEvent)
     {
         _db.XpEvents.Add(xpEvent);

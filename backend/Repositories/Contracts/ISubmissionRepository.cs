@@ -37,6 +37,13 @@ public interface ISubmissionRepository
     Task<List<(int Id, string Score, double? ScoreValue)>> GetScoreRowsAsync();
     /// <summary>Sets one submission's ScoreValue in SQL (bypasses the change tracker); returns the affected row count.</summary>
     Task<int> SetScoreValueAsync(int id, double? scoreValue);
+    /// <summary>
+    /// Id, UserId, CreatedAt and stored ScoringDay of the game's submissions, only those after
+    /// <paramref name="afterScoringDay"/> when it is given (for re-deriving scoring days after a reset time change).
+    /// </summary>
+    Task<List<(int Id, int? UserId, DateTime CreatedAt, DateTime ScoringDay)>> GetScoringDayRowsAsync(int gameId, DateTime? afterScoringDay);
+    /// <summary>Sets one submission's ScoringDay in SQL (bypasses the change tracker).</summary>
+    Task SetScoringDayAsync(int id, DateTime scoringDay);
     /// <summary>The earliest stored scoring day of the game's submissions, or null when it has none.</summary>
     Task<DateTime?> GetFirstScoringDayAsync(int gameId);
     Task<Submission> CreateAsync(Submission submission);

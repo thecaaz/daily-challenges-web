@@ -16,6 +16,8 @@ public interface IXpEventRepository
     Task<XpEvent?> GetDayWinAsync(int userId, int gameId, DateTime scoringDay);
     /// <summary>Deletes the event and flushes all pending tracked changes.</summary>
     Task RemoveAsync(XpEvent xpEvent);
+    /// <summary>Sets ScoringDay of the submission's XP events in SQL (bypasses the change tracker).</summary>
+    Task SetScoringDayForSubmissionAsync(int submissionId, DateTime scoringDay);
     /// <summary>Persists a new XpEvent and flushes all pending tracked changes.</summary>
     Task<XpEvent> AddAsync(XpEvent xpEvent);
 }
