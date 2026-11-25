@@ -111,10 +111,10 @@ public class FileValidatorTests
     }
 
     [Fact]
-    public void LocalFileStorage_returns_the_detected_type_and_all_bytes()
+    public async Task LocalFileStorage_returns_the_detected_type_and_all_bytes()
     {
         var storage = new LocalFileStorage(_validator);
-        var (data, type) = storage.ReadFileAsync(MakeFile(Png, "image/jpeg")).GetAwaiter().GetResult();
+        var (data, type) = await storage.ReadFileAsync(MakeFile(Png, "image/jpeg"));
         Assert.Equal("image/png", type);
         Assert.Equal(Png, data);
     }

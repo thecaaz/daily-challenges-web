@@ -74,7 +74,7 @@ public class SubmissionDtoHelperTests
     public void WithScreenshotUrl_WithoutScreenshotStaysEmpty()
     {
         var submission = WithScreenshot();
-        submission.ScreenshotContentType = null;
+        submission.ScreenshotContentType = string.Empty;
 
         var dto = SubmissionDtoHelper.WithScreenshotUrl(DtoMapper.ToDto(submission), Mock.Of<IScreenshotUrlSigner>().SignedUrl);
 
