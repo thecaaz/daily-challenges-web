@@ -91,7 +91,7 @@ public class EfNotificationRepository : INotificationRepository
     {
         var day = scoringDay.Date;
         return _db.Notifications
-            .Where(n => n.GameId == gameId && n.ScoringDay == day && (n.Type == "day_win" || n.Type == "day_placement"))
+            .Where(n => n.GameId == gameId && n.ScoringDay == day && (n.Type == NotificationTypes.DayWin || n.Type == NotificationTypes.DayPlacement))
             .ExecuteDeleteAsync();
     }
 }

@@ -38,10 +38,11 @@ public class AchievementServiceTests
         notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>())).Returns(Task.CompletedTask);
 
         var svc = new AchievementService(
-            achRepo.Object, userRepo.Object, subRepo.Object,
-            sdrRepo.Object, notifRepo.Object, friendRepo.Object,
-            NullLogger<AchievementService>.Instance,
-            new FixedTimeProvider(new DateTime(2026, 4, 1, 12, 0, 0, DateTimeKind.Utc)));
+            achRepo.Object, userRepo.Object,
+            new AchievementProgressReader(subRepo.Object, sdrRepo.Object, friendRepo.Object),
+            notifRepo.Object,
+            new FixedTimeProvider(new DateTime(2026, 4, 1, 12, 0, 0, DateTimeKind.Utc)),
+            NullLogger<AchievementService>.Instance);
 
         return new Sut(svc, achRepo, userRepo, subRepo, sdrRepo, notifRepo, friendRepo);
     }
@@ -316,4 +317,52 @@ public class AchievementServiceTests
 
         Assert.All(result, r => Assert.Null(r.UnlockedAt));
     }
+
+    // ── Characterization: failures and batching ──────────────────────────────
+
+    [Fact]
+    public async Task CheckAndAward_RepositoryThrows_IsLoggedNotRethrown()
+    {
+        var sut = Build();
+        sut.AchRepo.Setup(r => r.GetUnlockedIdsAsync(1)).ThrowsAsync(new InvalidOperationException("db down"));
+
+        await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
+
+        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CheckAndAward_SeveralEarned_AwardsThemInOneBatchWithANotificationEach()
+    {
+        var sut = Build();
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(streak: 30));
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(50);
+        List<UserAchievement>? awarded = null;
+        List<Notification>? notifications = null;
+        sut.AchRepo.Setup(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()))
+            .Callback<List<UserAchievement>>(a => awarded = a).Returns(Task.CompletedTask);
+        sut.NotifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()))
+            .Callback<List<Notification>>(n => notifications = n).Returns(Task.CompletedTask);
+
+        await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
+
+        var expectedIds = new[] { "submission_first", "submission_50", "streak_7", "streak_30" };
+        var now = new DateTime(2026, 4, 1, 12, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(expectedIds, awarded!.Select(a => a.AchievementId));
+        Assert.All(awarded!, a => Assert.Equal((1, now), (a.UserId, a.UnlockedAt)));
+        Assert.Equal(
+            new[] { "Achievement unlocked: First Step", "Achievement unlocked: Committed", "Achievement unlocked: Week Warrior", "Achievement unlocked: Monthly Habit" },
+            notifications!.Select(n => n.Message));
+        Assert.All(notifications!, n =>
+        {
+            Assert.Equal("achievement", n.Type);
+            Assert.Equal(1, n.UserId);
+            Assert.Null(n.GameId);
+            Assert.Null(n.Rank);
+            Assert.Equal(now.Date, n.ScoringDay);
+            Assert.Equal(now, n.CreatedAt);
+            Assert.False(n.IsRead);
+        });
+    }
 }
+

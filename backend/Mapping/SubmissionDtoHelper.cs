@@ -10,9 +10,9 @@ public static class SubmissionDtoHelper
     {
         var dto = DtoMapper.ToDto(s);
         if (scoringDay.HasValue)
-            dto.ScoringDay = ScoringDayHelper.FormatScoringDay(scoringDay.Value);
+            dto.ScoringDay = ScoringDayCalculator.FormatScoringDay(scoringDay.Value);
         else if (s.ScoringDay != DateTime.MinValue)
-            dto.ScoringDay = ScoringDayHelper.FormatScoringDay(s.ScoringDay.Date);
+            dto.ScoringDay = ScoringDayCalculator.FormatScoringDay(s.ScoringDay.Date);
 
         dto.IsDayWinner = isDayWinner;
         return dto;

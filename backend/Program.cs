@@ -140,6 +140,8 @@ builder.Services.AddScoped<DailyChallenges.Services.Contracts.IScoreMaintenanceS
 
 // Dashboard service
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IDashboardService, DailyChallenges.Services.DashboardService>();
+builder.Services.AddScoped<DailyChallenges.Services.Dashboard.DashboardTodaySnapshotLoader>();
+builder.Services.AddScoped<DailyChallenges.Services.Dashboard.DashboardFriendActivityBuilder>();
 
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
 builder.Services.AddHttpClient(DailyChallenges.Services.InfoService.ChangelogClientName,
@@ -148,9 +150,12 @@ builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, D
 
 // Achievement system
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IAchievementService, DailyChallenges.Services.AchievementService>();
+builder.Services.AddScoped<DailyChallenges.Achievements.AchievementProgressReader>();
 
 // Scoring day finalization
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
+builder.Services.AddScoped<DailyChallenges.Services.ScoringDayOutcomeRecorder>();
+builder.Services.AddScoped<DailyChallenges.Services.ScoringDayNotificationFactory>();
 builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundService>();
 
 // JWT Authentication: bind typed options. The key guard lives in JwtOptionsValidator.

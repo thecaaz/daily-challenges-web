@@ -35,7 +35,7 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db, TimeProvider ti
         var candidateRows = await GetMemberSubmissionsAroundTodayAsync(memberIds, nowUtc, query.Days);
         var currentDayByGame = candidateRows
             .GroupBy(r => r.GameId)
-            .ToDictionary(g => g.Key, g => ScoringDayHelper.GetCurrentScoringDay(g.First().GameResetTime, nowUtc).Date);
+            .ToDictionary(g => g.Key, g => ScoringDayCalculator.GetCurrentScoringDay(g.First().GameResetTime, nowUtc).Date);
         var windowRows = candidateRows
             .Where(r => IsWithinLastScoringDays(r.ScoringDay, currentDayByGame[r.GameId], query.Days))
             .ToList();

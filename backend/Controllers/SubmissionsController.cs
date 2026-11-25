@@ -17,7 +17,7 @@ public class SubmissionsController(
     [HttpGet("game/{gameId}")]
     public async Task<IActionResult> GetByGame(int gameId, [FromQuery] string? scoringDay = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
+        if (!ScoringDayCalculator.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
             return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
 
         (page, pageSize) = Paging.Clamp(page, pageSize);
@@ -49,7 +49,7 @@ public class SubmissionsController(
     [HttpGet("game/{gameId}/winner")]
     public async Task<IActionResult> GetWinner(int gameId, [FromQuery] string? scoringDay = null)
     {
-        if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
+        if (!ScoringDayCalculator.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
             return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
 
         var winner = await submissionQueries.GetWinnerAsync(gameId, parsedDay, User);

@@ -52,13 +52,13 @@ public class EfXpEventRepository : IXpEventRepository
     public Task<bool> HasDayWinAsync(int userId, int gameId, DateTime scoringDay)
     {
         var day = scoringDay.Date;
-        return _db.XpEvents.AnyAsync(e => e.UserId == userId && e.GameId == gameId && e.ScoringDay == day && e.EventType == "day_win");
+        return _db.XpEvents.AnyAsync(e => e.UserId == userId && e.GameId == gameId && e.ScoringDay == day && e.EventType == XpEventTypes.DayWin);
     }
 
     public Task<XpEvent?> GetDayWinAsync(int userId, int gameId, DateTime scoringDay)
     {
         var day = scoringDay.Date;
-        return _db.XpEvents.FirstOrDefaultAsync(e => e.UserId == userId && e.GameId == gameId && e.ScoringDay == day && e.EventType == "day_win");
+        return _db.XpEvents.FirstOrDefaultAsync(e => e.UserId == userId && e.GameId == gameId && e.ScoringDay == day && e.EventType == XpEventTypes.DayWin);
     }
 
     public async Task RemoveAsync(XpEvent xpEvent)

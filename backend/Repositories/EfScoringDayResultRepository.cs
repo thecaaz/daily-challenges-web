@@ -15,11 +15,19 @@ public class EfScoringDayResultRepository : IScoringDayResultRepository
         return await _db.ScoringDayResults.AnyAsync(r => r.GameId == gameId && r.ScoringDay == day);
     }
 
-    public async Task<ScoringDayResult> CreateAsync(ScoringDayResult result)
+    public async Task<bool> TryCreateAsync(ScoringDayResult result)
     {
         _db.ScoringDayResults.Add(result);
-        await _db.SaveChangesAsync();
-        return result;
+        try
+        {
+            await _db.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            _db.Entry(result).State = EntityState.Detached;
+            return false;
+        }
     }
 
     public Task<ScoringDayResult?> GetAsync(int gameId, DateTime scoringDay)
