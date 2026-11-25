@@ -4,7 +4,8 @@ using DailyChallenges.Services;
 
 namespace DailyChallenges.Mapping;
 
-public static class SubmissionDtoHelper
+/// <summary>Submission DTO mapping on top of <see cref="DtoMapper"/>: scoring days, masking and screenshot URLs.</summary>
+public static class SubmissionDtoMapper
 {
     /// <summary>
     /// Maps a submission with <paramref name="scoringDay"/>, or else its stored scoring day

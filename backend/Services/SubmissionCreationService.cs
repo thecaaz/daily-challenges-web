@@ -72,7 +72,7 @@ public sealed class SubmissionCreationService(
     /// <summary>The creator may always see their own submission; it is on the current day, so its screenshot URL is signed.</summary>
     private SubmissionDto ToCreatorDto(Submission created)
     {
-        var dto = SubmissionDtoHelper.ToDtoWithScoringDay(created, created.ScoringDay.Date);
-        return SubmissionDtoHelper.WithScreenshotUrl(dto, screenshotSigner.SignedUrl);
+        var dto = SubmissionDtoMapper.ToDtoWithScoringDay(created, created.ScoringDay.Date);
+        return SubmissionDtoMapper.WithScreenshotUrl(dto, screenshotSigner.SignedUrl);
     }
 }
