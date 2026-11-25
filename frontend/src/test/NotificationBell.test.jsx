@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 const me = { id: 5, username: 'me' }
@@ -107,5 +107,77 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(screen.queryByText('Invited to a league')).not.toBeInTheDocument())
     fail(new Error('boom'))
     await waitFor(() => expect(screen.getByText('Invited to a league')).toBeInTheDocument())
+  })
+
+  it('shows the unread count from the server on the badge', async () => {
+    renderBell()
+
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+    expect(mockGet).toHaveBeenCalledWith('/notifications/unread-count')
+  })
+
+  it('polls the unread count every 30 seconds', async () => {
+    vi.useFakeTimers()
+    try {
+      renderBell()
+      await act(() => vi.advanceTimersByTimeAsync(0))
+      const callsAfterMount = mockGet.mock.calls.length
+
+      await act(() => vi.advanceTimersByTimeAsync(30000))
+
+      expect(mockGet.mock.calls.length).toBe(callsAfterMount + 1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('marks all notifications read', async () => {
+    renderBell()
+    await openBell()
+
+    fireEvent.click(screen.getByText('Mark all read'))
+
+    await waitFor(() => expect(screen.queryByText('Mark all read')).not.toBeInTheDocument())
+    expect(mockPost).toHaveBeenCalledWith('/notifications/read-all')
+  })
+
+  it('keeps the notifications when marking all read fails', async () => {
+    renderBell()
+    await openBell()
+    mockPost.mockRejectedValue(new Error('offline'))
+
+    fireEvent.click(screen.getByText('Mark all read'))
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/notifications/read-all'))
+    expect(screen.getByText('Mark all read')).toBeInTheDocument()
+  })
+
+  it('still navigates when marking a notification read fails', async () => {
+    renderBell()
+    await openBell()
+    mockPost.mockRejectedValue(new Error('offline'))
+
+    fireEvent.click(screen.getByText('Achievement unlocked'))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/users/5'))
+  })
+
+  it('does not mark an already read notification again', async () => {
+    renderBell()
+    await openBell()
+
+    fireEvent.click(screen.getByText('Invited to a league'))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/leagues'))
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
+  it('shows an empty state without notifications', async () => {
+    mockGet.mockResolvedValue({ data: { items: [], unreadCount: 0 } })
+    render(<MemoryRouter><NotificationBell /></MemoryRouter>)
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(await screen.findByText('No notifications yet')).toBeInTheDocument()
   })
 })

@@ -107,4 +107,52 @@ describe('AuthProvider', () => {
     await act(async () => { await ctx.fetchMe() })
     expect(screen.getByTestId('child')).toHaveTextContent('anonymous')
   })
+
+  it('login stores the access token and loads the user', async () => {
+    mockRefresh.mockRejectedValue(new Error('no session'))
+    mockPost.mockResolvedValue({ data: { accessToken: 'tok', extra: 1 } })
+    mockGet.mockResolvedValue({ data: { id: 2, username: 'bob' } })
+    let ctx
+    function Grab() { ctx = useAuth(); return null }
+    render(<AuthProvider><Child /><Grab /></AuthProvider>)
+    await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('anonymous'))
+
+    let result
+    await act(async () => { result = await ctx.login('bob', 'pw') })
+
+    expect(mockPost).toHaveBeenCalledWith('/auth/login', { username: 'bob', password: 'pw' })
+    expect(mockSetAccessToken).toHaveBeenCalledWith('tok')
+    expect(result).toEqual({ accessToken: 'tok', extra: 1 })
+    expect(screen.getByTestId('child')).toHaveTextContent('hello bob')
+  })
+
+  it('login accepts a PascalCase AccessToken and skips storing a missing one', async () => {
+    mockRefresh.mockRejectedValue(new Error('no session'))
+    mockGet.mockResolvedValue({ data: { id: 2, username: 'bob' } })
+    let ctx
+    function Grab() { ctx = useAuth(); return null }
+    render(<AuthProvider><Child /><Grab /></AuthProvider>)
+    await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('anonymous'))
+
+    mockPost.mockResolvedValueOnce({ data: { AccessToken: 'TOK' } })
+    await act(async () => { await ctx.login('bob', 'pw') })
+    mockPost.mockResolvedValueOnce({ data: {} })
+    await act(async () => { await ctx.login('bob', 'pw') })
+
+    expect(mockSetAccessToken.mock.calls).toEqual([['TOK']])
+  })
+
+  it('register posts the credentials and returns the response body', async () => {
+    mockRefresh.mockRejectedValue(new Error('no session'))
+    mockPost.mockResolvedValue({ data: { id: 3 } })
+    let ctx
+    function Grab() { ctx = useAuth(); return null }
+    render(<AuthProvider><Grab /></AuthProvider>)
+    await waitFor(() => expect(ctx.loading).toBe(false))
+
+    const result = await ctx.register('carol', 'pw')
+
+    expect(mockPost).toHaveBeenCalledWith('/auth/register', { username: 'carol', password: 'pw' })
+    expect(result).toEqual({ id: 3 })
+  })
 })
