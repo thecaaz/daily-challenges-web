@@ -76,7 +76,7 @@ Backend listens on `:5000`, sets `SQLITE_PATH` env var to locate the DB. A named
 - `backend/Middleware/` — custom middleware (e.g., exception handling)
 - `frontend/src/main.jsx` — React entry point
 - `frontend/src/App.jsx` — routing
-- `frontend/src/api.js` — HTTP client (axios)
+- `frontend/src/api/` — HTTP client (axios), one module per concern (`index.js` wires them)
 - `frontend/src/contexts/` — React contexts (Auth, Snackbar, Theme)
 - `frontend/src/hooks/` — custom hooks
 - `frontend/src/pages/` — route components

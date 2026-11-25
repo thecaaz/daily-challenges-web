@@ -136,7 +136,7 @@ not "split mechanically".
   at every layer. Catch at boundaries (middleware, background service loop).
 - **Fail fast at the edge:** validate input in DTO validation / guard clauses at the top of
   the service method, then trust it inside.
-- **Frontend:** API errors are handled once in `api.js` / the calling hook and surfaced via
+- **Frontend:** API errors are handled once in `src/api/` / the calling hook and surfaced via
   the Snackbar context; components don't each invent their own error UI.
 
 ## 8. React / frontend
