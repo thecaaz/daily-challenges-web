@@ -13,9 +13,12 @@ export default function ImageUpload({ onFileChange, previewUrl, onRemove }) {
     if (onFileChange) onFileChange(e)
   }
 
-  const handleRemove = () => {
-    // Reset the input so picking the same file again fires onChange.
+  const resetInputSoTheSameFileFiresAgain = () => {
     if (inputRef.current) inputRef.current.value = ''
+  }
+
+  const handleRemove = () => {
+    resetInputSoTheSameFileFiresAgain()
     setFileName('')
     if (onRemove) onRemove()
   }
