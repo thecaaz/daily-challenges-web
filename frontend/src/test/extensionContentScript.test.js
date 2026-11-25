@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
-import loadExtensionScript from './loadExtensionScript'
+import { loadContentScripts } from './loadExtensionScript'
 
 const APP_URL = 'http://localhost:3000/'
 const APP_ORIGIN = 'http://localhost:3000'
@@ -35,9 +35,7 @@ async function scoreOn(url, html = '') {
 
 beforeAll(() => {
   globalThis.browser = { runtime: { sendMessage: sendToBackground } }
-  loadExtensionScript('app-origins.js')
-  loadExtensionScript('scoreparse.js')
-  loadExtensionScript('content-script.js')
+  loadContentScripts()
 })
 
 afterAll(() => {

@@ -14,3 +14,9 @@ export default function loadExtensionScript(fileName) {
   const source = readFileSync(path, 'utf8')
   new Function(`${source}\n//# sourceURL=${path}`)()
 }
+
+/** Runs the content scripts in the order manifest.json injects them. */
+export function loadContentScripts() {
+  const manifest = JSON.parse(readFileSync(resolve(EXTENSION_DIR, 'manifest.json'), 'utf8'))
+  manifest.content_scripts[0].js.forEach(loadExtensionScript)
+}

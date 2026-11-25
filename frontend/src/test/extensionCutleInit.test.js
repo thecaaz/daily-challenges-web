@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import loadExtensionScript from './loadExtensionScript'
+import { loadContentScripts } from './loadExtensionScript'
 
 const INJECTOR_ID = 'cutle-precise-ratio-injector'
 
@@ -7,8 +7,6 @@ describe('content script on a Cutle page', () => {
   beforeAll(() => {
     globalThis.browser = { runtime: { sendMessage: () => {} } }
     window.happyDOM.setURL('https://pfiffel.com/cutle/')
-    loadExtensionScript('app-origins.js')
-    loadExtensionScript('scoreparse.js')
   })
 
   afterAll(() => {
@@ -16,8 +14,8 @@ describe('content script on a Cutle page', () => {
   })
 
   it('injects the preciseRatio page script once', () => {
-    loadExtensionScript('content-script.js')
-    loadExtensionScript('content-script.js')
+    loadContentScripts()
+    loadContentScripts()
 
     const injectors = document.querySelectorAll(`#${INJECTOR_ID}`)
     expect(injectors).toHaveLength(1)
