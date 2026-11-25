@@ -17,14 +17,14 @@ public class GameService : IGameService
     private readonly IGameRepository _games;
     private readonly IFileStorage _files;
     private readonly ISubmissionRepository _subsRepo;
-    private readonly ISubmissionService _submissionService;
+    private readonly ISubmissionQueryService _submissionQueries;
     private readonly IFavoriteRepository _favRepo;
     private readonly IScoreVisibilityService _visibility;
     private readonly IScreenshotUrlSigner _signer;
     private readonly AppDbContext _db;
     private readonly IScoringDayResultRepository _results;
 
-    public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo, ISubmissionService submissionService, IFavoriteRepository favRepo, TimeProvider time,
+    public GameService(IGameRepository games, IFileStorage files, ISubmissionRepository subsRepo, ISubmissionQueryService submissionQueries, IFavoriteRepository favRepo, TimeProvider time,
         IScoreVisibilityService visibility, IScreenshotUrlSigner signer, AppDbContext db, IScoringDayResultRepository results)
     {
         _db = db;
@@ -34,7 +34,7 @@ public class GameService : IGameService
         _games = games;
         _files = files;
         _subsRepo = subsRepo;
-        _submissionService = submissionService;
+        _submissionQueries = submissionQueries;
         _favRepo = favRepo;
         _time = time;
     }
@@ -293,7 +293,7 @@ public class GameService : IGameService
         // operation at a time), and failures are reported per part.
         try
         {
-            availableDates = wantAvailable ? await _submissionService.GetAvailableDatesAsync(gameId) : new List<string>();
+            availableDates = wantAvailable ? await _submissionQueries.GetAvailableDatesAsync(gameId) : new List<string>();
         }
         catch (Exception ex)
         {
@@ -303,7 +303,7 @@ public class GameService : IGameService
 
         try
         {
-            hasSubmitted = wantHasSubmitted && await _submissionService.HasUserSubmittedForLatestAsync(gameId, user);
+            hasSubmitted = wantHasSubmitted && await _submissionQueries.HasUserSubmittedForLatestAsync(gameId, user);
         }
         catch (Exception ex)
         {

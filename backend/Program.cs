@@ -104,7 +104,13 @@ builder.Services.AddScoped<DailyChallenges.Services.IAuthService, DailyChallenge
 builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenges.Services.LocalFileStorage>();
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
 builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
-builder.Services.AddScoped<DailyChallenges.Services.ISubmissionService, DailyChallenges.Services.SubmissionService>();
+builder.Services.AddScoped<DailyChallenges.Services.ISubmissionQueryService, DailyChallenges.Services.SubmissionQueryService>();
+builder.Services.AddScoped<DailyChallenges.Services.ISubmissionCreationService, DailyChallenges.Services.SubmissionCreationService>();
+builder.Services.AddScoped<DailyChallenges.Services.ISubmissionScoreEditService, DailyChallenges.Services.SubmissionScoreEditService>();
+builder.Services.AddScoped<DailyChallenges.Services.ISubmissionDeletionService, DailyChallenges.Services.SubmissionDeletionService>();
+builder.Services.AddScoped<DailyChallenges.Services.SubmissionDraftBuilder>();
+builder.Services.AddScoped<DailyChallenges.Repositories.ITransactionRunner, DailyChallenges.Repositories.EfTransactionRunner>();
+builder.Services.AddScoped<DailyChallenges.Services.FinalizedDayWinnerReconciler>();
 builder.Services.AddScoped<DailyChallenges.Services.INotificationService, DailyChallenges.Services.NotificationService>();
 
 // User profile service

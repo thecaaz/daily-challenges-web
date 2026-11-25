@@ -20,7 +20,7 @@ public class XpConfig
 
 /// <summary>
 /// XP bookkeeping. Every method reads and writes the user row, so callers run it inside a database
-/// transaction (SubmissionService.CreateAsync, ScoringDayFinalizerService, AdminUserService.AdjustXpAsync);
+/// transaction (SubmissionCreationService.CreateAsync, ScoringDayFinalizerService, AdminUserService.AdjustXpAsync);
 /// Microsoft.Data.Sqlite's BeginTransaction is BEGIN IMMEDIATE, which serializes these read-modify-writes.
 /// Achievement checks are the caller's job, after its commit.
 /// </summary>
