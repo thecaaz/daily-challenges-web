@@ -1,9 +1,8 @@
-namespace DailyChallenges.DTOs
+namespace DailyChallenges.DTOs;
+
+public class GameActivityDto
 {
-    public class GameActivityDto
-    {
-        public GameDto Game { get; set; } = new();
-        public int TodayCount { get; set; }
-        public List<string> TodayUsernames { get; set; } = new();
-    }
+    public GameDto Game { get; set; } = new();
+    public int TodayCount { get; set; }
+    public List<string> TodayUsernames { get; set; } = new();
 }

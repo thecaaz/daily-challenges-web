@@ -1,7 +1,6 @@
-namespace DailyChallenges.Services
+namespace DailyChallenges.Services;
+
+public interface IScoringDayFinalizerService
 {
-    public interface IScoringDayFinalizerService
-    {
-        Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay);
-    }
+    Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay);
 }

@@ -1,17 +1,16 @@
-namespace DailyChallenges.DTOs
+namespace DailyChallenges.DTOs;
+
+public class UserProfileDto
 {
-    public class UserProfileDto
-    {
-        public int UserId { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public long TotalXp { get; set; }
-        public int Level { get; set; } = 1;
-        public long XpIntoLevel { get; set; }
-        public long XpToNextLevel { get; set; }
-        public int Streak { get; set; }
-        public DateTime? LastSubmissionAt { get; set; }
-        public List<UserGameStatDto> TopGames { get; set; } = new();
-        /// <summary>True when current-scoring-day entries were left out (only the owner and admins see them).</summary>
-        public bool ScoresHidden { get; set; }
-    }
+    public int UserId { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public long TotalXp { get; set; }
+    public int Level { get; set; } = 1;
+    public long XpIntoLevel { get; set; }
+    public long XpToNextLevel { get; set; }
+    public int Streak { get; set; }
+    public DateTime? LastSubmissionAt { get; set; }
+    public List<UserGameStatDto> TopGames { get; set; } = new();
+    /// <summary>True when current-scoring-day entries were left out (only the owner and admins see them).</summary>
+    public bool ScoresHidden { get; set; }
 }

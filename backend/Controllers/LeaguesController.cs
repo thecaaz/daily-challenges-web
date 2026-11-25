@@ -4,194 +4,193 @@ using DailyChallenges.DTOs;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
 
-namespace DailyChallenges.Controllers
+namespace DailyChallenges.Controllers;
+
+[ApiController]
+[Route("api/leagues")]
+[Authorize]
+public class LeaguesController : ControllerBase
 {
-    [ApiController]
-    [Route("api/leagues")]
-    [Authorize]
-    public class LeaguesController : ControllerBase
+    private readonly ILeagueService _leagues;
+
+    public LeaguesController(ILeagueService leagues)
     {
-        private readonly ILeagueService _leagues;
+        _leagues = leagues;
+    }
 
-        public LeaguesController(ILeagueService leagues)
-        {
-            _leagues = leagues;
-        }
+    // ── My leagues ────────────────────────────────────────────────────────
 
-        // ── My leagues ────────────────────────────────────────────────────────
+    [HttpGet]
+    public async Task<ActionResult<List<LeagueDto>>> GetMyLeagues()
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        return Ok(await _leagues.GetMyLeaguesAsync(userId.Value));
+    }
 
-        [HttpGet]
-        public async Task<ActionResult<List<LeagueDto>>> GetMyLeagues()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _leagues.GetMyLeaguesAsync(userId.Value));
-        }
+    // ── Create ────────────────────────────────────────────────────────────
 
-        // ── Create ────────────────────────────────────────────────────────────
+    [HttpPost]
+    public async Task<ActionResult<LeagueDto>> Create([FromBody] LeagueCreateRequest body)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        var result = await _leagues.CreateLeagueAsync(userId.Value, body.Name);
+        return CreatedAtAction(nameof(GetDetail), new { id = result.Id }, result);
+    }
 
-        [HttpPost]
-        public async Task<ActionResult<LeagueDto>> Create([FromBody] LeagueCreateRequest body)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            var result = await _leagues.CreateLeagueAsync(userId.Value, body.Name);
-            return CreatedAtAction(nameof(GetDetail), new { id = result.Id }, result);
-        }
+    // ── Detail ────────────────────────────────────────────────────────────
 
-        // ── Detail ────────────────────────────────────────────────────────────
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<LeagueDetailDto>> GetDetail(int id)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        return Ok(await _leagues.GetLeagueDetailAsync(id, userId.Value));
+    }
 
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<LeagueDetailDto>> GetDetail(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _leagues.GetLeagueDetailAsync(id, userId.Value));
-        }
+    // ── Rename ────────────────────────────────────────────────────────────
 
-        // ── Rename ────────────────────────────────────────────────────────────
+    [HttpPatch("{id:int}/name")]
+    public async Task<ActionResult<LeagueDto>> Rename(int id, [FromBody] LeagueRenameRequest body)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        return Ok(await _leagues.RenameLeagueAsync(id, userId.Value, body.Name));
+    }
 
-        [HttpPatch("{id:int}/name")]
-        public async Task<ActionResult<LeagueDto>> Rename(int id, [FromBody] LeagueRenameRequest body)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _leagues.RenameLeagueAsync(id, userId.Value, body.Name));
-        }
+    // ── Delete ────────────────────────────────────────────────────────────
 
-        // ── Delete ────────────────────────────────────────────────────────────
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        await _leagues.DeleteLeagueAsync(id, userId.Value);
+        return NoContent();
+    }
 
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _leagues.DeleteLeagueAsync(id, userId.Value);
-            return NoContent();
-        }
+    // ── Invite by username ────────────────────────────────────────────────
 
-        // ── Invite by username ────────────────────────────────────────────────
+    [HttpPost("{id:int}/invitations")]
+    public async Task<ActionResult<LeagueInvitationDto>> InviteByUsername(int id, [FromBody] LeagueInviteByUsernameRequest body)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        return Ok(await _leagues.InviteByUsernameAsync(id, userId.Value, body.Username));
+    }
 
-        [HttpPost("{id:int}/invitations")]
-        public async Task<ActionResult<LeagueInvitationDto>> InviteByUsername(int id, [FromBody] LeagueInviteByUsernameRequest body)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _leagues.InviteByUsernameAsync(id, userId.Value, body.Username));
-        }
+    // ── Create invite link (token-based) ─────────────────────────────────
 
-        // ── Create invite link (token-based) ─────────────────────────────────
+    [HttpPost("{id:int}/invite-link")]
+    public async Task<ActionResult<LeagueInvitationDto>> CreateInviteLink(int id)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        return Ok(await _leagues.CreateInviteLinkAsync(id, userId.Value));
+    }
 
-        [HttpPost("{id:int}/invite-link")]
-        public async Task<ActionResult<LeagueInvitationDto>> CreateInviteLink(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _leagues.CreateInviteLinkAsync(id, userId.Value));
-        }
+    // ── Cancel invitation ─────────────────────────────────────────────────
 
-        // ── Cancel invitation ─────────────────────────────────────────────────
+    [HttpDelete("invitations/{invitationId:int}")]
+    public async Task<IActionResult> CancelInvitation(int invitationId)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        await _leagues.CancelInvitationAsync(invitationId, userId.Value);
+        return NoContent();
+    }
 
-        [HttpDelete("invitations/{invitationId:int}")]
-        public async Task<IActionResult> CancelInvitation(int invitationId)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _leagues.CancelInvitationAsync(invitationId, userId.Value);
-            return NoContent();
-        }
+    // ── My pending invitations ────────────────────────────────────────────
 
-        // ── My pending invitations ────────────────────────────────────────────
+    [HttpGet("invitations/pending")]
+    public async Task<ActionResult<List<LeagueInvitationDto>>> GetMyPendingInvitations()
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        return Ok(await _leagues.GetMyPendingInvitationsAsync(userId.Value));
+    }
 
-        [HttpGet("invitations/pending")]
-        public async Task<ActionResult<List<LeagueInvitationDto>>> GetMyPendingInvitations()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _leagues.GetMyPendingInvitationsAsync(userId.Value));
-        }
+    // ── Accept invitation ─────────────────────────────────────────────────
 
-        // ── Accept invitation ─────────────────────────────────────────────────
+    [HttpPost("invitations/{invitationId:int}/accept")]
+    public async Task<ActionResult<LeagueDetailDto>> AcceptInvitation(int invitationId)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        return Ok(await _leagues.AcceptInvitationAsync(invitationId, userId.Value));
+    }
 
-        [HttpPost("invitations/{invitationId:int}/accept")]
-        public async Task<ActionResult<LeagueDetailDto>> AcceptInvitation(int invitationId)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _leagues.AcceptInvitationAsync(invitationId, userId.Value));
-        }
+    // ── Decline invitation ────────────────────────────────────────────────
 
-        // ── Decline invitation ────────────────────────────────────────────────
+    [HttpPost("invitations/{invitationId:int}/decline")]
+    public async Task<IActionResult> DeclineInvitation(int invitationId)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        await _leagues.DeclineInvitationAsync(invitationId, userId.Value);
+        return NoContent();
+    }
 
-        [HttpPost("invitations/{invitationId:int}/decline")]
-        public async Task<IActionResult> DeclineInvitation(int invitationId)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _leagues.DeclineInvitationAsync(invitationId, userId.Value);
-            return NoContent();
-        }
+    // ── Join by invite link token ─────────────────────────────────────────
 
-        // ── Join by invite link token ─────────────────────────────────────────
+    [HttpPost("join/{token}")]
+    public async Task<ActionResult<LeagueDetailDto>> JoinByToken(string token)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        return Ok(await _leagues.JoinByTokenAsync(token, userId.Value));
+    }
 
-        [HttpPost("join/{token}")]
-        public async Task<ActionResult<LeagueDetailDto>> JoinByToken(string token)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _leagues.JoinByTokenAsync(token, userId.Value));
-        }
+    // ── Leave ─────────────────────────────────────────────────────────────
 
-        // ── Leave ─────────────────────────────────────────────────────────────
+    [HttpPost("{id:int}/leave")]
+    public async Task<IActionResult> Leave(int id)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        await _leagues.LeaveLeagueAsync(id, userId.Value);
+        return NoContent();
+    }
 
-        [HttpPost("{id:int}/leave")]
-        public async Task<IActionResult> Leave(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _leagues.LeaveLeagueAsync(id, userId.Value);
-            return NoContent();
-        }
+    // ── Kick member ───────────────────────────────────────────────────────
 
-        // ── Kick member ───────────────────────────────────────────────────────
+    [HttpDelete("{id:int}/members/{memberId:int}")]
+    public async Task<IActionResult> KickMember(int id, int memberId)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        await _leagues.KickMemberAsync(id, userId.Value, memberId);
+        return NoContent();
+    }
 
-        [HttpDelete("{id:int}/members/{memberId:int}")]
-        public async Task<IActionResult> KickMember(int id, int memberId)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _leagues.KickMemberAsync(id, userId.Value, memberId);
-            return NoContent();
-        }
+    // ── Leaderboard ───────────────────────────────────────────────────────
 
-        // ── Leaderboard ───────────────────────────────────────────────────────
+    [HttpGet("{id:int}/leaderboard")]
+    public async Task<ActionResult<LeagueLeaderboardDto>> GetLeaderboard(
+        int id,
+        [FromQuery] int gameId,
+        [FromQuery] string? scoringDay = null)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
 
-        [HttpGet("{id:int}/leaderboard")]
-        public async Task<ActionResult<LeagueLeaderboardDto>> GetLeaderboard(
-            int id,
-            [FromQuery] int gameId,
-            [FromQuery] string? scoringDay = null)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
+        // Omitted or unparseable: the service uses the game's current scoring day.
+        DateTime? day = DateTime.TryParse(scoringDay, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
+            ? parsed.Date
+            : null;
 
-            // Omitted or unparseable: the service uses the game's current scoring day.
-            DateTime? day = DateTime.TryParse(scoringDay, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
-                ? parsed.Date
-                : null;
+        return Ok(await _leagues.GetLeaderboardAsync(id, gameId, day, userId.Value, User.IsAdmin()));
+    }
 
-            return Ok(await _leagues.GetLeaderboardAsync(id, gameId, day, userId.Value, User.IsAdmin()));
-        }
-
-        [HttpGet("{id:int}/game-summaries")]
-        public async Task<IActionResult> GetGameSummaries(int id, [FromQuery] int days = 7, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            days = Math.Clamp(days, 1, 31);
-            (page, pageSize) = Paging.Clamp(page, pageSize);
-            var (items, total) = await _leagues.GetLeagueGameSummariesAsync(id, userId.Value, days, page, pageSize);
-            return Ok(new { items, totalCount = total });
-        }
+    [HttpGet("{id:int}/game-summaries")]
+    public async Task<IActionResult> GetGameSummaries(int id, [FromQuery] int days = 7, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
+        days = Math.Clamp(days, 1, 31);
+        (page, pageSize) = Paging.Clamp(page, pageSize);
+        var (items, total) = await _leagues.GetLeagueGameSummariesAsync(id, userId.Value, days, page, pageSize);
+        return Ok(new { items, totalCount = total });
     }
 }

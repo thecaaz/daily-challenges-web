@@ -1,8 +1,7 @@
-namespace DailyChallenges.DTOs
+namespace DailyChallenges.DTOs;
+
+public class TodaySubmittersDto
 {
-    public class TodaySubmittersDto
-    {
-        public int Count { get; set; }
-        public List<string> Usernames { get; set; } = new();
-    }
+    public int Count { get; set; }
+    public List<string> Usernames { get; set; } = new();
 }

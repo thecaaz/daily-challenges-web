@@ -1,11 +1,10 @@
 using DailyChallenges.Models;
-namespace DailyChallenges.Repositories
+namespace DailyChallenges.Repositories;
+
+public interface IFavoriteRepository
 {
-    public interface IFavoriteRepository
-    {
-        Task<bool> ExistsAsync(int userId, int gameId);
-        Task AddAsync(Favorite favorite);
-        Task RemoveAsync(int userId, int gameId);
-        Task<List<int>> GetFavoriteGameIdsForUserAsync(int userId);
-    }
+    Task<bool> ExistsAsync(int userId, int gameId);
+    Task AddAsync(Favorite favorite);
+    Task RemoveAsync(int userId, int gameId);
+    Task<List<int>> GetFavoriteGameIdsForUserAsync(int userId);
 }

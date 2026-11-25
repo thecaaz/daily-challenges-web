@@ -91,6 +91,7 @@ Backend listens on `:5000`, sets `SQLITE_PATH` env var to locate the DB. A named
 
 ## Constraints & conventions
 
+- Code style follows `docs/clean-code.md` — read it before writing or refactoring code. In short: names over comments, no comments inside method/component bodies, small cohesive units, refactors in separate `refactor:` commits
 - Commits follow conventional commits (enforced by semantic-release on `main`)
 - Releases use semantic-release (`npm run release`), tags `v<major>.<minor>.<patch>`
 - No secrets in repo — JWT key, Docker Hub credentials, etc. come from env/secrets
