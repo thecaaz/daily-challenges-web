@@ -7,14 +7,12 @@ namespace DailyChallenges.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class SubmissionsController : ControllerBase
+public class SubmissionsController(
+    ISubmissionQueryService submissionQueries,
+    ISubmissionCreationService submissionCreation,
+    ISubmissionScoreEditService submissionScoreEdits,
+    ISubmissionDeletionService submissionDeletion) : ControllerBase
 {
-    private readonly ISubmissionService _subs;
-
-    public SubmissionsController(ISubmissionService subs)
-    {
-        _subs = subs;
-    }
 
     [HttpGet("game/{gameId}")]
     public async Task<IActionResult> GetByGame(int gameId, [FromQuery] string? scoringDay = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
@@ -23,28 +21,28 @@ public class SubmissionsController : ControllerBase
             return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
 
         (page, pageSize) = Paging.Clamp(page, pageSize);
-        var pageResult = await _subs.GetByGameAsync(gameId, User, parsedDay, page, pageSize);
+        var pageResult = await submissionQueries.GetByGameAsync(gameId, User, parsedDay, page, pageSize);
         return Ok(pageResult);
     }
 
     [HttpGet("game/{gameId}/available-dates")]
     public async Task<IActionResult> GetAvailableDates(int gameId)
     {
-        var dates = await _subs.GetAvailableDatesAsync(gameId);
+        var dates = await submissionQueries.GetAvailableDatesAsync(gameId);
         return Ok(dates);
     }
 
     [HttpGet("game/{gameId}/has-submitted")]
     public async Task<IActionResult> HasSubmittedForLatest(int gameId)
     {
-        var has = await _subs.HasUserSubmittedForLatestAsync(gameId, User);
+        var has = await submissionQueries.HasUserSubmittedForLatestAsync(gameId, User);
         return Ok(new { hasSubmittedForLatest = has });
     }
 
     [HttpGet("game/{gameId}/today-submitters")]
     public async Task<IActionResult> GetTodaySubmitters(int gameId)
     {
-        var result = await _subs.GetTodaySubmittersAsync(gameId);
+        var result = await submissionQueries.GetTodaySubmittersAsync(gameId);
         return Ok(result);
     }
 
@@ -54,17 +52,15 @@ public class SubmissionsController : ControllerBase
         if (!ScoringDayHelper.TryParseScoringDay(scoringDay, out DateTime? parsedDay))
             return BadRequest(new { message = "Invalid scoringDay format (expected yyyy-MM-dd)" });
 
-        var winner = await _subs.GetWinnerAsync(gameId, parsedDay, User);
-        // No winner yet, or the current day is hidden for this caller.
-        if (winner == null) return NoContent();
-        return Ok(winner);
+        var winner = await submissionQueries.GetWinnerAsync(gameId, parsedDay, User);
+        return winner == null ? NoContent() : Ok(winner);
     }
 
     [HttpGet("game/{gameId}/unfiltered")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetUnfilteredByGame(int gameId)
     {
-        var list = await _subs.GetUnfilteredByGameAsync(gameId);
+        var list = await submissionQueries.GetUnfilteredByGameAsync(gameId);
         return Ok(list);
     }
 
@@ -72,7 +68,7 @@ public class SubmissionsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Create([FromForm] SubmissionCreateRequest request)
     {
-        var (submissionDto, xpGain) = await _subs.CreateAsync(request.GameId, request.Score, request.Username, request.Screenshot, User);
+        var (submissionDto, xpGain) = await submissionCreation.CreateAsync(request.GameId, request.Score, request.Username, request.Screenshot, User);
         var response = new { submission = submissionDto, xpGain };
         return CreatedAtAction(nameof(GetByGame), new { gameId = request.GameId }, response);
     }
@@ -80,7 +76,7 @@ public class SubmissionsController : ControllerBase
     [HttpGet("{id}/screenshot")]
     public async Task<IActionResult> GetScreenshot(int id, [FromQuery] long? exp = null, [FromQuery] string? sig = null)
     {
-        var (data, contentType) = await _subs.GetScreenshotAsync(id, exp, sig);
+        var (data, contentType) = await submissionQueries.GetScreenshotAsync(id, exp, sig);
         if (data == null) return NotFound();
         return File(data, contentType ?? "application/octet-stream");
     }
@@ -88,7 +84,7 @@ public class SubmissionsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var dto = await _subs.GetByIdAsync(id, User);
+        var dto = await submissionQueries.GetByIdAsync(id, User);
         if (dto == null) return NotFound();
         return Ok(dto);
     }
@@ -97,7 +93,7 @@ public class SubmissionsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] SubmissionUpdateModel model)
     {
-        var updated = await _subs.UpdateAsync(id, model.Score);
+        var updated = await submissionScoreEdits.UpdateAsync(id, model.Score);
         return Ok(updated);
     }
 
@@ -105,7 +101,7 @@ public class SubmissionsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
-        await _subs.DeleteAsync(id);
+        await submissionDeletion.DeleteAsync(id);
         return NoContent();
     }
 }
