@@ -14,10 +14,14 @@ namespace DailyChallenges.IntegrationTests;
 
 /// <summary>
 /// Pins the wire contract of login / refresh / logout / me: token claims, lifetimes, refresh cookie
-/// attributes and the error bodies. Each test owns its database so "first user is admin" is predictable.
+/// attributes and the error bodies. Tests that depend on "first user is admin" own their database.
 /// </summary>
-public class AuthSessionContractTests
+public class AuthSessionContractTests : IClassFixture<ApiFactory>
 {
+    private readonly ApiFactory _factory;
+
+    public AuthSessionContractTests(ApiFactory factory) => _factory = factory;
+
     private const string Password = "correct-horse-1";
     private static readonly TimeSpan SecondPrecision = TimeSpan.FromSeconds(1);
 
@@ -91,7 +95,7 @@ public class AuthSessionContractTests
     [Fact]
     public async Task Login_refresh_token_has_a_jti_and_the_configured_lifetime_and_no_admin_role_for_regular_users()
     {
-        using var f = new ApiFactory();
+        var f = _factory;
         var refreshDays = f.Services.GetRequiredService<IOptions<JwtOptions>>().Value.RefreshExpiresDays;
         await RegisterAndLoginAsync(f, "someone-first");
         var before = DateTimeOffset.UtcNow;
@@ -114,7 +118,7 @@ public class AuthSessionContractTests
     [Fact]
     public async Task Login_sets_a_strict_secure_http_only_refresh_cookie_for_the_refresh_lifetime()
     {
-        using var f = new ApiFactory();
+        var f = _factory;
         var before = DateTimeOffset.UtcNow;
 
         var cookie = RefreshSetCookie(await RegisterAndLoginAsync(f, "cookie-user")).ToLowerInvariant();
@@ -131,7 +135,7 @@ public class AuthSessionContractTests
     [Fact]
     public async Task Refresh_issues_a_new_access_token_and_cookie()
     {
-        using var f = new ApiFactory();
+        var f = _factory;
         var login = await RegisterAndLoginAsync(f, "refresh-user");
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
         request.Headers.Add("Cookie", $"refresh_token={RefreshCookieValue(login)}");
@@ -148,7 +152,7 @@ public class AuthSessionContractTests
     [Fact]
     public async Task Logout_expires_the_refresh_cookie_with_the_same_attributes()
     {
-        using var f = new ApiFactory();
+        var f = _factory;
 
         var res = await Client(f).PostAsync("/api/auth/logout", null);
 
@@ -165,7 +169,7 @@ public class AuthSessionContractTests
     [Fact]
     public async Task Refresh_without_a_cookie_is_401_with_the_session_expired_message()
     {
-        using var f = new ApiFactory();
+        var f = _factory;
 
         var res = await Client(f).PostAsync("/api/auth/refresh", null);
 
@@ -176,7 +180,7 @@ public class AuthSessionContractTests
     [Fact]
     public async Task Refresh_with_a_garbage_cookie_is_401()
     {
-        using var f = new ApiFactory();
+        var f = _factory;
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
         request.Headers.Add("Cookie", "refresh_token=not-a-jwt");
 
@@ -188,7 +192,7 @@ public class AuthSessionContractTests
     [Fact]
     public async Task Me_returns_the_caller_and_401_without_a_token_or_for_an_unknown_user()
     {
-        using var f = new ApiFactory();
+        var f = _factory;
         var login = await ReadJsonAsync(await RegisterAndLoginAsync(f, "me-user"));
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
         request.Headers.Authorization = new("Bearer", login.GetProperty("accessToken").GetString());
@@ -206,7 +210,7 @@ public class AuthSessionContractTests
     [Fact]
     public async Task Profile_endpoints_return_404_for_unknown_users_and_401_for_anonymous_me()
     {
-        using var f = new ApiFactory();
+        var f = _factory;
 
         var unknown = await Client(f).GetAsync("/api/users/999999/profile");
         var anonymousMe = await Client(f).GetAsync("/api/users/me/profile");
