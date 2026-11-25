@@ -70,13 +70,13 @@ public sealed class EfFriendRepository(AppDbContext db) : IFriendRepository
         return await GetSavedAsync(fr.Id);
     }
 
-    public async Task<bool> ReopenDeclinedAsync(int id, int senderId, int receiverId, DateTime nowUtc)
+    public async Task<bool> ReopenDeclinedAsync(int id, FriendRequestDirection direction, DateTime nowUtc)
     {
         var rows = await db.FriendRequests
             .Where(fr => fr.Id == id && fr.Status == FriendRequestStatus.Declined)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(fr => fr.SenderId, senderId)
-                .SetProperty(fr => fr.ReceiverId, receiverId)
+                .SetProperty(fr => fr.SenderId, direction.SenderId)
+                .SetProperty(fr => fr.ReceiverId, direction.ReceiverId)
                 .SetProperty(fr => fr.Status, FriendRequestStatus.Pending)
                 .SetProperty(fr => fr.CreatedAt, nowUtc)
                 .SetProperty(fr => fr.UpdatedAt, (DateTime?)null));

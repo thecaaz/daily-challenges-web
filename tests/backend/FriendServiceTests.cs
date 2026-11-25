@@ -141,7 +141,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-23)));
 
         await Assert.ThrowsAsync<ConflictException>(() => sut.Requests.SendRequestAsync(1, 2));
-        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
+        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(It.IsAny<int>(), It.IsAny<FriendRequestDirection>(), It.IsAny<DateTime>()), Times.Never);
         sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Never);
     }
 
@@ -152,7 +152,7 @@ public class FriendServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-25)));
-        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, 1, 2, Now)).ReturnsAsync(true);
+        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(1, 2), Now)).ReturnsAsync(true);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 1, 2));
 
         var dto = await sut.Requests.SendRequestAsync(1, 2);
@@ -169,13 +169,13 @@ public class FriendServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
         // 1 -> 2 was declined by 2 an hour ago; now 2 asks 1.
         sut.FriendRepo.Setup(r => r.GetExistingAsync(2, 1)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
-        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, 2, 1, Now)).ReturnsAsync(true);
+        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(2, 1), Now)).ReturnsAsync(true);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 2, 1));
 
         var dto = await sut.Requests.SendRequestAsync(2, 1);
 
         Assert.Equal(7, dto.Id);
-        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(7, 2, 1, Now), Times.Once);
+        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(2, 1), Now), Times.Once);
     }
 
     [Fact]

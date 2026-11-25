@@ -17,9 +17,12 @@ public interface IFriendRepository
     /// <summary>Saves the request's own columns (not its Sender/Receiver). The caller sets UpdatedAt.</summary>
     Task<FriendRequest> UpdateAsync(FriendRequest fr);
     /// <summary>
-    /// Turns a Declined request back into a new Pending request from <paramref name="senderId"/> to
-    /// <paramref name="receiverId"/>. Returns false when the row is no longer Declined.
+    /// Turns a Declined request back into a new Pending request in the given <paramref name="direction"/>,
+    /// created at <paramref name="nowUtc"/>. Returns false when the row is no longer Declined.
     /// </summary>
-    Task<bool> ReopenDeclinedAsync(int id, int senderId, int receiverId, DateTime nowUtc);
+    Task<bool> ReopenDeclinedAsync(int id, FriendRequestDirection direction, DateTime nowUtc);
     Task DeleteAsync(int id);
 }
+
+/// <summary>Who asks whom in a friend request.</summary>
+public sealed record FriendRequestDirection(int SenderId, int ReceiverId);

@@ -279,8 +279,8 @@ public class EfFriendRepositoryTests
         var repo = new EfFriendRepository(db.Ctx);
         var now = new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 
-        Assert.True(await repo.ReopenDeclinedAsync(fr.Id, 2, 1, now));
-        Assert.False(await repo.ReopenDeclinedAsync(fr.Id, 2, 1, now)); // no longer Declined
+        Assert.True(await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now));
+        Assert.False(await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now)); // no longer Declined
 
         var reopened = await repo.GetByIdAsync(fr.Id);
         Assert.Equal((2, 1, FriendRequestStatus.Pending, now), (reopened!.SenderId, reopened.ReceiverId, reopened.Status, reopened.CreatedAt));

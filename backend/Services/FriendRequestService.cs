@@ -122,7 +122,7 @@ public sealed class FriendRequestService(
         if (IsDeclinedSenderCoolingDown(declined, attempt))
             throw new ConflictException($"{attempt.Target.Username} declined your friend request recently. Try again after 24 hours.");
 
-        if (!await friends.ReopenDeclinedAsync(declined.Id, attempt.SenderId, attempt.Target.Id, attempt.Now))
+        if (!await friends.ReopenDeclinedAsync(declined.Id, new FriendRequestDirection(attempt.SenderId, attempt.Target.Id), attempt.Now))
             throw new ConflictException(AlreadyRequestedMessage);
         return await friends.GetByIdAsync(declined.Id)
             ?? throw new ConflictException(AlreadyRequestedMessage);
