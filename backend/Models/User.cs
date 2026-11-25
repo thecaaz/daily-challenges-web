@@ -30,7 +30,7 @@ public class User
 
     /// <summary>
     /// Stored streak: consecutive UTC days with a submission, as of <see cref="LastSubmissionAt"/>.
-    /// It is not reset when the user stops playing; DTOs show <c>StreakHelper.Effective</c>, which is 0
+    /// It is not reset when the user stops playing; DTOs show <c>StreakCalculator.GetEffectiveStreak</c>, which is 0
     /// once the last submission is older than yesterday.
     /// </summary>
     public int Streak { get; set; } = 0;

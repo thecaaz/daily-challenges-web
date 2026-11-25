@@ -120,7 +120,7 @@ public class ScoringDayBackgroundService : BackgroundService
     private async Task ProcessGameAsync(int gameId, TimeSpan resetTime, CancellationToken ct)
     {
         // The current scoring day is still in progress; every day before it has ended.
-        var currentDay = ScoringDayHelper.GetCurrentScoringDay(resetTime, _time.GetUtcNow().UtcDateTime).Date;
+        var currentDay = ScoringDayCalculator.GetCurrentScoringDay(resetTime, _time.GetUtcNow().UtcDateTime).Date;
         var lastEndedDay = currentDay.AddDays(-1);
 
         DateTime? lastFinalized;

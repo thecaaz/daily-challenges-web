@@ -19,7 +19,10 @@ namespace DailyChallenges.Services;
 /// </summary>
 public static class ScoreParser
 {
-    // [0-9] rather than \d: .NET's \d also matches non-ASCII digits.
+    private const int SecondsPerMinute = 60;
+    private const int SecondsPerHour = 3600;
+
+    /// <summary>Grouping/decimal separators. Patterns use [0-9] rather than \d: .NET's \d also matches non-ASCII digits.</summary>
     private const string Sep = "[.,\\u0020\\u00A0\\u202F'\\u2019]";
 
     private static readonly Regex Grouped = new($"^[0-9]{{1,3}}(?:{Sep}[0-9]{{3}})+$", RegexOptions.Compiled);
@@ -74,18 +77,18 @@ public static class ScoreParser
         return TryFinite(sign + digits + (frac.Length > 0 ? "." + frac : string.Empty), out value);
     }
 
+    /// <summary>A very long first field overflows to infinity and is rejected by <see cref="TryFinite"/>.</summary>
     private static bool TryParseTime(string s, out double value)
     {
         value = 0;
         var m = Time.Match(s);
         if (!m.Success) return false;
 
-        // A very long first field overflows to infinity and is rejected by TryFinite.
         if (!double.TryParse(m.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var first)) return false;
         var second = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
         double total = m.Groups[3].Success
-            ? first * 3600 + second * 60 + int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture)
-            : first * 60 + second;
+            ? first * SecondsPerHour + second * SecondsPerMinute + int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture)
+            : first * SecondsPerMinute + second;
 
         var frac = m.Groups[4].Success ? "." + m.Groups[4].Value : string.Empty;
         return TryFinite(total.ToString("R", CultureInfo.InvariantCulture) + frac, out value);
@@ -99,7 +102,10 @@ public static class ScoreParser
             value = 0;
             return false;
         }
-        if (value == 0) value = 0; // no -0
+        value = WithoutNegativeZero(value);
         return true;
     }
+
+    /// <summary>-0 and 0 compare equal; returning the literal 0 keeps "-0" from being stored or displayed.</summary>
+    private static double WithoutNegativeZero(double value) => value == 0 ? 0 : value;
 }

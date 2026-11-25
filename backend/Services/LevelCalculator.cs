@@ -17,10 +17,10 @@ namespace DailyChallenges.Services;
 ///   Level  4 →     903 XP
 ///   Level  5 →   1 703 XP
 ///   Level 10 →  11 106 XP
-///   Level 20 →  60 440 XP
-///   Level 50 → 482 533 XP
+///   Level 20 →  67 135 XP
+///   Level 50 → 689 513 XP
 /// </summary>
-public class LevelCalculator
+public sealed class LevelCalculator
 {
     private readonly double _base;
     private readonly double _exponent;
@@ -28,7 +28,7 @@ public class LevelCalculator
     /// <summary>Hard cap on levels, so a pathological curve can never loop (practically) forever.</summary>
     public const int MaxLevel = 100_000;
 
-    // Keeps per-level requirements far from long overflow when summed.
+    /// <summary>Keeps per-level requirements far from long overflow when summed.</summary>
     private const double MaxXpPerLevel = 1e15;
 
     public LevelCalculator(double levelBase = 100, double levelExponent = 1.5)
@@ -66,25 +66,23 @@ public class LevelCalculator
     /// <summary>
     /// Decomposes <paramref name="totalXp"/> into the current level, XP already accumulated
     /// into that level, and XP still needed to advance to the next level.
+    /// Every level needs at least 1 XP and levels stop at <see cref="MaxLevel"/>, so this always terminates.
     /// </summary>
     public (int Level, long XpIntoLevel, long XpToNextLevel) GetLevelInfo(long totalXp)
     {
-        if (totalXp < 0) totalXp = 0;
-        int level = 1;
-        long consumed = 0;
+        var remaining = Math.Max(0, totalXp);
+        var level = 1;
 
-        // Every level needs at least 1 XP and levels stop at MaxLevel, so this always terminates.
         while (level < MaxLevel)
         {
-            long needed = XpRequiredForLevel(level);
-            if (needed > totalXp - consumed) // (no overflow: consumed <= totalXp)
-            {
-                return (level, totalXp - consumed, needed - (totalXp - consumed));
-            }
-            consumed += needed;
+            var needed = XpRequiredForLevel(level);
+            if (needed > remaining)
+                return (level, remaining, needed - remaining);
+
+            remaining -= needed;
             level++;
         }
-        return (MaxLevel, totalXp - consumed, 0);
+        return (MaxLevel, remaining, 0);
     }
 
     /// <summary>Returns just the level for a given total XP amount.</summary>

@@ -92,7 +92,7 @@ public class DashboardService : IDashboardService
     {
         return games.Select(g =>
         {
-            try { return (g.Id, Day: ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, now).Date); }
+            try { return (g.Id, Day: ScoringDayCalculator.GetCurrentScoringDay(g.ResetTime, now).Date); }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to compute scoring day for game {GameId}; falling back to UTC.Date", g.Id);

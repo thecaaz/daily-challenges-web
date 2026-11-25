@@ -22,7 +22,7 @@ public static class DtoMapper
             Level = level,
             XpIntoLevel = xpInto,
             XpToNextLevel = xpToNext,
-            Streak = StreakHelper.Effective(u, todayUtc),
+            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
             LastSubmissionAt = u.LastSubmissionAt
         };
     }
@@ -68,9 +68,9 @@ public static class DtoMapper
         try
         {
             // Compute current scoring day on the server side (ResetTime is UTC)
-            var currentScoringDay = ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, nowUtc ?? DateTime.UtcNow);
+            var currentScoringDay = ScoringDayCalculator.GetCurrentScoringDay(g.ResetTime, nowUtc ?? DateTime.UtcNow);
             dto.CurrentScoringDay = currentScoringDay.ToString("yyyy-MM-dd");
-            var (utcStart, utcEnd) = ScoringDayHelper.GetScoringDayUtcRange(currentScoringDay, g.ResetTime);
+            var (utcStart, utcEnd) = ScoringDayCalculator.GetScoringDayUtcRange(currentScoringDay, g.ResetTime);
             dto.CurrentScoringDayUtcStart = utcStart.ToString("yyyy-MM-ddTHH:mm:ss'Z'");
             dto.CurrentScoringDayUtcEnd = utcEnd.ToString("yyyy-MM-ddTHH:mm:ss'Z'");
         }
@@ -92,7 +92,7 @@ public static class DtoMapper
             UserId = e.UserId,
             SubmissionId = e.SubmissionId,
             GameId = e.GameId,
-            ScoringDay = e.ScoringDay.HasValue ? ScoringDayHelper.FormatScoringDay(e.ScoringDay.Value) : null,
+            ScoringDay = e.ScoringDay.HasValue ? ScoringDayCalculator.FormatScoringDay(e.ScoringDay.Value) : null,
             Amount = e.Amount,
             EventType = e.EventType,
             Details = e.Details,
@@ -108,7 +108,7 @@ public static class DtoMapper
             Message = n.Message,
             Type = n.Type,
             GameId = n.GameId,
-            ScoringDay = ScoringDayHelper.FormatScoringDay(n.ScoringDay),
+            ScoringDay = ScoringDayCalculator.FormatScoringDay(n.ScoringDay),
             Rank = n.Rank,
             ActorUserId = n.ActorUserId,
             IsRead = n.IsRead,
@@ -127,7 +127,7 @@ public static class DtoMapper
             Level = level,
             XpIntoLevel = xpInto,
             XpToNextLevel = xpToNext,
-            Streak = StreakHelper.Effective(u, todayUtc),
+            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
             LastSubmissionAt = u.LastSubmissionAt,
             TopGames = topGames ?? []
         };
@@ -156,7 +156,7 @@ public static class DtoMapper
             Username = u.Username,
             Level = level,
             TotalXp = u.TotalXp,
-            Streak = StreakHelper.Effective(u, todayUtc),
+            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
             LastSubmissionAt = u.LastSubmissionAt
         };
     }

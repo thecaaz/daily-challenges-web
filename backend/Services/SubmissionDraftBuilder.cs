@@ -36,7 +36,7 @@ public sealed class SubmissionDraftBuilder(
     {
         if (userId is not int signedInUserId) return;
 
-        var currentDay = ScoringDayHelper.GetCurrentScoringDay(game.ResetTime, time.GetUtcNow().UtcDateTime).Date;
+        var currentDay = ScoringDayCalculator.GetCurrentScoringDay(game.ResetTime, time.GetUtcNow().UtcDateTime).Date;
         if (await submissions.ExistsForUserGameDayAsync(signedInUserId, game.Id, currentDay))
             throw new ConflictException(AlreadySubmittedMessage);
     }
@@ -55,7 +55,7 @@ public sealed class SubmissionDraftBuilder(
             Username = GetDisplayedUsername(userId, request.Username, user),
             UserId = userId,
             CreatedAt = createdAt,
-            ScoringDay = ScoringDayHelper.GetScoringDay(createdAt, game.ResetTime),
+            ScoringDay = ScoringDayCalculator.GetScoringDay(createdAt, game.ResetTime),
         };
     }
 

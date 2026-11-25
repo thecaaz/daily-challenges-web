@@ -33,7 +33,7 @@ public sealed class LeagueStandingsService(
         {
             LeagueId = query.LeagueId,
             GameId = query.GameId,
-            ScoringDay = ScoringDayHelper.FormatScoringDay(day),
+            ScoringDay = ScoringDayCalculator.FormatScoringDay(day),
             ScoresHidden = !canSeeScores,
             Entries = canSeeScores
                 ? RankedEntries(rows, ScreenshotUrlFor(day, currentDay))

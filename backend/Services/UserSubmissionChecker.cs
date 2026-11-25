@@ -21,7 +21,7 @@ public class UserSubmissionChecker : IUserSubmissionChecker
         int? userId = user.GetUserId();
         if (!userId.HasValue) return false;
         var game = await _games.GetByIdWithoutBlobAsync(gameId);
-        var currentDay = ScoringDayHelper.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, _time.GetUtcNow().UtcDateTime);
+        var currentDay = ScoringDayCalculator.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, _time.GetUtcNow().UtcDateTime);
         return await HasUserSubmittedForDayAsync(userId, gameId, currentDay);
     }
 

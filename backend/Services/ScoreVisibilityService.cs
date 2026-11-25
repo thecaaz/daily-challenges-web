@@ -15,7 +15,7 @@ public class ScoreVisibilityService : IScoreVisibilityService
     }
 
     public DateTime GetCurrentScoringDay(Game game) =>
-        ScoringDayHelper.GetCurrentScoringDay(game.ResetTime, _time.GetUtcNow().UtcDateTime).Date;
+        ScoringDayCalculator.GetCurrentScoringDay(game.ResetTime, _time.GetUtcNow().UtcDateTime).Date;
 
     public bool IsCurrentDay(Game game, DateTime scoringDay) => scoringDay.Date == GetCurrentScoringDay(game);
 
