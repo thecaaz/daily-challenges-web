@@ -41,16 +41,16 @@ public sealed class GameScoringDayRederiver(
     /// <summary>The new current day must not be a finalized day either, or new submissions would land in it.</summary>
     private void EnsureCurrentDayIsNotFinalized(TimeSpan newResetTime, DateTime? lastFinalized)
     {
-        var newCurrentDay = ScoringDayHelper.GetCurrentScoringDay(newResetTime, time.GetUtcNow().UtcDateTime).Date;
+        var newCurrentDay = ScoringDayCalculator.GetCurrentScoringDay(newResetTime, time.GetUtcNow().UtcDateTime).Date;
         if (lastFinalized.HasValue && newCurrentDay <= lastFinalized.Value)
-            throw new ConflictException($"With this reset time the current scoring day would be {ScoringDayHelper.FormatScoringDay(newCurrentDay)}, which is already finalized. Try again after the new reset time has passed.");
+            throw new ConflictException($"With this reset time the current scoring day would be {ScoringDayCalculator.FormatScoringDay(newCurrentDay)}, which is already finalized. Try again after the new reset time has passed.");
     }
 
     private async Task<List<ScoringDayMove>> PlanMovesAsync(int gameId, TimeSpan newResetTime, DateTime? lastFinalized)
     {
         var rows = await submissions.GetScoringDayRowsAsync(gameId, lastFinalized);
         return rows
-            .Select(r => new ScoringDayMove(r.Id, r.UserId, r.ScoringDay.Date, ScoringDayHelper.GetScoringDay(r.CreatedAt, newResetTime).Date))
+            .Select(r => new ScoringDayMove(r.Id, r.UserId, r.ScoringDay.Date, ScoringDayCalculator.GetScoringDay(r.CreatedAt, newResetTime).Date))
             .ToList();
     }
 

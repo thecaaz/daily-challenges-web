@@ -63,7 +63,7 @@ public sealed class UserProfileService(
     private async Task<ProfileScope> GetProfileScopeAsync(int userId, bool canSeeCurrentDay, DateTime now)
     {
         var allGames = await games.GetAllAsync();
-        var currentDayByGame = allGames.ToDictionary(g => g.Id, g => ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, now).Date);
+        var currentDayByGame = allGames.ToDictionary(g => g.Id, g => ScoringDayCalculator.GetCurrentScoringDay(g.ResetTime, now).Date);
         var hiddenIds = canSeeCurrentDay ? new HashSet<int>() : await GetCurrentDaySubmissionIdsAsync(userId, currentDayByGame);
         return new ProfileScope(userId, currentDayByGame, hiddenIds);
     }

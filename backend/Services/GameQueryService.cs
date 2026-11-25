@@ -26,7 +26,7 @@ public sealed class GameQueryService(
         var userId = user.GetUserId();
         if (!userId.HasValue) return dtos;
 
-        var currentDayByGame = allGames.ToDictionary(g => g.Id, g => ScoringDayHelper.GetCurrentScoringDay(g.ResetTime, now).Date);
+        var currentDayByGame = allGames.ToDictionary(g => g.Id, g => ScoringDayCalculator.GetCurrentScoringDay(g.ResetTime, now).Date);
         await MarkUserFlagsAsync(dtos, currentDayByGame, userId.Value);
         return dtos;
     }
