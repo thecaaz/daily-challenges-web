@@ -9,13 +9,20 @@ import timeAgo from '../../utils/timeAgo'
 import formatNumber from '../../utils/formatNumber'
 import RecentPlaysBar from './RecentPlaysBar'
 
-export default function LeagueGameCard({ summary, onSelect }) {
-  const {
-    gameId, gameName, iconUrl, lastPlayedAt, playCount,
-    topScore, myBestScore, myRank, recentPlays, recentPlayDays,
-  } = summary
+const ICON_SIZE = 40
+const PLACEHOLDER_ICON_BACKGROUND = 'linear-gradient(135deg, rgba(255,122,182,0.25), rgba(255,209,102,0.25))'
 
+const stopPropagation = (event) => event.stopPropagation()
+
+/**
+ * One game in a league's games tab. Clicking the card calls `onSelect(gameId)`;
+ * clicking a recent-plays bar calls `onSelect(gameId, isoDate)` to jump to that
+ * day's leaderboard.
+ */
+export default function LeagueGameCard({ summary, onSelect }) {
+  const { gameId, lastPlayedAt, myBestScore, myRank, recentPlays, recentPlayDays } = summary
   const isTopRank = myRank === 1
+  const hasRecentPlays = recentPlays && recentPlays.length > 0
 
   return (
     <Card
@@ -34,74 +41,11 @@ export default function LeagueGameCard({ summary, onSelect }) {
         sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
       >
         <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-          {/* Header: icon + name */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-            {iconUrl ? (
-              <Avatar
-                src={imageUrl(iconUrl)}
-                alt={gameName}
-                variant="rounded"
-                sx={{ width: 40, height: 40 }}
-              />
-            ) : (
-              <Avatar
-                variant="rounded"
-                sx={{
-                  width: 40,
-                  height: 40,
-                  background: 'linear-gradient(135deg, rgba(255,122,182,0.25), rgba(255,209,102,0.25))',
-                  fontSize: '1.25rem',
-                }}
-              >
-                🎮
-              </Avatar>
-            )}
-            <Typography
-              variant="subtitle1"
-              component={Link}
-              to={`/games/${gameId}`}
-              onClick={e => e.stopPropagation()}
-              sx={{ fontWeight: 600, lineHeight: 1.2, textDecoration: 'none', color: 'inherit', flexGrow: 1 }}
-            >
-              {gameName}
-            </Typography>
-            {isTopRank && (
-              <EmojiEventsIcon fontSize="small" sx={{ color: 'warning.main', flexShrink: 0 }} />
-            )}
-          </Box>
-
-          {/* Stats chips */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
-            {myRank != null && (
-              <Chip
-                label={`#${myRank} rank`}
-                size="small"
-                color={isTopRank ? 'warning' : 'default'}
-                sx={{ fontWeight: 600 }}
-              />
-            )}
-            {topScore != null && (
-              <Chip
-                label={`Top: ${topScore}`}
-                size="small"
-                variant="outlined"
-              />
-            )}
-            <Chip
-              label={`${formatNumber(playCount)} play${playCount !== 1 ? 's' : ''}`}
-              size="small"
-              variant="outlined"
-            />
-          </Box>
-
-          {/* My best score */}
-          <Typography variant="body2" color={myBestScore != null ? 'text.primary' : 'text.disabled'}>
-            My best: {myBestScore != null ? myBestScore : 'Not played'}
-          </Typography>
-
-          {/* Recent plays bar — click a bar to jump to that day's leaderboard */}
-          {recentPlays && recentPlays.length > 0 && (
-            <Box sx={{ mt: 1 }} onClick={e => e.stopPropagation()}>
+          <GameTitle summary={summary} isTopRank={isTopRank} />
+          <GameStatChips summary={summary} isTopRank={isTopRank} />
+          <MyBestScore score={myBestScore} />
+          {hasRecentPlays && (
+            <Box sx={{ mt: 1 }} onClick={stopPropagation}>
               <RecentPlaysBar
                 recentPlays={recentPlays}
                 recentPlayDays={recentPlayDays}
@@ -111,13 +55,81 @@ export default function LeagueGameCard({ summary, onSelect }) {
           )}
         </CardContent>
       </CardActionArea>
-
-      {/* Footer */}
-      <Box sx={{ px: 2, pb: 1.5 }}>
-        <Typography variant="caption" color="text.secondary">
-          {lastPlayedAt ? `Last played ${timeAgo(lastPlayedAt)}` : 'Not played recently'}
-        </Typography>
-      </Box>
+      <LastPlayed lastPlayedAt={lastPlayedAt} />
     </Card>
+  )
+}
+
+function GameTitle({ summary, isTopRank }) {
+  const { gameId, gameName, iconUrl } = summary
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+      <GameIcon iconUrl={iconUrl} gameName={gameName} />
+      <Typography
+        variant="subtitle1"
+        component={Link}
+        to={`/games/${gameId}`}
+        onClick={stopPropagation}
+        sx={{ fontWeight: 600, lineHeight: 1.2, textDecoration: 'none', color: 'inherit', flexGrow: 1 }}
+      >
+        {gameName}
+      </Typography>
+      {isTopRank && (
+        <EmojiEventsIcon fontSize="small" sx={{ color: 'warning.main', flexShrink: 0 }} />
+      )}
+    </Box>
+  )
+}
+
+function GameIcon({ iconUrl, gameName }) {
+  if (iconUrl) {
+    return <Avatar src={imageUrl(iconUrl)} alt={gameName} variant="rounded" sx={{ width: ICON_SIZE, height: ICON_SIZE }} />
+  }
+
+  return (
+    <Avatar
+      variant="rounded"
+      sx={{ width: ICON_SIZE, height: ICON_SIZE, background: PLACEHOLDER_ICON_BACKGROUND, fontSize: '1.25rem' }}
+    >
+      🎮
+    </Avatar>
+  )
+}
+
+function GameStatChips({ summary, isTopRank }) {
+  const { myRank, topScore, playCount } = summary
+  const hasRank = myRank != null
+  const hasTopScore = topScore != null
+  const playsLabel = `${formatNumber(playCount)} play${playCount !== 1 ? 's' : ''}`
+
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+      {hasRank && (
+        <Chip label={`#${myRank} rank`} size="small" color={isTopRank ? 'warning' : 'default'} sx={{ fontWeight: 600 }} />
+      )}
+      {hasTopScore && <Chip label={`Top: ${topScore}`} size="small" variant="outlined" />}
+      <Chip label={playsLabel} size="small" variant="outlined" />
+    </Box>
+  )
+}
+
+function MyBestScore({ score }) {
+  const hasPlayed = score != null
+
+  return (
+    <Typography variant="body2" color={hasPlayed ? 'text.primary' : 'text.disabled'}>
+      My best: {hasPlayed ? score : 'Not played'}
+    </Typography>
+  )
+}
+
+function LastPlayed({ lastPlayedAt }) {
+  return (
+    <Box sx={{ px: 2, pb: 1.5 }}>
+      <Typography variant="caption" color="text.secondary">
+        {lastPlayedAt ? `Last played ${timeAgo(lastPlayedAt)}` : 'Not played recently'}
+      </Typography>
+    </Box>
   )
 }
