@@ -8,6 +8,13 @@ import imageUrl from '../utils/imageUrl'
 import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import { useAuth } from '../contexts/AuthContext'
+import { winnerGold } from '../styles/tokens'
+
+/**
+ * The server masks today's scores while the viewer hasn't submitted: score,
+ * rank and screenshot are then null or missing.
+ */
+const isMaskedSubmission = submission => submission.score == null || submission.score === ''
 
 export default function SubmissionCard({ submission, compareMode, selected, onToggleCompare }) {
   const { user } = useAuth()
@@ -15,9 +22,7 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
   const navigate = useNavigate()
   if (!submission) return null
 
-  // Masked by the server (today's scores while the viewer hasn't submitted):
-  // score, rank and screenshot are null or missing.
-  const masked = submission.score == null || submission.score === ''
+  const masked = isMaskedSubmission(submission)
 
   const handleCompareClick = (e) => {
     e.preventDefault()
@@ -52,7 +57,6 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
           />
         )}
         <CardContent>
-          {/* Rank badge + winner icon */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
               {submission.userId ? (
@@ -74,7 +78,7 @@ export default function SubmissionCard({ submission, compareMode, selected, onTo
               )}
               {submission.isDayWinner && (
                 <Tooltip title={submission.scoringDay ? `Winner for ${submission.scoringDay}` : 'Winner'}>
-                  <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.1rem' }} />
+                  <EmojiEventsIcon sx={{ color: winnerGold, fontSize: '1.1rem' }} />
                 </Tooltip>
               )}
               {submission.userId && user && submission.userId === user.id && (

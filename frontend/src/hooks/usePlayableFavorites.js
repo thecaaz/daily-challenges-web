@@ -75,9 +75,10 @@ export default function usePlayableFavorites(userId, { enabled = true, subscribe
 
   useEffect(() => {
     if (!enabled) return undefined
-    const counter = requestRef
+    const requestCounter = requestRef
     load()
-    return () => { counter.current++ } // drop in-flight responses
+    const dropInFlightResponses = () => { requestCounter.current++ }
+    return dropInFlightResponses
   }, [enabled, load])
 
   useEffect(() => {

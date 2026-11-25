@@ -4,6 +4,9 @@ import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import useFavorite from '../../hooks/useFavorite'
 
+/** A span keeps the tooltip working while the button is disabled. */
+const TooltipAnchor = ({ children }) => <span>{children}</span>
+
 export default function FavoriteButton({
   game,
   gameId,
@@ -53,8 +56,7 @@ export default function FavoriteButton({
 
   return tooltip ? (
     <Tooltip title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-      {/* span keeps the tooltip working while the button is disabled */}
-      <span>{button}</span>
+      <TooltipAnchor>{button}</TooltipAnchor>
     </Tooltip>
   ) : button
 }

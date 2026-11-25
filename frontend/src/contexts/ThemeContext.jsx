@@ -7,24 +7,40 @@ import { cssVariables } from '../styles/tokens'
 
 const ThemeContext = createContext()
 
+const STORAGE_KEY = 'themeMode'
+const PREFERS_DARK_QUERY = '(prefers-color-scheme: dark)'
+const ThemeMode = Object.freeze({ LIGHT: 'light', DARK: 'dark' })
+
+const ignoreStorageUnavailable = () => {}
+
+function readInitialMode() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored === ThemeMode.LIGHT || stored === ThemeMode.DARK) return stored
+    if (window.matchMedia && window.matchMedia(PREFERS_DARK_QUERY).matches) return ThemeMode.DARK
+  } catch (error) {
+    ignoreStorageUnavailable(error)
+  }
+  return ThemeMode.LIGHT
+}
+
+function applyMode(mode) {
+  try {
+    document.documentElement.setAttribute('data-theme', mode)
+    localStorage.setItem(STORAGE_KEY, mode)
+  } catch (error) {
+    ignoreStorageUnavailable(error)
+  }
+}
+
+const oppositeMode = mode => (mode === ThemeMode.DARK ? ThemeMode.LIGHT : ThemeMode.DARK)
+
 export function ThemeProvider({ children }) {
-  const [mode, setMode] = useState(() => {
-    try {
-      const stored = localStorage.getItem('themeMode')
-      if (stored === 'light' || stored === 'dark') return stored
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
-    } catch (e) {}
-    return 'light'
-  })
+  const [mode, setMode] = useState(readInitialMode)
 
-  useEffect(() => {
-    try {
-      document.documentElement.setAttribute('data-theme', mode)
-      localStorage.setItem('themeMode', mode)
-    } catch (e) {}
-  }, [mode])
+  useEffect(() => applyMode(mode), [mode])
 
-  const toggleMode = useCallback(() => setMode((m) => (m === 'dark' ? 'light' : 'dark')), [])
+  const toggleMode = useCallback(() => setMode(oppositeMode), [])
 
   const theme = useMemo(() => createAppTheme(mode), [mode])
   const globalStyles = useMemo(() => ({ ':root': cssVariables(mode) }), [mode])

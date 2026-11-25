@@ -1,3 +1,7 @@
+/**
+ * Saves `blob` as `filename` through a temporary link. Never throws: a
+ * failure is only logged, the caller handles user-visible errors.
+ */
 export default function downloadBlob(filename, blob) {
   try {
     const url = window.URL.createObjectURL(blob)
@@ -9,7 +13,6 @@ export default function downloadBlob(filename, blob) {
     a.remove()
     window.URL.revokeObjectURL(url)
   } catch (err) {
-    // silent fail — caller should handle user-visible errors
     console.error('downloadBlob failed', err)
   }
 }

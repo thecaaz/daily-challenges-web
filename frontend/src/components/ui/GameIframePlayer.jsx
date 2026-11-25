@@ -7,6 +7,8 @@ import { isSafeHttpUrl } from '../../utils/safeUrl'
 // open popups, show alert/confirm dialogs and download files (e.g. a result
 // image), but can't navigate the app's top window.
 const IFRAME_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads'
+/** Send only our origin: some games check which site embeds them. */
+const ORIGIN_ONLY_REFERRER = 'strict-origin-when-cross-origin'
 
 export default function GameIframePlayer({ src, title, iframeRef, isMaximized, onRestore }) {
   const [iframeLoaded, setIframeLoaded] = useState(false)
@@ -44,8 +46,7 @@ export default function GameIframePlayer({ src, title, iframeRef, isMaximized, o
         allowFullScreen
         allow="fullscreen"
         sandbox={IFRAME_SANDBOX}
-        // Send only our origin: some games check which site embeds them.
-        referrerPolicy="strict-origin-when-cross-origin"
+        referrerPolicy={ORIGIN_ONLY_REFERRER}
         ref={iframeRef}
         src={src}
         title={title || 'Play'}
