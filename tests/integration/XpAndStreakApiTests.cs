@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using DailyChallenges.Models;
+using DailyChallenges.DTOs;
 using DailyChallenges.Repositories;
 using DailyChallenges.TestUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -142,8 +143,8 @@ public class LeagueSummaryWindowTests
         });
         db.Ctx.SaveChanges();
 
-        var repo = new EfLeagueRepository(db.Ctx, new FixedTimeProvider(now));
-        var (items, _) = await repo.GetLeagueGameSummariesAsync(1, requestingUserId: 1, days: 3);
+        var repo = new EfLeagueStandingsRepository(db.Ctx, new FixedTimeProvider(now));
+        var (items, _) = await repo.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 3));
 
         var summary = Assert.Single(items);
         Assert.Equal(1, summary.PlayCount);

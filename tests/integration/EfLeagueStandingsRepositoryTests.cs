@@ -1,10 +1,12 @@
 using DailyChallenges.Data;
 using DailyChallenges.Models;
+using DailyChallenges.DTOs;
 using DailyChallenges.Repositories;
+using DailyChallenges.Repositories.Contracts;
 
 namespace DailyChallenges.IntegrationTests;
 
-public class EfLeagueRepositoryGameSummariesTests
+public class EfLeagueStandingsRepositoryTests
 {
     private static void SeedGame(AppDbContext ctx, int id, RankingMode mode = RankingMode.Highest)
     {
@@ -62,9 +64,9 @@ public class EfLeagueRepositoryGameSummariesTests
         SeedSub(db.Ctx, 1, 200, day1, userId: 2);
         SeedSub(db.Ctx, 1, 300, day2, userId: 1);
 
-        var repo = new EfLeagueRepository(db.Ctx);
+        var repo = new EfLeagueStandingsRepository(db.Ctx, TimeProvider.System);
 
-        var (items, total) = await repo.GetLeagueGameSummariesAsync(1, requestingUserId: 1, days: 2, page: 1, pageSize: 20);
+        var (items, total) = await repo.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 2, Page: 1, PageSize: 20));
 
         Assert.Equal(1, total);
         Assert.Single(items);
@@ -102,8 +104,8 @@ public class EfLeagueRepositoryGameSummariesTests
         SeedSub(db.Ctx, 1, 20, day, userId: 3);
         SeedSub(db.Ctx, 1, 30, day, userId: 4);
 
-        var repo = new EfLeagueRepository(db.Ctx);
-        var rows = await repo.GetLeaderboardAsync(1, 1, day, DailyChallenges.Services.Ranking.RankingStrategyFactory.GetStrategy(mode));
+        var repo = new EfLeagueStandingsRepository(db.Ctx, TimeProvider.System);
+        var rows = await repo.GetLeaderboardAsync(new LeagueGameDay(1, 1, day), DailyChallenges.Services.Ranking.RankingStrategyFactory.GetStrategy(mode));
 
         Assert.Equal(new[] { 1, 1, 3, 4 }, rows.Select(r => r.Rank));
         Assert.Equal(lowWins ? new[] { 10.0, 10, 20, 30 } : new[] { 40.0, 40, 30, 20 }, rows.Select(r => r.ScoreValue));
