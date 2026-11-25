@@ -133,6 +133,7 @@ builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, D
 
 // Achievement system
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IAchievementService, DailyChallenges.Services.AchievementService>();
+builder.Services.AddScoped<DailyChallenges.Achievements.AchievementProgressReader>();
 
 // Scoring day finalization
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();

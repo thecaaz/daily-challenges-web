@@ -38,10 +38,11 @@ public class AchievementServiceTests
         notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>())).Returns(Task.CompletedTask);
 
         var svc = new AchievementService(
-            achRepo.Object, userRepo.Object, subRepo.Object,
-            sdrRepo.Object, notifRepo.Object, friendRepo.Object,
-            NullLogger<AchievementService>.Instance,
-            new FixedTimeProvider(new DateTime(2026, 4, 1, 12, 0, 0, DateTimeKind.Utc)));
+            achRepo.Object, userRepo.Object,
+            new AchievementProgressReader(subRepo.Object, sdrRepo.Object, friendRepo.Object),
+            notifRepo.Object,
+            new FixedTimeProvider(new DateTime(2026, 4, 1, 12, 0, 0, DateTimeKind.Utc)),
+            NullLogger<AchievementService>.Instance);
 
         return new Sut(svc, achRepo, userRepo, subRepo, sdrRepo, notifRepo, friendRepo);
     }

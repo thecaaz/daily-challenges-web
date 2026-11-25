@@ -17,4 +17,7 @@ public interface IAchievementService
     /// Locked achievements have a null <c>UnlockedAt</c>.
     /// </summary>
     Task<List<AchievementDto>> GetForUserAsync(int userId);
+
+    /// <summary>The full catalog without any unlock state, in catalog order.</summary>
+    IReadOnlyList<AchievementCatalogEntryDto> GetCatalog();
 }
