@@ -16,8 +16,8 @@ namespace DailyChallenges.IntegrationTests;
 public class AuthRefreshReuseTests
 {
     private const string Password = "correct-horse-1";
-    private static readonly TimeSpan JustInside = AuthService.RefreshReuseGracePeriod - TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan JustOutside = AuthService.RefreshReuseGracePeriod + TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan JustInside = RefreshTokenRevocations.ReuseGracePeriod - TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan JustOutside = RefreshTokenRevocations.ReuseGracePeriod + TimeSpan.FromSeconds(1);
 
     private static HttpClient Client(FixedClockApiFactory f) =>
         f.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });

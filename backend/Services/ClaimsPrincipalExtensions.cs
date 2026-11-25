@@ -14,5 +14,5 @@ public static class ClaimsPrincipalExtensions
 
     /// <summary>True for an authenticated caller in the Admin role.</summary>
     public static bool IsAdmin(this ClaimsPrincipal? user) =>
-        user?.Identity?.IsAuthenticated == true && user.IsInRole("Admin");
+        user?.Identity?.IsAuthenticated == true && user.IsInRole(AuthRoles.Admin);
 }

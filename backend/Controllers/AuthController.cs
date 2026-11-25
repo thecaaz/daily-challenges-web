@@ -2,58 +2,50 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using DailyChallenges.DTOs;
 using DailyChallenges.Services;
+using DailyChallenges.Services.Contracts;
 
 namespace DailyChallenges.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController : ControllerBase
+public sealed class AuthController(
+    IRegistrationService registration,
+    ILoginService login,
+    ISessionService sessions,
+    ICurrentUserService currentUser) : ControllerBase
 {
-    private readonly IAuthService _auth;
-
-    public AuthController(IAuthService auth)
-    {
-        _auth = auth;
-    }
+    private const string SessionExpiredMessage = "Session expired. Please log in again.";
 
     [HttpPost("register")]
     [EnableRateLimiting(AuthRateLimitOptions.PolicyName)]
-    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
-    {
-        var u = await _auth.RegisterAsync(dto.Username, dto.Password);
-        return Ok(u);
-    }
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto) =>
+        Ok(await registration.RegisterAsync(dto.Username, dto.Password));
 
     [HttpPost("login")]
     [EnableRateLimiting(AuthRateLimitOptions.PolicyName)]
-    public async Task<IActionResult> Login([FromBody] LoginDto dto)
-    {
-        var result = await _auth.LoginAsync(dto.Username, dto.Password, Response);
-        return Ok(result);
-    }
+    public async Task<IActionResult> Login([FromBody] LoginDto dto) =>
+        Ok(await login.LoginAsync(dto.Username, dto.Password, Response));
 
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        await _auth.LogoutAsync(Request, Response);
+        await sessions.LogoutAsync(Request, Response);
         return Ok(new { success = true });
     }
 
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh()
     {
-        var result = await _auth.RefreshAsync(Request, Response);
-        if (result == null) return Unauthorized(new { message = "Session expired. Please log in again." });
+        var result = await sessions.RefreshAsync(Request, Response);
+        if (result == null) return Unauthorized(new { message = SessionExpiredMessage });
         return Ok(result);
     }
 
     [HttpGet("me")]
     public async Task<IActionResult> Me()
     {
-        var u = await _auth.GetCurrentUserAsync(User);
-        if (u == null) return Unauthorized();
-        return Ok(u);
+        var user = await currentUser.GetCurrentUserAsync(User);
+        if (user == null) return Unauthorized();
+        return Ok(user);
     }
-
-    // JWT generation moved to AuthService
 }
