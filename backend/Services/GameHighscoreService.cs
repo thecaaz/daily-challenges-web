@@ -55,7 +55,7 @@ public sealed class GameHighscoreService(
             .ToList();
 
         AssignSequentialRanks(dtos);
-        return new HighscoreResult { Highscore = dtos.FirstOrDefault(), Top = dtos };
+        return new HighscoreResult(dtos.FirstOrDefault(), dtos);
     }
 
     private static void AssignSequentialRanks(List<SubmissionDto> dtos)
