@@ -12,6 +12,7 @@ import {
 } from '../utils/adapters'
 
 const ADAPTERS = [{ name: 'TimeGuessr', matchDescriptor: { type: 'includes', value: 'timeguessr' } }]
+const REPLY_TIMEOUT_MS = 800
 
 function reply(data, { source = window, origin = window.location.origin } = {}) {
   window.dispatchEvent(new MessageEvent('message', { data, source, origin }))
@@ -31,6 +32,11 @@ function noExtension() {
   return vi.spyOn(window, 'postMessage').mockImplementation(() => {})
 }
 
+function fetchAndTimeOut() {
+  const pending = fetchAdapters()
+  return vi.advanceTimersByTimeAsync(REPLY_TIMEOUT_MS).then(() => pending)
+}
+
 function requestsOfType(spy, type) {
   return spy.mock.calls.filter(([msg]) => msg && msg.type === type)
 }
@@ -47,61 +53,82 @@ describe('adapters', () => {
   })
 
   describe('without the extension', () => {
-    it('resolves [] after the first timeout, then answers false immediately', async () => {
-      const spy = noExtension()
+    it('resolves [] once the first request times out', async () => {
+      noExtension()
 
       const first = fetchAdapters()
-      await vi.advanceTimersByTimeAsync(800)
+      await vi.advanceTimersByTimeAsync(REPLY_TIMEOUT_MS)
+
       await expect(first).resolves.toEqual([])
       expect(isExtensionDetected()).toBe(false)
+    })
 
-      // No timer advance: these must resolve without waiting on any timeout.
+    it('answers lookups without waiting or asking again once the extension is known to be missing', async () => {
+      const spy = noExtension()
+      await fetchAndTimeOut()
+
       await expect(hasAdapterForUrl('https://timeguessr.com/daily')).resolves.toBe(false)
       await expect(hasAdapterForUrl('https://example.com')).resolves.toBe(false)
       await expect(getAdapterForUrl('https://timeguessr.com')).resolves.toBeNull()
-
       expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(1)
       expect(requestsOfType(spy, 'HAS_ADAPTER')).toHaveLength(0)
     })
 
-    it('re-checks after the recheck interval', async () => {
+    it('re-checks once shortly after the first miss, since content scripts may inject late', async () => {
       const spy = noExtension()
-      const first = fetchAdapters()
-      await vi.advanceTimersByTimeAsync(800)
-      await first
-      // The one early re-check (content scripts may inject late) also gets no answer.
-      await vi.advanceTimersByTimeAsync(EARLY_RECHECK_MS + 800)
+      await fetchAndTimeOut()
+
+      await vi.advanceTimersByTimeAsync(EARLY_RECHECK_MS + REPLY_TIMEOUT_MS)
+
       expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(2)
       expect(isExtensionDetected()).toBe(false)
+    })
+
+    it('forgets the miss after the recheck interval and asks again', async () => {
+      const spy = noExtension()
+      await fetchAndTimeOut()
+      await vi.advanceTimersByTimeAsync(EARLY_RECHECK_MS + REPLY_TIMEOUT_MS)
 
       vi.advanceTimersByTime(NO_EXTENSION_RECHECK_MS + 1)
       expect(isExtensionDetected()).toBeNull()
-      const second = fetchAdapters()
-      await vi.advanceTimersByTimeAsync(800)
-      await second
-      expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(3)
+      await fetchAndTimeOut()
 
-      // No more early re-checks after the first one: the 30 s backoff holds.
-      await vi.advanceTimersByTimeAsync(EARLY_RECHECK_MS + 800)
+      expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(3)
+    })
+
+    it('keeps the recheck backoff after the one early re-check', async () => {
+      const spy = noExtension()
+      await fetchAndTimeOut()
+      await vi.advanceTimersByTimeAsync(EARLY_RECHECK_MS + REPLY_TIMEOUT_MS)
+      vi.advanceTimersByTime(NO_EXTENSION_RECHECK_MS + 1)
+      await fetchAndTimeOut()
+
+      await vi.advanceTimersByTimeAsync(EARLY_RECHECK_MS + REPLY_TIMEOUT_MS)
+
       expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(3)
       await expect(hasAdapterForUrl('https://timeguessr.com')).resolves.toBe(false)
     })
 
-    it('re-checks once shortly after the first miss and notifies subscribers when the extension shows up', async () => {
-      let spy = noExtension()
+    it('does not notify subscribers about a miss', async () => {
+      noExtension()
       const listener = vi.fn()
       subscribeAdapters(listener)
 
-      const first = fetchAdapters()
-      await vi.advanceTimersByTimeAsync(800)
-      await expect(first).resolves.toEqual([])
-      expect(listener).not.toHaveBeenCalled()
-      expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(1)
+      await fetchAndTimeOut()
 
-      // The content script is injected at document_idle, after the first check.
-      spy.mockRestore()
-      spy = installExtension()
+      expect(listener).not.toHaveBeenCalled()
+    })
+
+    it('notifies subscribers when the early re-check finds an extension injected at document_idle', async () => {
+      const missSpy = noExtension()
+      const listener = vi.fn()
+      subscribeAdapters(listener)
+      await fetchAndTimeOut()
+      missSpy.mockRestore()
+      const spy = installExtension()
+
       await vi.advanceTimersByTimeAsync(EARLY_RECHECK_MS)
+
       expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(1)
       expect(listener).toHaveBeenCalledTimes(1)
       expect(listener).toHaveBeenCalledWith(ADAPTERS)
@@ -113,9 +140,7 @@ describe('adapters', () => {
       noExtension()
       const listener = vi.fn()
       const unsubscribe = subscribeAdapters(listener)
-      const first = fetchAdapters()
-      await vi.advanceTimersByTimeAsync(800)
-      await first
+      await fetchAndTimeOut()
       unsubscribe()
 
       vi.restoreAllMocks()
@@ -127,9 +152,7 @@ describe('adapters', () => {
 
     it('refreshAdapters asks again immediately and picks up a newly installed extension', async () => {
       noExtension()
-      const first = fetchAdapters()
-      await vi.advanceTimersByTimeAsync(800)
-      await first
+      await fetchAndTimeOut()
       vi.restoreAllMocks()
 
       installExtension()
@@ -144,7 +167,7 @@ describe('adapters', () => {
       const spy = noExtension()
       fetchAdapters()
       expect(spy).toHaveBeenCalledWith(expect.objectContaining({ type: 'GET_ADAPTERS' }), window.location.origin)
-      await vi.advanceTimersByTimeAsync(800)
+      await vi.advanceTimersByTimeAsync(REPLY_TIMEOUT_MS)
     })
   })
 
@@ -157,7 +180,7 @@ describe('adapters', () => {
       expect(a).toBe(b)
       expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(1)
 
-      await vi.advanceTimersByTimeAsync(800)
+      await vi.advanceTimersByTimeAsync(REPLY_TIMEOUT_MS)
       await expect(a).resolves.toEqual([])
       await expect(c).resolves.toBe(false)
       expect(requestsOfType(spy, 'GET_ADAPTERS')).toHaveLength(1)
@@ -178,18 +201,16 @@ describe('adapters', () => {
       expect(requestsOfType(spy, 'HAS_ADAPTER')).toHaveLength(1)
     })
 
-    it('ignores replies from another source or origin', async () => {
+    it('ignores replies from another source', async () => {
       installExtension({ source: null })
-      const p = fetchAdapters()
-      await vi.advanceTimersByTimeAsync(800)
-      await expect(p).resolves.toEqual([])
 
-      resetAdapterCache()
-      vi.restoreAllMocks()
+      await expect(fetchAndTimeOut()).resolves.toEqual([])
+    })
+
+    it('ignores replies from another origin', async () => {
       installExtension({ origin: 'https://evil.example' })
-      const q = fetchAdapters()
-      await vi.advanceTimersByTimeAsync(800)
-      await expect(q).resolves.toEqual([])
+
+      await expect(fetchAndTimeOut()).resolves.toEqual([])
     })
   })
 })
