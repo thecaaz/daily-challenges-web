@@ -72,4 +72,18 @@ public class ScoreVisibilityServiceTests
         Assert.False(canSee);
         _checker.Verify(c => c.HasUserSubmittedForDayAsync(null, Game.Id, Today), Times.Once);
     }
+
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(false, false, false)]
+    public async Task CanSeeDay_ResolvedViewer_FollowsTheSameRule(bool isAdmin, bool hasSubmitted, bool expected)
+    {
+        _checker.Setup(c => c.HasUserSubmittedForDayAsync(3, Game.Id, Today)).ReturnsAsync(hasSubmitted);
+
+        var canSee = await Build().CanSeeDayAsync(new ScoreViewer(3, isAdmin), Game, Today);
+
+        Assert.Equal(expected, canSee);
+    }
 }
+

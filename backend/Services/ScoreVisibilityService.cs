@@ -3,29 +3,20 @@ using DailyChallenges.Models;
 
 namespace DailyChallenges.Services;
 
-public class ScoreVisibilityService : IScoreVisibilityService
+public sealed class ScoreVisibilityService(IUserSubmissionChecker checker, TimeProvider time) : IScoreVisibilityService
 {
-    private readonly IUserSubmissionChecker _checker;
-    private readonly TimeProvider _time;
-
-    public ScoreVisibilityService(IUserSubmissionChecker checker, TimeProvider time)
-    {
-        _checker = checker;
-        _time = time;
-    }
-
     public DateTime GetCurrentScoringDay(Game game) =>
-        ScoringDayCalculator.GetCurrentScoringDay(game.ResetTime, _time.GetUtcNow().UtcDateTime).Date;
+        ScoringDayCalculator.GetCurrentScoringDay(game.ResetTime, time.GetUtcNow().UtcDateTime).Date;
 
     public bool IsCurrentDay(Game game, DateTime scoringDay) => scoringDay.Date == GetCurrentScoringDay(game);
 
     public Task<bool> CanSeeDayAsync(ClaimsPrincipal? user, Game game, DateTime scoringDay) =>
-        CanSeeDayAsync(user.GetUserId(), user.IsAdmin(), game, scoringDay);
+        CanSeeDayAsync(ScoreViewer.From(user), game, scoringDay);
 
-    public async Task<bool> CanSeeDayAsync(int? userId, bool isAdmin, Game game, DateTime scoringDay)
+    public async Task<bool> CanSeeDayAsync(ScoreViewer viewer, Game game, DateTime scoringDay)
     {
         if (!IsCurrentDay(game, scoringDay)) return true;
-        if (isAdmin) return true;
-        return await _checker.HasUserSubmittedForDayAsync(userId, game.Id, scoringDay.Date);
+        if (viewer.IsAdmin) return true;
+        return await checker.HasUserSubmittedForDayAsync(viewer.UserId, game.Id, scoringDay.Date);
     }
 }

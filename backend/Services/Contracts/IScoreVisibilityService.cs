@@ -17,6 +17,6 @@ public interface IScoreVisibilityService
 
     Task<bool> CanSeeDayAsync(ClaimsPrincipal? user, Game game, DateTime scoringDay);
 
-    /// <summary>Same rule for callers that already resolved the user id and admin flag.</summary>
-    Task<bool> CanSeeDayAsync(int? userId, bool isAdmin, Game game, DateTime scoringDay);
+    /// <summary>Same rule for callers that already resolved who the viewer is.</summary>
+    Task<bool> CanSeeDayAsync(ScoreViewer viewer, Game game, DateTime scoringDay);
 }
