@@ -17,7 +17,7 @@ using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers().AddJsonOptions(o =>
+builder.Services.AddControllers(o => o.Filters.Add<DailyChallenges.Controllers.RequireCurrentUserIdFilter>()).AddJsonOptions(o =>
 {
     o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     o.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
@@ -75,7 +75,8 @@ builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserAchieveme
 
 // Friends
 builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IFriendRepository, DailyChallenges.Repositories.EfFriendRepository>();
-builder.Services.AddScoped<DailyChallenges.Services.Contracts.IFriendService, DailyChallenges.Services.FriendService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IFriendRequestService, DailyChallenges.Services.FriendRequestService>();
+builder.Services.AddScoped<DailyChallenges.Services.Contracts.IFriendshipService, DailyChallenges.Services.FriendshipService>();
 
 // Leagues
 builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.ILeagueRepository, DailyChallenges.Repositories.EfLeagueRepository>();
@@ -133,8 +134,10 @@ builder.Services.AddScoped<DailyChallenges.Services.Contracts.IScoreMaintenanceS
 builder.Services.AddScoped<DailyChallenges.Services.Contracts.IDashboardService, DailyChallenges.Services.DashboardService>();
 
 // Info service: HTTP client + singleton service to encapsulate changelog fetching and release-info reading
-builder.Services.AddHttpClient(DailyChallenges.Services.InfoService.ChangelogClientName,
-    c => c.Timeout = DailyChallenges.Services.InfoService.ChangelogTimeout);
+builder.Services.AddHttpClient(DailyChallenges.Services.ChangelogCache.ClientName,
+    c => c.Timeout = DailyChallenges.Services.ChangelogCache.Timeout);
+builder.Services.AddSingleton<DailyChallenges.Services.ChangelogCache>();
+builder.Services.AddSingleton<DailyChallenges.Services.ReleaseInfoReader>();
 builder.Services.AddSingleton<DailyChallenges.Services.Contracts.IInfoService, DailyChallenges.Services.InfoService>();
 
 // Achievement system

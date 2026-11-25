@@ -40,7 +40,7 @@ public class NotificationServiceTests
     {
         var (service, repo) = Build();
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, 1, false));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteOwnAsync(3, 1));
 
         Assert.Equal("Notification not found", ex.Message);
         repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
@@ -52,7 +52,7 @@ public class NotificationServiceTests
         var (service, repo) = Build();
         repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(2));
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, 1, false));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteOwnAsync(3, 1));
 
         Assert.Equal("Notification not found", ex.Message);
         repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
@@ -64,7 +64,7 @@ public class NotificationServiceTests
         var (service, repo) = Build();
         repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(1));
 
-        await service.DeleteAsync(3, 1, false);
+        await service.DeleteOwnAsync(3, 1);
 
         repo.Verify(r => r.DeleteAsync(3), Times.Once);
     }
@@ -75,8 +75,30 @@ public class NotificationServiceTests
         var (service, repo) = Build();
         repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(2));
 
-        await service.DeleteAsync(3, 1, true);
+        await service.DeleteAnyAsync(3);
 
         repo.Verify(r => r.DeleteAsync(3), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteAny_MissingNotification_ThrowsNotFound()
+    {
+        var (service, repo) = Build();
+
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAnyAsync(3));
+
+        Assert.Equal("Notification not found", ex.Message);
+        repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetNotifications_ClampsPaging()
+    {
+        var (service, repo) = Build();
+        repo.Setup(r => r.GetByUserPagedAsync(1, 1, Paging.MaxPageSize)).ReturnsAsync((new List<Notification>(), 0, 0));
+
+        await service.GetNotificationsAsync(1, 0, 5000);
+
+        repo.Verify(r => r.GetByUserPagedAsync(1, 1, Paging.MaxPageSize), Times.Once);
     }
 }

@@ -1,7 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using DailyChallenges.Models;
-using DailyChallenges.Repositories;
+using Microsoft.AspNetCore.Mvc;
 using DailyChallenges.Services;
 
 namespace DailyChallenges.Controllers;
@@ -9,32 +7,19 @@ namespace DailyChallenges.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class FavoritesController : ControllerBase
+public sealed class FavoritesController(IFavoriteService favorites) : ControllerBase
 {
-    private readonly IFavoriteService _favorites;
-
-    public FavoritesController(IFavoriteService favorites)
-    {
-        _favorites = favorites;
-    }
-
     [HttpPost("{gameId}")]
-    public async Task<IActionResult> Add(int gameId)
+    public async Task<IActionResult> Add([CurrentUserId] int userId, int gameId)
     {
-        var userId = User.GetUserId();
-        if (!userId.HasValue) return Forbid();
-
-        await _favorites.AddFavoriteAsync(userId.Value, gameId);
+        await favorites.AddFavoriteAsync(userId, gameId);
         return NoContent();
     }
 
     [HttpDelete("{gameId}")]
-    public async Task<IActionResult> Remove(int gameId)
+    public async Task<IActionResult> Remove([CurrentUserId] int userId, int gameId)
     {
-        var userId = User.GetUserId();
-        if (!userId.HasValue) return Forbid();
-
-        await _favorites.RemoveFavoriteAsync(userId.Value, gameId);
+        await favorites.RemoveFavoriteAsync(userId, gameId);
         return NoContent();
     }
 }

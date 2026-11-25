@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DailyChallenges.Controllers;
 using DailyChallenges.Data;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Services;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -203,6 +205,19 @@ public class SocialApiTests
     }
 
     [Fact]
+    public void Current_user_id_parameters_are_not_part_of_the_api_description()
+    {
+        using var f = new FixedClockApiFactory();
+        var descriptions = f.Services.GetRequiredService<IApiDescriptionGroupCollectionProvider>()
+            .ApiDescriptionGroups.Items.SelectMany(g => g.Items).ToList();
+
+        var leagueDetail = descriptions.Single(d => d.HttpMethod == "GET" && d.RelativePath == "api/leagues/{id}");
+
+        Assert.Equal(new[] { "id" }, leagueDetail.ParameterDescriptions.Select(p => p.Name));
+        Assert.DoesNotContain(descriptions.SelectMany(d => d.ParameterDescriptions), p => p.Source == CurrentUserIdAttribute.Source);
+    }
+
+    [Fact]
     public async Task Personal_highscore_returns_the_callers_best_scores()
     {
         using var f = new FixedClockApiFactory();
@@ -265,7 +280,7 @@ public sealed class OfflineChangelogApiFactory : ApiFactory
     public const string Changelog = "# Changelog";
 
     protected override void ConfigureServices(IServiceCollection services) =>
-        services.AddHttpClient(InfoService.ChangelogClientName)
+        services.AddHttpClient(ChangelogCache.ClientName)
             .ConfigurePrimaryHttpMessageHandler(() => new FixedResponseHandler());
 
     private sealed class FixedResponseHandler : HttpMessageHandler

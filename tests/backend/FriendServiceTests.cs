@@ -17,7 +17,8 @@ public class FriendServiceTests
     // ── Builder ───────────────────────────────────────────────────────────────
 
     private record Sut(
-        FriendService Service,
+        FriendRequestService Requests,
+        FriendshipService Friendships,
         Mock<IFriendRepository> FriendRepo,
         Mock<IUserProfileRepository> UserRepo,
         Mock<INotificationRepository> NotifRepo,
@@ -38,8 +39,10 @@ public class FriendServiceTests
         notifs.Setup(r => r.GetByUserPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
               .ReturnsAsync((new List<Notification>(), 0, 0));
 
-        var svc = new FriendService(friends.Object, users.Object, notifs.Object, levelCalc, ach.Object, new FixedTimeProvider(Now));
-        return new Sut(svc, friends, users, notifs, ach);
+        var clock = new FixedTimeProvider(Now);
+        var requests = new FriendRequestService(friends.Object, users.Object, notifs.Object, ach.Object, clock);
+        var friendships = new FriendshipService(friends.Object, levelCalc, clock);
+        return new Sut(requests, friendships, friends, users, notifs, ach);
     }
 
     private static User MakeUser(int id, string username = "user") =>
@@ -55,7 +58,7 @@ public class FriendServiceTests
     {
         var sut = Build();
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            sut.Service.SendRequestAsync(1, 1));
+            sut.Requests.SendRequestAsync(1, 1));
     }
 
     [Fact]
@@ -64,7 +67,7 @@ public class FriendServiceTests
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync((User?)null);
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            sut.Service.SendRequestAsync(1, 2));
+            sut.Requests.SendRequestAsync(1, 2));
     }
 
     [Fact]
@@ -76,7 +79,7 @@ public class FriendServiceTests
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
 
         var ex = await Assert.ThrowsAsync<ConflictException>(() =>
-            sut.Service.SendRequestAsync(1, 2));
+            sut.Requests.SendRequestAsync(1, 2));
         Assert.Contains("already friends", ex.Message);
     }
 
@@ -89,7 +92,7 @@ public class FriendServiceTests
             .ReturnsAsync(PendingRequest(1, 1, 2));
 
         var ex = await Assert.ThrowsAsync<ConflictException>(() =>
-            sut.Service.SendRequestAsync(1, 2));
+            sut.Requests.SendRequestAsync(1, 2));
         Assert.Contains("already exists", ex.Message);
     }
 
@@ -105,7 +108,7 @@ public class FriendServiceTests
         var created = PendingRequest(99, 1, 2);
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(created);
 
-        var dto = await sut.Service.SendRequestAsync(1, 2);
+        var dto = await sut.Requests.SendRequestAsync(1, 2);
 
         Assert.Equal(99, dto.Id);
         sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Once);
@@ -121,7 +124,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>()))
             .ReturnsAsync(PendingRequest(1, 1, 2));
 
-        await sut.Service.SendRequestAsync(1, 2);
+        await sut.Requests.SendRequestAsync(1, 2);
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(
             n => n.Any(x => x.UserId == 2 && x.Type == "friend_request"))), Times.Once);
@@ -137,7 +140,7 @@ public class FriendServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-23)));
 
-        await Assert.ThrowsAsync<ConflictException>(() => sut.Service.SendRequestAsync(1, 2));
+        await Assert.ThrowsAsync<ConflictException>(() => sut.Requests.SendRequestAsync(1, 2));
         sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
         sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Never);
     }
@@ -152,7 +155,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, 1, 2, Now)).ReturnsAsync(true);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 1, 2));
 
-        var dto = await sut.Service.SendRequestAsync(1, 2);
+        var dto = await sut.Requests.SendRequestAsync(1, 2);
 
         Assert.Equal(7, dto.Id);
         sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Never);
@@ -169,7 +172,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, 2, 1, Now)).ReturnsAsync(true);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 2, 1));
 
-        var dto = await sut.Service.SendRequestAsync(2, 1);
+        var dto = await sut.Requests.SendRequestAsync(2, 1);
 
         Assert.Equal(7, dto.Id);
         sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(7, 2, 1, Now), Times.Once);
@@ -184,7 +187,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(1, 1, 2));
         sut.NotifRepo.Setup(r => r.HasRecentUnreadFromActorAsync(2, "friend_request", 1, Now.AddMinutes(-15))).ReturnsAsync(true);
 
-        await sut.Service.SendRequestAsync(1, 2);
+        await sut.Requests.SendRequestAsync(1, 2);
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
     }
@@ -197,7 +200,7 @@ public class FriendServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(1, 1, 2));
 
-        await sut.Service.SendRequestAsync(1, 2);
+        await sut.Requests.SendRequestAsync(1, 2);
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(
             n => n.Single().ActorUserId == 1 && n.Single().UserId == 2)), Times.Once);
@@ -209,7 +212,7 @@ public class FriendServiceTests
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
 
-        Assert.Equal("none", await sut.Service.GetRelationshipStatusAsync(1, 2));
+        Assert.Equal("none", await sut.Friendships.GetRelationshipStatusAsync(1, 2));
     }
 
     [Fact]
@@ -218,7 +221,7 @@ public class FriendServiceTests
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
 
-        Assert.Equal("none", await sut.Service.GetRelationshipStatusAsync(1, 2));
+        Assert.Equal("none", await sut.Friendships.GetRelationshipStatusAsync(1, 2));
     }
 
     [Fact]
@@ -228,7 +231,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 2, ReceiverId = 1, Status = FriendRequestStatus.Accepted });
 
-        Assert.Equal("friends", await sut.Service.GetRelationshipStatusAsync(1, 2));
+        Assert.Equal("friends", await sut.Friendships.GetRelationshipStatusAsync(1, 2));
     }
 
     [Fact]
@@ -238,8 +241,8 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync(PendingRequest(1, 1, 2));
         sut.FriendRepo.Setup(r => r.GetRelationshipAsync(2, 1)).ReturnsAsync(PendingRequest(1, 1, 2));
 
-        Assert.Equal("pending_sent", await sut.Service.GetRelationshipStatusAsync(1, 2));
-        Assert.Equal("pending_received", await sut.Service.GetRelationshipStatusAsync(2, 1));
+        Assert.Equal("pending_sent", await sut.Friendships.GetRelationshipStatusAsync(1, 2));
+        Assert.Equal("pending_received", await sut.Friendships.GetRelationshipStatusAsync(2, 1));
     }
 
     [Fact]
@@ -252,7 +255,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(5, 1, 2));
 
-        var dto = await sut.Service.SendRequestByUsernameAsync(1, "  bob ");
+        var dto = await sut.Requests.SendRequestByUsernameAsync(1, "  bob ");
 
         Assert.Equal(5, dto.Id);
         sut.FriendRepo.Verify(r => r.CreateAsync(It.Is<FriendRequest>(fr => fr.SenderId == 1 && fr.ReceiverId == 2 && fr.CreatedAt == Now)), Times.Once);
@@ -263,7 +266,7 @@ public class FriendServiceTests
     {
         var sut = Build();
 
-        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => sut.Service.SendRequestByUsernameAsync(1, " ghost"));
+        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => sut.Requests.SendRequestByUsernameAsync(1, " ghost"));
 
         Assert.Equal("No user found with username ' ghost'.", ex.Message);
     }
@@ -275,7 +278,7 @@ public class FriendServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
 
-        var ex = await Assert.ThrowsAsync<ConflictException>(() => sut.Service.SendRequestAsync(1, 2));
+        var ex = await Assert.ThrowsAsync<ConflictException>(() => sut.Requests.SendRequestAsync(1, 2));
 
         Assert.Equal("bob declined your friend request recently. Try again after 24 hours.", ex.Message);
     }
@@ -288,7 +291,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(5, 1, 2));
 
-        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => sut.Service.SendRequestAsync(1, 2));
+        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => sut.Requests.SendRequestAsync(1, 2));
 
         Assert.Equal("Sender not found.", ex.Message);
     }
@@ -302,7 +305,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(5, 1, 2));
 
-        await sut.Service.SendRequestAsync(1, 2);
+        await sut.Requests.SendRequestAsync(1, 2);
 
         sut.NotifRepo.Verify(r => r.HasRecentUnreadFromActorAsync(2, "friend_request", 1, Now.AddMinutes(-15)), Times.Once);
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(n =>
@@ -314,7 +317,7 @@ public class FriendServiceTests
     }
 
     [Fact]
-    public async Task RespondToRequest_Accept_UnknownReceiverNameReadsAsSomeone()
+    public async Task AnswerRequest_Accept_UnknownReceiverNameReadsAsSomeone()
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
@@ -322,7 +325,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync((User?)null);
 
-        await sut.Service.RespondToRequestAsync(1, 2, true);
+        await sut.Requests.AcceptRequestAsync(1, 2);
 
         Assert.Equal(Now, fr.UpdatedAt);
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(n =>
@@ -337,7 +340,7 @@ public class FriendServiceTests
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetFriendsAsync(1)).ReturnsAsync(new List<User> { MakeUser(2, "bob") });
 
-        var friends = await sut.Service.GetFriendsAsync(1);
+        var friends = await sut.Friendships.GetFriendsAsync(1);
 
         var friend = Assert.Single(friends);
         Assert.Equal(2, friend.UserId);
@@ -352,42 +355,42 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetIncomingPendingAsync(2)).ReturnsAsync(new List<FriendRequest> { PendingRequest(1, 1, 2) });
         sut.FriendRepo.Setup(r => r.GetOutgoingPendingAsync(1)).ReturnsAsync(new List<FriendRequest> { PendingRequest(1, 1, 2) });
 
-        Assert.Equal("pending", Assert.Single(await sut.Service.GetIncomingRequestsAsync(2)).Status);
-        Assert.Equal(1, Assert.Single(await sut.Service.GetOutgoingRequestsAsync(1)).Id);
+        Assert.Equal("pending", Assert.Single(await sut.Friendships.GetIncomingRequestsAsync(2)).Status);
+        Assert.Equal(1, Assert.Single(await sut.Friendships.GetOutgoingRequestsAsync(1)).Id);
     }
 
-    // ── RespondToRequestAsync ─────────────────────────────────────────────────
+    // ── Accept / DeclineRequestAsync ─────────────────────────────────────────────────
 
     [Fact]
-    public async Task RespondToRequest_RequestNotFound_ThrowsKeyNotFoundException()
+    public async Task AnswerRequest_RequestNotFound_ThrowsKeyNotFoundException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((FriendRequest?)null);
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            sut.Service.RespondToRequestAsync(99, 2, true));
+            sut.Requests.AcceptRequestAsync(99, 2));
     }
 
     [Fact]
-    public async Task RespondToRequest_WrongReceiver_ThrowsNotFoundException()
+    public async Task AnswerRequest_WrongReceiver_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, 1, 2));
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            sut.Service.RespondToRequestAsync(1, 99, true)); // receiverId=99 but request has receiverId=2
+            sut.Requests.AcceptRequestAsync(1, 99)); // receiverId=99 but request has receiverId=2
     }
 
     [Fact]
-    public async Task RespondToRequest_AlreadyProcessed_ThrowsConflictException()
+    public async Task AnswerRequest_AlreadyProcessed_ThrowsConflictException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
         await Assert.ThrowsAsync<ConflictException>(() =>
-            sut.Service.RespondToRequestAsync(1, 2, true));
+            sut.Requests.AcceptRequestAsync(1, 2));
     }
 
     [Fact]
-    public async Task RespondToRequest_Accept_UpdatesStatusToAccepted()
+    public async Task AnswerRequest_Accept_UpdatesStatusToAccepted()
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
@@ -395,14 +398,14 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
 
-        await sut.Service.RespondToRequestAsync(1, 2, true);
+        await sut.Requests.AcceptRequestAsync(1, 2);
 
         Assert.Equal(FriendRequestStatus.Accepted, fr.Status);
         sut.FriendRepo.Verify(r => r.UpdateAsync(fr), Times.Once);
     }
 
     [Fact]
-    public async Task RespondToRequest_Accept_TriggersFriendAchievementForBothUsers()
+    public async Task AnswerRequest_Accept_TriggersFriendAchievementForBothUsers()
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
@@ -410,14 +413,14 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2));
 
-        await sut.Service.RespondToRequestAsync(1, 2, true);
+        await sut.Requests.AcceptRequestAsync(1, 2);
 
         sut.Achievements.Verify(a => a.CheckAndAwardAsync(1, AchievementTrigger.FriendAccepted), Times.Once);
         sut.Achievements.Verify(a => a.CheckAndAwardAsync(2, AchievementTrigger.FriendAccepted), Times.Once);
     }
 
     [Fact]
-    public async Task RespondToRequest_Accept_SendsAcceptedNotificationToSender()
+    public async Task AnswerRequest_Accept_SendsAcceptedNotificationToSender()
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
@@ -425,21 +428,21 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
 
-        await sut.Service.RespondToRequestAsync(1, 2, true);
+        await sut.Requests.AcceptRequestAsync(1, 2);
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(
             n => n.Any(x => x.UserId == 1 && x.Type == "friend_request_accepted"))), Times.Once);
     }
 
     [Fact]
-    public async Task RespondToRequest_Decline_KeepsRequestAsDeclined()
+    public async Task AnswerRequest_Decline_KeepsRequestAsDeclined()
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
         sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
 
-        await sut.Service.RespondToRequestAsync(1, 2, false);
+        await sut.Requests.DeclineRequestAsync(1, 2);
 
         Assert.Equal(FriendRequestStatus.Declined, fr.Status);
         Assert.Equal(Now, fr.UpdatedAt);
@@ -448,14 +451,14 @@ public class FriendServiceTests
     }
 
     [Fact]
-    public async Task RespondToRequest_Decline_NoAchievementCheck()
+    public async Task AnswerRequest_Decline_NoAchievementCheck()
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
         sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
 
-        await sut.Service.RespondToRequestAsync(1, 2, false);
+        await sut.Requests.DeclineRequestAsync(1, 2);
 
         sut.Achievements.Verify(a => a.CheckAndAwardAsync(It.IsAny<int>(), It.IsAny<AchievementTrigger>()), Times.Never);
     }
@@ -468,7 +471,7 @@ public class FriendServiceTests
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((FriendRequest?)null);
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            sut.Service.CancelRequestAsync(1, 1));
+            sut.Requests.CancelRequestAsync(1, 1));
     }
 
     [Fact]
@@ -477,7 +480,7 @@ public class FriendServiceTests
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, 1, 2));
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            sut.Service.CancelRequestAsync(1, 99)); // senderId=99 but request has senderId=1
+            sut.Requests.CancelRequestAsync(1, 99)); // senderId=99 but request has senderId=1
     }
 
     [Fact]
@@ -487,7 +490,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
         await Assert.ThrowsAsync<ConflictException>(() =>
-            sut.Service.CancelRequestAsync(1, 1));
+            sut.Requests.CancelRequestAsync(1, 1));
     }
 
     [Fact]
@@ -497,7 +500,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, 1, 2));
         sut.FriendRepo.Setup(r => r.DeleteAsync(1)).Returns(Task.CompletedTask);
 
-        await sut.Service.CancelRequestAsync(1, 1);
+        await sut.Requests.CancelRequestAsync(1, 1);
 
         sut.FriendRepo.Verify(r => r.DeleteAsync(1), Times.Once);
     }
@@ -510,7 +513,7 @@ public class FriendServiceTests
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            sut.Service.RemoveFriendAsync(1, 2));
+            sut.Friendships.RemoveFriendAsync(1, 2));
     }
 
     [Fact]
@@ -519,7 +522,7 @@ public class FriendServiceTests
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(PendingRequest(1, 1, 2));
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            sut.Service.RemoveFriendAsync(1, 2));
+            sut.Friendships.RemoveFriendAsync(1, 2));
     }
 
     [Fact]
@@ -530,7 +533,7 @@ public class FriendServiceTests
             { Id = 5, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
         sut.FriendRepo.Setup(r => r.DeleteAsync(5)).Returns(Task.CompletedTask);
 
-        await sut.Service.RemoveFriendAsync(1, 2);
+        await sut.Friendships.RemoveFriendAsync(1, 2);
 
         sut.FriendRepo.Verify(r => r.DeleteAsync(5), Times.Once);
     }

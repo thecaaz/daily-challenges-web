@@ -9,7 +9,7 @@ using Moq;
 namespace DailyChallenges.Tests;
 
 /// <summary>Changelog caching: a failed refresh serves the last good copy and backs off (B9).</summary>
-public class InfoServiceTests
+public class ChangelogAndReleaseInfoTests
 {
     private static readonly DateTime Start = new(2026, 6, 15, 10, 0, 0, DateTimeKind.Utc);
 
@@ -43,12 +43,12 @@ public class InfoServiceTests
         }
     }
 
-    private static (InfoService Service, FakeHandler Handler, FakeFactory Factory, FixedTimeProvider Clock) Create()
+    private static (ChangelogCache Service, FakeHandler Handler, FakeFactory Factory, FixedTimeProvider Clock) Create()
     {
         var handler = new FakeHandler();
         var factory = new FakeFactory(handler);
         var clock = new FixedTimeProvider(Start);
-        var service = new InfoService(Mock.Of<IWebHostEnvironment>(), factory, NullLogger<InfoService>.Instance, clock);
+        var service = new ChangelogCache(factory, NullLogger<ChangelogCache>.Instance, clock);
         return (service, handler, factory, clock);
     }
 
@@ -58,12 +58,12 @@ public class InfoServiceTests
         var (svc, handler, factory, clock) = Create();
         handler.Ok("v1");
 
-        Assert.Equal("v1", await svc.FetchChangelogAsync());
-        clock.Advance(InfoService.ChangelogCacheDuration - TimeSpan.FromSeconds(1));
-        Assert.Equal("v1", await svc.FetchChangelogAsync());
+        Assert.Equal("v1", await svc.GetChangelogAsync());
+        clock.Advance(ChangelogCache.CacheDuration - TimeSpan.FromSeconds(1));
+        Assert.Equal("v1", await svc.GetChangelogAsync());
 
         Assert.Equal(1, handler.Calls);
-        Assert.All(factory.Names, n => Assert.Equal(InfoService.ChangelogClientName, n));
+        Assert.All(factory.Names, n => Assert.Equal(ChangelogCache.ClientName, n));
     }
 
     [Fact]
@@ -71,29 +71,29 @@ public class InfoServiceTests
     {
         var (svc, handler, _, clock) = Create();
         handler.Ok("v1");
-        Assert.Equal("v1", await svc.FetchChangelogAsync());
+        Assert.Equal("v1", await svc.GetChangelogAsync());
 
         // Cache expired, the refresh fails: the last good copy is served, not an empty string.
-        clock.Advance(InfoService.ChangelogCacheDuration);
+        clock.Advance(ChangelogCache.CacheDuration);
         handler.Status(HttpStatusCode.BadGateway);
-        Assert.Equal("v1", await svc.FetchChangelogAsync());
+        Assert.Equal("v1", await svc.GetChangelogAsync());
         Assert.Equal(2, handler.Calls);
 
         // Within the back-off: no new fetch.
         clock.Advance(TimeSpan.FromMinutes(4));
-        Assert.Equal("v1", await svc.FetchChangelogAsync());
+        Assert.Equal("v1", await svc.GetChangelogAsync());
         Assert.Equal(2, handler.Calls);
 
         // After the back-off: retried; an exception also falls back to the cache.
         clock.Advance(TimeSpan.FromMinutes(1));
         handler.Throw();
-        Assert.Equal("v1", await svc.FetchChangelogAsync());
+        Assert.Equal("v1", await svc.GetChangelogAsync());
         Assert.Equal(3, handler.Calls);
 
         // Next retry succeeds and replaces the cache.
-        clock.Advance(InfoService.ChangelogFailureBackoff);
+        clock.Advance(ChangelogCache.FailureBackoff);
         handler.Ok("v2");
-        Assert.Equal("v2", await svc.FetchChangelogAsync());
+        Assert.Equal("v2", await svc.GetChangelogAsync());
         Assert.Equal(4, handler.Calls);
     }
 
@@ -104,8 +104,8 @@ public class InfoServiceTests
         {
             if (fileContent != null) await File.WriteAllTextAsync(Path.Combine(root, "release-info.json"), fileContent);
             var env = Mock.Of<IWebHostEnvironment>(e => e.ContentRootPath == root);
-            var service = new InfoService(env, new FakeFactory(new FakeHandler()), NullLogger<InfoService>.Instance, new FixedTimeProvider(Start));
-            return await service.ReadReleaseInfoAsync();
+            var service = new ReleaseInfoReader(env, NullLogger<ReleaseInfoReader>.Instance);
+            return await service.ReadAsync();
         }
         finally
         {
@@ -143,13 +143,13 @@ public class InfoServiceTests
         var (svc, handler, _, clock) = Create();
         handler.Throw();
 
-        Assert.Equal(string.Empty, await svc.FetchChangelogAsync());
-        Assert.Equal(string.Empty, await svc.FetchChangelogAsync());
+        Assert.Equal(string.Empty, await svc.GetChangelogAsync());
+        Assert.Equal(string.Empty, await svc.GetChangelogAsync());
         Assert.Equal(1, handler.Calls);
 
-        clock.Advance(InfoService.ChangelogFailureBackoff);
+        clock.Advance(ChangelogCache.FailureBackoff);
         handler.Ok("v1");
-        Assert.Equal("v1", await svc.FetchChangelogAsync());
+        Assert.Equal("v1", await svc.GetChangelogAsync());
         Assert.Equal(2, handler.Calls);
     }
 }

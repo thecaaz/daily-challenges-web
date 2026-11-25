@@ -1,22 +1,19 @@
-using DailyChallenges.Exceptions;
 using DailyChallenges.DTOs;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Mapping;
+using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 
 namespace DailyChallenges.Services;
 
-public class NotificationService : INotificationService
+public sealed class NotificationService(INotificationRepository notifications) : INotificationService
 {
-    private readonly INotificationRepository _notifications;
+    private const string NotFoundMessage = "Notification not found";
 
-    public NotificationService(INotificationRepository notifications)
+    public async Task<NotificationPageDto> GetNotificationsAsync(int userId, int page, int pageSize)
     {
-        _notifications = notifications;
-    }
-
-    public async Task<NotificationPageDto> GetNotificationsAsync(int userId, int page = 1, int pageSize = 20)
-    {
-        var (items, total, unread) = await _notifications.GetByUserPagedAsync(userId, page, pageSize);
+        var (clampedPage, clampedPageSize) = Paging.Clamp(page, pageSize);
+        var (items, total, unread) = await notifications.GetByUserPagedAsync(userId, clampedPage, clampedPageSize);
 
         return new NotificationPageDto
         {
@@ -26,18 +23,27 @@ public class NotificationService : INotificationService
         };
     }
 
-    public Task<int> GetUnreadCountAsync(int userId) => _notifications.GetUnreadCountAsync(userId);
+    public Task<int> GetUnreadCountAsync(int userId) => notifications.GetUnreadCountAsync(userId);
 
-    public Task MarkReadAsync(int id, int userId) => _notifications.MarkReadAsync(id, userId);
+    public Task MarkReadAsync(int id, int userId) => notifications.MarkReadAsync(id, userId);
 
-    public Task MarkAllReadAsync(int userId) => _notifications.MarkAllReadAsync(userId);
+    public Task MarkAllReadAsync(int userId) => notifications.MarkAllReadAsync(userId);
 
-    public async Task DeleteAsync(int id, int requestingUserId, bool isAdmin)
+    /// <summary>Someone else's notification reads as "not found" so ids cannot be probed.</summary>
+    public async Task DeleteOwnAsync(int id, int userId)
     {
-        var n = await _notifications.GetByIdAsync(id);
-        if (n == null) throw new NotFoundException("Notification not found");
-        // Someone else's notification reads as "not found" so ids cannot be probed.
-        if (n.UserId != requestingUserId && !isAdmin) throw new NotFoundException("Notification not found");
-        await _notifications.DeleteAsync(id);
+        var notification = await GetExistingAsync(id);
+        if (notification.UserId != userId)
+            throw new NotFoundException(NotFoundMessage);
+        await notifications.DeleteAsync(id);
     }
+
+    public async Task DeleteAnyAsync(int id)
+    {
+        await GetExistingAsync(id);
+        await notifications.DeleteAsync(id);
+    }
+
+    private async Task<Notification> GetExistingAsync(int id) =>
+        await notifications.GetByIdAsync(id) ?? throw new NotFoundException(NotFoundMessage);
 }

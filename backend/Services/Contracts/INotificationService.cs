@@ -4,7 +4,8 @@ namespace DailyChallenges.Services;
 
 public interface INotificationService
 {
-    Task<NotificationPageDto> GetNotificationsAsync(int userId, int page = 1, int pageSize = 20);
+    /// <summary>Newest first. Out-of-range paging values are clamped (see <see cref="Paging"/>).</summary>
+    Task<NotificationPageDto> GetNotificationsAsync(int userId, int page, int pageSize);
 
     Task<int> GetUnreadCountAsync(int userId);
 
@@ -12,9 +13,9 @@ public interface INotificationService
 
     Task MarkAllReadAsync(int userId);
 
-    /// <summary>
-    /// Deletes a notification if the requesting user is the owner or an admin.
-    /// Throws NotFoundException if not found or not owned by the caller (unless admin).
-    /// </summary>
-    Task DeleteAsync(int id, int requestingUserId, bool isAdmin);
+    /// <summary>Deletes the user's own notification. Throws NotFoundException if it is missing or someone else's.</summary>
+    Task DeleteOwnAsync(int id, int userId);
+
+    /// <summary>Deletes any user's notification (admins). Throws NotFoundException if it is missing.</summary>
+    Task DeleteAnyAsync(int id);
 }
