@@ -48,13 +48,16 @@ public sealed class EfNotificationRepository(AppDbContext db) : INotificationRep
         await db.SaveInsertsOrDetachAsync(notifications);
     }
 
-    public Task<bool> HasRecentUnreadFromActorAsync(int userId, string type, int actorUserId, DateTime sinceUtc) =>
-        db.Notifications.AnyAsync(n =>
+    public Task<bool> HasRecentUnreadFromActorAsync(RecentNotificationQuery query)
+    {
+        var (userId, type, actorUserId, sinceUtc) = query;
+        return db.Notifications.AnyAsync(n =>
             n.UserId == userId &&
             n.Type == type &&
             n.ActorUserId == actorUserId &&
             !n.IsRead &&
             n.CreatedAt >= sinceUtc);
+    }
 
     public Task<Notification?> GetByIdAsync(int id) =>
         db.Notifications.FirstOrDefaultAsync(n => n.Id == id);

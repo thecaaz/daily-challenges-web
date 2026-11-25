@@ -204,10 +204,11 @@ public sealed class EfSubmissionRepository(AppDbContext db) : ISubmissionReposit
 
     /// <summary>
     /// Two SQL queries: the games with the most recent activity of these users (grouped and limited), then
-    /// the latest <paramref name="perGame"/> submissions of each of those games (a per-game window).
+    /// the latest <see cref="RecentActivityQuery.PerGame"/> submissions of each of those games (a per-game window).
     /// </summary>
-    public async Task<List<Submission>> GetRecentActivityByUsersAsync(IReadOnlyCollection<int> userIds, DateTime since, int maxGames, int perGame)
+    public async Task<List<Submission>> GetRecentActivityByUsersAsync(RecentActivityQuery query)
     {
+        var (userIds, since, maxGames, perGame) = query;
         var ids = userIds.ToList();
         if (ids.Count == 0 || maxGames < 1 || perGame < 1) return [];
 

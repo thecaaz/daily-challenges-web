@@ -184,7 +184,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 2, "submission", 100, Day1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var (items, total) = await repo.GetByUserPagedAsync(1, 1, 10);
+        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1), 1, 10);
 
         Assert.Equal(1, total);
         Assert.Single(items);
@@ -200,7 +200,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var (items, total) = await repo.GetByUserPagedAsync(1, 1, 10, eventType: "submission");
+        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1) { EventType = "submission" }, 1, 10);
 
         Assert.Equal(1, total);
         Assert.All(items, e => Assert.Equal("submission", e.EventType));
@@ -217,7 +217,7 @@ public class EfXpEventRepositoryTests
         var repo = new EfXpEventRepository(db.Ctx);
 
         // The client asks for "April 1st" as [Apr 1, Apr 2).
-        var (items, total) = await repo.GetByUserPagedAsync(1, 1, 10, from: Day1, to: Day2);
+        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1) { From = Day1, To = Day2 }, 1, 10);
 
         Assert.Equal(2, total);
         Assert.Equal(new[] { Day1.AddHours(23), Day1 }, items.Select(e => DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc)));

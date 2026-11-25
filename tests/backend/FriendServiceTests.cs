@@ -185,7 +185,7 @@ public class FriendServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(1, 1, 2));
-        sut.NotifRepo.Setup(r => r.HasRecentUnreadFromActorAsync(2, "friend_request", 1, Now.AddMinutes(-15))).ReturnsAsync(true);
+        sut.NotifRepo.Setup(r => r.HasRecentUnreadFromActorAsync(new RecentNotificationQuery(2, "friend_request", 1, Now.AddMinutes(-15)))).ReturnsAsync(true);
 
         await sut.Requests.SendRequestAsync(1, 2);
 
@@ -307,7 +307,7 @@ public class FriendServiceTests
 
         await sut.Requests.SendRequestAsync(1, 2);
 
-        sut.NotifRepo.Verify(r => r.HasRecentUnreadFromActorAsync(2, "friend_request", 1, Now.AddMinutes(-15)), Times.Once);
+        sut.NotifRepo.Verify(r => r.HasRecentUnreadFromActorAsync(new RecentNotificationQuery(2, "friend_request", 1, Now.AddMinutes(-15))), Times.Once);
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(n =>
             n.Single().Message == "alice sent you a friend request."
             && n.Single().Type == "friend_request"

@@ -9,12 +9,13 @@ public sealed class EfXpEventRepository(AppDbContext db) : IXpEventRepository
     private const int DefaultPageSize = 20;
 
     /// <summary>
-    /// Newest first. <paramref name="from"/> is inclusive, <paramref name="to"/> exclusive (the client sends
-    /// the day after the last day it wants). A page size below 1 reads as <see cref="DefaultPageSize"/>.
+    /// Newest first. <see cref="XpEventFilter.From"/> is inclusive, <see cref="XpEventFilter.To"/> exclusive (the
+    /// client sends the day after the last day it wants). A page size below 1 reads as <see cref="DefaultPageSize"/>.
     /// </summary>
-    public async Task<(List<XpEvent> Items, int TotalCount)> GetByUserPagedAsync(int userId, int page, int pageSize, DateTime? from = null, DateTime? to = null, string? eventType = null)
+    public async Task<(List<XpEvent> Items, int TotalCount)> GetByUserPagedAsync(XpEventFilter filter, int page, int pageSize)
     {
-        IQueryable<XpEvent> query = db.XpEvents.Where(e => e.UserId == userId);
+        var (from, to, eventType) = (filter.From, filter.To, filter.EventType);
+        IQueryable<XpEvent> query = db.XpEvents.Where(e => e.UserId == filter.UserId);
         if (from.HasValue) query = query.Where(e => e.CreatedAt >= from.Value);
         if (to.HasValue) query = query.Where(e => e.CreatedAt < to.Value);
         if (!string.IsNullOrWhiteSpace(eventType)) query = query.Where(e => e.EventType == eventType);

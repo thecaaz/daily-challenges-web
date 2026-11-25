@@ -25,7 +25,7 @@ public sealed class EfUserProfileRepository(AppDbContext db) : IUserProfileRepos
     /// Most played games first. The best score is the max for <see cref="RankingMode.Highest"/> games and the
     /// min otherwise, so a third ranking mode needs this projection adjusted.
     /// </summary>
-    public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames = DefaultTopGames, IReadOnlyCollection<int>? excludeSubmissionIds = null)
+    public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames, IReadOnlyCollection<int>? excludeSubmissionIds)
     {
         var limit = topGames < 1 ? DefaultTopGames : topGames;
         var excluded = (excludeSubmissionIds ?? Array.Empty<int>()).ToList();

@@ -11,7 +11,7 @@ public sealed class AdminXpEventService(IXpEventRepository xpEvents) : IAdminXpE
 
     public async Task<(List<XpEventDto> Items, int TotalCount)> GetXpEventsAsync(int userId, int page = 1, int pageSize = 20, DateTime? from = null, DateTime? to = null, string? eventType = null)
     {
-        var (items, total) = await xpEvents.GetByUserPagedAsync(userId, page, pageSize, from, to, eventType);
+        var (items, total) = await xpEvents.GetByUserPagedAsync(new XpEventFilter(userId) { From = from, To = to, EventType = eventType }, page, pageSize);
         var dtos = items.Select(e => DtoMapper.ToDto(e)).ToList();
         return (dtos, total);
     }

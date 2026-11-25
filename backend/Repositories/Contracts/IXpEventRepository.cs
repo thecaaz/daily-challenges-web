@@ -4,7 +4,8 @@ namespace DailyChallenges.Repositories;
 
 public interface IXpEventRepository
 {
-    Task<(List<XpEvent> Items, int TotalCount)> GetByUserPagedAsync(int userId, int page, int pageSize, DateTime? from = null, DateTime? to = null, string? eventType = null);
+    /// <summary>Newest first; a page below 1 reads as the first page (see <see cref="XpEventFilter"/>).</summary>
+    Task<(List<XpEvent> Items, int TotalCount)> GetByUserPagedAsync(XpEventFilter filter, int page, int pageSize);
     /// <summary>
     /// Sum of the user's XP events of the given types whose (GameId, ScoringDay) matches a pair in
     /// <paramref name="dayByGame"/> (e.g. each game's current scoring day).
@@ -20,4 +21,15 @@ public interface IXpEventRepository
     Task SetScoringDayForSubmissionAsync(int submissionId, DateTime scoringDay);
     /// <summary>Persists a new XpEvent and flushes all pending tracked changes.</summary>
     Task<XpEvent> AddAsync(XpEvent xpEvent);
+}
+
+/// <summary>
+/// A user's XP events, optionally only those created in [<see cref="From"/>, <see cref="To"/>) and of
+/// <see cref="EventType"/> (a blank type does not filter).
+/// </summary>
+public sealed record XpEventFilter(int UserId)
+{
+    public DateTime? From { get; init; }
+    public DateTime? To { get; init; }
+    public string? EventType { get; init; }
 }

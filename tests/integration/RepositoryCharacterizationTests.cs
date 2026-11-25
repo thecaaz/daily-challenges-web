@@ -209,7 +209,7 @@ public class RepositoryCharacterizationTests
         db.Ctx.SaveChanges();
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var (items, total) = await repo.GetByUserPagedAsync(1, 0, 0);
+        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1), 0, 0);
 
         Assert.Equal(20, items.Count);
         Assert.Equal(24, items[0].Amount);

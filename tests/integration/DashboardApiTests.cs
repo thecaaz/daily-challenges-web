@@ -177,7 +177,7 @@ public class DashboardApiTests
         using (var scope = f.Services.CreateScope())
         {
             rows = await scope.ServiceProvider.GetRequiredService<ISubmissionRepository>()
-                .GetRecentActivityByUsersAsync(new[] { u1.Id, u2.Id }, Now.AddDays(-7), maxGames: 3, perGame: 2);
+                .GetRecentActivityByUsersAsync(new RecentActivityQuery(new[] { u1.Id, u2.Id }, Now.AddDays(-7), MaxGames: 3, PerGame: 2));
         }
 
         Assert.Equal(

@@ -137,8 +137,8 @@ public sealed class FriendRequestService(
     /// <summary>Prevents notification spam (request, cancel, request again) within <see cref="NotificationCooldown"/>.</summary>
     private async Task NotifyTargetUnlessRecentlyNotifiedAsync(FriendRequestAttempt attempt, string senderUsername)
     {
-        var wasRecentlyNotified = await notifications.HasRecentUnreadFromActorAsync(
-            attempt.Target.Id, NotificationTypes.FriendRequest, attempt.SenderId, attempt.Now - NotificationCooldown);
+        var wasRecentlyNotified = await notifications.HasRecentUnreadFromActorAsync(new RecentNotificationQuery(
+            attempt.Target.Id, NotificationTypes.FriendRequest, attempt.SenderId, attempt.Now - NotificationCooldown));
         if (wasRecentlyNotified) return;
 
         await notifications.CreateBatchAsync([FriendNotifications.RequestReceived(attempt, senderUsername)]);

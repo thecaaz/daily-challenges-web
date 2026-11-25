@@ -126,7 +126,7 @@ public class ScoringDayFinalizationTests
         public Task<Notification?> GetByIdAsync(int id) => throw new NotSupportedException();
         public Task DeleteAsync(int id) => throw new NotSupportedException();
         public Task<int> DeleteDayResultNotificationsAsync(int gameId, DateTime scoringDay) => throw new NotSupportedException();
-        public Task<bool> HasRecentUnreadFromActorAsync(int userId, string type, int actorUserId, DateTime sinceUtc) => throw new NotSupportedException();
+        public Task<bool> HasRecentUnreadFromActorAsync(RecentNotificationQuery query) => throw new NotSupportedException();
     }
 
     [Fact]

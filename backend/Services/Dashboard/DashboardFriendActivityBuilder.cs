@@ -23,7 +23,7 @@ public sealed class DashboardFriendActivityBuilder(ISubmissionRepository submiss
         if (friendIds.Count == 0) return new List<FriendActivityDto>();
 
         var since = time.GetUtcNow().UtcDateTime - ActivityWindow;
-        var friendSubmissions = await submissions.GetRecentActivityByUsersAsync(friendIds, since, MaxGames, PerGame);
+        var friendSubmissions = await submissions.GetRecentActivityByUsersAsync(new RecentActivityQuery(friendIds, since, MaxGames, PerGame));
 
         return friendSubmissions
             .GroupBy(s => s.GameId)

@@ -21,11 +21,10 @@ public interface ISubmissionRepository
     /// </summary>
     Task<(int ActiveGameCount, int SubmissionCount)> CountOnGameDaysAsync(IReadOnlyDictionary<int, DateTime> dayByGame);
     /// <summary>
-    /// Recent activity of the given users, limited in SQL: of the <paramref name="maxGames"/> games they most
-    /// recently submitted to (since <paramref name="since"/>), the latest <paramref name="perGame"/> submissions
-    /// of each. Blob-free; ordered by game recency, then newest first within a game.
+    /// Recent activity of the given users, limited in SQL (see <see cref="RecentActivityQuery"/>).
+    /// Blob-free; ordered by game recency, then newest first within a game.
     /// </summary>
-    Task<List<Submission>> GetRecentActivityByUsersAsync(IReadOnlyCollection<int> userIds, DateTime since, int maxGames, int perGame);
+    Task<List<Submission>> GetRecentActivityByUsersAsync(RecentActivityQuery query);
     /// <summary>One page of the game's submissions, newest first, and the total count of matching rows.</summary>
     Task<(List<Submission> Items, int TotalCount)> GetByGameFilteredAsync(SubmissionPageQuery query);
     Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy);
@@ -77,3 +76,9 @@ public sealed record SubmissionPageQuery(int GameId, int Page, int PageSize)
     public DateTime? ScoringDay { get; init; }
     public DateTime? ExcludeScoringDay { get; init; }
 }
+
+/// <summary>
+/// Of the <see cref="MaxGames"/> games the <see cref="UserIds"/> most recently submitted to (since
+/// <see cref="Since"/>), the latest <see cref="PerGame"/> submissions of each.
+/// </summary>
+public sealed record RecentActivityQuery(IReadOnlyCollection<int> UserIds, DateTime Since, int MaxGames, int PerGame);
