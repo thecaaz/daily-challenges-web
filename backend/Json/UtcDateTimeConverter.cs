@@ -12,22 +12,20 @@ namespace DailyChallenges.Json;
 /// </summary>
 public sealed class UtcDateTimeConverter : JsonConverter<DateTime>
 {
+    /// <summary>An explicit offset ("+01:00") is parsed into Local; it is normalized back to UTC.</summary>
     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         var value = reader.GetDateTime();
-        // An explicit offset ("+01:00") is parsed into Local; normalize it back to UTC.
         return value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : value;
     }
 
-    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
-    {
+    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options) =>
         writer.WriteStringValue(ToUtc(value));
-    }
 
+    /// <summary>A Local value really is local time, so converting it is correct; Unspecified is relabelled only.</summary>
     internal static DateTime ToUtc(DateTime value) => value.Kind switch
     {
         DateTimeKind.Utc => value,
-        // A Local value really is local time, so converting is correct here.
         DateTimeKind.Local => value.ToUniversalTime(),
         _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
     };

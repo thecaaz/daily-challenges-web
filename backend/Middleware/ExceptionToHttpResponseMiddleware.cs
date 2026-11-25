@@ -9,48 +9,35 @@ namespace DailyChallenges.Middleware;
 /// <summary>
 /// Turns exceptions into <c>{ "message": ... }</c> JSON responses.
 /// Domain exceptions carry their own message; anything unexpected becomes a generic 500.
+/// Once the response has started the status code can no longer change, so the exception is
+/// logged and rethrown and the server aborts the response.
 /// </summary>
-public class ExceptionToHttpResponseMiddleware
+public sealed class ExceptionToHttpResponseMiddleware(RequestDelegate next, ILogger<ExceptionToHttpResponseMiddleware> logger)
 {
     public const string GenericErrorMessage = "An unexpected error occurred.";
 
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ExceptionToHttpResponseMiddleware> _logger;
+    /// <summary>Message withheld: unconverted throw sites are rare and framework IOEs can leak internals.</summary>
+    private const string InvalidOperationMessage = "The request could not be completed.";
 
-    public ExceptionToHttpResponseMiddleware(RequestDelegate next, ILogger<ExceptionToHttpResponseMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
+    private const string JsonContentType = "application/json";
 
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await _next(context);
+            await next(context);
         }
         catch (Exception ex)
         {
             if (context.Response.HasStarted)
             {
-                // Too late to change the status code; let the server abort the response.
-                _logger.LogError(ex, "Unhandled exception after the response started");
+                logger.LogError(ex, "Unhandled exception after the response started");
                 throw;
             }
 
             var (status, message) = Map(ex);
-            if (status >= StatusCodes.Status500InternalServerError)
-                _logger.LogError(ex, "Unhandled exception while processing request");
-            else if (ex is InvalidOperationException)
-                // Temporary fallback: every expected failure should throw a domain exception instead.
-                _logger.LogWarning(ex, "InvalidOperationException mapped to 400; convert this throw site to a domain exception");
-            else
-                _logger.LogDebug("Request failed with {Status}: {Message}", status, message);
-
-            context.Response.Clear();
-            context.Response.ContentType = "application/json";
-            context.Response.StatusCode = status;
-            await context.Response.WriteAsync(JsonSerializer.Serialize(new { message }));
+            Log(ex, status, message);
+            await WriteErrorAsync(context.Response, status, message);
         }
     }
 
@@ -63,16 +50,35 @@ public class ExceptionToHttpResponseMiddleware
         AuthenticationFailedException => (StatusCodes.Status401Unauthorized, ex.Message),
         KeyNotFoundException => (StatusCodes.Status404NotFound, ex.Message),
         ArgumentException => (StatusCodes.Status400BadRequest, ex.Message),
-        // Message withheld: unconverted throw sites are rare and framework IOEs can leak internals.
-        InvalidOperationException => (StatusCodes.Status400BadRequest, "The request could not be completed."),
+        InvalidOperationException => (StatusCodes.Status400BadRequest, InvalidOperationMessage),
         _ => (StatusCodes.Status500InternalServerError, GenericErrorMessage)
     };
+
+    /// <summary>
+    /// InvalidOperationException is a temporary fallback to 400: every expected failure should throw a
+    /// domain exception instead, so it is logged as a warning to find the remaining throw sites.
+    /// </summary>
+    private void Log(Exception ex, int status, string message)
+    {
+        if (status >= StatusCodes.Status500InternalServerError)
+            logger.LogError(ex, "Unhandled exception while processing request");
+        else if (ex is InvalidOperationException)
+            logger.LogWarning(ex, "InvalidOperationException mapped to 400; convert this throw site to a domain exception");
+        else
+            logger.LogDebug("Request failed with {Status}: {Message}", status, message);
+    }
+
+    private static async Task WriteErrorAsync(HttpResponse response, int status, string message)
+    {
+        response.Clear();
+        response.ContentType = JsonContentType;
+        response.StatusCode = status;
+        await response.WriteAsync(JsonSerializer.Serialize(new { message }));
+    }
 }
 
 public static class ExceptionToHttpResponseMiddlewareExtensions
 {
-    public static IApplicationBuilder UseExceptionToHttpResponse(this IApplicationBuilder builder)
-    {
-        return builder.UseMiddleware<ExceptionToHttpResponseMiddleware>();
-    }
+    public static IApplicationBuilder UseExceptionToHttpResponse(this IApplicationBuilder builder) =>
+        builder.UseMiddleware<ExceptionToHttpResponseMiddleware>();
 }
