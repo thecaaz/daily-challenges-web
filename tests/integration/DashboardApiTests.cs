@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using Microsoft.Extensions.DependencyInjection;

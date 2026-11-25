@@ -73,6 +73,25 @@ public class ApiFactory : WebApplicationFactory<Program>
         await action(db);
     }
 
+    /// <summary>Runs <paramref name="query"/> with a fresh scoped AppDbContext and returns its result.</summary>
+    public async Task<T> QueryDbAsync<T>(Func<AppDbContext, Task<T>> query)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        return await query(db);
+    }
+
+    /// <summary>Runs the scoring-day finalizer for one game and day, as the background service would.</summary>
+    public async Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay)
+    {
+        using var scope = Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, scoringDay);
+    }
+
+    /// <summary>An HttpClient that does not store cookies, so each test sends the refresh cookie explicitly.</summary>
+    public HttpClient CreateCookielessClient() =>
+        CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+
     /// <summary>An HttpClient that sends a Bearer token for the given user.</summary>
     public HttpClient CreateAuthenticatedClient(int userId, string username = "tester", bool isAdmin = false)
     {

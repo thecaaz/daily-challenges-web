@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -11,12 +12,6 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
     private readonly ApiFactory _factory;
 
     public ApiSmokeTests(ApiFactory factory) => _factory = factory;
-
-    private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage res)
-    {
-        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        return doc.RootElement.Clone();
-    }
 
     private async Task<int> SeedUserAsync(string username)
     {

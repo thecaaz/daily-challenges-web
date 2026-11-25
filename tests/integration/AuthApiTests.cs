@@ -3,15 +3,14 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Services;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -23,26 +22,7 @@ public class AuthApiTests : IClassFixture<ApiFactory>
 
     public AuthApiTests(ApiFactory factory) => _factory = factory;
 
-    private HttpClient Client() => _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
-
-    private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage res)
-    {
-        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        return doc.RootElement.Clone();
-    }
-
-    /// <summary>The refresh_token value from a response's Set-Cookie header (null when absent or cleared).</summary>
-    private static string? RefreshCookie(HttpResponseMessage res)
-    {
-        if (!res.Headers.TryGetValues("Set-Cookie", out var cookies)) return null;
-        foreach (var c in cookies)
-        {
-            if (!c.StartsWith("refresh_token=", StringComparison.Ordinal)) continue;
-            var value = c["refresh_token=".Length..].Split(';')[0];
-            return string.IsNullOrEmpty(value) ? null : value;
-        }
-        return null;
-    }
+    private HttpClient Client() => _factory.CreateCookielessClient();
 
     private async Task RegisterAsync(string username, string password = Password)
     {
@@ -55,7 +35,7 @@ public class AuthApiTests : IClassFixture<ApiFactory>
         var res = await Client().PostAsJsonAsync("/api/auth/login", new { username, password });
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var json = await ReadJsonAsync(res);
-        var refresh = RefreshCookie(res);
+        var refresh = RefreshCookie.ValueFrom(res);
         Assert.NotNull(refresh);
         return (json.GetProperty("accessToken").GetString()!, refresh!, json.GetProperty("user").GetProperty("id").GetInt32());
     }
@@ -175,7 +155,7 @@ public class AuthApiTests : IClassFixture<ApiFactory>
 
         var res1 = await RefreshAsync(first);
         Assert.Equal(HttpStatusCode.OK, res1.StatusCode);
-        var second = RefreshCookie(res1);
+        var second = RefreshCookie.ValueFrom(res1);
         Assert.NotNull(second);
         Assert.NotEqual(first, second);
         var newAccess = (await ReadJsonAsync(res1)).GetProperty("accessToken").GetString()!;

@@ -1,11 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Text.Json;
-using DailyChallenges.Models;
 using DailyChallenges.DTOs;
+using DailyChallenges.IntegrationTests.Infrastructure;
+using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.TestUtilities;
 using Microsoft.EntityFrameworkCore;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -24,13 +25,6 @@ public class XpAndStreakApiTests : IClassFixture<FixedClockApiFactory>
         return user;
     }
 
-    private static async Task<JsonElement> Json(HttpResponseMessage res)
-    {
-        var body = await res.Content.ReadAsStringAsync();
-        Assert.True(res.IsSuccessStatusCode, $"{(int)res.StatusCode}: {body}");
-        return JsonDocument.Parse(body).RootElement;
-    }
-
     // ── Admin adjustments ────────────────────────────────────────────────────
 
     [Fact]
@@ -39,7 +33,7 @@ public class XpAndStreakApiTests : IClassFixture<FixedClockApiFactory>
         var user = await SeedUserAsync("adjust-clamp", totalXp: 30);
         var admin = _factory.CreateAuthenticatedClient(user.Id + 1000, "admin", isAdmin: true);
 
-        var dto = await Json(await admin.PostAsJsonAsync($"/api/admin/users/{user.Id}/xp", new { delta = -100, reason = "cheating" }));
+        var dto = await ReadSuccessJsonAsync(await admin.PostAsJsonAsync($"/api/admin/users/{user.Id}/xp", new { delta = -100, reason = "cheating" }));
         Assert.Equal(0, dto.GetProperty("totalXp").GetInt64());
 
         XpEvent ev = null!;
@@ -55,7 +49,7 @@ public class XpAndStreakApiTests : IClassFixture<FixedClockApiFactory>
         var user = await SeedUserAsync("adjust-level");
         var admin = _factory.CreateAuthenticatedClient(user.Id + 1000, "admin", isAdmin: true);
 
-        var dto = await Json(await admin.PostAsJsonAsync($"/api/admin/users/{user.Id}/xp", new { delta = 2000, reason = "event prize" }));
+        var dto = await ReadSuccessJsonAsync(await admin.PostAsJsonAsync($"/api/admin/users/{user.Id}/xp", new { delta = 2000, reason = "event prize" }));
         Assert.Equal(5, dto.GetProperty("level").GetInt32());
 
         List<string> unlocked = null!;
@@ -95,7 +89,7 @@ public class XpAndStreakApiTests : IClassFixture<FixedClockApiFactory>
             await db.SaveChangesAsync();
         });
 
-        var dashboard = await Json(await _factory.CreateAuthenticatedClient(user.Id, user.Username).GetAsync("/api/dashboard"));
+        var dashboard = await ReadSuccessJsonAsync(await _factory.CreateAuthenticatedClient(user.Id, user.Username).GetAsync("/api/dashboard"));
 
         Assert.Equal(50 + 30 + 100, dashboard.GetProperty("xpEarnedToday").GetInt32());
     }
@@ -108,12 +102,12 @@ public class XpAndStreakApiTests : IClassFixture<FixedClockApiFactory>
         var stale = await SeedUserAsync("streak-stale", streak: 25, lastSubmissionAt: Today.AddDays(-2).AddHours(23));
         var alive = await SeedUserAsync("streak-alive", streak: 4, lastSubmissionAt: Today.AddDays(-1).AddHours(7));
 
-        var staleMe = await Json(await _factory.CreateAuthenticatedClient(stale.Id, stale.Username).GetAsync("/api/auth/me"));
+        var staleMe = await ReadSuccessJsonAsync(await _factory.CreateAuthenticatedClient(stale.Id, stale.Username).GetAsync("/api/auth/me"));
         Assert.Equal(0, staleMe.GetProperty("streak").GetInt32());
-        var staleProfile = await Json(await _factory.CreateClient().GetAsync($"/api/users/{stale.Id}/profile"));
+        var staleProfile = await ReadSuccessJsonAsync(await _factory.CreateClient().GetAsync($"/api/users/{stale.Id}/profile"));
         Assert.Equal(0, staleProfile.GetProperty("streak").GetInt32());
 
-        var aliveMe = await Json(await _factory.CreateAuthenticatedClient(alive.Id, alive.Username).GetAsync("/api/auth/me"));
+        var aliveMe = await ReadSuccessJsonAsync(await _factory.CreateAuthenticatedClient(alive.Id, alive.Username).GetAsync("/api/auth/me"));
         Assert.Equal(4, aliveMe.GetProperty("streak").GetInt32());
 
         // Stored value untouched; it restarts properly on the next submission.

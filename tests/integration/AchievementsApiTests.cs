@@ -1,8 +1,8 @@
 using System.Net;
-using System.Text.Json;
 using DailyChallenges.Achievements;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -13,14 +13,6 @@ public class AchievementsApiTests : IClassFixture<ApiFactory>
     private readonly ApiFactory _factory;
 
     public AchievementsApiTests(ApiFactory factory) => _factory = factory;
-
-    private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage res)
-    {
-        var body = await res.Content.ReadAsStringAsync();
-        Assert.True(res.IsSuccessStatusCode, $"{(int)res.StatusCode}: {body}");
-        using var doc = JsonDocument.Parse(body);
-        return doc.RootElement.Clone();
-    }
 
     private async Task<int> SeedUserWithWin1Async(string username)
     {
@@ -38,7 +30,7 @@ public class AchievementsApiTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Catalog_lists_every_achievement_with_exactly_its_public_fields()
     {
-        var catalog = (await ReadJsonAsync(await _factory.CreateClient().GetAsync("/api/achievements"))).EnumerateArray().ToList();
+        var catalog = (await ReadSuccessJsonAsync(await _factory.CreateClient().GetAsync("/api/achievements"))).EnumerateArray().ToList();
 
         Assert.Equal(AchievementCatalog.All.Select(a => a.Id), catalog.Select(c => c.GetProperty("achievementId").GetString()));
         Assert.All(catalog, c => Assert.Equal(
@@ -52,7 +44,7 @@ public class AchievementsApiTests : IClassFixture<ApiFactory>
     {
         var userId = await SeedUserWithWin1Async("ach-public");
 
-        var list = (await ReadJsonAsync(await _factory.CreateClient().GetAsync($"/api/users/{userId}/achievements"))).EnumerateArray().ToList();
+        var list = (await ReadSuccessJsonAsync(await _factory.CreateClient().GetAsync($"/api/users/{userId}/achievements"))).EnumerateArray().ToList();
 
         Assert.Equal(AchievementCatalog.All.Count, list.Count);
         var win1 = list.Single(a => a.GetProperty("achievementId").GetString() == "win_1");
@@ -75,7 +67,7 @@ public class AchievementsApiTests : IClassFixture<ApiFactory>
         var userId = await SeedUserWithWin1Async("ach-me");
 
         var res = await _factory.CreateAuthenticatedClient(userId, "ach-me").GetAsync("/api/users/me/achievements");
-        var list = (await ReadJsonAsync(res)).EnumerateArray().ToList();
+        var list = (await ReadSuccessJsonAsync(res)).EnumerateArray().ToList();
 
         Assert.Equal(AchievementCatalog.All.Count, list.Count);
         var win1 = list.Single(a => a.GetProperty("achievementId").GetString() == "win_1");

@@ -1,4 +1,4 @@
-using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services;
@@ -57,32 +57,19 @@ public class ScoringDayFinalizationTests
         ScreenshotContentType = "image/png",
     };
 
-    private static async Task FinalizeAsync(FixedClockApiFactory f, int gameId, DateTime day)
-    {
-        using var scope = f.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, day);
-    }
-
-    private static async Task<T> QueryAsync<T>(FixedClockApiFactory f, Func<AppDbContext, Task<T>> query)
-    {
-        T result = default!;
-        await f.WithDbAsync(async db => result = await query(db));
-        return result;
-    }
-
     [Fact]
     public async Task First_win_unlocks_win_1_immediately()
     {
         using var f = new FixedClockApiFactory();
         var seed = await SeedDayAsync(f, Yesterday);
 
-        await FinalizeAsync(f, seed.GameId, Yesterday);
+        await f.FinalizeScoringDayAsync(seed.GameId, Yesterday);
 
-        var achievements = await QueryAsync(f, db => db.UserAchievements.Where(a => a.UserId == seed.WinnerId).Select(a => a.AchievementId).ToListAsync());
+        var achievements = await f.QueryDbAsync(db => db.UserAchievements.Where(a => a.UserId == seed.WinnerId).Select(a => a.AchievementId).ToListAsync());
         Assert.Contains("win_1", achievements);
-        var result = await QueryAsync(f, db => db.ScoringDayResults.SingleAsync(r => r.GameId == seed.GameId));
+        var result = await f.QueryDbAsync(db => db.ScoringDayResults.SingleAsync(r => r.GameId == seed.GameId));
         Assert.Equal(seed.WinnerId, result.WinnerUserId);
-        Assert.Equal(WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
     }
 
     [Fact]
@@ -91,13 +78,13 @@ public class ScoringDayFinalizationTests
         using var f = new FixedClockApiFactory();
         var seed = await SeedDayAsync(f, Yesterday);
 
-        await FinalizeAsync(f, seed.GameId, Yesterday);
-        await FinalizeAsync(f, seed.GameId, Yesterday);
+        await f.FinalizeScoringDayAsync(seed.GameId, Yesterday);
+        await f.FinalizeScoringDayAsync(seed.GameId, Yesterday);
 
-        Assert.Equal(1, await QueryAsync(f, db => db.XpEvents.CountAsync(e => e.EventType == "day_win")));
-        Assert.Equal(WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
-        Assert.Equal(2, await QueryAsync(f, db => db.Notifications.CountAsync(n => n.GameId == seed.GameId)));
-        Assert.Equal(1, await QueryAsync(f, db => db.ScoringDayResults.CountAsync()));
+        Assert.Equal(1, await f.QueryDbAsync(db => db.XpEvents.CountAsync(e => e.EventType == "day_win")));
+        Assert.Equal(WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(2, await f.QueryDbAsync(db => db.Notifications.CountAsync(n => n.GameId == seed.GameId)));
+        Assert.Equal(1, await f.QueryDbAsync(db => db.ScoringDayResults.CountAsync()));
     }
 
     [Fact]
@@ -106,13 +93,13 @@ public class ScoringDayFinalizationTests
         // E.g. a result row removed by hand: re-finalizing must not pay the win twice.
         using var f = new FixedClockApiFactory();
         var seed = await SeedDayAsync(f, Yesterday);
-        await FinalizeAsync(f, seed.GameId, Yesterday);
+        await f.FinalizeScoringDayAsync(seed.GameId, Yesterday);
         await f.WithDbAsync(db => db.ScoringDayResults.ExecuteDeleteAsync());
 
-        await FinalizeAsync(f, seed.GameId, Yesterday);
+        await f.FinalizeScoringDayAsync(seed.GameId, Yesterday);
 
-        Assert.Equal(1, await QueryAsync(f, db => db.XpEvents.CountAsync(e => e.EventType == "day_win")));
-        Assert.Equal(WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(1, await f.QueryDbAsync(db => db.XpEvents.CountAsync(e => e.EventType == "day_win")));
+        Assert.Equal(WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
     }
 
     /// <summary>Fails when the finalizer writes notifications (after the claim and the win XP).</summary>
@@ -157,15 +144,15 @@ public class ScoringDayFinalizationTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => finalizer.FinalizeScoringDayAsync(seed.GameId, Yesterday));
         }
 
-        Assert.Equal(0, await QueryAsync(f, db => db.ScoringDayResults.CountAsync()));
-        Assert.Equal(0, await QueryAsync(f, db => db.XpEvents.CountAsync()));
-        Assert.Equal(0L, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
-        Assert.Equal(0, await QueryAsync(f, db => db.UserAchievements.CountAsync()));
+        Assert.Equal(0, await f.QueryDbAsync(db => db.ScoringDayResults.CountAsync()));
+        Assert.Equal(0, await f.QueryDbAsync(db => db.XpEvents.CountAsync()));
+        Assert.Equal(0L, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(0, await f.QueryDbAsync(db => db.UserAchievements.CountAsync()));
 
-        await FinalizeAsync(f, seed.GameId, Yesterday);
+        await f.FinalizeScoringDayAsync(seed.GameId, Yesterday);
 
-        Assert.Equal(1, await QueryAsync(f, db => db.ScoringDayResults.CountAsync()));
-        Assert.Equal(WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(1, await f.QueryDbAsync(db => db.ScoringDayResults.CountAsync()));
+        Assert.Equal(WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
     }
 
     [Fact]
@@ -177,11 +164,11 @@ public class ScoringDayFinalizationTests
         await f.WithDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId)
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.TotalXp, 1650L).SetProperty(u => u.Level, 4)));
 
-        await FinalizeAsync(f, seed.GameId, Yesterday);
+        await f.FinalizeScoringDayAsync(seed.GameId, Yesterday);
 
-        var user = await QueryAsync(f, db => db.Users.AsNoTracking().SingleAsync(u => u.Id == seed.WinnerId));
+        var user = await f.QueryDbAsync(db => db.Users.AsNoTracking().SingleAsync(u => u.Id == seed.WinnerId));
         Assert.Equal(5, user.Level);
-        Assert.Contains("level_5", await QueryAsync(f, db => db.UserAchievements.Where(a => a.UserId == seed.WinnerId).Select(a => a.AchievementId).ToListAsync()));
+        Assert.Contains("level_5", await f.QueryDbAsync(db => db.UserAchievements.Where(a => a.UserId == seed.WinnerId).Select(a => a.AchievementId).ToListAsync()));
     }
 
     // ── Background service catch-up ───────────────────────────────────────────
@@ -197,13 +184,13 @@ public class ScoringDayFinalizationTests
 
         await Background(f).ProcessAllGamesAsync();
 
-        var days = await QueryAsync(f, db => db.ScoringDayResults.Where(r => r.GameId == seed.GameId).Select(r => r.ScoringDay).OrderBy(d => d).ToListAsync());
+        var days = await f.QueryDbAsync(db => db.ScoringDayResults.Where(r => r.GameId == seed.GameId).Select(r => r.ScoringDay).OrderBy(d => d).ToListAsync());
         Assert.Equal(new[] { Today.AddDays(-3), Today.AddDays(-2), Yesterday }, days.Select(d => d.Date));
-        Assert.Equal(3 * WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(3 * WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
 
         // A second tick has nothing left to do; the current day stays open.
         await Background(f).ProcessAllGamesAsync();
-        Assert.Equal(3, await QueryAsync(f, db => db.ScoringDayResults.CountAsync()));
+        Assert.Equal(3, await f.QueryDbAsync(db => db.ScoringDayResults.CountAsync()));
     }
 
     [Fact]
@@ -212,19 +199,19 @@ public class ScoringDayFinalizationTests
         using var f = new FixedClockApiFactory();
         var seed = await SeedDayAsync(f, Today.AddDays(-3), Today.AddDays(-2), Yesterday);
         // -3 and -1 are finalized, -2 is not (e.g. un-finalized by an admin edit whose re-finalization failed).
-        await FinalizeAsync(f, seed.GameId, Today.AddDays(-3));
-        await FinalizeAsync(f, seed.GameId, Yesterday);
+        await f.FinalizeScoringDayAsync(seed.GameId, Today.AddDays(-3));
+        await f.FinalizeScoringDayAsync(seed.GameId, Yesterday);
 
         await Background(f).ProcessAllGamesAsync();
 
-        var days = await QueryAsync(f, db => db.ScoringDayResults.Where(r => r.GameId == seed.GameId).Select(r => r.ScoringDay).OrderBy(d => d).ToListAsync());
+        var days = await f.QueryDbAsync(db => db.ScoringDayResults.Where(r => r.GameId == seed.GameId).Select(r => r.ScoringDay).OrderBy(d => d).ToListAsync());
         Assert.Equal(new[] { Today.AddDays(-3), Today.AddDays(-2), Yesterday }, days.Select(d => d.Date));
-        Assert.Equal(3 * WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(3 * WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
 
         // Idempotent: another tick changes nothing.
         await Background(f).ProcessAllGamesAsync();
-        Assert.Equal(3, await QueryAsync(f, db => db.ScoringDayResults.CountAsync()));
-        Assert.Equal(3 * WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(3, await f.QueryDbAsync(db => db.ScoringDayResults.CountAsync()));
+        Assert.Equal(3 * WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
     }
 
     [Fact]
@@ -241,20 +228,20 @@ public class ScoringDayFinalizationTests
         // Open: -30 .. -21 (10 days, before the last finalized day) and -19 .. -1 (19 days) = 29.
         // The first tick does the oldest 14: -30 .. -21 and -19 .. -16.
         await Background(f).ProcessAllGamesAsync();
-        Assert.Equal(1 + ScoringDayBackgroundService.MaxDaysPerTick, await QueryAsync(f, db => db.ScoringDayResults.CountAsync()));
-        Assert.True(await QueryAsync(f, db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-30))));
-        Assert.True(await QueryAsync(f, db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-16))));
-        Assert.False(await QueryAsync(f, db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-15))));
+        Assert.Equal(1 + ScoringDayBackgroundService.MaxDaysPerTick, await f.QueryDbAsync(db => db.ScoringDayResults.CountAsync()));
+        Assert.True(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-30))));
+        Assert.True(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-16))));
+        Assert.False(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-15))));
 
         await Background(f).ProcessAllGamesAsync();
-        Assert.Equal(1 + 2 * ScoringDayBackgroundService.MaxDaysPerTick, await QueryAsync(f, db => db.ScoringDayResults.CountAsync()));
+        Assert.Equal(1 + 2 * ScoringDayBackgroundService.MaxDaysPerTick, await f.QueryDbAsync(db => db.ScoringDayResults.CountAsync()));
 
         await Background(f).ProcessAllGamesAsync();
-        var last = await QueryAsync(f, db => db.ScoringDayResults.MaxAsync(r => r.ScoringDay));
+        var last = await f.QueryDbAsync(db => db.ScoringDayResults.MaxAsync(r => r.ScoringDay));
         Assert.Equal(Yesterday, last.Date);
-        Assert.Equal(1 + 29, await QueryAsync(f, db => db.ScoringDayResults.CountAsync()));
+        Assert.Equal(1 + 29, await f.QueryDbAsync(db => db.ScoringDayResults.CountAsync()));
         // Two days had submissions (-30 and yesterday): two wins.
-        Assert.Equal(2 * WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.Equal(2 * WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
     }
 
     [Fact]
@@ -274,8 +261,8 @@ public class ScoringDayFinalizationTests
 
         await Background(f).ProcessAllGamesAsync();
 
-        Assert.True(await QueryAsync(f, db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == recentGap)));
-        Assert.False(await QueryAsync(f, db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == oldGap)));
-        Assert.Equal(WinXp, await QueryAsync(f, db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
+        Assert.True(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == recentGap)));
+        Assert.False(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == oldGap)));
+        Assert.Equal(WinXp, await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.WinnerId).Select(u => u.TotalXp).SingleAsync()));
     }
 }

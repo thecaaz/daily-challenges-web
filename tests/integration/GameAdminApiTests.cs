@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using DailyChallenges.Data;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -29,20 +29,13 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
         return form;
     }
 
-    private static async Task<JsonElement> Json(HttpResponseMessage res)
-    {
-        var body = await res.Content.ReadAsStringAsync();
-        Assert.True(res.IsSuccessStatusCode, $"{(int)res.StatusCode}: {body}");
-        return JsonDocument.Parse(body).RootElement;
-    }
-
     private async Task<int> CreateGameAsync(params (string Key, string Value)[] fields)
     {
         var res = await Admin().PostAsync("/api/games", Form(fields));
-        return (await Json(res)).GetProperty("id").GetInt32();
+        return (await ReadSuccessJsonAsync(res)).GetProperty("id").GetInt32();
     }
 
-    private async Task<JsonElement> GetGameAsync(int id) => await Json(await _factory.CreateClient().GetAsync($"/api/games/{id}"));
+    private async Task<JsonElement> GetGameAsync(int id) => await ReadSuccessJsonAsync(await _factory.CreateClient().GetAsync($"/api/games/{id}"));
 
     // ── Reset time: UTC "HH:mm" only ─────────────────────────────────────────
 
@@ -59,7 +52,7 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
             ("resetTime", game.GetProperty("resetTime").GetString()!),
             ("url", game.GetProperty("url").GetString()!),
             ("rankingMode", game.GetProperty("rankingMode").GetString()!)));
-        await Json(res);
+        await ReadSuccessJsonAsync(res);
 
         var again = await GetGameAsync(id);
         Assert.Equal("22:30", again.GetProperty("resetTime").GetString());
@@ -101,7 +94,7 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
         var id = await CreateGameAsync(("name", "Mode"), ("rankingMode", "LOWEST"));
         Assert.Equal("lowest", (await GetGameAsync(id)).GetProperty("rankingMode").GetString());
         var res = await Admin().PutAsync($"/api/games/{id}", Form(("rankingMode", "highest")));
-        Assert.Equal("highest", (await Json(res)).GetProperty("rankingMode").GetString());
+        Assert.Equal("highest", (await ReadSuccessJsonAsync(res)).GetProperty("rankingMode").GetString());
     }
 
     // ── Url / description ────────────────────────────────────────────────────
@@ -129,13 +122,13 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
 
         // Omitted: unchanged.
         var res = await Admin().PutAsync($"/api/games/{id}", Form(("name", "Clear renamed")));
-        var game = await Json(res);
+        var game = await ReadSuccessJsonAsync(res);
         Assert.Equal("https://example.com", game.GetProperty("url").GetString());
         Assert.Equal("Some text", game.GetProperty("description").GetString());
 
         // "": cleared (null values are omitted from the JSON).
         res = await Admin().PutAsync($"/api/games/{id}", Form(("url", ""), ("description", "")));
-        game = await Json(res);
+        game = await ReadSuccessJsonAsync(res);
         Assert.False(game.TryGetProperty("url", out _));
         Assert.False(game.TryGetProperty("description", out _));
         Assert.Equal("Clear renamed", game.GetProperty("name").GetString());
@@ -203,7 +196,7 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
 
         // 18:00 is an end-of-day reset: Today-1 20:00 now belongs to Today; Today 09:30 stays on Today.
         var res = await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", "18:00")));
-        Assert.Equal("18:00", (await Json(res)).GetProperty("resetTime").GetString());
+        Assert.Equal("18:00", (await ReadSuccessJsonAsync(res)).GetProperty("resetTime").GetString());
 
         Assert.Equal(Today, await ScoringDayOf(seed.MovedSubId));
         Assert.Equal(Today, await XpEventDayOf(seed.MovedSubId));

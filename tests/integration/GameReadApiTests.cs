@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -54,13 +55,6 @@ public class GameReadApiTests : IClassFixture<FixedClockApiFactory>
 
     private HttpClient As(User user) => _factory.CreateAuthenticatedClient(user.Id, user.Username);
 
-    private static async Task<JsonElement> Json(HttpResponseMessage res)
-    {
-        var body = await res.Content.ReadAsStringAsync();
-        Assert.True(res.IsSuccessStatusCode, $"{(int)res.StatusCode}: {body}");
-        return JsonDocument.Parse(body).RootElement;
-    }
-
     private static JsonElement GameNamed(JsonElement list, string name) =>
         list.EnumerateArray().Single(g => g.GetProperty("name").GetString() == name);
 
@@ -69,7 +63,7 @@ public class GameReadApiTests : IClassFixture<FixedClockApiFactory>
     {
         var seed = await SeedAsync("list");
 
-        var list = await Json(await As(seed.Player).GetAsync("/api/games"));
+        var list = await ReadSuccessJsonAsync(await As(seed.Player).GetAsync("/api/games"));
 
         var played = GameNamed(list, seed.Played.Name);
         var favorite = GameNamed(list, seed.Favorite.Name);
@@ -84,7 +78,7 @@ public class GameReadApiTests : IClassFixture<FixedClockApiFactory>
     {
         var seed = await SeedAsync("anon-list");
 
-        var list = await Json(await _factory.CreateClient().GetAsync("/api/games"));
+        var list = await ReadSuccessJsonAsync(await _factory.CreateClient().GetAsync("/api/games"));
 
         var played = GameNamed(list, seed.Played.Name);
         Assert.False(played.GetProperty("hasSubmittedForLatest").GetBoolean());
@@ -96,7 +90,7 @@ public class GameReadApiTests : IClassFixture<FixedClockApiFactory>
     {
         var seed = await SeedAsync("overview-all");
 
-        var overview = await Json(await As(seed.Player).GetAsync($"/api/games/{seed.Played.Id}/overview"));
+        var overview = await ReadSuccessJsonAsync(await As(seed.Player).GetAsync($"/api/games/{seed.Played.Id}/overview"));
 
         var dates = overview.GetProperty("availableDates").EnumerateArray().Select(d => d.GetString()).ToList();
         Assert.Equal(new[] { "2026-06-15", "2026-06-14", "2026-06-13" }, dates);
@@ -111,8 +105,8 @@ public class GameReadApiTests : IClassFixture<FixedClockApiFactory>
         var seed = await SeedAsync("overview-include");
         var client = As(seed.Player);
 
-        var datesOnly = await Json(await client.GetAsync($"/api/games/{seed.Played.Id}/overview?include=availableDates"));
-        var submittedOnly = await Json(await client.GetAsync($"/api/games/{seed.Played.Id}/overview?include= hasSubmitted ,"));
+        var datesOnly = await ReadSuccessJsonAsync(await client.GetAsync($"/api/games/{seed.Played.Id}/overview?include=availableDates"));
+        var submittedOnly = await ReadSuccessJsonAsync(await client.GetAsync($"/api/games/{seed.Played.Id}/overview?include= hasSubmitted ,"));
 
         Assert.Equal(3, datesOnly.GetProperty("availableDates").GetArrayLength());
         Assert.False(datesOnly.GetProperty("hasSubmittedForLatest").GetBoolean());
@@ -126,9 +120,9 @@ public class GameReadApiTests : IClassFixture<FixedClockApiFactory>
         var seed = await SeedAsync("overview-fav");
         var client = As(seed.Player);
 
-        var overview = await Json(await client.GetAsync($"/api/games/{seed.Favorite.Id}/overview"));
-        var detail = await Json(await client.GetAsync($"/api/games/{seed.Favorite.Id}"));
-        var anonymous = await Json(await _factory.CreateClient().GetAsync($"/api/games/{seed.Favorite.Id}"));
+        var overview = await ReadSuccessJsonAsync(await client.GetAsync($"/api/games/{seed.Favorite.Id}/overview"));
+        var detail = await ReadSuccessJsonAsync(await client.GetAsync($"/api/games/{seed.Favorite.Id}"));
+        var anonymous = await ReadSuccessJsonAsync(await _factory.CreateClient().GetAsync($"/api/games/{seed.Favorite.Id}"));
 
         Assert.True(overview.GetProperty("game").GetProperty("isFavorite").GetBoolean());
         Assert.True(detail.GetProperty("isFavorite").GetBoolean());
@@ -140,7 +134,7 @@ public class GameReadApiTests : IClassFixture<FixedClockApiFactory>
     {
         var seed = await SeedAsync("personal");
 
-        var result = await Json(await As(seed.Player).GetAsync($"/api/games/{seed.Played.Id}/personal-highscore"));
+        var result = await ReadSuccessJsonAsync(await As(seed.Player).GetAsync($"/api/games/{seed.Played.Id}/personal-highscore"));
 
         var top = result.GetProperty("top").EnumerateArray().ToList();
         Assert.Equal(new[] { "90", "30" }, top.Select(s => s.GetProperty("score").GetString()));

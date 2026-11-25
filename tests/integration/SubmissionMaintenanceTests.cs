@@ -2,15 +2,15 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Services;
 using DailyChallenges.TestUtilities;
-using DailyChallenges.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging.Abstractions;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -31,22 +31,8 @@ public class SubmissionMaintenanceTests
 
     private static HttpClient Admin(FixedClockApiFactory f) => f.CreateAuthenticatedClient(99_000, "maint-admin", isAdmin: true);
 
-    private static async Task<T> QueryAsync<T>(FixedClockApiFactory f, Func<AppDbContext, Task<T>> query)
-    {
-        T result = default!;
-        await f.WithDbAsync(async db => result = await query(db));
-        return result;
-    }
-
-    private static async Task<JsonElement> Json(HttpResponseMessage res)
-    {
-        var body = await res.Content.ReadAsStringAsync();
-        Assert.True(res.IsSuccessStatusCode, $"{(int)res.StatusCode}: {body}");
-        return JsonDocument.Parse(body).RootElement;
-    }
-
     private static Task<long> TotalXpAsync(FixedClockApiFactory f, int userId) =>
-        QueryAsync(f, db => db.Users.Where(u => u.Id == userId).Select(u => u.TotalXp).SingleAsync());
+        f.QueryDbAsync(db => db.Users.Where(u => u.Id == userId).Select(u => u.TotalXp).SingleAsync());
 
     private static async Task<(int GameId, User A, User B)> SeedGameAndUsersAsync(FixedClockApiFactory f)
     {
@@ -95,12 +81,6 @@ public class SubmissionMaintenanceTests
         return sub;
     }
 
-    private static async Task FinalizeAsync(FixedClockApiFactory f, int gameId, DateTime day)
-    {
-        using var scope = f.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, day);
-    }
-
     // ── Delete: XP revocation ────────────────────────────────────────────────
 
     [Fact]
@@ -110,7 +90,7 @@ public class SubmissionMaintenanceTests
         var (gameId, alice, _) = await SeedGameAndUsersAsync(f);
         var client = f.CreateAuthenticatedClient(alice.Id, alice.Username);
 
-        var created = await Json(await client.PostAsync("/api/submissions", SubmissionForm(gameId, "1 234", Png, "image/png")));
+        var created = await ReadSuccessJsonAsync(await client.PostAsync("/api/submissions", SubmissionForm(gameId, "1 234", Png, "image/png")));
         Assert.Equal(SubmissionXp, created.GetProperty("xpGain").GetInt32());
         Assert.Equal(1234, created.GetProperty("submission").GetProperty("scoreValue").GetDouble());
         var subId = created.GetProperty("submission").GetProperty("id").GetInt32();
@@ -120,21 +100,21 @@ public class SubmissionMaintenanceTests
         Assert.Equal(HttpStatusCode.NoContent, del.StatusCode);
 
         Assert.Equal(0, await TotalXpAsync(f, alice.Id));
-        var revoked = await QueryAsync(f, db => db.XpEvents.AsNoTracking().SingleAsync(e => e.UserId == alice.Id && e.EventType == "submission_revoked"));
+        var revoked = await f.QueryDbAsync(db => db.XpEvents.AsNoTracking().SingleAsync(e => e.UserId == alice.Id && e.EventType == "submission_revoked"));
         Assert.Equal(-SubmissionXp, revoked.Amount);
         Assert.Equal(gameId, revoked.GameId);
         Assert.Equal(Today, revoked.ScoringDay!.Value.Date);
         Assert.Contains($"submissionId={subId}", revoked.Details);
-        Assert.False(await QueryAsync(f, db => db.Submissions.AnyAsync(s => s.Id == subId)));
+        Assert.False(await f.QueryDbAsync(db => db.Submissions.AnyAsync(s => s.Id == subId)));
 
         // The user may submit again for the same day; the balance ends at one submission's worth.
-        var again = await Json(await client.PostAsync("/api/submissions", SubmissionForm(gameId, "2000", Png, "image/png")));
+        var again = await ReadSuccessJsonAsync(await client.PostAsync("/api/submissions", SubmissionForm(gameId, "2000", Png, "image/png")));
         Assert.Equal(SubmissionXp, again.GetProperty("xpGain").GetInt32());
         Assert.Equal(SubmissionXp, await TotalXpAsync(f, alice.Id));
-        Assert.Equal(SubmissionXp, await QueryAsync(f, db => db.XpEvents.Where(e => e.UserId == alice.Id).SumAsync(e => e.Amount)));
+        Assert.Equal(SubmissionXp, await f.QueryDbAsync(db => db.XpEvents.Where(e => e.UserId == alice.Id).SumAsync(e => e.Amount)));
 
         // "XP earned today" nets the revocation too.
-        var dashboard = await Json(await client.GetAsync("/api/dashboard"));
+        var dashboard = await ReadSuccessJsonAsync(await client.GetAsync("/api/dashboard"));
         Assert.Equal(SubmissionXp, dashboard.GetProperty("xpEarnedToday").GetInt32());
     }
 
@@ -157,7 +137,7 @@ public class SubmissionMaintenanceTests
         var (gameId, alice, bob) = await SeedGameAndUsersAsync(f);
         var winning = await SeedPastSubmissionAsync(f, gameId, alice, "200", 200);
         await SeedPastSubmissionAsync(f, gameId, bob, "100", 100);
-        await FinalizeAsync(f, gameId, Yesterday);
+        await f.FinalizeScoringDayAsync(gameId, Yesterday);
         Assert.Equal(SubmissionXp + WinXp, await TotalXpAsync(f, alice.Id));
 
         var del = await Admin(f).DeleteAsync($"/api/submissions/{winning.Id}");
@@ -165,17 +145,17 @@ public class SubmissionMaintenanceTests
 
         // Alice: submission XP revoked, day_win event deleted and its XP removed.
         Assert.Equal(0, await TotalXpAsync(f, alice.Id));
-        Assert.False(await QueryAsync(f, db => db.XpEvents.AnyAsync(e => e.UserId == alice.Id && e.EventType == "day_win")));
-        Assert.True(await QueryAsync(f, db => db.XpEvents.AnyAsync(e => e.UserId == alice.Id && e.EventType == "submission_revoked" && e.Amount == -SubmissionXp)));
+        Assert.False(await f.QueryDbAsync(db => db.XpEvents.AnyAsync(e => e.UserId == alice.Id && e.EventType == "day_win")));
+        Assert.True(await f.QueryDbAsync(db => db.XpEvents.AnyAsync(e => e.UserId == alice.Id && e.EventType == "submission_revoked" && e.Amount == -SubmissionXp)));
 
         // Bob: the new winner.
-        var result = await QueryAsync(f, db => db.ScoringDayResults.AsNoTracking().SingleAsync(r => r.GameId == gameId));
+        var result = await f.QueryDbAsync(db => db.ScoringDayResults.AsNoTracking().SingleAsync(r => r.GameId == gameId));
         Assert.Equal(bob.Id, result.WinnerUserId);
         Assert.Equal(SubmissionXp + WinXp, await TotalXpAsync(f, bob.Id));
-        Assert.Equal(1, await QueryAsync(f, db => db.XpEvents.CountAsync(e => e.EventType == "day_win")));
+        Assert.Equal(1, await f.QueryDbAsync(db => db.XpEvents.CountAsync(e => e.EventType == "day_win")));
 
         // The day's result notifications were rewritten: only Bob's win remains.
-        var notes = await QueryAsync(f, db => db.Notifications.AsNoTracking().Where(n => n.GameId == gameId).ToListAsync());
+        var notes = await f.QueryDbAsync(db => db.Notifications.AsNoTracking().Where(n => n.GameId == gameId).ToListAsync());
         var note = Assert.Single(notes);
         Assert.Equal(bob.Id, note.UserId);
         Assert.Equal("day_win", note.Type);
@@ -188,12 +168,12 @@ public class SubmissionMaintenanceTests
         var (gameId, alice, bob) = await SeedGameAndUsersAsync(f);
         await SeedPastSubmissionAsync(f, gameId, alice, "200", 200);
         var losing = await SeedPastSubmissionAsync(f, gameId, bob, "100", 100);
-        await FinalizeAsync(f, gameId, Yesterday);
-        var resultId = await QueryAsync(f, db => db.ScoringDayResults.Select(r => r.Id).SingleAsync());
+        await f.FinalizeScoringDayAsync(gameId, Yesterday);
+        var resultId = await f.QueryDbAsync(db => db.ScoringDayResults.Select(r => r.Id).SingleAsync());
 
         Assert.Equal(HttpStatusCode.NoContent, (await Admin(f).DeleteAsync($"/api/submissions/{losing.Id}")).StatusCode);
 
-        Assert.Equal(resultId, await QueryAsync(f, db => db.ScoringDayResults.Select(r => r.Id).SingleAsync()));
+        Assert.Equal(resultId, await f.QueryDbAsync(db => db.ScoringDayResults.Select(r => r.Id).SingleAsync()));
         Assert.Equal(SubmissionXp + WinXp, await TotalXpAsync(f, alice.Id));
         Assert.Equal(0, await TotalXpAsync(f, bob.Id));
     }
@@ -205,28 +185,28 @@ public class SubmissionMaintenanceTests
         var (gameId, alice, bob) = await SeedGameAndUsersAsync(f);
         await SeedPastSubmissionAsync(f, gameId, alice, "200", 200);
         var bobs = await SeedPastSubmissionAsync(f, gameId, bob, "100", 100);
-        await FinalizeAsync(f, gameId, Yesterday);
+        await f.FinalizeScoringDayAsync(gameId, Yesterday);
         var admin = Admin(f);
 
         // Still second: nothing is re-finalized.
-        var resultId = await QueryAsync(f, db => db.ScoringDayResults.Select(r => r.Id).SingleAsync());
-        await Json(await admin.PutAsJsonAsync($"/api/submissions/{bobs.Id}", new { score = "150" }));
-        Assert.Equal(resultId, await QueryAsync(f, db => db.ScoringDayResults.Select(r => r.Id).SingleAsync()));
+        var resultId = await f.QueryDbAsync(db => db.ScoringDayResults.Select(r => r.Id).SingleAsync());
+        await ReadSuccessJsonAsync(await admin.PutAsJsonAsync($"/api/submissions/{bobs.Id}", new { score = "150" }));
+        Assert.Equal(resultId, await f.QueryDbAsync(db => db.ScoringDayResults.Select(r => r.Id).SingleAsync()));
         Assert.Equal(SubmissionXp + WinXp, await TotalXpAsync(f, alice.Id));
 
         // Now first: the win moves to Bob.
-        var dto = await Json(await admin.PutAsJsonAsync($"/api/submissions/{bobs.Id}", new { score = " 1,000 " }));
+        var dto = await ReadSuccessJsonAsync(await admin.PutAsJsonAsync($"/api/submissions/{bobs.Id}", new { score = " 1,000 " }));
         Assert.Equal("1,000", dto.GetProperty("score").GetString());
         Assert.Equal(1000, dto.GetProperty("scoreValue").GetDouble());
 
-        var result = await QueryAsync(f, db => db.ScoringDayResults.AsNoTracking().SingleAsync(r => r.GameId == gameId));
+        var result = await f.QueryDbAsync(db => db.ScoringDayResults.AsNoTracking().SingleAsync(r => r.GameId == gameId));
         Assert.Equal(bob.Id, result.WinnerUserId);
         Assert.Equal(SubmissionXp, await TotalXpAsync(f, alice.Id));
         Assert.Equal(SubmissionXp + WinXp, await TotalXpAsync(f, bob.Id));
-        Assert.Equal(1, await QueryAsync(f, db => db.XpEvents.CountAsync(e => e.EventType == "day_win" && e.UserId == bob.Id)));
-        Assert.False(await QueryAsync(f, db => db.XpEvents.AnyAsync(e => e.EventType == "day_win" && e.UserId == alice.Id)));
+        Assert.Equal(1, await f.QueryDbAsync(db => db.XpEvents.CountAsync(e => e.EventType == "day_win" && e.UserId == bob.Id)));
+        Assert.False(await f.QueryDbAsync(db => db.XpEvents.AnyAsync(e => e.EventType == "day_win" && e.UserId == alice.Id)));
         // Fresh notifications: Bob won, Alice placed second.
-        var notes = await QueryAsync(f, db => db.Notifications.AsNoTracking().Where(n => n.GameId == gameId).OrderBy(n => n.Rank).ToListAsync());
+        var notes = await f.QueryDbAsync(db => db.Notifications.AsNoTracking().Where(n => n.GameId == gameId).OrderBy(n => n.Rank).ToListAsync());
         Assert.Equal(new[] { (bob.Id, "day_win"), (alice.Id, "day_placement") }, notes.Select(n => (n.UserId, n.Type)));
     }
 
@@ -237,12 +217,12 @@ public class SubmissionMaintenanceTests
         var (gameId, alice, bob) = await SeedGameAndUsersAsync(f);
         var alices = await SeedPastSubmissionAsync(f, gameId, alice, "200", 200);
         await SeedPastSubmissionAsync(f, gameId, bob, "100", 100);
-        await FinalizeAsync(f, gameId, Yesterday);
+        await f.FinalizeScoringDayAsync(gameId, Yesterday);
 
-        var dto = await Json(await Admin(f).PutAsJsonAsync($"/api/submissions/{alices.Id}", new { score = "DNF" }));
+        var dto = await ReadSuccessJsonAsync(await Admin(f).PutAsJsonAsync($"/api/submissions/{alices.Id}", new { score = "DNF" }));
         Assert.False(dto.TryGetProperty("scoreValue", out var v) && v.ValueKind != JsonValueKind.Null);
 
-        Assert.Equal(bob.Id, await QueryAsync(f, db => db.ScoringDayResults.Select(r => r.WinnerUserId).SingleAsync()));
+        Assert.Equal(bob.Id, await f.QueryDbAsync(db => db.ScoringDayResults.Select(r => r.WinnerUserId).SingleAsync()));
         Assert.Equal(SubmissionXp, await TotalXpAsync(f, alice.Id));
     }
 
@@ -285,7 +265,7 @@ public class SubmissionMaintenanceTests
 
         // Dry run (also the default): a report, no writes.
         var admin = Admin(f);
-        var report = await Json(await admin.PostAsync("/api/admin/maintenance/reparse-scores", null));
+        var report = await ReadSuccessJsonAsync(await admin.PostAsync("/api/admin/maintenance/reparse-scores", null));
         Assert.True(report.GetProperty("dryRun").GetBoolean());
         Assert.Equal(6, report.GetProperty("total").GetInt32());
         Assert.Equal(4, report.GetProperty("changed").GetInt32());
@@ -302,18 +282,18 @@ public class SubmissionMaintenanceTests
         Assert.False(nulled.TryGetProperty("newValue", out var nv) && nv.ValueKind != JsonValueKind.Null);
 
         var firstId = ids[0];
-        Assert.Equal(40.456, await QueryAsync(f, db => db.Submissions.Where(s => s.Id == firstId).Select(s => s.ScoreValue).SingleAsync()));
+        Assert.Equal(40.456, await f.QueryDbAsync(db => db.Submissions.Where(s => s.Id == firstId).Select(s => s.ScoreValue).SingleAsync()));
 
         // Apply.
-        var applied = await Json(await admin.PostAsync("/api/admin/maintenance/reparse-scores?dryRun=false", null));
+        var applied = await ReadSuccessJsonAsync(await admin.PostAsync("/api/admin/maintenance/reparse-scores?dryRun=false", null));
         Assert.False(applied.GetProperty("dryRun").GetBoolean());
         Assert.Equal(4, applied.GetProperty("changed").GetInt32());
 
-        var values = await QueryAsync(f, db => db.Submissions.OrderBy(s => s.Id).Select(s => s.ScoreValue).ToListAsync());
+        var values = await f.QueryDbAsync(db => db.Submissions.OrderBy(s => s.Id).Select(s => s.ScoreValue).ToListAsync());
         Assert.Equal(new double?[] { 40456, null, 1234, 125, 5, null }, values);
 
         // Idempotent: nothing left to change.
-        var again = await Json(await admin.PostAsync("/api/admin/maintenance/reparse-scores?dryRun=true", null));
+        var again = await ReadSuccessJsonAsync(await admin.PostAsync("/api/admin/maintenance/reparse-scores?dryRun=true", null));
         Assert.Equal(0, again.GetProperty("changed").GetInt32());
     }
 
@@ -330,7 +310,7 @@ public class SubmissionMaintenanceTests
 
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
         Assert.Contains("invalid file type", await res.Content.ReadAsStringAsync());
-        Assert.False(await QueryAsync(f, db => db.Submissions.AnyAsync()));
+        Assert.False(await f.QueryDbAsync(db => db.Submissions.AnyAsync()));
         Assert.Equal(0, await TotalXpAsync(f, alice.Id));
     }
 
@@ -340,11 +320,11 @@ public class SubmissionMaintenanceTests
         using var f = new FixedClockApiFactory();
         var (gameId, alice, _) = await SeedGameAndUsersAsync(f);
 
-        var created = await Json(await f.CreateAuthenticatedClient(alice.Id, alice.Username)
+        var created = await ReadSuccessJsonAsync(await f.CreateAuthenticatedClient(alice.Id, alice.Username)
             .PostAsync("/api/submissions", SubmissionForm(gameId, "5", Png, "image/jpeg")));
         var id = created.GetProperty("submission").GetProperty("id").GetInt32();
 
-        Assert.Equal("image/png", await QueryAsync(f, db => db.Submissions.Where(s => s.Id == id).Select(s => s.ScreenshotContentType).SingleAsync()));
+        Assert.Equal("image/png", await f.QueryDbAsync(db => db.Submissions.Where(s => s.Id == id).Select(s => s.ScreenshotContentType).SingleAsync()));
 
         var url = created.GetProperty("submission").GetProperty("screenshotUrl").GetString()!;
         var img = await f.CreateClient().GetAsync(url.StartsWith('/') ? url : "/" + url);
@@ -362,8 +342,8 @@ public class SubmissionMaintenanceTests
         var image = new ByteArrayContent(Png);
         image.Headers.ContentType = new MediaTypeHeaderValue("image/webp");
         form.Add(image, "image", "x.webp");
-        var id = (await Json(await admin.PostAsync("/api/games", form))).GetProperty("id").GetInt32();
-        Assert.Equal("image/png", await QueryAsync(f, db => db.Games.Where(g => g.Id == id).Select(g => g.ScreenshotContentType).SingleAsync()));
+        var id = (await ReadSuccessJsonAsync(await admin.PostAsync("/api/games", form))).GetProperty("id").GetInt32();
+        Assert.Equal("image/png", await f.QueryDbAsync(db => db.Games.Where(g => g.Id == id).Select(g => g.ScreenshotContentType).SingleAsync()));
 
         var bad = new MultipartFormDataContent { { new StringContent("Fake"), "name" } };
         var text = new ByteArrayContent("<svg></svg>"u8.ToArray());
@@ -392,22 +372,22 @@ public class SubmissionMaintenanceTests
         });
         using (var scope = f.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(game.Id, Yesterday);
-        Assert.True(await f.QueryAsync(db => db.ScoringDayResults.AnyAsync()));
+        Assert.True(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync()));
 
         // The re-finalization after the delete throws; the delete itself is committed and reported as success.
         f.FailFinalization = true;
         var admin = f.CreateAuthenticatedClient(99_000, "maint-admin", isAdmin: true);
         Assert.Equal(HttpStatusCode.NoContent, (await admin.DeleteAsync($"/api/submissions/{winningId}")).StatusCode);
 
-        Assert.False(await f.QueryAsync(db => db.Submissions.AnyAsync(s => s.Id == winningId)));
-        Assert.False(await f.QueryAsync(db => db.ScoringDayResults.AnyAsync()));
-        Assert.False(await f.QueryAsync(db => db.XpEvents.AnyAsync(e => e.EventType == "day_win")));
+        Assert.False(await f.QueryDbAsync(db => db.Submissions.AnyAsync(s => s.Id == winningId)));
+        Assert.False(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync()));
+        Assert.False(await f.QueryDbAsync(db => db.XpEvents.AnyAsync(e => e.EventType == "day_win")));
 
         // The next background tick finalizes the day again, now with Bob as the winner.
         f.FailFinalization = false;
         await new ScoringDayBackgroundService(f.Services.GetRequiredService<IServiceScopeFactory>(), NullLogger<ScoringDayBackgroundService>.Instance, f.Clock)
             .ProcessAllGamesAsync();
-        Assert.Equal(bob.Id, await f.QueryAsync(db => db.ScoringDayResults.Select(r => r.WinnerUserId).SingleAsync()));
+        Assert.Equal(bob.Id, await f.QueryDbAsync(db => db.ScoringDayResults.Select(r => r.WinnerUserId).SingleAsync()));
     }
 
     // ── Admin unfiltered list ────────────────────────────────────────────────
@@ -422,7 +402,7 @@ public class SubmissionMaintenanceTests
         await f.WithDbAsync(db => db.Games.Where(g => g.Id == gameId)
             .ExecuteUpdateAsync(s => s.SetProperty(g => g.ResetTime, TimeSpan.FromHours(10))));
 
-        var list = await Json(await Admin(f).GetAsync($"/api/submissions/game/{gameId}/unfiltered"));
+        var list = await ReadSuccessJsonAsync(await Admin(f).GetAsync($"/api/submissions/game/{gameId}/unfiltered"));
 
         var item = Assert.Single(list.EnumerateArray().ToList());
         Assert.Equal(Yesterday.ToString("yyyy-MM-dd"), item.GetProperty("scoringDay").GetString());
@@ -444,13 +424,6 @@ public sealed class RefinalizeFailureApiFactory : ApiFactory
         services.AddScoped<IScoringDayFinalizerService>(sp => FailFinalization
             ? new ThrowingFinalizer()
             : ActivatorUtilities.CreateInstance<ScoringDayFinalizerService>(sp));
-    }
-
-    public async Task<T> QueryAsync<T>(Func<AppDbContext, Task<T>> query)
-    {
-        T result = default!;
-        await WithDbAsync(async db => result = await query(db));
-        return result;
     }
 
     private sealed class ThrowingFinalizer : IScoringDayFinalizerService

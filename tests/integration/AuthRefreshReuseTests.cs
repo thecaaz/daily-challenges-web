@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Services;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.IntegrationTests;
@@ -19,42 +19,27 @@ public class AuthRefreshReuseTests
     private static readonly TimeSpan JustInside = RefreshTokenRevocations.ReuseGracePeriod - TimeSpan.FromSeconds(1);
     private static readonly TimeSpan JustOutside = RefreshTokenRevocations.ReuseGracePeriod + TimeSpan.FromSeconds(1);
 
-    private static HttpClient Client(FixedClockApiFactory f) =>
-        f.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
-
-    private static string? RefreshCookie(HttpResponseMessage res)
-    {
-        if (!res.Headers.TryGetValues("Set-Cookie", out var cookies)) return null;
-        foreach (var c in cookies)
-        {
-            if (!c.StartsWith("refresh_token=", StringComparison.Ordinal)) continue;
-            var value = c["refresh_token=".Length..].Split(';')[0];
-            return string.IsNullOrEmpty(value) ? null : value;
-        }
-        return null;
-    }
-
     private static async Task<(string Refresh, int UserId)> RegisterAndLoginAsync(FixedClockApiFactory f, string username)
     {
-        Assert.Equal(HttpStatusCode.OK, (await Client(f).PostAsJsonAsync("/api/auth/register", new { username, password = Password })).StatusCode);
-        var res = await Client(f).PostAsJsonAsync("/api/auth/login", new { username, password = Password });
+        Assert.Equal(HttpStatusCode.OK, (await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/register", new { username, password = Password })).StatusCode);
+        var res = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username, password = Password });
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        return (RefreshCookie(res)!, doc.RootElement.GetProperty("user").GetProperty("id").GetInt32());
+        return (RefreshCookie.ValueFrom(res)!, doc.RootElement.GetProperty("user").GetProperty("id").GetInt32());
     }
 
     private static Task<HttpResponseMessage> RefreshAsync(FixedClockApiFactory f, string refreshToken)
     {
         var req = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
         req.Headers.Add("Cookie", $"refresh_token={refreshToken}");
-        return Client(f).SendAsync(req);
+        return f.CreateCookielessClient().SendAsync(req);
     }
 
     private static async Task<string> RotateAsync(FixedClockApiFactory f, string refreshToken)
     {
         var res = await RefreshAsync(f, refreshToken);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        return RefreshCookie(res)!;
+        return RefreshCookie.ValueFrom(res)!;
     }
 
     private static async Task<int> TokenVersionAsync(FixedClockApiFactory f, int userId)
@@ -85,8 +70,8 @@ public class AuthRefreshReuseTests
         var (first, userId) = await RegisterAndLoginAsync(f, "theft-user");
         var second = await RotateAsync(f, first);
         // Another device of the same user.
-        var otherDeviceRes = await Client(f).PostAsJsonAsync("/api/auth/login", new { username = "theft-user", password = Password });
-        var otherDevice = RefreshCookie(otherDeviceRes)!;
+        var otherDeviceRes = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username = "theft-user", password = Password });
+        var otherDevice = RefreshCookie.ValueFrom(otherDeviceRes)!;
 
         f.Clock.Advance(JustOutside);
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(f, first)).StatusCode);
@@ -96,9 +81,9 @@ public class AuthRefreshReuseTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(f, otherDevice)).StatusCode);
 
         // Logging in again works.
-        var relogin = await Client(f).PostAsJsonAsync("/api/auth/login", new { username = "theft-user", password = Password });
+        var relogin = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username = "theft-user", password = Password });
         Assert.Equal(HttpStatusCode.OK, relogin.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(f, RefreshCookie(relogin)!)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(f, RefreshCookie.ValueFrom(relogin)!)).StatusCode);
     }
 
     [Fact]
@@ -106,12 +91,12 @@ public class AuthRefreshReuseTests
     {
         using var f = new FixedClockApiFactory();
         var (sessionA, userId) = await RegisterAndLoginAsync(f, "logout-replay-user");
-        var sessionBRes = await Client(f).PostAsJsonAsync("/api/auth/login", new { username = "logout-replay-user", password = Password });
-        var sessionB = RefreshCookie(sessionBRes)!;
+        var sessionBRes = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username = "logout-replay-user", password = Password });
+        var sessionB = RefreshCookie.ValueFrom(sessionBRes)!;
 
         var logout = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
         logout.Headers.Add("Cookie", $"refresh_token={sessionA}");
-        Assert.Equal(HttpStatusCode.OK, (await Client(f).SendAsync(logout)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await f.CreateCookielessClient().SendAsync(logout)).StatusCode);
         var row = await QueryRevokedAsync(f);
         Assert.Equal(RevokedRefreshTokenReason.Logout, row.Reason);
         Assert.Equal(FixedClockApiFactory.Now, row.RevokedAt);
