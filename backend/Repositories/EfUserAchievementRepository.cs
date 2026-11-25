@@ -3,38 +3,37 @@ using DailyChallenges.Models;
 using DailyChallenges.Repositories.Contracts;
 using Microsoft.EntityFrameworkCore;
 
-namespace DailyChallenges.Repositories
+namespace DailyChallenges.Repositories;
+
+public class EfUserAchievementRepository : IUserAchievementRepository
 {
-    public class EfUserAchievementRepository : IUserAchievementRepository
+    private readonly AppDbContext _db;
+    public EfUserAchievementRepository(AppDbContext db) => _db = db;
+
+    public async Task<List<string>> GetUnlockedIdsAsync(int userId) =>
+        await _db.UserAchievements
+            .Where(ua => ua.UserId == userId)
+            .Select(ua => ua.AchievementId)
+            .ToListAsync();
+
+    public async Task<Dictionary<string, DateTime>> GetUnlockedWithTimestampsAsync(int userId) =>
+        await _db.UserAchievements
+            .Where(ua => ua.UserId == userId)
+            .ToDictionaryAsync(ua => ua.AchievementId, ua => ua.UnlockedAt);
+
+    public async Task AddBatchAsync(List<UserAchievement> achievements)
     {
-        private readonly AppDbContext _db;
-        public EfUserAchievementRepository(AppDbContext db) => _db = db;
-
-        public async Task<List<string>> GetUnlockedIdsAsync(int userId) =>
-            await _db.UserAchievements
-                .Where(ua => ua.UserId == userId)
-                .Select(ua => ua.AchievementId)
-                .ToListAsync();
-
-        public async Task<Dictionary<string, DateTime>> GetUnlockedWithTimestampsAsync(int userId) =>
-            await _db.UserAchievements
-                .Where(ua => ua.UserId == userId)
-                .ToDictionaryAsync(ua => ua.AchievementId, ua => ua.UnlockedAt);
-
-        public async Task AddBatchAsync(List<UserAchievement> achievements)
+        if (achievements.Count == 0) return;
+        _db.UserAchievements.AddRange(achievements);
+        try
         {
-            if (achievements.Count == 0) return;
-            _db.UserAchievements.AddRange(achievements);
-            try
-            {
-                await _db.SaveChangesAsync();
-            }
-            catch
-            {
-                // Detach the failed inserts, or every later SaveChanges in this scope retries (and fails on) them.
-                foreach (var a in achievements) _db.Entry(a).State = EntityState.Detached;
-                throw;
-            }
+            await _db.SaveChangesAsync();
+        }
+        catch
+        {
+            // Detach the failed inserts, or every later SaveChanges in this scope retries (and fails on) them.
+            foreach (var a in achievements) _db.Entry(a).State = EntityState.Detached;
+            throw;
         }
     }
 }

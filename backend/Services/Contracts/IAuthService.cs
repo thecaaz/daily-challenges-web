@@ -1,14 +1,13 @@
 using System.Security.Claims;
 using DailyChallenges.DTOs;
 
-namespace DailyChallenges.Services
+namespace DailyChallenges.Services;
+
+public interface IAuthService
 {
-    public interface IAuthService
-    {
-        Task<UserDto> RegisterAsync(string username, string password);
-        Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response);
-        Task<AuthResultDto?> RefreshAsync(HttpRequest request, HttpResponse response);
-        Task LogoutAsync(HttpRequest request, HttpResponse response);
-        Task<UserDto?> GetCurrentUserAsync(ClaimsPrincipal user);
-    }
+    Task<UserDto> RegisterAsync(string username, string password);
+    Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response);
+    Task<AuthResultDto?> RefreshAsync(HttpRequest request, HttpResponse response);
+    Task LogoutAsync(HttpRequest request, HttpResponse response);
+    Task<UserDto?> GetCurrentUserAsync(ClaimsPrincipal user);
 }
