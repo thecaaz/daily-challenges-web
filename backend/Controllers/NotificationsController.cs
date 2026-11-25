@@ -2,70 +2,69 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DailyChallenges.Services;
 
-namespace DailyChallenges.Controllers
+namespace DailyChallenges.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class NotificationsController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Authorize]
-    public class NotificationsController : ControllerBase
+    private readonly INotificationService _notificationService;
+
+    public NotificationsController(INotificationService notificationService)
     {
-        private readonly INotificationService _notificationService;
+        _notificationService = notificationService;
+    }
 
-        public NotificationsController(INotificationService notificationService)
-        {
-            _notificationService = notificationService;
-        }
+    [HttpGet]
+    public async Task<IActionResult> GetNotifications([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
 
-        [HttpGet]
-        public async Task<IActionResult> GetNotifications([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
+        (page, pageSize) = Paging.Clamp(page, pageSize);
+        var dto = await _notificationService.GetNotificationsAsync(userId.Value, page, pageSize);
+        return Ok(dto);
+    }
 
-            (page, pageSize) = Paging.Clamp(page, pageSize);
-            var dto = await _notificationService.GetNotificationsAsync(userId.Value, page, pageSize);
-            return Ok(dto);
-        }
+    [HttpGet("unread-count")]
+    public async Task<IActionResult> GetUnreadCount()
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
 
-        [HttpGet("unread-count")]
-        public async Task<IActionResult> GetUnreadCount()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
+        var count = await _notificationService.GetUnreadCountAsync(userId.Value);
+        return Ok(new { unreadCount = count });
+    }
 
-            var count = await _notificationService.GetUnreadCountAsync(userId.Value);
-            return Ok(new { unreadCount = count });
-        }
+    [HttpPost("{id}/read")]
+    public async Task<IActionResult> MarkRead(int id)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
 
-        [HttpPost("{id}/read")]
-        public async Task<IActionResult> MarkRead(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
+        await _notificationService.MarkReadAsync(id, userId.Value);
+        return NoContent();
+    }
 
-            await _notificationService.MarkReadAsync(id, userId.Value);
-            return NoContent();
-        }
+    [HttpPost("read-all")]
+    public async Task<IActionResult> MarkAllRead()
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
 
-        [HttpPost("read-all")]
-        public async Task<IActionResult> MarkAllRead()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
+        await _notificationService.MarkAllReadAsync(userId.Value);
+        return NoContent();
+    }
 
-            await _notificationService.MarkAllReadAsync(userId.Value);
-            return NoContent();
-        }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var userId = User.GetUserId();
+        if (!userId.HasValue) return Forbid();
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-
-            // Missing or someone else's notification -> NotFoundException (404) via the middleware.
-            await _notificationService.DeleteAsync(id, userId.Value, User.IsInRole("Admin"));
-            return NoContent();
-        }
+        // Missing or someone else's notification -> NotFoundException (404) via the middleware.
+        await _notificationService.DeleteAsync(id, userId.Value, User.IsInRole("Admin"));
+        return NoContent();
     }
 }
