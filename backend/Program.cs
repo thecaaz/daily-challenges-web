@@ -136,6 +136,8 @@ builder.Services.AddScoped<DailyChallenges.Services.Contracts.IAchievementServic
 
 // Scoring day finalization
 builder.Services.AddScoped<DailyChallenges.Services.IScoringDayFinalizerService, DailyChallenges.Services.ScoringDayFinalizerService>();
+builder.Services.AddScoped<DailyChallenges.Services.ScoringDayOutcomeRecorder>();
+builder.Services.AddScoped<DailyChallenges.Services.ScoringDayNotificationFactory>();
 builder.Services.AddHostedService<DailyChallenges.Services.ScoringDayBackgroundService>();
 
 // JWT Authentication: bind typed options. The key guard lives in JwtOptionsValidator.
