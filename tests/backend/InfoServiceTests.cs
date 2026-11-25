@@ -1,5 +1,6 @@
 using System.Net;
 using DailyChallenges.Services;
+using DailyChallenges.Services.Contracts;
 using DailyChallenges.TestUtilities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -94,6 +95,46 @@ public class InfoServiceTests
         handler.Ok("v2");
         Assert.Equal("v2", await svc.FetchChangelogAsync());
         Assert.Equal(4, handler.Calls);
+    }
+
+    private static async Task<ReleaseInfo?> ReadReleaseInfoAsync(string? fileContent)
+    {
+        var root = Directory.CreateTempSubdirectory("release-info-tests").FullName;
+        try
+        {
+            if (fileContent != null) await File.WriteAllTextAsync(Path.Combine(root, "release-info.json"), fileContent);
+            var env = Mock.Of<IWebHostEnvironment>(e => e.ContentRootPath == root);
+            var service = new InfoService(env, new FakeFactory(new FakeHandler()), NullLogger<InfoService>.Instance, new FixedTimeProvider(Start));
+            return await service.ReadReleaseInfoAsync();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Release_info_is_null_without_the_file()
+    {
+        Assert.Null(await ReadReleaseInfoAsync(null));
+    }
+
+    [Fact]
+    public async Task Release_info_is_null_when_the_file_is_not_json()
+    {
+        Assert.Null(await ReadReleaseInfoAsync("not json"));
+    }
+
+    [Fact]
+    public async Task Release_info_is_read_case_insensitively()
+    {
+        var info = await ReadReleaseInfoAsync("""{"VERSION":"1.2.3","rawVersion":"v1.2.3","Commit":"abc","timestamp":"t"}""");
+
+        Assert.NotNull(info);
+        Assert.Equal("1.2.3", info.Version);
+        Assert.Equal("v1.2.3", info.RawVersion);
+        Assert.Equal("abc", info.Commit);
+        Assert.Equal("t", info.Timestamp);
     }
 
     [Fact]
