@@ -1,7 +1,6 @@
-namespace DailyChallenges.Services
+namespace DailyChallenges.Services;
+
+public interface IFileStorage
 {
-    public interface IFileStorage
-    {
-        Task<(byte[]? Data, string? ContentType)> ReadFileAsync(IFormFile? file);
-    }
+    Task<(byte[]? Data, string? ContentType)> ReadFileAsync(IFormFile? file);
 }

@@ -1,28 +1,27 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DailyChallenges.Models
+namespace DailyChallenges.Models;
+
+public enum LeagueRole
 {
-    public enum LeagueRole
-    {
-        Member,
-        Owner
-    }
+    Member,
+    Owner
+}
 
-    public class LeagueMember
-    {
-        [Key]
-        public int Id { get; set; }
+public class LeagueMember
+{
+    [Key]
+    public int Id { get; set; }
 
-        [Required]
-        public int LeagueId { get; set; }
-        public League? League { get; set; }
+    [Required]
+    public int LeagueId { get; set; }
+    public League? League { get; set; }
 
-        [Required]
-        public int UserId { get; set; }
-        public User? User { get; set; }
+    [Required]
+    public int UserId { get; set; }
+    public User? User { get; set; }
 
-        public LeagueRole Role { get; set; } = LeagueRole.Member;
+    public LeagueRole Role { get; set; } = LeagueRole.Member;
 
-        public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
-    }
+    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 }

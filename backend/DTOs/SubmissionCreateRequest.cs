@@ -1,21 +1,20 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 
-namespace DailyChallenges.DTOs
+namespace DailyChallenges.DTOs;
+
+public class SubmissionCreateRequest
 {
-    public class SubmissionCreateRequest
-    {
-        [Required]
-        public int GameId { get; set; }
+    [Required]
+    public int GameId { get; set; }
 
-        [Required]
-        [StringLength(200)]
-        public string Score { get; set; } = string.Empty;
+    [Required]
+    [StringLength(200)]
+    public string Score { get; set; } = string.Empty;
 
-        [StringLength(100)]
-        public string? Username { get; set; }
+    [StringLength(100)]
+    public string? Username { get; set; }
 
-        [Required]
-        public IFormFile? Screenshot { get; set; }
-    }
+    [Required]
+    public IFormFile? Screenshot { get; set; }
 }
