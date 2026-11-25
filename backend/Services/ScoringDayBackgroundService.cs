@@ -1,6 +1,5 @@
-using DailyChallenges.Data;
 using DailyChallenges.Repositories;
-using Microsoft.EntityFrameworkCore;
+using DailyChallenges.Repositories.Contracts;
 
 namespace DailyChallenges.Services;
 
@@ -65,9 +64,8 @@ public sealed class ScoringDayBackgroundService(
     public async Task<int> PurgeExpiredRevokedTokensAsync(CancellationToken ct = default)
     {
         using var scope = scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var now = time.GetUtcNow().UtcDateTime;
-        var purged = await db.RevokedRefreshTokens.Where(t => t.ExpiresAt < now).ExecuteDeleteAsync(ct);
+        var sessions = scope.ServiceProvider.GetRequiredService<ISessionRepository>();
+        var purged = await sessions.DeleteExpiredRevocationsAsync(time.GetUtcNow().UtcDateTime, ct);
         if (purged > 0)
             logger.LogInformation("Purged {Count} expired revoked refresh tokens", purged);
         return purged;
