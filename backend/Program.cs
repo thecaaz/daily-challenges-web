@@ -106,7 +106,10 @@ builder.Services.AddScoped<DailyChallenges.Repositories.Contracts.IUserDeletionR
 builder.Services.AddScoped<DailyChallenges.Services.IAuthService, DailyChallenges.Services.AuthService>();
 builder.Services.AddScoped<DailyChallenges.Services.IFileStorage, DailyChallenges.Services.LocalFileStorage>();
 builder.Services.AddSingleton<DailyChallenges.Services.IFileValidator, DailyChallenges.Services.FileValidator>();
-builder.Services.AddScoped<DailyChallenges.Services.IGameService, DailyChallenges.Services.GameService>();
+builder.Services.AddScoped<DailyChallenges.Services.IGameQueryService, DailyChallenges.Services.GameQueryService>();
+builder.Services.AddScoped<DailyChallenges.Services.IGameCommandService, DailyChallenges.Services.GameCommandService>();
+builder.Services.AddScoped<DailyChallenges.Services.IGameHighscoreService, DailyChallenges.Services.GameHighscoreService>();
+builder.Services.AddScoped<DailyChallenges.Services.GameScoringDayRederiver>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionQueryService, DailyChallenges.Services.SubmissionQueryService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionCreationService, DailyChallenges.Services.SubmissionCreationService>();
 builder.Services.AddScoped<DailyChallenges.Services.ISubmissionScoreEditService, DailyChallenges.Services.SubmissionScoreEditService>();

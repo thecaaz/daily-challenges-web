@@ -3,6 +3,7 @@ using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services;
 using DailyChallenges.TestUtilities;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace DailyChallenges.Tests;
@@ -20,17 +21,13 @@ public class GameOverviewTests
         _games.Setup(r => r.GetByIdWithoutBlobAsync(GameId)).ReturnsAsync(new Game { Id = GameId, Name = "overview" });
     }
 
-    private GameService Build() => new(
+    private GameQueryService Build() => new(
         _games.Object,
-        Mock.Of<IFileStorage>(),
         Mock.Of<ISubmissionRepository>(),
         _submissionQueries.Object,
         _favorites.Object,
         new FixedTimeProvider(new DateTime(2026, 6, 15, 10, 0, 0, DateTimeKind.Utc)),
-        Mock.Of<IScoreVisibilityService>(),
-        Mock.Of<IScreenshotUrlSigner>(),
-        null!,
-        Mock.Of<IScoringDayResultRepository>());
+        NullLogger<GameQueryService>.Instance);
 
     [Fact]
     public async Task GetOverviewAsync_PartsFail_ReportsEachFailedPartAndFallsBack()

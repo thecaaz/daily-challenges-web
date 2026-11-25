@@ -308,6 +308,24 @@ public class EfSubmissionRepository : ISubmissionRepository
     public Task<int> SetScoreValueAsync(int id, double? scoreValue) =>
         _db.Submissions.Where(s => s.Id == id).ExecuteUpdateAsync(u => u.SetProperty(s => s.ScoreValue, scoreValue));
 
+    public async Task<List<(int Id, int? UserId, DateTime CreatedAt, DateTime ScoringDay)>> GetScoringDayRowsAsync(int gameId, DateTime? afterScoringDay)
+    {
+        var query = _db.Submissions.Where(s => s.GameId == gameId);
+        if (afterScoringDay.HasValue)
+        {
+            var after = afterScoringDay.Value;
+            query = query.Where(s => s.ScoringDay > after);
+        }
+        var rows = await query
+            .Select(s => new { s.Id, s.UserId, s.CreatedAt, s.ScoringDay })
+            .ToListAsync();
+        return rows.Select(r => (r.Id, r.UserId, r.CreatedAt, r.ScoringDay)).ToList();
+    }
+
+    public Task SetScoringDayAsync(int id, DateTime scoringDay) =>
+        _db.Submissions.Where(s => s.Id == id)
+            .ExecuteUpdateAsync(set => set.SetProperty(s => s.ScoringDay, scoringDay));
+
     public Task<int> CountByUserAsync(int userId) =>
         _db.Submissions.CountAsync(s => s.UserId == userId);
 }
