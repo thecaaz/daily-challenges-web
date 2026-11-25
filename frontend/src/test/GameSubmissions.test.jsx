@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom'
 
 const mockAuth = { user: { id: 5, username: 'me' }, loading: false }
 vi.mock('../contexts/AuthContext', () => ({
@@ -60,9 +60,28 @@ function renderAt(path) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/games/:gameId" element={<GameSubmissions />} />
+        <Route path="/compare/:a/:b" element={<CompareTarget />} />
       </Routes>
     </MemoryRouter>
   )
+}
+
+function CompareTarget() {
+  const { a, b } = useParams()
+  return <div>Comparing {a} and {b}</div>
+}
+
+const overview = (hasSubmittedForLatest = true) => ({
+  data: { game: { id: 1, name: 'Wordle', currentScoringDay: TODAY }, availableDates: [YESTERDAY, TODAY], hasSubmittedForLatest },
+})
+
+function setupList(listResponse) {
+  mockGet.mockImplementation((url) => {
+    if (url.startsWith('/games/1/overview')) return Promise.resolve(overview())
+    if (url.includes('today-submitters')) return Promise.resolve({ data: { count: 0, usernames: [] } })
+    if (url.startsWith('/submissions/game/1')) return listResponse()
+    return Promise.reject(new Error(`unexpected GET ${url}`))
+  })
 }
 
 const listCalls = () => mockGet.mock.calls.map(c => c[0]).filter(u => u.startsWith('/submissions/game/1?'))
@@ -153,6 +172,130 @@ describe('GameSubmissions hidden scores', () => {
     expect(screen.getByText('Hidden')).toBeInTheDocument()
     expect(screen.queryByAltText('screenshot')).not.toBeInTheDocument()
     expect(screen.queryByText(/^#/)).not.toBeInTheDocument()
+  })
+})
+
+describe('GameSubmissions page states', () => {
+  beforeEach(() => {
+    mockGet.mockReset()
+    mockAuth.user = { id: 5, username: 'me' }
+  })
+
+  it('offers a retry when the game fails to load', async () => {
+    mockGet.mockRejectedValueOnce(new Error('boom'))
+    setup({ hasSubmittedForLatest: true })
+    renderAt('/games/1')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
+    await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument())
+  })
+
+  it('shows not found when the game does not exist', async () => {
+    mockGet.mockRejectedValue({ response: { status: 404 } })
+    renderAt('/games/1')
+
+    expect(await screen.findByText('Game not found')).toBeInTheDocument()
+  })
+
+  it('shows not found when the submissions list returns 404', async () => {
+    setupList(() => Promise.reject({ response: { status: 404 } }))
+    renderAt('/games/1')
+
+    expect(await screen.findByText('Game not found')).toBeInTheDocument()
+  })
+
+  it('offers a retry when the submissions fail to load', async () => {
+    let failing = true
+    setupList(() => failing
+      ? Promise.reject(new Error('boom'))
+      : Promise.resolve({ data: { items: [{ id: 11, username: 'alice', userId: 2, score: '42', rank: 1 }], page: 1, totalPages: 1 } }))
+    renderAt('/games/1')
+
+    expect(await screen.findByText('Failed to load submissions.')).toBeInTheDocument()
+    failing = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument())
+    expect(screen.queryByText('Failed to load submissions.')).not.toBeInTheDocument()
+  })
+
+  it('says so when a day has no submissions', async () => {
+    setupList(() => Promise.resolve({ data: { items: [], page: 1, totalPages: 1 } }))
+    renderAt('/games/1')
+
+    await waitFor(() => expect(listCalls()).toHaveLength(1))
+    await waitFor(() => expect(screen.getByText('No submissions for this day yet.')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
+  })
+
+  it('disables submitting once the user has submitted for today', async () => {
+    setup({ hasSubmittedForLatest: true })
+    renderAt('/games/1')
+
+    await screen.findByText('alice')
+
+    expect(screen.getByLabelText('Already submitted today')).toHaveTextContent('Submitted')
+    expect(screen.queryByRole('link', { name: 'Submit score' })).not.toBeInTheDocument()
+  })
+
+  it('links to the submit page for a past day, keeping the query string', async () => {
+    setup({ hasSubmittedForLatest: true })
+    renderAt(`/games/1?scoringDay=${YESTERDAY}`)
+
+    await screen.findByText('alice')
+
+    expect(screen.getByRole('link', { name: 'Submit score' })).toHaveAttribute('href', `/submit/1?scoringDay=${YESTERDAY}`)
+  })
+
+  it('compares two selected submissions', async () => {
+    const shot = (id, username) => ({ id, username, userId: id, score: String(id), rank: 1, screenshotUrl: `/s/${id}.png`, createdAt: '2026-11-03T10:00:00Z' })
+    setupList(() => Promise.resolve({ data: { items: [shot(11, 'alice'), shot(12, 'bob'), shot(13, 'carol')], page: 1, totalPages: 1 } }))
+    renderAt('/games/1')
+    await screen.findByText('alice')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compare' }))
+    const checkboxes = screen.getAllByRole('checkbox')
+    fireEvent.click(checkboxes[0])
+    fireEvent.click(checkboxes[1])
+    fireEvent.click(checkboxes[2])
+    fireEvent.click(screen.getByLabelText('Compare selected submissions'))
+
+    expect(await screen.findByText('Comparing 12 and 13')).toBeInTheDocument()
+  })
+
+  it('leaves compare mode and clears the selection on cancel', async () => {
+    const shot = (id, username) => ({ id, username, userId: id, score: String(id), rank: 1, screenshotUrl: `/s/${id}.png`, createdAt: '2026-11-03T10:00:00Z' })
+    setupList(() => Promise.resolve({ data: { items: [shot(11, 'alice'), shot(12, 'bob')], page: 1, totalPages: 1 } }))
+    renderAt('/games/1')
+    await screen.findByText('alice')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compare' }))
+    screen.getAllByRole('checkbox').forEach(box => fireEvent.click(box))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel Compare' }))
+
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Compare selected submissions')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Compare' }))
+    expect(screen.getAllByRole('checkbox').every(box => !box.checked)).toBe(true)
+  })
+
+  it('does not offer compare with fewer than two screenshots', async () => {
+    setup({ hasSubmittedForLatest: true })
+    renderAt('/games/1')
+
+    await screen.findByText('alice')
+
+    expect(screen.queryByRole('button', { name: 'Compare' })).not.toBeInTheDocument()
+  })
+
+  it("shows the hidden-scores card on 'all days' for a non-submitter", async () => {
+    setup({ hasSubmittedForLatest: false })
+    renderAt('/games/1?scoringDay=all')
+
+    await screen.findByText('alice')
+
+    expect(screen.getByText(/scores are hidden/i)).toBeInTheDocument()
   })
 })
 
