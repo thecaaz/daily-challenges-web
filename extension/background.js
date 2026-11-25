@@ -8,10 +8,42 @@
 
 const { isAppOrigin, originOf } = globalThis.ScoreBridgeOrigins
 
+const CAPTURE_TAB = 'CAPTURE_TAB'
+const TOP_FRAME_ID = 0
+const IMAGE_FORMAT = 'png'
+const MIN_RECT_SIDE = 1
 // Upper bound for one capture side, in CSS pixels. Larger rects are refused
 // rather than rendered (drawSnapshot allocates the whole bitmap).
 const MAX_RECT_SIDE = 8192
 
+const CaptureError = Object.freeze({
+  NO_SENDER_TAB: 'no sender tab',
+  NOT_TOP_FRAME: 'capture must be requested by the top frame',
+  TAB_NOT_ACTIVE: 'tab is not active',
+  ORIGIN_NOT_ALLOWED: 'origin not allowed',
+  NO_DATA: 'no data',
+})
+
+browser.runtime.onMessage.addListener((msg, sender) => {
+  if (!msg || msg.type !== CAPTURE_TAB) return undefined
+
+  const refusal = refusalFor(sender)
+  if (refusal) return Promise.resolve({ ok: false, error: refusal })
+
+  return capture(sender.tab, sanitizeRect(msg.rect)).then(captureResult, captureFailure)
+})
+
+/** Why `sender` may not capture, or null when it may. */
+function refusalFor(sender) {
+  const tab = sender && sender.tab
+  if (!tab || typeof tab.id !== 'number') return CaptureError.NO_SENDER_TAB
+  if (sender.frameId !== TOP_FRAME_ID) return CaptureError.NOT_TOP_FRAME
+  if (!tab.active) return CaptureError.TAB_NOT_ACTIVE
+  if (!isAppOrigin(originOf(tab.url)) || !isAppOrigin(originOf(sender.url))) return CaptureError.ORIGIN_NOT_ALLOWED
+  return null
+}
+
+/** The rect rounded to whole pixels inside the page, or null when it is unusable. */
 function sanitizeRect(rect) {
   if (!rect || typeof rect !== 'object') return null
   const x = Number(rect.x)
@@ -19,7 +51,7 @@ function sanitizeRect(rect) {
   const width = Number(rect.width)
   const height = Number(rect.height)
   if (![x, y, width, height].every(Number.isFinite)) return null
-  if (width < 1 || height < 1 || width > MAX_RECT_SIDE || height > MAX_RECT_SIDE) return null
+  if (!isCapturableSide(width) || !isCapturableSide(height)) return null
   return {
     x: Math.max(0, Math.round(x)),
     y: Math.max(0, Math.round(y)),
@@ -28,40 +60,39 @@ function sanitizeRect(rect) {
   }
 }
 
-function refuse(error) {
-  return Promise.resolve({ ok: false, error })
+function isCapturableSide(length) {
+  return length >= MIN_RECT_SIDE && length <= MAX_RECT_SIDE
 }
 
-async function capture(sender, rect) {
-  const tab = sender.tab
-  const tabs = browser.tabs
-  if (typeof tabs.captureTab === 'function') {
-    // Firefox 59+; `rect` is honoured from Firefox 82. Without a rect it
-    // captures the tab's visible viewport.
-    const options = rect ? { format: 'png', rect } : { format: 'png' }
-    const dataUrl = await tabs.captureTab(tab.id, options)
-    return { dataUrl, cropped: !!rect }
-  }
-  // Fallback for very old Firefox: the requesting tab was verified active
-  // above, so the visible tab of its window is the requesting tab.
-  const dataUrl = await tabs.captureVisibleTab(tab.windowId, { format: 'png' })
+async function capture(tab, rect) {
+  return typeof browser.tabs.captureTab === 'function'
+    ? captureTabArea(tab, rect)
+    : captureVisibleTabOfWindow(tab)
+}
+
+/**
+ * tabs.captureTab needs Firefox 59+ and honours `rect` from Firefox 82.
+ * Without a rect it captures the tab's visible viewport.
+ */
+async function captureTabArea(tab, rect) {
+  const options = rect ? { format: IMAGE_FORMAT, rect } : { format: IMAGE_FORMAT }
+  const dataUrl = await browser.tabs.captureTab(tab.id, options)
+  return { dataUrl, cropped: !!rect }
+}
+
+/**
+ * Fallback for very old Firefox: the requesting tab was verified active, so
+ * the visible tab of its window is the requesting tab.
+ */
+async function captureVisibleTabOfWindow(tab) {
+  const dataUrl = await browser.tabs.captureVisibleTab(tab.windowId, { format: IMAGE_FORMAT })
   return { dataUrl, cropped: false }
 }
 
-browser.runtime.onMessage.addListener((msg, sender) => {
-  if (!msg || msg.type !== 'CAPTURE_TAB') return undefined
+function captureResult({ dataUrl, cropped }) {
+  return dataUrl ? { ok: true, dataUrl, cropped } : { ok: false, error: CaptureError.NO_DATA }
+}
 
-  const tab = sender && sender.tab
-  if (!tab || typeof tab.id !== 'number') return refuse('no sender tab')
-  if (sender.frameId !== 0) return refuse('capture must be requested by the top frame')
-  if (!tab.active) return refuse('tab is not active')
-  if (!isAppOrigin(originOf(tab.url)) || !isAppOrigin(originOf(sender.url))) {
-    return refuse('origin not allowed')
-  }
-
-  const rect = sanitizeRect(msg.rect)
-  return capture(sender, rect).then(
-    ({ dataUrl, cropped }) => (dataUrl ? { ok: true, dataUrl, cropped } : { ok: false, error: 'no data' }),
-    err => ({ ok: false, error: String((err && err.message) || err) })
-  )
-})
+function captureFailure(err) {
+  return { ok: false, error: String((err && err.message) || err) }
+}

@@ -13,7 +13,9 @@
  * - subscribeAdapters(listener) is called whenever the answer changes (e.g.
  *   the extension showed up), so hooks can look their adapter up again.
  */
-import { MessageType, makeNonce, isFromContentScript, postToContentScript } from './scoreBridge'
+import { MessageType } from './scoreBridge'
+import { requestFromExtension } from './extensionRequest'
+import { hostnameFromUrl, findAdapterForHost } from './adapterMatching'
 
 const DEFAULT_TIMEOUT_MS = 800
 const HAS_ADAPTER_TIMEOUT_MS = 300
@@ -55,71 +57,6 @@ function scheduleEarlyRecheck(timeoutMs) {
     const isStillUndetected = cachedAdapters === null
     if (isStillUndetected) fetchAdapters({ timeoutMs, force: true })
   }, EARLY_RECHECK_MS)
-}
-
-function hostnameFromUrl(urlOrHost) {
-  if (!urlOrHost) return ''
-  try {
-    return new URL(urlOrHost).hostname || ''
-  } catch {
-    return String(urlOrHost)
-  }
-}
-
-function matchesDescriptor(host, descriptor) {
-  if (!descriptor || !host) return false
-  const value = String(descriptor.value || '').toLowerCase()
-  const lowerHost = host.toLowerCase()
-  switch (descriptor.type) {
-    case 'includes':
-      return lowerHost.includes(value)
-    case 'equals':
-      return lowerHost === value
-    case 'regex':
-      return matchesPattern(descriptor.value, host)
-    default:
-      return false
-  }
-}
-
-function matchesPattern(pattern, host) {
-  try {
-    return new RegExp(pattern).test(host)
-  } catch {
-    return false
-  }
-}
-
-function canPostMessages() {
-  return typeof window !== 'undefined' && typeof window.postMessage === 'function'
-}
-
-/** Resolves to the extension's reply, or null when it doesn't answer in time. */
-function requestFromExtension(message, expectedResponseType, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  return new Promise(resolve => {
-    if (!canPostMessages()) return resolve(null)
-
-    const nonce = makeNonce()
-    let timer = null
-    const settle = reply => {
-      window.removeEventListener('message', handleReply)
-      clearTimeout(timer)
-      resolve(reply)
-    }
-    function handleReply(event) {
-      if (!isFromContentScript(event)) return
-      if (event.data?.type !== expectedResponseType || event.data.nonce !== nonce) return
-      settle(event.data)
-    }
-
-    window.addEventListener('message', handleReply)
-    try {
-      postToContentScript({ ...message, nonce })
-    } catch {
-      return settle(null)
-    }
-    timer = setTimeout(() => settle(null), timeoutMs)
-  })
 }
 
 /**
@@ -191,7 +128,7 @@ export async function getAdapterForUrl(urlOrHost) {
   const adapters = await fetchAdapters()
   if (!adapters || adapters.length === 0) return null
 
-  return adapters.find(adapter => matchesDescriptor(host, adapter.matchDescriptor)) || null
+  return findAdapterForHost(adapters, host)
 }
 
 /**

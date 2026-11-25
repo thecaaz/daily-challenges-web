@@ -3,7 +3,8 @@ import useAdapter from './useAdapter'
 import useFauxFullscreen from './useFauxFullscreen'
 import { CaptureError, normalizeCapturedScore, readCapturedScreenshot } from '../utils/capturedScore'
 import {
-  MessageType, makeNonce, originOf, isFromContentScript, postToContentScript, postToGameFrame
+  MessageType, makeNonce, isFromContentScript, postToGameFrame,
+  gameFrameOf, isResponseToScoreRequest, requestScreenshot
 } from '../utils/scoreBridge'
 
 export { normalizeCapturedScore }
@@ -168,20 +169,8 @@ export function useScoreCapture(iframeRef, { isMaximized, url } = {}) {
   }
 }
 
-function isResponseToScoreRequest(event, request) {
-  if (!request?.source || event.source !== request.source) return false
-  if (!request.origin || event.origin !== request.origin) return false
-  return !!request.nonce && event.data.nonce === request.nonce
-}
-
 function isCurrentCaptureNonce(expected, received) {
   return !!expected && received === expected
-}
-
-function gameFrameOf(iframe) {
-  const origin = iframe ? originOf(iframe.src) : null
-  if (!iframe?.contentWindow || !origin) return null
-  return { gameWindow: iframe.contentWindow, origin }
 }
 
 function scrollToCenter(iframe) {
@@ -191,9 +180,4 @@ function scrollToCenter(iframe) {
   } catch {
     iframe.scrollIntoView()
   }
-}
-
-function requestScreenshot(gameFrame, nonce) {
-  postToContentScript({ type: MessageType.ARM_CAPTURE, nonce })
-  postToGameFrame(gameFrame, { type: MessageType.REQUEST_VISIBLE_TAB, nonce })
 }
