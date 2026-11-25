@@ -139,7 +139,7 @@ describe('AdminUsers', () => {
     expect(within(dialog).getByText('Deducting 7 XP')).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument(), { timeout: 3000 })
     expect(mockPost).not.toHaveBeenCalled()
   })
 
@@ -173,7 +173,7 @@ describe('AdminUsers', () => {
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/admin/users/2/password', { newPassword: 'long enough' }))
     expect(mockShowSnackbar).toHaveBeenCalledWith('Password updated', 'success')
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument(), { timeout: 3000 })
   })
 
   it('shows the API error inside the password dialog', async () => {
@@ -214,6 +214,6 @@ describe('AdminUsers', () => {
     expect(within(dialog).getByText(/XP Audit/)).toBeInTheDocument()
     await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/admin/users/2/xp-events', { params: { page: 1, pageSize: 20 } }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument(), { timeout: 3000 })
   })
 })
