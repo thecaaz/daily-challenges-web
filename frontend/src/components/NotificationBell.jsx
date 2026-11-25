@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IconButton, Badge, Popover, List, ListItemButton, ListItemText,
@@ -11,11 +11,25 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
 import GroupsIcon from '@mui/icons-material/Groups'
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech'
-import api from '../api'
 import timeAgo from '../utils/timeAgo'
 import { useAuth } from '../contexts/AuthContext'
+import useNotifications from '../hooks/useNotifications'
+import { winnerGold } from '../styles/tokens'
 
-const POLL_INTERVAL = 30000 // 30 seconds
+const MAX_BADGE_COUNT = 99
+const LEAGUE_TYPE_PREFIX = 'league_'
+const FRIEND_TYPES = ['friend_request', 'friend_request_accepted']
+
+const isFriendType = type => FRIEND_TYPES.includes(type)
+const isLeagueType = type => !!type?.startsWith(LEAGUE_TYPE_PREFIX)
+
+const iconSx = { fontSize: '1.2rem' }
+const winnerIconSx = { color: winnerGold, fontSize: '1.3rem' }
+const rankChipSx = { fontWeight: 700, fontSize: '0.65rem', height: 20 }
+const popoverPaperSx = { width: 340, maxHeight: 420 }
+const headerSx = { p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+const markAllReadSx = { textTransform: 'none', fontSize: '0.75rem' }
+const listSx = { maxHeight: 340, overflow: 'auto' }
 
 /**
  * Where a notification leads, by its `type`, or null if it has nowhere to go.
@@ -24,8 +38,8 @@ const POLL_INTERVAL = 30000 // 30 seconds
  */
 export function notificationRoute(n, user) {
   const type = n?.type ?? ''
-  if (type === 'friend_request' || type === 'friend_request_accepted') return '/friends'
-  if (type.startsWith('league_')) return '/leagues'
+  if (isFriendType(type)) return '/friends'
+  if (isLeagueType(type)) return '/leagues'
   if (type === 'achievement') return user?.id != null ? `/users/${user.id}` : null
   if (n?.gameId) {
     return n.scoringDay
@@ -36,127 +50,61 @@ export function notificationRoute(n, user) {
 }
 
 function NotificationIcon({ n }) {
-  if (n.type === 'day_win') return <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.3rem' }} />
-  if (n.rank != null) {
-    return <Chip label={`#${n.rank}`} size="small" sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
-  }
-  if (n.type === 'friend_request' || n.type === 'friend_request_accepted') return <PersonAddIcon color="action" sx={{ fontSize: '1.2rem' }} />
-  if (n.type?.startsWith('league_')) return <GroupsIcon color="action" sx={{ fontSize: '1.2rem' }} />
-  if (n.type === 'achievement') return <MilitaryTechIcon color="action" sx={{ fontSize: '1.2rem' }} />
-  return <NotificationsIcon color="action" sx={{ fontSize: '1.2rem' }} />
+  if (n.type === 'day_win') return <EmojiEventsIcon sx={winnerIconSx} />
+  if (n.rank != null) return <Chip label={`#${n.rank}`} size="small" sx={rankChipSx} />
+  if (isFriendType(n.type)) return <PersonAddIcon color="action" sx={iconSx} />
+  if (isLeagueType(n.type)) return <GroupsIcon color="action" sx={iconSx} />
+  if (n.type === 'achievement') return <MilitaryTechIcon color="action" sx={iconSx} />
+  return <NotificationsIcon color="action" sx={iconSx} />
 }
 
 export default function NotificationBell() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [notifications, setNotifications] = useState([])
   const [anchorEl, setAnchorEl] = useState(null)
-  const pollRef = useRef(null)
-
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) return
-    try {
-      const res = await api.get('/notifications/unread-count')
-      setUnreadCount(res.data.unreadCount ?? 0)
-    } catch {
-      // silently ignore
-    }
-  }, [user])
-
-  // Poll unread count
-  useEffect(() => {
-    if (!user) {
-      setUnreadCount(0)
-      return
-    }
-    fetchUnreadCount()
-    pollRef.current = setInterval(fetchUnreadCount, POLL_INTERVAL)
-    return () => clearInterval(pollRef.current)
-  }, [user, fetchUnreadCount])
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await api.get('/notifications?page=1&pageSize=10')
-      setNotifications(res.data.items ?? [])
-      setUnreadCount(res.data.unreadCount ?? 0)
-    } catch {
-      // silently ignore
-    }
-  }
+  const { unreadCount, notifications, loadRecent, markRead, markAllRead, remove } = useNotifications(user)
 
   const handleOpen = (e) => {
     setAnchorEl(e.currentTarget)
-    fetchNotifications()
+    loadRecent()
   }
 
   const handleClose = () => setAnchorEl(null)
 
   const handleClickNotification = async (n) => {
-    if (!n.isRead) {
-      try {
-        await api.post(`/notifications/${n.id}/read`)
-        setUnreadCount(prev => Math.max(0, prev - 1))
-        setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x))
-      } catch { /* ignore */ }
-    }
+    await markRead(n)
     handleClose()
-
     const route = notificationRoute(n, user)
     if (route) navigate(route)
   }
 
-  const handleMarkAllRead = async () => {
-    try {
-      await api.post('/notifications/read-all')
-      setUnreadCount(0)
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
-    } catch { /* ignore */ }
-  }
-
-  const handleDeleteNotification = async (e, n) => {
+  const handleRemoveNotification = (e, n) => {
     e.stopPropagation()
-    // Optimistic removal; put it back where it was if the delete fails.
-    const index = notifications.findIndex(x => x.id === n.id)
-    setNotifications(prev => prev.filter(x => x.id !== n.id))
-    if (!n.isRead) setUnreadCount(prev => Math.max(0, prev - 1))
-    try {
-      await api.delete(`/notifications/${n.id}`)
-    } catch {
-      setNotifications(prev => {
-        if (prev.some(x => x.id === n.id)) return prev
-        const next = [...prev]
-        next.splice(index >= 0 ? Math.min(index, next.length) : next.length, 0, n)
-        return next
-      })
-      if (!n.isRead) setUnreadCount(prev => prev + 1)
-    }
+    remove(n)
   }
-
-  const open = Boolean(anchorEl)
 
   if (!user) return null
 
   return (
     <>
       <IconButton color="inherit" onClick={handleOpen} size="small" sx={{ mr: 0.5 }}>
-        <Badge badgeContent={unreadCount} color="error" max={99}>
+        <Badge badgeContent={unreadCount} color="error" max={MAX_BADGE_COUNT}>
           <NotificationsIcon />
         </Badge>
       </IconButton>
 
       <Popover
-        open={open}
+        open={Boolean(anchorEl)}
         anchorEl={anchorEl}
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { width: 340, maxHeight: 420 } } }}
+        slotProps={{ paper: { sx: popoverPaperSx } }}
       >
-        <Box sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={headerSx}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Notifications</Typography>
           {unreadCount > 0 && (
-            <AppButton variant="text" size="small" onClick={handleMarkAllRead} sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
+            <AppButton variant="text" size="small" onClick={markAllRead} sx={markAllReadSx}>
               Mark all read
             </AppButton>
           )}
@@ -168,44 +116,51 @@ export default function NotificationBell() {
             <Typography variant="body2" color="text.secondary">No notifications yet</Typography>
           </Box>
         ) : (
-          <List dense disablePadding sx={{ maxHeight: 340, overflow: 'auto' }}>
+          <List dense disablePadding sx={listSx}>
             {notifications.map(n => (
-              <ListItemButton
+              <NotificationListItem
                 key={n.id}
+                notification={n}
                 onClick={() => handleClickNotification(n)}
-                sx={{
-                  bgcolor: n.isRead ? 'transparent' : 'action.hover',
-                  py: 1, px: 1.5,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-              >
-                <Box sx={{ mr: 1, flexShrink: 0 }}>
-                  <NotificationIcon n={n} />
-                </Box>
-
-                <ListItemText
-                  primary={n.message}
-                  secondary={timeAgo(n.createdAt)}
-                  primaryTypographyProps={{ variant: 'body2', fontWeight: n.isRead ? 400 : 600, lineHeight: 1.3 }}
-                  secondaryTypographyProps={{ variant: 'caption' }}
-                  sx={{ mr: 1 }}
-                />
-
-                <IconButton
-                  aria-label="Remove notification"
-                  size="small"
-                  onClick={(e) => handleDeleteNotification(e, n)}
-                >
-                  <DeleteOutlineIcon fontSize="small" />
-                </IconButton>
-              </ListItemButton>
+                onRemove={(e) => handleRemoveNotification(e, n)}
+              />
             ))}
           </List>
         )}
       </Popover>
     </>
+  )
+}
+
+function NotificationListItem({ notification, onClick, onRemove }) {
+  const { isRead } = notification
+  return (
+    <ListItemButton
+      onClick={onClick}
+      sx={{
+        bgcolor: isRead ? 'transparent' : 'action.hover',
+        py: 1, px: 1.5,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        display: 'flex',
+        alignItems: 'center'
+      }}
+    >
+      <Box sx={{ mr: 1, flexShrink: 0 }}>
+        <NotificationIcon n={notification} />
+      </Box>
+
+      <ListItemText
+        primary={notification.message}
+        secondary={timeAgo(notification.createdAt)}
+        primaryTypographyProps={{ variant: 'body2', fontWeight: isRead ? 400 : 600, lineHeight: 1.3 }}
+        secondaryTypographyProps={{ variant: 'caption' }}
+        sx={{ mr: 1 }}
+      />
+
+      <IconButton aria-label="Remove notification" size="small" onClick={onRemove}>
+        <DeleteOutlineIcon fontSize="small" />
+      </IconButton>
+    </ListItemButton>
   )
 }
