@@ -33,16 +33,17 @@ public sealed class AdminUserService(
     /// The read-modify-write of TotalXp runs inside BEGIN IMMEDIATE, with the user loaded inside the
     /// transaction, so a concurrent submission or day win cannot overwrite it.
     /// </summary>
-    public async Task<UserDto> AdjustXpAsync(int userId, int delta, string? reason, int? adminUserId = null)
+    public async Task<UserDto> AdjustXpAsync(XpAdjustment adjustment)
     {
-        var effectiveReason = reason ?? DefaultXpAdjustmentReason;
-        await transactions.RunAsync(() => xp.AdjustXpAsync(userId, delta, effectiveReason, adminUserId));
+        var effective = adjustment with { Reason = adjustment.Reason ?? DefaultXpAdjustmentReason };
+        await transactions.RunAsync(() => xp.AdjustXpAsync(effective));
 
-        logger.LogInformation("Admin {AdminId} adjusted XP of user {UserId} by {Delta} ({Reason})", adminUserId, userId, delta, effectiveReason);
+        logger.LogInformation("Admin {AdminId} adjusted XP of user {UserId} by {Delta} ({Reason})",
+            effective.AdminUserId, effective.UserId, effective.Delta, effective.Reason);
 
-        await achievements.CheckAndAwardAsync(userId, AchievementTrigger.LevelUp);
+        await achievements.CheckAndAwardAsync(effective.UserId, AchievementTrigger.LevelUp);
 
-        var user = await GetExistingUserAsync(userId);
+        var user = await GetExistingUserAsync(effective.UserId);
         return DtoMapper.ToDto(user, levels, TodayUtc);
     }
 

@@ -34,7 +34,7 @@ public sealed class AdminUsersController(
         if (dto == null) return BadRequest();
         if (dto.Delta == 0) return BadRequest(new { message = "Delta must be non-zero" });
 
-        return Ok(await adminUsers.AdjustXpAsync(id, dto.Delta, dto.Reason, User.GetUserId()));
+        return Ok(await adminUsers.AdjustXpAsync(new XpAdjustment(id, dto.Delta, dto.Reason, User.GetUserId())));
     }
 
     /// <summary>`from` is inclusive, `to` is exclusive.</summary>

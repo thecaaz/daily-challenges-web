@@ -54,8 +54,9 @@ public sealed class XpService(
         return xpAwarded;
     }
 
-    public async Task<int> AdjustXpAsync(int userId, int delta, string reason, int? adminUserId = null)
+    public async Task<int> AdjustXpAsync(XpAdjustment adjustment)
     {
+        var (userId, delta, reason, adminUserId) = adjustment;
         var user = await users.GetByIdAsync(userId)
             ?? throw new KeyNotFoundException($"User {userId} not found");
 
@@ -76,8 +77,9 @@ public sealed class XpService(
         return applied;
     }
 
-    public async Task<int> RevokeSubmissionAsync(int userId, int submissionId, int gameId, DateTime scoringDay, int amount, string? reason = null)
+    public async Task<int> RevokeSubmissionAsync(SubmissionXpRevocation revocation)
     {
+        var (userId, submissionId, gameId, scoringDay, amount, reason) = revocation;
         if (amount <= 0) return 0;
         var user = await users.GetByIdAsync(userId);
         if (user == null) return 0;
