@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
@@ -8,12 +9,6 @@ namespace DailyChallenges.IntegrationTests;
 
 public class EfFriendRepositoryTests
 {
-    private static void SeedUser(AppDbContext ctx, int id)
-    {
-        ctx.Users.Add(new User { Id = id, Username = $"user{id}" });
-        ctx.SaveChanges();
-    }
-
     private static FriendRequest SeedFriendRequest(
         AppDbContext ctx, int senderId, int receiverId,
         FriendRequestStatus status = FriendRequestStatus.Pending)
@@ -30,8 +25,8 @@ public class EfFriendRepositoryTests
     public async Task GetExisting_FindsForwardDirection()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -46,8 +41,8 @@ public class EfFriendRepositoryTests
     public async Task GetExisting_FindsReverseDirection()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -60,8 +55,8 @@ public class EfFriendRepositoryTests
     public async Task GetExisting_ReturnsNull_WhenNone()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         var repo = new EfFriendRepository(db.Ctx);
 
         var result = await repo.GetExistingAsync(1, 2);
@@ -75,10 +70,10 @@ public class EfFriendRepositoryTests
     public async Task GetIncomingPending_OnlyReturnsReceiversPendingRequests()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
-        SeedUser(db.Ctx, 3);
-        SeedUser(db.Ctx, 4);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
+        db.Ctx.SeedUser(3);
+        db.Ctx.SeedUser(4);
         SeedFriendRequest(db.Ctx, 1, 2);  // incoming for user 2
         SeedFriendRequest(db.Ctx, 3, 2);  // incoming for user 2
         SeedFriendRequest(db.Ctx, 2, 4);  // outgoing from user 2 — excluded
@@ -94,8 +89,8 @@ public class EfFriendRepositoryTests
     public async Task GetIncomingPending_ExcludesAccepted()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -110,11 +105,11 @@ public class EfFriendRepositoryTests
     public async Task GetOutgoingPending_OnlyReturnsSendersPendingRequests()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
-        SeedUser(db.Ctx, 3);
-        SeedUser(db.Ctx, 4);
-        SeedUser(db.Ctx, 5);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
+        db.Ctx.SeedUser(3);
+        db.Ctx.SeedUser(4);
+        db.Ctx.SeedUser(5);
         SeedFriendRequest(db.Ctx, 1, 2);  // outgoing from user 1
         SeedFriendRequest(db.Ctx, 1, 3);  // outgoing from user 1
         SeedFriendRequest(db.Ctx, 4, 1);  // incoming to user 1 — excluded
@@ -133,9 +128,9 @@ public class EfFriendRepositoryTests
     public async Task GetFriends_ReturnsFriendUsers_BothDirections()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2); // user 1 sent to user 2
-        SeedUser(db.Ctx, 3); // user 3 sent to user 1
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2); // user 1 sent to user 2
+        db.Ctx.SeedUser(3); // user 3 sent to user 1
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Accepted);
         SeedFriendRequest(db.Ctx, 3, 1, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
@@ -151,8 +146,8 @@ public class EfFriendRepositoryTests
     public async Task GetFriends_ExcludesPendingRequests()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Pending);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -167,8 +162,8 @@ public class EfFriendRepositoryTests
     public async Task HasAcceptedFriend_True_WhenAcceptedExists()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -179,8 +174,8 @@ public class EfFriendRepositoryTests
     public async Task HasAcceptedFriend_True_WhenUserIsReceiver()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 2, 1, FriendRequestStatus.Accepted); // user 1 is receiver
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -191,8 +186,8 @@ public class EfFriendRepositoryTests
     public async Task HasAcceptedFriend_False_WhenOnlyPending()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Pending);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -203,7 +198,7 @@ public class EfFriendRepositoryTests
     public async Task HasAcceptedFriend_False_WhenNoRequests()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         var repo = new EfFriendRepository(db.Ctx);
 
         Assert.False(await repo.HasAcceptedFriendAsync(1));
@@ -215,8 +210,8 @@ public class EfFriendRepositoryTests
     public async Task Delete_RemovesFriendRequest()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         var fr = SeedFriendRequest(db.Ctx, 1, 2);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -240,8 +235,8 @@ public class EfFriendRepositoryTests
     public async Task Reverse_direction_insert_is_rejected_by_the_pair_index()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -250,7 +245,7 @@ public class EfFriendRepositoryTests
         Assert.True(ex.IsUniqueViolation());
 
         // The failed insert was detached, so the context still saves.
-        SeedUser(db.Ctx, 3);
+        db.Ctx.SeedUser(3);
         Assert.Equal(1, db.Ctx.FriendRequests.Count());
     }
 
@@ -258,8 +253,8 @@ public class EfFriendRepositoryTests
     public async Task Declined_requests_are_not_friends_or_pending()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Declined);
         var repo = new EfFriendRepository(db.Ctx);
 
@@ -273,8 +268,8 @@ public class EfFriendRepositoryTests
     public async Task ReopenDeclined_turns_the_row_into_a_new_pending_request_in_the_new_direction()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         var fr = SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Declined);
         var repo = new EfFriendRepository(db.Ctx);
         var now = new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
@@ -291,8 +286,8 @@ public class EfFriendRepositoryTests
     public async Task Update_does_not_write_back_the_loaded_users()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         var seeded = SeedFriendRequest(db.Ctx, 1, 2);
         db.Ctx.ChangeTracker.Clear();
         var repo = new EfFriendRepository(db.Ctx);

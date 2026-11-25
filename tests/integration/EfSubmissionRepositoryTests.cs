@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services.Ranking;
@@ -9,18 +10,6 @@ public class EfSubmissionRepositoryTests
 {
     private static readonly DateTime Day1 = new(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Day2 = new(2026, 4, 2, 0, 0, 0, DateTimeKind.Utc);
-
-    private static void SeedGame(AppDbContext ctx, int id, RankingMode mode = RankingMode.Highest)
-    {
-        ctx.Games.Add(new Game { Id = id, Name = $"Game{id}", RankingMode = mode });
-        ctx.SaveChanges();
-    }
-
-    private static void SeedUser(AppDbContext ctx, int id)
-    {
-        ctx.Users.Add(new User { Id = id, Username = $"user{id}" });
-        ctx.SaveChanges();
-    }
 
     private static Submission SeedSub(AppDbContext ctx, int gameId, double? scoreValue, DateTime scoringDay, int? userId = null)
     {
@@ -44,7 +33,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetByGameAndDay_HighestStrategy_OrdersDescending()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, 100, Day1);
         SeedSub(db.Ctx, 1, 300, Day1);
         SeedSub(db.Ctx, 1, 200, Day1);
@@ -62,7 +51,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetByGameAndDay_LowestStrategy_OrdersAscending()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1, RankingMode.Lowest);
+        db.Ctx.SeedGame(1, RankingMode.Lowest);
         SeedSub(db.Ctx, 1, 300, Day1);
         SeedSub(db.Ctx, 1, 100, Day1);
         SeedSub(db.Ctx, 1, 200, Day1);
@@ -79,8 +68,8 @@ public class EfSubmissionRepositoryTests
     public async Task GetByGameAndDay_ExcludesOtherGame()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
-        SeedGame(db.Ctx, 2);
+        db.Ctx.SeedGame(1);
+        db.Ctx.SeedGame(2);
         SeedSub(db.Ctx, 1, 100, Day1);
         SeedSub(db.Ctx, 2, 999, Day1);
         var repo = new EfSubmissionRepository(db.Ctx);
@@ -95,7 +84,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetByGameAndDay_ExcludesOtherDay()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, 100, Day1);
         SeedSub(db.Ctx, 1, 200, Day2);
         var repo = new EfSubmissionRepository(db.Ctx);
@@ -110,7 +99,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetByGameAndDay_ExcludesNullScoreValue()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, null, Day1);
         SeedSub(db.Ctx, 1, 100, Day1);
         var repo = new EfSubmissionRepository(db.Ctx);
@@ -127,7 +116,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetWinner_NoScoredSubmissions_ReturnsNull()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, null, Day1);
         var repo = new EfSubmissionRepository(db.Ctx);
 
@@ -140,7 +129,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetWinner_Highest_ReturnsTopScore()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, 100, Day1);
         SeedSub(db.Ctx, 1, 300, Day1);
         SeedSub(db.Ctx, 1, 200, Day1);
@@ -155,7 +144,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetWinner_Lowest_ReturnsLowestScore()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1, RankingMode.Lowest);
+        db.Ctx.SeedGame(1, RankingMode.Lowest);
         SeedSub(db.Ctx, 1, 300, Day1);
         SeedSub(db.Ctx, 1, 100, Day1);
         SeedSub(db.Ctx, 1, 200, Day1);
@@ -172,7 +161,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetWinnersForDays_ReturnsOneWinnerPerDay()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, 200, Day1);
         SeedSub(db.Ctx, 1, 100, Day1);
         SeedSub(db.Ctx, 1, 150, Day2);
@@ -190,7 +179,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetWinnersForDays_EmptyDayList_ReturnsEmpty()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, 100, Day1);
         var repo = new EfSubmissionRepository(db.Ctx);
 
@@ -205,8 +194,8 @@ public class EfSubmissionRepositoryTests
     public async Task CountByUser_ReturnsCorrectCount()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
+        db.Ctx.SeedUser(1);
         SeedSub(db.Ctx, 1, 100, Day1, userId: 1);
         SeedSub(db.Ctx, 1, 200, Day2, userId: 1);
         SeedSub(db.Ctx, 1, 300, Day1, userId: null); // anonymous — not counted for user 1
@@ -223,7 +212,7 @@ public class EfSubmissionRepositoryTests
     public async Task GetAvailableDates_ReturnsDistinctDatesDescending()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, 100, Day1);
         SeedSub(db.Ctx, 1, 200, Day1); // duplicate — should collapse
         SeedSub(db.Ctx, 1, 300, Day2);
@@ -242,9 +231,9 @@ public class EfSubmissionRepositoryTests
     public async Task CountOnGameDays_CountsOnlyEachGamesOwnDay()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
-        SeedGame(db.Ctx, 2);
-        SeedGame(db.Ctx, 3);
+        db.Ctx.SeedGame(1);
+        db.Ctx.SeedGame(2);
+        db.Ctx.SeedGame(3);
         SeedSub(db.Ctx, 1, 1, Day1);
         SeedSub(db.Ctx, 1, 2, Day1);
         SeedSub(db.Ctx, 1, 3, Day2); // game 1's other day

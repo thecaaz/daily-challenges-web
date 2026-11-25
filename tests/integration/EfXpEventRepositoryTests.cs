@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 
@@ -9,12 +10,6 @@ public class EfXpEventRepositoryTests
     private static readonly DateTime Day1 = new(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Day2 = new(2026, 4, 2, 0, 0, 0, DateTimeKind.Utc);
 
-    private static void SeedUser(AppDbContext ctx, int id)
-    {
-        ctx.Users.Add(new User { Id = id, Username = $"user{id}" });
-        ctx.SaveChanges();
-    }
-
     private static void SeedEvent(AppDbContext ctx, int userId, string type, int amount, DateTime? scoringDay = null, int? gameId = null)
     {
         ctx.XpEvents.Add(new XpEvent { UserId = userId, EventType = type, Amount = amount, ScoringDay = scoringDay, GameId = gameId });
@@ -23,8 +18,7 @@ public class EfXpEventRepositoryTests
 
     private static void SeedGames(AppDbContext ctx, params int[] ids)
     {
-        foreach (var id in ids) ctx.Games.Add(new Game { Id = id, Name = $"Game{id}" });
-        ctx.SaveChanges();
+        foreach (var id in ids) ctx.SeedGame(id);
     }
 
     private static readonly string[] TodayTypes = { "submission", "day_win" };
@@ -35,7 +29,7 @@ public class EfXpEventRepositoryTests
     public async Task Sum_NoGames_ReturnsZero()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         var repo = new EfXpEventRepository(db.Ctx);
 
         var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime>(), TodayTypes);
@@ -47,7 +41,7 @@ public class EfXpEventRepositoryTests
     public async Task Sum_MatchingGameDayAndType_SumsCorrectly()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         SeedGames(db.Ctx, 1);
         SeedEvent(db.Ctx, 1, "submission", 50, Day1, gameId: 1);
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1, gameId: 1);
@@ -62,7 +56,7 @@ public class EfXpEventRepositoryTests
     public async Task Sum_ExcludesOtherEventTypes()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         SeedGames(db.Ctx, 1);
         SeedEvent(db.Ctx, 1, "submission", 50, Day1, gameId: 1);
         SeedEvent(db.Ctx, 1, "submission_revoked", -50, Day1, gameId: 1);
@@ -77,8 +71,8 @@ public class EfXpEventRepositoryTests
     public async Task Sum_ExcludesOtherUser()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedGames(db.Ctx, 1);
         SeedEvent(db.Ctx, 1, "submission", 50, Day1, gameId: 1);
         SeedEvent(db.Ctx, 2, "submission", 999, Day1, gameId: 1);
@@ -95,7 +89,7 @@ public class EfXpEventRepositoryTests
         // Game 1's current day is Day1, game 2's is Day2 (different reset times). An event of game 1 on
         // Day2 is not "today" for game 1, even though Day2 is some other game's current day.
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         SeedGames(db.Ctx, 1, 2);
         SeedEvent(db.Ctx, 1, "submission", 50, Day1, gameId: 1);
         SeedEvent(db.Ctx, 1, "submission", 7, Day2, gameId: 1);
@@ -112,7 +106,7 @@ public class EfXpEventRepositoryTests
     public async Task Sum_EventWithoutGameOrDay_NotIncluded()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         SeedGames(db.Ctx, 1);
         SeedEvent(db.Ctx, 1, "admin_adjustment", 200, null);
         SeedEvent(db.Ctx, 1, "submission", 30, Day1, gameId: null);
@@ -129,7 +123,7 @@ public class EfXpEventRepositoryTests
     public async Task HasDayWin_TrueOnlyForThatUserGameAndDay()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         SeedGames(db.Ctx, 1, 2);
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1, gameId: 1);
         var repo = new EfXpEventRepository(db.Ctx);
@@ -143,7 +137,7 @@ public class EfXpEventRepositoryTests
     public async Task DuplicateDayWin_IsRejectedByTheUniqueIndex()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         SeedGames(db.Ctx, 1);
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1, gameId: 1);
         // Other event types on the same key are fine.
@@ -161,7 +155,7 @@ public class EfXpEventRepositoryTests
     public async Task AddAsync_PersistsAndReturnsWithId()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         var repo = new EfXpEventRepository(db.Ctx);
 
         var ev = new XpEvent { UserId = 1, EventType = "submission", Amount = 50, ScoringDay = Day1 };
@@ -178,8 +172,8 @@ public class EfXpEventRepositoryTests
     public async Task GetByUserPaged_FiltersToUserOnly()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
         SeedEvent(db.Ctx, 1, "submission", 50, Day1);
         SeedEvent(db.Ctx, 2, "submission", 100, Day1);
         var repo = new EfXpEventRepository(db.Ctx);
@@ -195,7 +189,7 @@ public class EfXpEventRepositoryTests
     public async Task GetByUserPaged_FiltersByEventType()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         SeedEvent(db.Ctx, 1, "submission", 50, Day1);
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1);
         var repo = new EfXpEventRepository(db.Ctx);
@@ -210,7 +204,7 @@ public class EfXpEventRepositoryTests
     public async Task GetByUserPaged_FromIsInclusive_ToIsExclusive()
     {
         await using var db = new TestDb();
-        SeedUser(db.Ctx, 1);
+        db.Ctx.SeedUser(1);
         foreach (var at in new[] { Day1.AddSeconds(-1), Day1, Day1.AddHours(23), Day2 })
             db.Ctx.XpEvents.Add(new XpEvent { UserId = 1, EventType = "submission", Amount = 1, CreatedAt = at });
         db.Ctx.SaveChanges();

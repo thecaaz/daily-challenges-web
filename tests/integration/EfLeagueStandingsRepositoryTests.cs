@@ -1,6 +1,7 @@
-using DailyChallenges.Data;
-using DailyChallenges.Models;
 using DailyChallenges.DTOs;
+using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
+using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 
@@ -8,18 +9,6 @@ namespace DailyChallenges.IntegrationTests;
 
 public class EfLeagueStandingsRepositoryTests
 {
-    private static void SeedGame(AppDbContext ctx, int id, RankingMode mode = RankingMode.Highest)
-    {
-        ctx.Games.Add(new Game { Id = id, Name = $"Game{id}", RankingMode = mode });
-        ctx.SaveChanges();
-    }
-
-    private static void SeedUser(AppDbContext ctx, int id)
-    {
-        ctx.Users.Add(new User { Id = id, Username = $"user{id}" });
-        ctx.SaveChanges();
-    }
-
     private static Submission SeedSub(AppDbContext ctx, int gameId, double? scoreValue, DateTime scoringDay, int? userId = null)
     {
         var sub = new Submission
@@ -43,8 +32,8 @@ public class EfLeagueStandingsRepositoryTests
         await using var db = new TestDb();
 
         // users
-        SeedUser(db.Ctx, 1);
-        SeedUser(db.Ctx, 2);
+        db.Ctx.SeedUser(1);
+        db.Ctx.SeedUser(2);
 
         // league + members
         db.Ctx.Leagues.Add(new League { Id = 1, OwnerId = 1, Name = "L1", CreatedAt = DateTime.UtcNow });
@@ -54,7 +43,7 @@ public class EfLeagueStandingsRepositoryTests
         db.Ctx.SaveChanges();
 
         // game
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
 
         var day1 = DateTime.UtcNow.Date.AddDays(-1);
         var day2 = DateTime.UtcNow.Date;
@@ -88,13 +77,13 @@ public class EfLeagueStandingsRepositoryTests
     public async Task GetLeaderboard_orders_by_the_strategy_with_competition_ranks(RankingMode mode)
     {
         await using var db = new TestDb();
-        foreach (var id in new[] { 1, 2, 3, 4 }) SeedUser(db.Ctx, id);
+        foreach (var id in new[] { 1, 2, 3, 4 }) db.Ctx.SeedUser(id);
         db.Ctx.Leagues.Add(new League { Id = 1, OwnerId = 1, Name = "L1" });
         db.Ctx.SaveChanges();
         foreach (var id in new[] { 1, 2, 3, 4 })
             db.Ctx.LeagueMembers.Add(new LeagueMember { LeagueId = 1, UserId = id });
         db.Ctx.SaveChanges();
-        SeedGame(db.Ctx, 1, mode);
+        db.Ctx.SeedGame(1, mode);
 
         var day = new DateTime(2026, 6, 15);
         var lowWins = mode == RankingMode.Lowest;

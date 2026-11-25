@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services.Ranking;
@@ -10,12 +11,6 @@ public class RepositoryCharacterizationTests
 {
     private static readonly DateTime Day1 = new(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Day2 = new(2026, 4, 2, 0, 0, 0, DateTimeKind.Utc);
-
-    private static void SeedGame(AppDbContext ctx, int id)
-    {
-        ctx.Games.Add(new Game { Id = id, Name = $"Game{id}" });
-        ctx.SaveChanges();
-    }
 
     private static Submission SeedSub(AppDbContext ctx, int gameId, double? scoreValue, DateTime scoringDay, string? username, int minute)
     {
@@ -37,7 +32,7 @@ public class RepositoryCharacterizationTests
     public async Task Submissions_filtered_search_matches_username_score_text_and_near_numbers()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         var alice = SeedSub(db.Ctx, 1, 41.995, Day1, "Alice", 1);
         var bob = SeedSub(db.Ctx, 1, 7, Day1, "bob", 2);
         var carol = SeedSub(db.Ctx, 1, 42.5, Day1, "carol", 3);
@@ -56,7 +51,7 @@ public class RepositoryCharacterizationTests
     public async Task Submissions_filtered_pages_newest_first_and_filters_days()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         var first = SeedSub(db.Ctx, 1, 1, Day1, "a", 1);
         var second = SeedSub(db.Ctx, 1, 2, Day1, "b", 2);
         var third = SeedSub(db.Ctx, 1, 3, Day2, "c", 3);
@@ -78,7 +73,7 @@ public class RepositoryCharacterizationTests
     public async Task Submissions_paged_treats_page_below_one_as_first_page()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, 1, Day1, "a", 1);
         var newest = SeedSub(db.Ctx, 1, 2, Day1, "b", 2);
         var repo = new EfSubmissionRepository(db.Ctx);
@@ -92,7 +87,7 @@ public class RepositoryCharacterizationTests
     public async Task Submissions_top_scores_default_to_ten_and_can_exclude_a_day()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         for (var i = 0; i < 12; i++) SeedSub(db.Ctx, 1, i, Day1, "a", i);
         var best = SeedSub(db.Ctx, 1, 100, Day2, "b", 0);
         SeedSub(db.Ctx, 1, null, Day1, "c", 30);
@@ -111,7 +106,7 @@ public class RepositoryCharacterizationTests
     public async Task Submissions_latest_for_user_and_usernames_for_day()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         db.Ctx.Users.Add(new User { Id = 4, Username = "dora" });
         db.Ctx.SaveChanges();
         var older = SeedSub(db.Ctx, 1, 1, Day1, "dora", 1);
@@ -133,7 +128,7 @@ public class RepositoryCharacterizationTests
     public async Task Submissions_update_changes_only_the_score()
     {
         await using var db = new TestDb();
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         var sub = SeedSub(db.Ctx, 1, 1, Day1, "a", 1);
         var repo = new EfSubmissionRepository(db.Ctx);
 
@@ -169,7 +164,7 @@ public class RepositoryCharacterizationTests
     {
         await using var db = new TestDb();
         db.Ctx.Users.Add(new User { Id = 1, Username = "u" });
-        SeedGame(db.Ctx, 1);
+        db.Ctx.SeedGame(1);
         foreach (var type in new[] { "day_win", "day_placement", "friend_request" })
             db.Ctx.Notifications.Add(new Notification { UserId = 1, GameId = 1, Message = type, Type = type, ScoringDay = Day1, CreatedAt = Day1 });
         db.Ctx.SaveChanges();
