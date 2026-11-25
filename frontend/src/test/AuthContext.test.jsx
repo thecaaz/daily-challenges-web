@@ -16,7 +16,6 @@ vi.mock('../api', () => ({
 
 import { AuthProvider, useAuth } from '../contexts/AuthContext'
 
-// Records the user seen on the child's very first render.
 const firstRenderUsers = []
 function Child() {
   const { user, loading } = useAuth()
@@ -36,20 +35,24 @@ describe('AuthProvider', () => {
     firstRenderUsers.length = 0
   })
 
-  it('renders children only after the session restore finished', async () => {
-    let finishRefresh
-    mockRefresh.mockImplementation(() => new Promise(r => { finishRefresh = r }))
-    mockGet.mockResolvedValue({ data: { id: 1, username: 'alice' } })
+  it('shows a loading screen instead of children while the session is being restored', () => {
+    mockRefresh.mockImplementation(() => new Promise(() => {}))
 
     render(<AuthProvider><Child /></AuthProvider>)
 
     expect(screen.queryByTestId('child')).toBeNull()
     expect(screen.getByText('Loading…')).toBeInTheDocument()
+  })
+
+  it('gives children the restored user from their very first render', async () => {
+    let finishRefresh
+    mockRefresh.mockImplementation(() => new Promise(r => { finishRefresh = r }))
+    mockGet.mockResolvedValue({ data: { id: 1, username: 'alice' } })
+    render(<AuthProvider><Child /></AuthProvider>)
 
     await act(async () => { finishRefresh('token') })
 
     await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('hello alice'))
-    // The very first render of the app already had the restored user.
     expect(firstRenderUsers).toEqual([{ user: { id: 1, username: 'alice' }, loading: false }])
     expect(mockGet).toHaveBeenCalledWith('/auth/me')
   })

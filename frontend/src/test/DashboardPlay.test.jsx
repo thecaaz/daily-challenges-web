@@ -61,6 +61,14 @@ function renderPage() {
   return render(<MemoryRouter><DashboardPlay /></MemoryRouter>)
 }
 
+function simulateSuccessfulCapture(score, fileName) {
+  act(() => {
+    capture.current.setScore(score)
+    capture.current.setCapturedFile(new File(['x'], fileName, { type: 'image/webp' }))
+    capture.current.setShowSubmission(true)
+  })
+}
+
 describe('DashboardPlay', () => {
   beforeEach(() => {
     capture.current = null
@@ -72,30 +80,36 @@ describe('DashboardPlay', () => {
     expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
   })
 
-  it('capture → Skip → the next game starts with an empty form', () => {
+  it('pre-fills the submission form with a successful capture', () => {
     renderPage()
     expect(screen.getByRole('heading', { name: 'Game A' })).toBeInTheDocument()
 
-    // Simulate a successful capture on game A.
-    act(() => {
-      capture.current.setScore('12345')
-      capture.current.setCapturedFile(new File(['x'], 'a.webp', { type: 'image/webp' }))
-      capture.current.setShowSubmission(true)
-    })
+    simulateSuccessfulCapture('12345', 'a.webp')
+
     expect(screen.getByTestId('form-score')).toHaveTextContent('12345')
     expect(screen.getByTestId('form-file')).toHaveTextContent('a.webp')
+  })
+
+  it('Skip after a capture shows the next game in the iframe and drops the captured data', () => {
+    renderPage()
+    simulateSuccessfulCapture('12345', 'a.webp')
 
     fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
 
-    // Game B: back to the iframe, captured data dropped.
     expect(screen.getByRole('heading', { name: 'Game B' })).toBeInTheDocument()
     expect(screen.getByTestId('iframe')).toHaveTextContent('Game B')
     expect(screen.queryByTestId('form')).not.toBeInTheDocument()
     expect(capture.current.score).toBe('')
     expect(capture.current.capturedFile).toBeNull()
+  })
 
-    // Opening the form for game B (e.g. a capture that found nothing) shows no leftovers.
+  it('opens an empty form for the next game when its capture finds nothing', () => {
+    renderPage()
+    simulateSuccessfulCapture('12345', 'a.webp')
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
+
     act(() => { capture.current.setShowSubmission(true) })
+
     expect(screen.getByTestId('form-game')).toHaveTextContent('2')
     expect(screen.getByTestId('form-score')).toHaveTextContent('')
     expect(screen.getByTestId('form-file')).toHaveTextContent('')
