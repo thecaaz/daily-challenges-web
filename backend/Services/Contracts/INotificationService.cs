@@ -13,9 +13,9 @@ public interface INotificationService
 
     Task MarkAllReadAsync(int userId);
 
-    /// <summary>Deletes the user's own notification. Throws NotFoundException if it is missing or someone else's.</summary>
-    Task DeleteOwnAsync(int id, int userId);
-
-    /// <summary>Deletes any user's notification (admins). Throws NotFoundException if it is missing.</summary>
-    Task DeleteAnyAsync(int id);
+    /// <summary>
+    /// Admins may delete any notification, everyone else only their own. Throws NotFoundException if it is
+    /// missing or (for non-admins) someone else's.
+    /// </summary>
+    Task DeleteAsync(int id, RequestingUser requester);
 }

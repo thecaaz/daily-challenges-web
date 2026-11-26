@@ -40,7 +40,7 @@ public class NotificationServiceTests
     {
         var (service, repo) = Build();
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteOwnAsync(3, 1));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false)));
 
         Assert.Equal("Notification not found", ex.Message);
         repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
@@ -52,7 +52,7 @@ public class NotificationServiceTests
         var (service, repo) = Build();
         repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(2));
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteOwnAsync(3, 1));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false)));
 
         Assert.Equal("Notification not found", ex.Message);
         repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
@@ -64,7 +64,7 @@ public class NotificationServiceTests
         var (service, repo) = Build();
         repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(1));
 
-        await service.DeleteOwnAsync(3, 1);
+        await service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false));
 
         repo.Verify(r => r.DeleteAsync(3), Times.Once);
     }
@@ -75,7 +75,7 @@ public class NotificationServiceTests
         var (service, repo) = Build();
         repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(2));
 
-        await service.DeleteAnyAsync(3);
+        await service.DeleteAsync(3, new RequestingUser(1, IsAdmin: true));
 
         repo.Verify(r => r.DeleteAsync(3), Times.Once);
     }
@@ -85,7 +85,7 @@ public class NotificationServiceTests
     {
         var (service, repo) = Build();
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAnyAsync(3));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: true)));
 
         Assert.Equal("Notification not found", ex.Message);
         repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
