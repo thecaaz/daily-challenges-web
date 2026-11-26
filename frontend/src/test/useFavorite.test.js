@@ -134,4 +134,37 @@ describe('useFavorite', () => {
     expect(listener).toHaveBeenCalled()
     window.removeEventListener('favorite-changed', listener)
   })
+
+  it('announces the optimistic change, then the confirmed one', async () => {
+    mockApiPost.mockResolvedValue({})
+    const details = []
+    const listener = event => details.push(event.detail)
+    window.addEventListener('favorite-changed', listener)
+    const { result } = renderHook(() => useFavorite(42, false))
+
+    await act(() => result.current.toggle())
+
+    window.removeEventListener('favorite-changed', listener)
+    expect(details).toEqual([
+      { gameId: 42, isFavorite: true, optimistic: true },
+      { gameId: 42, isFavorite: true, confirmed: true },
+    ])
+  })
+
+  it('announces the rollback when the request fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockApiDelete.mockRejectedValue(new Error('down'))
+    const details = []
+    const listener = event => details.push(event.detail)
+    window.addEventListener('favorite-changed', listener)
+    const { result } = renderHook(() => useFavorite(42, true))
+
+    await act(() => result.current.toggle())
+
+    window.removeEventListener('favorite-changed', listener)
+    expect(details).toEqual([
+      { gameId: 42, isFavorite: false, optimistic: true },
+      { gameId: 42, isFavorite: true },
+    ])
+  })
 })
