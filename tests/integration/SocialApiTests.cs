@@ -18,9 +18,19 @@ namespace DailyChallenges.IntegrationTests;
 /// </summary>
 public class SocialApiTests
 {
+    private const int SeededTotalXp = 120;
+    private const int XpBonus = 5;
+    private const string RequestNotFoundMessage = "Friend request not found.";
+
+    /// <summary>alice and bob (plus any extra users, in order); alice has sent bob a friend request.</summary>
+    private sealed record PendingRequest(int[] Ids, HttpClient Alice, HttpClient Bob, int RequestId);
+
+    /// <summary>alice has two unread friend_request notifications, from bob and carol.</summary>
+    private sealed record NotificationInbox(HttpClient Alice, HttpClient Bob, HttpClient Admin, int NotificationId);
+
     private static async Task<int[]> SeedUsersAsync(ApiFactory f, params string[] names)
     {
-        var users = names.Select(n => new User { Username = n, PasswordHash = "x", TotalXp = 120 }).ToList();
+        var users = names.Select(n => new User { Username = n, PasswordHash = "x", TotalXp = SeededTotalXp }).ToList();
         await f.WithDbAsync(async db =>
         {
             db.Users.AddRange(users);
@@ -40,6 +50,39 @@ public class SocialApiTests
         return game.Id;
     }
 
+    private static async Task<PendingRequest> SeedPendingRequestAsync(ApiFactory f, params string[] extraUsers)
+    {
+        var ids = await SeedUsersAsync(f, ["alice", "bob", .. extraUsers]);
+        var alice = f.CreateAuthenticatedClient(ids[0], "alice");
+        var bob = f.CreateAuthenticatedClient(ids[1], "bob");
+        return new PendingRequest(ids, alice, bob, await SendRequestAsync(alice, ids[1]));
+    }
+
+    private static async Task<PendingRequest> SeedFriendsAsync(ApiFactory f)
+    {
+        var pending = await SeedPendingRequestAsync(f);
+        (await pending.Bob.PostAsync($"/api/friends/requests/{pending.RequestId}/accept", null)).EnsureSuccessStatusCode();
+        return pending;
+    }
+
+    private static async Task<NotificationInbox> SeedInboxWithTwoNotificationsAsync(ApiFactory f)
+    {
+        var ids = await SeedUsersAsync(f, "alice", "bob", "carol", "admin");
+        var bob = f.CreateAuthenticatedClient(ids[1], "bob");
+        await SendRequestAsync(bob, ids[0]);
+        await SendRequestAsync(f.CreateAuthenticatedClient(ids[2], "carol"), ids[0]);
+        var notificationId = await f.QueryDbAsync(db => db.Notifications.OrderBy(n => n.Id).Select(n => n.Id).FirstAsync());
+        return new NotificationInbox(
+            f.CreateAuthenticatedClient(ids[0], "alice"), bob, f.CreateAuthenticatedClient(ids[3], "admin", isAdmin: true), notificationId);
+    }
+
+    /// <summary>An admin client and alice's user id.</summary>
+    private static async Task<(HttpClient Admin, int AliceId)> SeedAdminAndAliceAsync(ApiFactory f)
+    {
+        var ids = await SeedUsersAsync(f, "admin", "alice");
+        return (f.CreateAuthenticatedClient(ids[0], "admin", isAdmin: true), ids[1]);
+    }
+
     private static async Task<string?> ErrorMessageAsync(HttpResponseMessage res)
         => (await res.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("message").GetString();
 
@@ -49,64 +92,168 @@ public class SocialApiTests
     private static async Task<int> SendRequestAsync(HttpClient sender, int targetUserId)
         => (await ReadSuccessJsonAsync(await sender.PostAsJsonAsync("/api/friends/requests", new { targetUserId }))).GetProperty("id").GetInt32();
 
+    private static async Task<int> UnreadCountAsync(HttpClient client)
+        => (await ReadSuccessJsonAsync(await client.GetAsync("/api/notifications/unread-count"))).GetProperty("unreadCount").GetInt32();
+
+    private static Task<HttpResponseMessage> AdjustXpAsync(HttpClient admin, int userId, int delta, string reason)
+        => admin.PostAsJsonAsync($"/api/admin/users/{userId}/xp", new { delta, reason });
+
     [Fact]
-    public async Task Friend_request_lifecycle_returns_the_documented_shapes()
+    public async Task Send_request_by_username_trims_the_name_and_returns_the_request_shape()
     {
         using var f = new FixedClockApiFactory();
         var ids = await SeedUsersAsync(f, "alice", "bob");
         var alice = f.CreateAuthenticatedClient(ids[0], "alice");
-        var bob = f.CreateAuthenticatedClient(ids[1], "bob");
 
         var sent = await ReadSuccessJsonAsync(await alice.PostAsJsonAsync("/api/friends/requests/by-username", new { username = "  bob " }));
 
         Assert.Equal(new[] { "createdAt", "id", "receiverId", "receiverUsername", "senderId", "senderUsername", "status" }, Keys(sent));
         Assert.Equal("pending", sent.GetProperty("status").GetString());
         Assert.Equal("bob", sent.GetProperty("receiverUsername").GetString());
-        var outgoing = await ReadSuccessJsonAsync(await alice.GetAsync("/api/friends/requests/sent"));
-        Assert.Equal(sent.GetProperty("id").GetInt32(), outgoing.EnumerateArray().Single().GetProperty("id").GetInt32());
-        var incoming = await ReadSuccessJsonAsync(await bob.GetAsync("/api/friends/requests/incoming"));
-        Assert.Equal("alice", incoming.EnumerateArray().Single().GetProperty("senderUsername").GetString());
-
-        Assert.Equal(HttpStatusCode.NoContent, (await bob.PostAsync($"/api/friends/requests/{sent.GetProperty("id").GetInt32()}/accept", null)).StatusCode);
-
-        var friends = await ReadSuccessJsonAsync(await alice.GetAsync("/api/friends"));
-        var friend = friends.EnumerateArray().Single();
-        Assert.Equal(new[] { "level", "streak", "totalXp", "userId", "username" }, Keys(friend));
-        Assert.Equal(ids[1], friend.GetProperty("userId").GetInt32());
-        Assert.Equal(120, friend.GetProperty("totalXp").GetInt32());
-        var accepted = await ReadSuccessJsonAsync(await alice.GetAsync("/api/notifications"));
-        Assert.Contains(accepted.GetProperty("items").EnumerateArray(), n =>
-            n.GetProperty("type").GetString() == "friend_request_accepted"
-            && n.GetProperty("message").GetString() == "bob accepted your friend request.");
-
-        Assert.Equal(HttpStatusCode.NoContent, (await alice.DeleteAsync($"/api/friends/{ids[1]}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await alice.DeleteAsync($"/api/friends/{ids[1]}")).StatusCode);
-        Assert.Empty((await ReadSuccessJsonAsync(await alice.GetAsync("/api/friends"))).EnumerateArray());
     }
 
     [Fact]
-    public async Task Friend_request_errors_map_to_status_codes_and_messages()
+    public async Task Sent_requests_list_the_pending_request()
     {
         using var f = new FixedClockApiFactory();
-        var ids = await SeedUsersAsync(f, "alice", "bob", "carol");
-        var alice = f.CreateAuthenticatedClient(ids[0], "alice");
-        var carol = f.CreateAuthenticatedClient(ids[2], "carol");
+        var pending = await SeedPendingRequestAsync(f);
 
-        var toSelf = await alice.PostAsJsonAsync("/api/friends/requests", new { targetUserId = ids[0] });
-        Assert.Equal(HttpStatusCode.BadRequest, toSelf.StatusCode);
-        Assert.Equal("You cannot send a friend request to yourself.", await ErrorMessageAsync(toSelf));
+        var outgoing = await ReadSuccessJsonAsync(await pending.Alice.GetAsync("/api/friends/requests/sent"));
 
-        var unknown = await alice.PostAsJsonAsync("/api/friends/requests/by-username", new { username = "nobody" });
-        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
-        Assert.Equal("No user found with username 'nobody'.", await ErrorMessageAsync(unknown));
+        Assert.Equal(pending.RequestId, outgoing.EnumerateArray().Single().GetProperty("id").GetInt32());
+    }
 
-        var requestId = await SendRequestAsync(alice, ids[1]);
-        var notReceiver = await carol.PostAsync($"/api/friends/requests/{requestId}/accept", null);
-        Assert.Equal(HttpStatusCode.NotFound, notReceiver.StatusCode);
-        Assert.Equal("Friend request not found.", await ErrorMessageAsync(notReceiver));
-        var notSender = await carol.DeleteAsync($"/api/friends/requests/{requestId}");
-        Assert.Equal(HttpStatusCode.NotFound, notSender.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await alice.DeleteAsync($"/api/friends/requests/{requestId}")).StatusCode);
+    [Fact]
+    public async Task Incoming_requests_show_the_sender()
+    {
+        using var f = new FixedClockApiFactory();
+        var pending = await SeedPendingRequestAsync(f);
+
+        var incoming = await ReadSuccessJsonAsync(await pending.Bob.GetAsync("/api/friends/requests/incoming"));
+
+        Assert.Equal("alice", incoming.EnumerateArray().Single().GetProperty("senderUsername").GetString());
+    }
+
+    [Fact]
+    public async Task Accepting_a_request_returns_204()
+    {
+        using var f = new FixedClockApiFactory();
+        var pending = await SeedPendingRequestAsync(f);
+
+        var res = await pending.Bob.PostAsync($"/api/friends/requests/{pending.RequestId}/accept", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Friends_list_returns_the_friend_shape()
+    {
+        using var f = new FixedClockApiFactory();
+        var friends = await SeedFriendsAsync(f);
+
+        var list = await ReadSuccessJsonAsync(await friends.Alice.GetAsync("/api/friends"));
+
+        var friend = list.EnumerateArray().Single();
+        Assert.Equal(new[] { "level", "streak", "totalXp", "userId", "username" }, Keys(friend));
+        Assert.Equal(friends.Ids[1], friend.GetProperty("userId").GetInt32());
+        Assert.Equal(SeededTotalXp, friend.GetProperty("totalXp").GetInt32());
+    }
+
+    [Fact]
+    public async Task Accepting_a_request_notifies_the_sender()
+    {
+        using var f = new FixedClockApiFactory();
+        var friends = await SeedFriendsAsync(f);
+
+        var notifications = await ReadSuccessJsonAsync(await friends.Alice.GetAsync("/api/notifications"));
+
+        Assert.Contains(notifications.GetProperty("items").EnumerateArray(), n =>
+            n.GetProperty("type").GetString() == "friend_request_accepted"
+            && n.GetProperty("message").GetString() == "bob accepted your friend request.");
+    }
+
+    [Fact]
+    public async Task Removing_a_friend_returns_204_and_empties_the_friends_list()
+    {
+        using var f = new FixedClockApiFactory();
+        var friends = await SeedFriendsAsync(f);
+
+        var res = await friends.Alice.DeleteAsync($"/api/friends/{friends.Ids[1]}");
+
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Empty((await ReadSuccessJsonAsync(await friends.Alice.GetAsync("/api/friends"))).EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Removing_a_friend_twice_returns_404()
+    {
+        using var f = new FixedClockApiFactory();
+        var friends = await SeedFriendsAsync(f);
+        await friends.Alice.DeleteAsync($"/api/friends/{friends.Ids[1]}");
+
+        var res = await friends.Alice.DeleteAsync($"/api/friends/{friends.Ids[1]}");
+
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Friend_request_to_self_returns_400_with_message()
+    {
+        using var f = new FixedClockApiFactory();
+        var ids = await SeedUsersAsync(f, "alice");
+
+        var res = await f.CreateAuthenticatedClient(ids[0], "alice").PostAsJsonAsync("/api/friends/requests", new { targetUserId = ids[0] });
+
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        Assert.Equal("You cannot send a friend request to yourself.", await ErrorMessageAsync(res));
+    }
+
+    [Fact]
+    public async Task Friend_request_to_unknown_username_returns_404_with_message()
+    {
+        using var f = new FixedClockApiFactory();
+        var ids = await SeedUsersAsync(f, "alice");
+
+        var res = await f.CreateAuthenticatedClient(ids[0], "alice").PostAsJsonAsync("/api/friends/requests/by-username", new { username = "nobody" });
+
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        Assert.Equal("No user found with username 'nobody'.", await ErrorMessageAsync(res));
+    }
+
+    [Fact]
+    public async Task Accepting_a_request_sent_to_someone_else_returns_404_with_message()
+    {
+        using var f = new FixedClockApiFactory();
+        var pending = await SeedPendingRequestAsync(f, "carol");
+        var carol = f.CreateAuthenticatedClient(pending.Ids[2], "carol");
+
+        var res = await carol.PostAsync($"/api/friends/requests/{pending.RequestId}/accept", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        Assert.Equal(RequestNotFoundMessage, await ErrorMessageAsync(res));
+    }
+
+    [Fact]
+    public async Task Cancelling_a_request_sent_by_someone_else_returns_404()
+    {
+        using var f = new FixedClockApiFactory();
+        var pending = await SeedPendingRequestAsync(f, "carol");
+        var carol = f.CreateAuthenticatedClient(pending.Ids[2], "carol");
+
+        var res = await carol.DeleteAsync($"/api/friends/requests/{pending.RequestId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Sender_can_cancel_a_pending_request()
+    {
+        using var f = new FixedClockApiFactory();
+        var pending = await SeedPendingRequestAsync(f);
+
+        var res = await pending.Alice.DeleteAsync($"/api/friends/requests/{pending.RequestId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
         Assert.Equal(0, await f.QueryDbAsync(db => db.FriendRequests.CountAsync()));
     }
 
@@ -123,72 +270,148 @@ public class SocialApiTests
     }
 
     [Fact]
-    public async Task Notifications_page_read_and_delete()
+    public async Task Notifications_page_zero_is_the_first_page_and_reports_totals()
     {
         using var f = new FixedClockApiFactory();
-        var ids = await SeedUsersAsync(f, "alice", "bob", "carol", "admin");
-        var alice = f.CreateAuthenticatedClient(ids[0], "alice");
-        var bob = f.CreateAuthenticatedClient(ids[1], "bob");
-        var carol = f.CreateAuthenticatedClient(ids[2], "carol");
-        var admin = f.CreateAuthenticatedClient(ids[3], "admin", isAdmin: true);
-        await SendRequestAsync(bob, ids[0]);
-        await SendRequestAsync(carol, ids[0]);
+        var inbox = await SeedInboxWithTwoNotificationsAsync(f);
 
-        var page = await ReadSuccessJsonAsync(await alice.GetAsync("/api/notifications?page=0&pageSize=1"));
+        var page = await ReadSuccessJsonAsync(await inbox.Alice.GetAsync("/api/notifications?page=0&pageSize=1"));
 
         Assert.Equal(new[] { "items", "totalCount", "unreadCount" }, Keys(page));
         Assert.Equal(2, page.GetProperty("totalCount").GetInt32());
         Assert.Equal(2, page.GetProperty("unreadCount").GetInt32());
-        var first = page.GetProperty("items").EnumerateArray().Single();
-        Assert.Equal(new[] { "actorUserId", "createdAt", "id", "isRead", "message", "scoringDay", "type" }, Keys(first));
-        var unread = await ReadSuccessJsonAsync(await alice.GetAsync("/api/notifications/unread-count"));
+        var item = page.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal(new[] { "actorUserId", "createdAt", "id", "isRead", "message", "scoringDay", "type" }, Keys(item));
+    }
+
+    [Fact]
+    public async Task Unread_count_returns_the_documented_shape()
+    {
+        using var f = new FixedClockApiFactory();
+        var inbox = await SeedInboxWithTwoNotificationsAsync(f);
+
+        var unread = await ReadSuccessJsonAsync(await inbox.Alice.GetAsync("/api/notifications/unread-count"));
+
         Assert.Equal(new[] { "unreadCount" }, Keys(unread));
         Assert.Equal(2, unread.GetProperty("unreadCount").GetInt32());
+    }
 
-        var firstId = first.GetProperty("id").GetInt32();
-        Assert.Equal(HttpStatusCode.NoContent, (await alice.PostAsync($"/api/notifications/{firstId}/read", null)).StatusCode);
-        Assert.Equal(1, (await ReadSuccessJsonAsync(await alice.GetAsync("/api/notifications/unread-count"))).GetProperty("unreadCount").GetInt32());
-        Assert.Equal(HttpStatusCode.NoContent, (await alice.PostAsync("/api/notifications/read-all", null)).StatusCode);
-        Assert.Equal(0, (await ReadSuccessJsonAsync(await alice.GetAsync("/api/notifications/unread-count"))).GetProperty("unreadCount").GetInt32());
+    [Fact]
+    public async Task Marking_a_notification_read_decrements_the_unread_count()
+    {
+        using var f = new FixedClockApiFactory();
+        var inbox = await SeedInboxWithTwoNotificationsAsync(f);
 
-        var foreign = await bob.DeleteAsync($"/api/notifications/{firstId}");
-        Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
-        Assert.Equal("Notification not found", await ErrorMessageAsync(foreign));
-        Assert.Equal(HttpStatusCode.NoContent, (await admin.DeleteAsync($"/api/notifications/{firstId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await alice.DeleteAsync($"/api/notifications/{firstId}")).StatusCode);
+        var res = await inbox.Alice.PostAsync($"/api/notifications/{inbox.NotificationId}/read", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Equal(1, await UnreadCountAsync(inbox.Alice));
+    }
+
+    [Fact]
+    public async Task Read_all_clears_the_unread_count()
+    {
+        using var f = new FixedClockApiFactory();
+        var inbox = await SeedInboxWithTwoNotificationsAsync(f);
+
+        var res = await inbox.Alice.PostAsync("/api/notifications/read-all", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Equal(0, await UnreadCountAsync(inbox.Alice));
+    }
+
+    [Fact]
+    public async Task Deleting_another_users_notification_returns_404_with_message()
+    {
+        using var f = new FixedClockApiFactory();
+        var inbox = await SeedInboxWithTwoNotificationsAsync(f);
+
+        var res = await inbox.Bob.DeleteAsync($"/api/notifications/{inbox.NotificationId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        Assert.Equal("Notification not found", await ErrorMessageAsync(res));
+    }
+
+    [Fact]
+    public async Task Admin_can_delete_any_notification()
+    {
+        using var f = new FixedClockApiFactory();
+        var inbox = await SeedInboxWithTwoNotificationsAsync(f);
+
+        var res = await inbox.Admin.DeleteAsync($"/api/notifications/{inbox.NotificationId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
         Assert.Equal(1, await f.QueryDbAsync(db => db.Notifications.CountAsync()));
     }
 
     [Fact]
-    public async Task Favorites_add_and_remove()
+    public async Task Deleting_a_deleted_notification_returns_404()
+    {
+        using var f = new FixedClockApiFactory();
+        var inbox = await SeedInboxWithTwoNotificationsAsync(f);
+        (await inbox.Admin.DeleteAsync($"/api/notifications/{inbox.NotificationId}")).EnsureSuccessStatusCode();
+
+        var res = await inbox.Alice.DeleteAsync($"/api/notifications/{inbox.NotificationId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Adding_a_favorite_stores_it()
+    {
+        using var f = new FixedClockApiFactory();
+        var ids = await SeedUsersAsync(f, "alice");
+        var gameId = await SeedGameAsync(f);
+
+        var res = await f.CreateAuthenticatedClient(ids[0], "alice").PostAsync($"/api/favorites/{gameId}", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
+        Assert.Equal(1, await f.QueryDbAsync(db => db.Favorites.CountAsync()));
+    }
+
+    [Fact]
+    public async Task Removing_a_favorite_is_idempotent()
     {
         using var f = new FixedClockApiFactory();
         var ids = await SeedUsersAsync(f, "alice");
         var gameId = await SeedGameAsync(f);
         var alice = f.CreateAuthenticatedClient(ids[0], "alice");
+        (await alice.PostAsync($"/api/favorites/{gameId}", null)).EnsureSuccessStatusCode();
 
-        Assert.Equal(HttpStatusCode.NoContent, (await alice.PostAsync($"/api/favorites/{gameId}", null)).StatusCode);
-        Assert.Equal(1, await f.QueryDbAsync(db => db.Favorites.CountAsync()));
-        Assert.Equal(HttpStatusCode.NoContent, (await alice.DeleteAsync($"/api/favorites/{gameId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await alice.DeleteAsync($"/api/favorites/{gameId}")).StatusCode);
+        var first = await alice.DeleteAsync($"/api/favorites/{gameId}");
+        var second = await alice.DeleteAsync($"/api/favorites/{gameId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
         Assert.Equal(0, await f.QueryDbAsync(db => db.Favorites.CountAsync()));
-
-        var missing = await alice.PostAsync($"/api/favorites/{gameId + 100}", null);
-        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Equal("Game not found", await ErrorMessageAsync(missing));
     }
 
     [Fact]
-    public async Task Social_endpoints_require_a_token()
+    public async Task Adding_a_favorite_for_an_unknown_game_returns_404_with_message()
     {
         using var f = new FixedClockApiFactory();
-        var anonymous = f.CreateClient();
+        var ids = await SeedUsersAsync(f, "alice");
+        var missingGameId = await SeedGameAsync(f) + 100;
 
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/friends")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/notifications")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsync("/api/favorites/1", null)).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/leagues")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/games/1/personal-highscore")).StatusCode);
+        var res = await f.CreateAuthenticatedClient(ids[0], "alice").PostAsync($"/api/favorites/{missingGameId}", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+        Assert.Equal("Game not found", await ErrorMessageAsync(res));
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/friends")]
+    [InlineData("GET", "/api/notifications")]
+    [InlineData("POST", "/api/favorites/1")]
+    [InlineData("GET", "/api/leagues")]
+    [InlineData("GET", "/api/games/1/personal-highscore")]
+    public async Task Social_endpoints_require_a_token(string method, string url)
+    {
+        using var f = new FixedClockApiFactory();
+
+        var res = await f.CreateClient().SendAsync(new HttpRequestMessage(new HttpMethod(method), url));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 
     [Fact]
@@ -245,17 +468,34 @@ public class SocialApiTests
     public async Task Admin_xp_adjustment_rejects_a_zero_delta()
     {
         using var f = new FixedClockApiFactory();
-        var ids = await SeedUsersAsync(f, "admin", "alice");
-        var admin = f.CreateAuthenticatedClient(ids[0], "admin", isAdmin: true);
+        var (admin, aliceId) = await SeedAdminAndAliceAsync(f);
 
-        var zero = await admin.PostAsJsonAsync($"/api/admin/users/{ids[1]}/xp", new { delta = 0, reason = "x" });
-        Assert.Equal(HttpStatusCode.BadRequest, zero.StatusCode);
-        Assert.Equal("Delta must be non-zero", await ErrorMessageAsync(zero));
+        var res = await AdjustXpAsync(admin, aliceId, delta: 0, reason: "x");
 
-        var adjusted = await ReadSuccessJsonAsync(await admin.PostAsJsonAsync($"/api/admin/users/{ids[1]}/xp", new { delta = 5, reason = "bonus" }));
-        Assert.Equal(125, adjusted.GetProperty("totalXp").GetInt32());
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        Assert.Equal("Delta must be non-zero", await ErrorMessageAsync(res));
+    }
 
-        var events = await ReadSuccessJsonAsync(await admin.GetAsync($"/api/admin/users/{ids[1]}/xp-events?page=0&pageSize=500"));
+    [Fact]
+    public async Task Admin_xp_adjustment_adds_the_delta_to_total_xp()
+    {
+        using var f = new FixedClockApiFactory();
+        var (admin, aliceId) = await SeedAdminAndAliceAsync(f);
+
+        var adjusted = await ReadSuccessJsonAsync(await AdjustXpAsync(admin, aliceId, XpBonus, "bonus"));
+
+        Assert.Equal(SeededTotalXp + XpBonus, adjusted.GetProperty("totalXp").GetInt32());
+    }
+
+    [Fact]
+    public async Task Admin_xp_events_list_the_adjustment()
+    {
+        using var f = new FixedClockApiFactory();
+        var (admin, aliceId) = await SeedAdminAndAliceAsync(f);
+        (await AdjustXpAsync(admin, aliceId, XpBonus, "bonus")).EnsureSuccessStatusCode();
+
+        var events = await ReadSuccessJsonAsync(await admin.GetAsync($"/api/admin/users/{aliceId}/xp-events?page=0&pageSize=500"));
+
         Assert.Equal(new[] { "items", "totalCount" }, Keys(events));
         Assert.Equal(1, events.GetProperty("totalCount").GetInt32());
     }
