@@ -166,4 +166,16 @@ describe('useAsyncData', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.error).toBe(true)
   })
+
+  it('exposes the rejection reason as failure and clears it on the next fetch', async () => {
+    const reason = new Error('fail')
+    const fetcher = vi.fn().mockRejectedValueOnce(reason).mockResolvedValueOnce('ok')
+    const { result } = renderHook(() => useAsyncData(fetcher, []))
+    await waitFor(() => expect(result.current.failure).toBe(reason))
+
+    act(() => result.current.refetch())
+
+    await waitFor(() => expect(result.current.data).toBe('ok'))
+    expect(result.current.failure).toBeNull()
+  })
 })
