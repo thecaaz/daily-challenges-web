@@ -1,13 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import api, { refreshSession, setAccessToken, AUTH_EXPIRED_EVENT } from '../api'
 import { extractAccessToken } from '../api/accessToken'
+import { isUnauthorizedError } from '../api/httpStatus'
 import Loading from '../components/ui/Loading'
 
 const AuthContext = createContext()
-
-const UNAUTHORIZED = 401
-
-const isUnauthorized = (err) => err?.response?.status === UNAUTHORIZED
 
 /** Resolves to whether the refresh cookie still holds a session (never rejects). */
 const restoreSessionToken = () => refreshSession().then(() => true, () => false)
@@ -35,7 +32,7 @@ export function AuthProvider({ children }) {
       setUser(response.data)
       return response.data
     } catch (err) {
-      if (isUnauthorized(err)) setUser(null)
+      if (isUnauthorizedError(err)) setUser(null)
       return null
     }
   }, [])

@@ -1,7 +1,6 @@
 import { authApi } from './clients'
 import { extractAccessToken, setAccessToken } from './accessToken'
-
-const UNAUTHORIZED = 401
+import { isUnauthorizedError } from './httpStatus'
 
 /** Name of the Web Lock that serializes refreshes across tabs of this origin. */
 export const REFRESH_LOCK_NAME = 'dc-auth-refresh'
@@ -10,8 +9,6 @@ export const REFRESH_LOCK_NAME = 'dc-auth-refresh'
  * counts as expired (see refreshSession).
  */
 export const REFRESH_RETRY_DELAY_MS = 300
-
-export const isUnauthorized = error => error?.response?.status === UNAUTHORIZED
 
 let refreshInFlight = null
 
@@ -55,7 +52,7 @@ const refreshWithRetry = async () => {
   try {
     return await postRefresh()
   } catch (err) {
-    if (!isUnauthorized(err)) throw err
+    if (!isUnauthorizedError(err)) throw err
     await sleep(REFRESH_RETRY_DELAY_MS)
     return postRefresh()
   }

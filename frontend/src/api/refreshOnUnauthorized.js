@@ -1,6 +1,7 @@
 import { api } from './clients'
 import { setAccessToken, withBearer } from './accessToken'
-import { refreshSession, isUnauthorized } from './sessionRefresh'
+import { refreshSession } from './sessionRefresh'
+import { isUnauthorizedError } from './httpStatus'
 
 /** Fired on window when the session can't be refreshed; AuthContext clears the user. */
 export const AUTH_EXPIRED_EVENT = 'auth:expired'
@@ -27,7 +28,7 @@ export async function refreshOnUnauthorized(error) {
 }
 
 const canRefreshFor = (error, request) =>
-  isUnauthorized(error) && !request._retry && !NO_REFRESH_URL.test(request.url || '')
+  isUnauthorizedError(error) && !request._retry && !NO_REFRESH_URL.test(request.url || '')
 
 /** Waits for the refresh in flight; on failure surfaces this request's own 401. */
 const retryAfterRefreshInFlight = (request, error) =>

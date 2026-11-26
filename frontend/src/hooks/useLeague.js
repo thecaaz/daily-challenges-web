@@ -4,9 +4,10 @@ import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { getApiErrorMessage } from '../utils/apiError'
 import useLatestRequest from './useLatestRequest'
+import { isNotFoundError } from '../api/httpStatus'
 
 function loadErrorMessage(err) {
-  if (err?.response?.status === 404) return 'League not found.'
+  if (isNotFoundError(err)) return 'League not found.'
   return getApiErrorMessage(err, 'Failed to load league.')
 }
 

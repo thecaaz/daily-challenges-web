@@ -1,12 +1,13 @@
 import api from '../api'
 import useAsyncData from './useAsyncData'
+import { isNotFoundError } from '../api/httpStatus'
 
 /** The submission, or null when it does not exist (404); other failures reject. */
 function getSubmissionOrNull(id) {
   return api.get(`/submissions/${id}`)
     .then(response => response.data ?? null)
     .catch(err => {
-      if (err?.response?.status === 404) return null
+      if (isNotFoundError(err)) return null
       throw err
     })
 }

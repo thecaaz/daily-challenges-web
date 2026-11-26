@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import useLatestRequest from './useLatestRequest'
+import { isNotFoundError } from '../api/httpStatus'
 
 /**
  * Loads a game's overview (game, available dates, whether the current user has
@@ -55,7 +56,7 @@ export default function useGame(gameId) {
       setHasSubmittedForLatest(!!overview.hasSubmittedForLatest)
     } catch (err) {
       if (!isLatest()) return
-      if (err?.response?.status === 404) markNotFound()
+      if (isNotFoundError(err)) markNotFound()
       else setError(err || new Error('Failed to load game'))
     } finally {
       if (isLatest()) setLoading(false)

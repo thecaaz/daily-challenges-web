@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import api from '../api'
 import useLatestRequest from './useLatestRequest'
+import { isNotFoundError } from '../api/httpStatus'
 
 const PAGE_SIZE = 50
 const EMPTY_PAGES = { submissions: [], page: 1, hasMore: false, scoresHidden: false }
@@ -71,7 +72,7 @@ export default function useSubmissionPages({ gameId, scoringDay, enabled }) {
       })
       .catch(err => {
         if (!isLatest()) return
-        if (err?.response?.status === 404) setIsNotFound(true)
+        if (isNotFoundError(err)) setIsNotFound(true)
         else setHasError(true)
       })
       .finally(() => {
