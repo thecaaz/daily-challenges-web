@@ -2,6 +2,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import AuthForm from '../components/ui/AuthForm'
+import { LOGIN_CREDENTIALS } from '../utils/credentialRules'
 import { getApiErrorMessage } from '../utils/apiError'
 import { getSafeRedirect, withRedirect } from '../utils/safeRedirect'
 
@@ -23,14 +24,10 @@ export default function Login() {
 
   return (
     <AuthForm
-      icon="🎮"
-      title="Welcome back!"
-      subtitle="Log in to track your scores and climb the leaderboard."
-      submitLabel="Login"
-      submitLoadingLabel="Logging in…"
-      linkPrefix="No account?"
-      linkText="Register here"
-      linkTo={withRedirect('/register', redirect)}
+      heading={{ icon: '🎮', title: 'Welcome back!', subtitle: 'Log in to track your scores and climb the leaderboard.' }}
+      submitLabels={{ idle: 'Login', loading: 'Logging in…' }}
+      alternative={{ prefix: 'No account?', text: 'Register here', to: withRedirect('/register', redirect) }}
+      credentials={LOGIN_CREDENTIALS}
       onSubmit={handleSubmit}
     />
   )

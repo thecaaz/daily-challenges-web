@@ -2,6 +2,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import AuthForm from '../components/ui/AuthForm'
+import { NEW_ACCOUNT_CREDENTIALS } from '../utils/credentialRules'
 import { getApiErrorMessage } from '../utils/apiError'
 import { getSafeRedirect, withRedirect } from '../utils/safeRedirect'
 
@@ -25,16 +26,10 @@ export default function Register() {
 
   return (
     <AuthForm
-      icon="🏆"
-      title="Join the challenge!"
-      subtitle="Create an account to submit scores and compete with others."
-      submitLabel="Register"
-      submitLoadingLabel="Creating account…"
-      passwordAutoComplete="new-password"
-      validate
-      linkPrefix="Already have an account?"
-      linkText="Log in"
-      linkTo={loginPath}
+      heading={{ icon: '🏆', title: 'Join the challenge!', subtitle: 'Create an account to submit scores and compete with others.' }}
+      submitLabels={{ idle: 'Register', loading: 'Creating account…' }}
+      alternative={{ prefix: 'Already have an account?', text: 'Log in', to: loginPath }}
+      credentials={NEW_ACCOUNT_CREDENTIALS}
       onSubmit={handleSubmit}
     />
   )

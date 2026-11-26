@@ -2,11 +2,7 @@ import { useState } from 'react'
 import api from '../api'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { getApiErrorMessage } from '../utils/apiError'
-
-const PASSWORD_MIN = 8
-const PASSWORD_MAX = 128
-
-const isValidPasswordLength = password => password.length >= PASSWORD_MIN && password.length <= PASSWORD_MAX
+import { isValidPasswordLength, PASSWORD_LENGTH_MESSAGE } from '../utils/credentialRules'
 
 /**
  * State of the admin "Set Password" dialog. Validation and API errors are
@@ -31,7 +27,7 @@ export default function useSetPasswordDialog() {
 
   const submit = async () => {
     if (!isValidPasswordLength(password)) {
-      setError(`Password must be ${PASSWORD_MIN}–${PASSWORD_MAX} characters`)
+      setError(PASSWORD_LENGTH_MESSAGE)
       return
     }
     try {
