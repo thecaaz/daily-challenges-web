@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`style characterization > keeps the brand logo styles 1`] = `"<a class="MuiBox-root css-1jpsfi7" href="/"><div class="MuiBox-root css-1h9tefk">🎮</div><div class="MuiBox-root css-0"><h6 class="MuiTypography-root MuiTypography-subtitle1 css-1obvzpu-MuiTypography-root">Daily Challenges</h6><span class="MuiTypography-root MuiTypography-caption css-1aem2zl-MuiTypography-root">Play, compete, repeat</span></div></a>"`;
+
+exports[`style characterization > keeps the changelog code block background in dark mode 1`] = `"MuiBox-root css-koos12"`;
+
+exports[`style characterization > keeps the changelog code block background in light mode 1`] = `"MuiBox-root css-5vd07y"`;
+
+exports[`style characterization > keeps the countdown caption colour 1`] = `"MuiTypography-root MuiTypography-caption css-ggvnle-MuiTypography-root"`;
+
+exports[`style characterization > keeps the league game card placeholder icon 1`] = `"MuiAvatar-root MuiAvatar-rounded MuiAvatar-colorDefault css-wdpjhq-MuiAvatar-root"`;
+
+exports[`style characterization > keeps the maximized game player styles 1`] = `"<div class="MuiBox-root css-16oabtl"><div class="MuiBox-root css-12i7aqp"><span class="MuiCircularProgress-root MuiCircularProgress-indeterminate MuiCircularProgress-colorPrimary css-1hsm6vg-MuiCircularProgress-root" style="width: 40px; height: 40px;" role="progressbar"><svg class="MuiCircularProgress-svg css-1idz92c-MuiCircularProgress-svg" viewBox="22 22 44 44"><circle class="MuiCircularProgress-circle MuiCircularProgress-circleIndeterminate css-176wh8e-MuiCircularProgress-circle" cx="44" cy="44" r="20.2" fill="none" stroke-width="3.6"></circle></svg></span><p class="MuiTypography-root MuiTypography-body1 css-11hh17j-MuiTypography-root">Loading game...</p></div><button class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeSmall css-1s1csd9-MuiButtonBase-root-MuiIconButton-root" tabindex="0" type="button" title="Restore" aria-label="Restore"><svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-i4bv87-MuiSvgIcon-root" focusable="false" aria-hidden="true" viewBox="0 0 24 24" data-testid="FullscreenExitIcon"><path d="M5 16h3v3h2v-5H5zm3-8H5v2h5V5H8zm6 11h2v-3h3v-2h-5zm2-11V5h-2v5h5V8z"></path></svg><span class="MuiTouchRipple-root css-8je8zh-MuiTouchRipple-root"></span></button><iframe allowfullscreen="" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" referrerpolicy="strict-origin-when-cross-origin" src="https://game.example/" title="Game" style="width: 100%; height: 100%; border: 0px; visibility: hidden; position: relative; z-index: 1;"></iframe></div>"`;
+
+exports[`style characterization > keeps the version badge outline 1`] = `"MuiButtonBase-root MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorDefault MuiChip-clickable MuiChip-clickableColorDefault MuiChip-filledDefault css-j42evp-MuiButtonBase-root-MuiChip-root"`;
