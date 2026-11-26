@@ -37,33 +37,57 @@ describe('AdminUserAuditModal', () => {
     mockGet.mockResolvedValue({ data: { items: [{ id: 1, amount: 10, eventType: 'day_win', createdAt: '2026-01-02T10:00:00Z', scoringDay: '2026-01-01' }], totalCount: 1 } })
   })
 
-  it('nextDay handles month and year ends', () => {
-    expect(nextDay('2026-01-31')).toBe('2026-02-01')
-    expect(nextDay('2026-12-31')).toBe('2027-01-01')
-    expect(nextDay('2028-02-28')).toBe('2028-02-29')
+  it.each([
+    ['2026-01-31', '2026-02-01'],
+    ['2026-12-31', '2027-01-01'],
+    ['2028-02-28', '2028-02-29'],
+  ])('nextDay(%s) is %s across month, year and leap-day ends', (day, expected) => {
+    expect(nextDay(day)).toBe(expected)
+  })
+
+  it('nextDay rejects a value that is not a day', () => {
     expect(nextDay('garbage')).toBeNull()
   })
 
   it('buildFilterParams makes "to" inclusive by sending the next day', () => {
-    expect(buildFilterParams({ from: '2026-03-01', to: '2026-03-05', eventType: 'day_win' }))
-      .toEqual({ from: '2026-03-01', to: '2026-03-06', eventType: 'day_win' })
+    const params = buildFilterParams({ from: '2026-03-01', to: '2026-03-05', eventType: 'day_win' })
+
+    expect(params).toEqual({ from: '2026-03-01', to: '2026-03-06', eventType: 'day_win' })
+  })
+
+  it('buildFilterParams leaves out empty filters', () => {
     expect(buildFilterParams({ from: '', to: '', eventType: '' })).toEqual({})
   })
 
-  it('loads on open, sends to+1 day on Apply, and Reset clears filters', async () => {
+  it('loads the first page when opened', async () => {
     renderModal()
-    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1))
-    expect(mockGet).toHaveBeenCalledWith('/admin/users/5/xp-events', { params: { page: 1, pageSize: 20 } })
-    expect(await screen.findByText('2026-01-01')).toBeInTheDocument()
 
+    expect(await screen.findByText('2026-01-01')).toBeInTheDocument()
+    expect(mockGet).toHaveBeenCalledTimes(1)
+    expect(mockGet).toHaveBeenCalledWith('/admin/users/5/xp-events', { params: { page: 1, pageSize: 20 } })
+  })
+
+  it('applies the filters, sending the day after "to"', async () => {
+    renderModal()
+    await screen.findByText('2026-01-01')
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } })
     fireEvent.change(screen.getByLabelText('To (inclusive)'), { target: { value: '2026-03-31' } })
+
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2))
     expect(lastParams()).toEqual({ page: 1, pageSize: 20, from: '2026-03-01', to: '2026-04-01' })
+  })
+
+  it('clears the filters and reloads on Reset', async () => {
+    renderModal()
+    await screen.findByText('2026-01-01')
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2))
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+
     await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(3))
     expect(lastParams()).toEqual({ page: 1, pageSize: 20 })
     expect(screen.getByLabelText('From')).toHaveValue('')

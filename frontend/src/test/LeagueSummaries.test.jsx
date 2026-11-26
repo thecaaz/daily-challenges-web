@@ -23,26 +23,38 @@ describe('buildRecentPlaysData', () => {
 describe('useLeagueGameSummaries.loadMore', () => {
   beforeEach(() => { mockGet.mockReset() })
 
-  it('only advances the page on success, so a failed load can be retried', async () => {
+  async function renderFirstPage() {
     mockGet.mockResolvedValueOnce({ data: { items: [{ gameId: 1 }], totalCount: 3 } })
-    const { result } = renderHook(() => useLeagueGameSummaries(5))
-    await waitFor(() => expect(result.current.items).toHaveLength(1))
+    const rendered = renderHook(() => useLeagueGameSummaries(5))
+    await waitFor(() => expect(rendered.result.current.items).toHaveLength(1))
+    return rendered
+  }
 
+  it('asks for the same page again after a failed load', async () => {
+    const { result } = await renderFirstPage()
     mockGet.mockRejectedValueOnce(new Error('boom'))
     await act(async () => { result.current.loadMore() })
     await waitFor(() => expect(result.current.error).toBeTruthy())
-    expect(mockGet.mock.calls[1][1].params.page).toBe(2)
+    mockGet.mockResolvedValueOnce({ data: { items: [{ gameId: 2 }], totalCount: 3 } })
 
+    await act(async () => { result.current.loadMore() })
+
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+    expect(mockGet.mock.calls.map(call => call[1].params.page)).toEqual([1, 2, 2])
+    expect(result.current.error).toBeNull()
+  })
+
+  it('advances to the next page after a successful load', async () => {
+    const { result } = await renderFirstPage()
     mockGet.mockResolvedValueOnce({ data: { items: [{ gameId: 2 }], totalCount: 3 } })
     await act(async () => { result.current.loadMore() })
     await waitFor(() => expect(result.current.items).toHaveLength(2))
-    expect(mockGet.mock.calls[2][1].params.page).toBe(2)
-    expect(result.current.error).toBeNull()
-
     mockGet.mockResolvedValueOnce({ data: { items: [{ gameId: 3 }], totalCount: 3 } })
+
     await act(async () => { result.current.loadMore() })
+
     await waitFor(() => expect(result.current.items).toHaveLength(3))
-    expect(mockGet.mock.calls[3][1].params.page).toBe(3)
+    expect(mockGet.mock.calls.map(call => call[1].params.page)).toEqual([1, 2, 3])
   })
 })
 
