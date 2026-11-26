@@ -4,8 +4,13 @@ import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import useFavorite from '../../hooks/useFavorite'
 
-/** A span keeps the tooltip working while the button is disabled. */
-const TooltipAnchor = ({ children }) => <span>{children}</span>
+/**
+ * A span keeps the tooltip working while the button is disabled.
+ * Tooltip attaches its ref and hover handlers to its child, so they must reach the span.
+ */
+const TooltipAnchor = React.forwardRef(function TooltipAnchor(props, ref) {
+  return <span ref={ref} {...props} />
+})
 
 export default function FavoriteButton({ game, sx, activeIconSx, inactiveIconSx }) {
   const { isFavorite, toggle, loading } = useFavorite(game?.id, game?.isFavorite ?? false)
