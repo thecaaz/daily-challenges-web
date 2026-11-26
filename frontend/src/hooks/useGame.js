@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
+import useLatestRequest from './useLatestRequest'
 
 /**
  * Loads a game's overview (game, available dates, whether the current user has
@@ -22,10 +23,10 @@ export default function useGame(gameId) {
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
-  const requestRef = useRef(0)
+  const startRequest = useLatestRequest()
 
   const fetchOverview = useCallback(async () => {
-    const requestId = ++requestRef.current
+    const isLatest = startRequest()
     if (!gameId) {
       setLoading(false)
       return
@@ -34,37 +35,32 @@ export default function useGame(gameId) {
     setNotFound(false)
     setError(null)
 
-    const clear = () => {
+    const markNotFound = () => {
+      setNotFound(true)
       setGame(null)
       setAvailableDates([])
       setHasSubmittedForLatest(false)
     }
 
     try {
-      const overviewRes = await api.get(`/games/${gameId}/overview?include=availableDates,hasSubmitted`)
-      if (requestId !== requestRef.current) return
-      const overview = overviewRes?.data || {}
-
+      const response = await api.get(`/games/${gameId}/overview?include=availableDates,hasSubmitted`)
+      if (!isLatest()) return
+      const overview = response?.data || {}
       if (!overview.game) {
-        setNotFound(true)
-        clear()
-      } else {
-        setGame(overview.game)
-        setAvailableDates(overview.availableDates || [])
-        setHasSubmittedForLatest(!!overview.hasSubmittedForLatest)
+        markNotFound()
+        return
       }
+      setGame(overview.game)
+      setAvailableDates(overview.availableDates || [])
+      setHasSubmittedForLatest(!!overview.hasSubmittedForLatest)
     } catch (err) {
-      if (requestId !== requestRef.current) return
-      if (err?.response?.status === 404) {
-        setNotFound(true)
-        clear()
-      } else {
-        setError(err || new Error('Failed to load game'))
-      }
+      if (!isLatest()) return
+      if (err?.response?.status === 404) markNotFound()
+      else setError(err || new Error('Failed to load game'))
     } finally {
-      if (requestId === requestRef.current) setLoading(false)
+      if (isLatest()) setLoading(false)
     }
-  }, [gameId])
+  }, [gameId, startRequest])
 
   useRefetchWhenViewerChanges(fetchOverview, userId)
 
