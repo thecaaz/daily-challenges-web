@@ -32,8 +32,8 @@ public class AchievementServiceTests
         var notifRepo = new Mock<INotificationRepository>();
         var friendRepo = new Mock<IFriendRepository>();
 
-        // Default: nothing unlocked yet
-        achRepo.Setup(r => r.GetUnlockedIdsAsync(It.IsAny<int>())).ReturnsAsync(new List<string>());
+        var nothingUnlockedYet = new List<string>();
+        achRepo.Setup(r => r.GetUnlockedIdsAsync(It.IsAny<int>())).ReturnsAsync(nothingUnlockedYet);
         achRepo.Setup(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>())).Returns(Task.CompletedTask);
         notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>())).Returns(Task.CompletedTask);
 
@@ -72,7 +72,7 @@ public class AchievementServiceTests
     [InlineData(AchievementTrigger.DayWin)]
     [InlineData(AchievementTrigger.LevelUp)]
     [InlineData(AchievementTrigger.FriendAccepted)]
-    public async Task CheckAndAward_WrongTriggerForSubmission_NoCandidates(AchievementTrigger trigger)
+    public async Task CheckAndAward_NonSubmissionTrigger_DoesNotEvaluateSubmissionAchievements(AchievementTrigger trigger)
     {
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(streak: 100, level: 25));
@@ -80,7 +80,6 @@ public class AchievementServiceTests
 
         await sut.Service.CheckAndAwardAsync(1, trigger);
 
-        // Submission achievements should not be evaluated on non-submission triggers
         sut.SubRepo.Verify(r => r.CountByUserAsync(It.IsAny<int>()), Times.Never);
     }
 
@@ -266,13 +265,13 @@ public class AchievementServiceTests
 
     // ── User not found: no crash, no unlock ───────────────────────────────────
 
+    /// <summary>Errors are swallowed by the service's outer try/catch, so a missing user must not throw.</summary>
     [Fact]
     public async Task CheckAndAward_UserNotFound_DoesNotThrowOrUnlock()
     {
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((User?)null);
 
-        // Should not throw (errors are swallowed by the outer try/catch)
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
         sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);

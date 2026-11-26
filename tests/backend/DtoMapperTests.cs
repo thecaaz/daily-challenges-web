@@ -67,10 +67,10 @@ public class DtoMapperTests
         Assert.Null(dto.ScreenshotUrl);
     }
 
+    /// <summary>Blob-free projections leave ScreenshotData empty; the content type signals a screenshot.</summary>
     [Fact]
     public void ToDto_Submission_WithScreenshotContentType_SetsScreenshotUrl()
     {
-        // Blob-free projections leave ScreenshotData empty; the content type signals a screenshot.
         var sub = new Submission { Id = 99, GameId = 1, UserId = 1, Score = "1", ScreenshotContentType = "image/jpeg" };
         var dto = DtoMapper.ToDto(sub);
         Assert.Equal("/api/submissions/99/screenshot", dto.ScreenshotUrl);
@@ -227,29 +227,41 @@ public class DtoMapperTests
     public void Streak_IsEffective_ZeroAfterAGap(int lastPlayedDaysAgo, int expected)
     {
         var last = BaseTime.Date.AddDays(lastPlayedDaysAgo).AddHours(23);
-        var user = new User { Id = 1, Username = "u", Streak = 5, LastSubmissionAt = last };
+        const int storedStreak = 5;
+        var user = new User { Id = 1, Username = "u", Streak = storedStreak, LastSubmissionAt = last };
 
         Assert.Equal(expected, DtoMapper.ToDto(user, DefaultCalc(), BaseTime).Streak);
         Assert.Equal(expected, DtoMapper.ToFriendDto(user, DefaultCalc(), BaseTime).Streak);
         Assert.Equal(expected, DtoMapper.ToUserProfileDto(user, new List<UserGameStatDto>(), DefaultCalc(), BaseTime).Streak);
-        Assert.Equal(5, user.Streak); // the stored value is untouched
+        Assert.Equal(storedStreak, user.Streak);
     }
 
+    /// <summary>Top games last played three days and one day before <see cref="BaseTime"/>.</summary>
+    private static List<UserGameStatDto> TopGamesPlayedBeforeBaseTime() => new()
+    {
+        new() { GameId = 1, LastPlayed = BaseTime.AddDays(-3) },
+        new() { GameId = 2, LastPlayed = BaseTime.AddDays(-1) },
+    };
+
+    /// <summary>The top-N games can miss the latest play (or hide today's): the user's own field is the truth.</summary>
     [Fact]
     public void ToUserProfileDto_LastSubmissionAt_IsTheUsersOwnTimestamp_NotTheTopGamesMax()
     {
-        // The top-N games can miss the latest play (or hide today's): the user's own field is the truth.
         var user = new User { Id = 1, Username = "u", LastSubmissionAt = BaseTime };
-        var topGames = new List<UserGameStatDto>
-        {
-            new() { GameId = 1, LastPlayed = BaseTime.AddDays(-3) },
-            new() { GameId = 2, LastPlayed = BaseTime.AddDays(-1) },
-        };
 
-        Assert.Equal(BaseTime, DtoMapper.ToUserProfileDto(user, topGames, DefaultCalc(), BaseTime).LastSubmissionAt);
+        var dto = DtoMapper.ToUserProfileDto(user, TopGamesPlayedBeforeBaseTime(), DefaultCalc(), BaseTime);
 
-        user.LastSubmissionAt = null;
-        Assert.Null(DtoMapper.ToUserProfileDto(user, topGames, DefaultCalc(), BaseTime).LastSubmissionAt);
+        Assert.Equal(BaseTime, dto.LastSubmissionAt);
+    }
+
+    [Fact]
+    public void ToUserProfileDto_UserWithoutLastSubmissionAt_IsNullEvenWithTopGames()
+    {
+        var user = new User { Id = 1, Username = "u", LastSubmissionAt = null };
+
+        var dto = DtoMapper.ToUserProfileDto(user, TopGamesPlayedBeforeBaseTime(), DefaultCalc(), BaseTime);
+
+        Assert.Null(dto.LastSubmissionAt);
     }
 
     [Fact]

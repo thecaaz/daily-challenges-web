@@ -54,10 +54,10 @@ public class ExceptionToHttpResponseMiddlewareTests
         Assert.Equal(ExceptionToHttpResponseMiddleware.GenericErrorMessage, message);
     }
 
+    /// <summary>Only AuthenticationFailedException means 401; UnauthorizedAccessException is usually an I/O permission error.</summary>
     [Fact]
     public async Task UnauthorizedAccessException_is_not_treated_as_a_login_failure()
     {
-        // Only AuthenticationFailedException means 401; UnauthorizedAccessException is usually an I/O permission error.
         var (status, message, _) = await RunAsync(new UnauthorizedAccessException("Access to the path '/data' is denied."));
 
         Assert.Equal(500, status);

@@ -66,35 +66,67 @@ public class ChangelogAndReleaseInfoTests
         Assert.All(factory.Names, n => Assert.Equal(ChangelogCache.ClientName, n));
     }
 
-    [Fact]
-    public async Task Failed_refresh_returns_the_cached_changelog_and_backs_off_for_five_minutes()
+    /// <summary>Caches "v1", lets it expire and answers the refresh with a 502 (fetch #2).</summary>
+    private static async Task<(ChangelogCache Service, FakeHandler Handler, FixedTimeProvider Clock)> CreateAfterFailedRefreshAsync()
     {
         var (svc, handler, _, clock) = Create();
         handler.Ok("v1");
-        Assert.Equal("v1", await svc.GetChangelogAsync());
-
-        // Cache expired, the refresh fails: the last good copy is served, not an empty string.
+        await svc.GetChangelogAsync();
         clock.Advance(ChangelogCache.CacheDuration);
         handler.Status(HttpStatusCode.BadGateway);
-        Assert.Equal("v1", await svc.GetChangelogAsync());
-        Assert.Equal(2, handler.Calls);
+        return (svc, handler, clock);
+    }
 
-        // Within the back-off: no new fetch.
-        clock.Advance(TimeSpan.FromMinutes(4));
-        Assert.Equal("v1", await svc.GetChangelogAsync());
-        Assert.Equal(2, handler.Calls);
+    [Fact]
+    public async Task Failed_refresh_returns_the_last_good_changelog()
+    {
+        var (svc, handler, _) = await CreateAfterFailedRefreshAsync();
 
-        // After the back-off: retried; an exception also falls back to the cache.
-        clock.Advance(TimeSpan.FromMinutes(1));
+        var changelog = await svc.GetChangelogAsync();
+
+        Assert.Equal("v1", changelog);
+        Assert.Equal(2, handler.Calls);
+    }
+
+    [Fact]
+    public async Task Failed_refresh_does_not_fetch_again_within_the_backoff()
+    {
+        var (svc, handler, clock) = await CreateAfterFailedRefreshAsync();
+        await svc.GetChangelogAsync();
+        clock.Advance(ChangelogCache.FailureBackoff - TimeSpan.FromMinutes(1));
+
+        var changelog = await svc.GetChangelogAsync();
+
+        Assert.Equal("v1", changelog);
+        Assert.Equal(2, handler.Calls);
+    }
+
+    [Fact]
+    public async Task Fetch_throwing_after_the_backoff_returns_the_last_good_changelog()
+    {
+        var (svc, handler, clock) = await CreateAfterFailedRefreshAsync();
+        await svc.GetChangelogAsync();
+        clock.Advance(ChangelogCache.FailureBackoff);
         handler.Throw();
-        Assert.Equal("v1", await svc.GetChangelogAsync());
-        Assert.Equal(3, handler.Calls);
 
-        // Next retry succeeds and replaces the cache.
+        var changelog = await svc.GetChangelogAsync();
+
+        Assert.Equal("v1", changelog);
+        Assert.Equal(3, handler.Calls);
+    }
+
+    [Fact]
+    public async Task Successful_retry_after_the_backoff_replaces_the_cached_changelog()
+    {
+        var (svc, handler, clock) = await CreateAfterFailedRefreshAsync();
+        await svc.GetChangelogAsync();
         clock.Advance(ChangelogCache.FailureBackoff);
         handler.Ok("v2");
-        Assert.Equal("v2", await svc.GetChangelogAsync());
-        Assert.Equal(4, handler.Calls);
+
+        var changelog = await svc.GetChangelogAsync();
+
+        Assert.Equal("v2", changelog);
+        Assert.Equal(3, handler.Calls);
     }
 
     private static async Task<ReleaseInfo?> ReadReleaseInfoAsync(string? fileContent)

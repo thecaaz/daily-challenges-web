@@ -9,6 +9,7 @@ using DailyChallenges.Services.Contracts;
 using DailyChallenges.TestUtilities;
 using Microsoft.Extensions.Options;
 using Moq;
+using static DailyChallenges.Tests.TestEntities;
 
 namespace DailyChallenges.Tests;
 
@@ -44,9 +45,6 @@ public class FriendServiceTests
         var friendships = new FriendshipService(friends.Object, levelCalc, clock);
         return new Sut(requests, friendships, friends, users, notifs, ach);
     }
-
-    private static User MakeUser(int id, string username = "user") =>
-        new() { Id = id, Username = username, TotalXp = 0, Level = 1, Streak = 0 };
 
     private static FriendRequest PendingRequest(int id, int senderId, int receiverId) =>
         new() { Id = id, SenderId = senderId, ReceiverId = receiverId, Status = FriendRequestStatus.Pending, CreatedAt = DateTime.UtcNow };
@@ -167,8 +165,8 @@ public class FriendServiceTests
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        // 1 -> 2 was declined by 2 an hour ago; now 2 asks 1.
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(2, 1)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
+        var aliceRequestDeclinedByBobAnHourAgo = DeclinedRequest(7, senderId: 1, receiverId: 2, Now.AddHours(-1));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(2, 1)).ReturnsAsync(aliceRequestDeclinedByBobAnHourAgo);
         sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(2, 1), Now)).ReturnsAsync(true);
         sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 2, 1));
 
@@ -374,9 +372,10 @@ public class FriendServiceTests
     public async Task AnswerRequest_WrongReceiver_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, senderId: 1, receiverId: 2));
+        const int notTheReceiverId = 99;
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            sut.Requests.AcceptRequestAsync(1, 99)); // receiverId=99 but request has receiverId=2
+            sut.Requests.AcceptRequestAsync(1, notTheReceiverId));
     }
 
     [Fact]
@@ -478,9 +477,10 @@ public class FriendServiceTests
     public async Task CancelRequest_NotSender_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, senderId: 1, receiverId: 2));
+        const int notTheSenderId = 99;
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            sut.Requests.CancelRequestAsync(1, 99)); // senderId=99 but request has senderId=1
+            sut.Requests.CancelRequestAsync(1, notTheSenderId));
     }
 
     [Fact]

@@ -25,7 +25,7 @@ public class XpServiceTests
         XpConfig Config
     );
 
-    // `now` is the wall-clock time of the submission; streaks are based on it (defaults to Day1).
+    /// <summary><paramref name="now"/> is the wall-clock time of the submission; streaks are based on it (defaults to Day1).</summary>
     private static Sut Build(Action<XpConfig>? configure = null, DateTime? now = null)
     {
         var cfg = new XpConfig();
@@ -119,14 +119,14 @@ public class XpServiceTests
     }
 
     [Fact]
-    public async Task AwardForSubmission_NonConsecutiveDay_ResetsStreakTo1()
+    public async Task AwardForSubmission_TwoDaysAfterLastSubmission_ResetsStreakTo1()
     {
         var sut = Build(now: Day3);
         var user = NewUser(streak: 5, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day3); // Day1 → Day3: gap of 2
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day3);
 
         Assert.Equal(1, user.Streak);
     }
@@ -141,8 +141,9 @@ public class XpServiceTests
 
         var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
 
-        // streak=2 → bonus = 1 * 0.01 = 1% → xp = round(50 * 1.01) = 51
-        int expected = (int)Math.Round(50 * 1.01);
+        const int baseXp = 50;
+        const double oneStreakDayBonus = 0.01;
+        int expected = (int)Math.Round(baseXp * (1 + oneStreakDayBonus));
         Assert.Equal(expected, result);
     }
 
@@ -150,8 +151,8 @@ public class XpServiceTests
     public async Task AwardForSubmission_StreakBonus_CappedAtMaxStreakBonus()
     {
         var sut = Build(now: Day2);
-        // streak=31 → bonus would be 30*0.01=0.30 which is exactly the cap
-        var user = NewUser(streak: 31, lastSubmission: Day1);
+        const int streakWhoseBonusEqualsTheCap = 31;
+        var user = NewUser(streak: streakWhoseBonusEqualsTheCap, lastSubmission: Day1);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
@@ -236,10 +237,10 @@ public class XpServiceTests
         Assert.Equal(now, user.LastSubmissionAt);
     }
 
+    /// <summary>LastSubmissionAt holds a time of day; the streak compares dates only.</summary>
     [Fact]
     public async Task AwardForSubmission_SameDayWithTimestamp_StreakUnchanged()
     {
-        // LastSubmissionAt holds a time of day now; the streak compares dates only.
         var sut = Build(now: Day2.AddHours(23));
         var user = NewUser(streak: 4, lastSubmission: Day2.AddHours(1));
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);

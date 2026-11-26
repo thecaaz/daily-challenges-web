@@ -2,7 +2,8 @@ using DailyChallenges.Models;
 
 namespace DailyChallenges.Tests;
 
-internal static class LeagueTestData
+/// <summary>Minimal users and leagues for service tests that run against mocked repositories.</summary>
+internal static class TestEntities
 {
     public static User MakeUser(int id, string username = "user") =>
         new() { Id = id, Username = username, Level = 1, Streak = 0, TotalXp = 0 };

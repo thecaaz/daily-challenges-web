@@ -2,26 +2,25 @@ using DailyChallenges.Services;
 
 namespace DailyChallenges.Tests;
 
+/// <summary>A reset time of 12:00 UTC or later marks the end of a scoring day; an earlier one marks its start.</summary>
 public class ScoringDayCalculatorTests
 {
-    // ResetTimeRepresentsEndOfScoringDay: times >= 12:00 UTC are "end of day"
-
     // ---- Start-of-day semantics (reset < 12:00) ----
 
     [Fact]
     public void GetScoringDay_StartOfDay_TimestampAfterReset_ReturnsSameDate()
     {
-        var reset = TimeSpan.FromHours(5); // 05:00 UTC
-        var ts = new DateTime(2025, 4, 15, 6, 0, 0, DateTimeKind.Utc); // 06:00 UTC
-        Assert.Equal(new DateTime(2025, 4, 15), ScoringDayCalculator.GetScoringDay(ts, reset));
+        var reset = TimeSpan.FromHours(5);
+        var afterReset = new DateTime(2025, 4, 15, 6, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(new DateTime(2025, 4, 15), ScoringDayCalculator.GetScoringDay(afterReset, reset));
     }
 
     [Fact]
     public void GetScoringDay_StartOfDay_TimestampBeforeReset_ReturnsPreviousDate()
     {
-        var reset = TimeSpan.FromHours(5); // 05:00 UTC
-        var ts = new DateTime(2025, 4, 15, 3, 0, 0, DateTimeKind.Utc); // 03:00 UTC — before reset
-        Assert.Equal(new DateTime(2025, 4, 14), ScoringDayCalculator.GetScoringDay(ts, reset));
+        var reset = TimeSpan.FromHours(5);
+        var beforeReset = new DateTime(2025, 4, 15, 3, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(new DateTime(2025, 4, 14), ScoringDayCalculator.GetScoringDay(beforeReset, reset));
     }
 
     [Fact]
@@ -37,17 +36,17 @@ public class ScoringDayCalculatorTests
     [Fact]
     public void GetScoringDay_EndOfDay_TimestampBeforeReset_ReturnsSameDate()
     {
-        var reset = TimeSpan.FromHours(22); // 22:00 UTC — end-of-day
-        var ts = new DateTime(2025, 4, 15, 10, 0, 0, DateTimeKind.Utc); // before reset, label = April 15
-        Assert.Equal(new DateTime(2025, 4, 15), ScoringDayCalculator.GetScoringDay(ts, reset));
+        var endOfDayReset = TimeSpan.FromHours(22);
+        var beforeReset = new DateTime(2025, 4, 15, 10, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(new DateTime(2025, 4, 15), ScoringDayCalculator.GetScoringDay(beforeReset, endOfDayReset));
     }
 
     [Fact]
-    public void GetScoringDay_EndOfDay_TimestampAtOrAfterReset_ReturnsNextDate()
+    public void GetScoringDay_EndOfDay_TimestampExactlyAtReset_ReturnsNextDate()
     {
-        var reset = TimeSpan.FromHours(22); // 22:00 UTC
-        var ts = new DateTime(2025, 4, 15, 22, 0, 0, DateTimeKind.Utc); // exactly at reset → next day
-        Assert.Equal(new DateTime(2025, 4, 16), ScoringDayCalculator.GetScoringDay(ts, reset));
+        var reset = TimeSpan.FromHours(22);
+        var atReset = new DateTime(2025, 4, 15, 22, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(new DateTime(2025, 4, 16), ScoringDayCalculator.GetScoringDay(atReset, reset));
     }
 
     [Fact]
@@ -61,12 +60,11 @@ public class ScoringDayCalculatorTests
     // ---- Noon boundary ----
 
     [Fact]
-    public void GetScoringDay_NoonReset_IsEndOfDay()
+    public void GetScoringDay_NoonResetExactlyAtNoon_BelongsToTheNextDay()
     {
-        // Exactly noon is treated as end-of-day
         var reset = TimeSpan.FromHours(12);
-        var ts = new DateTime(2025, 4, 15, 12, 0, 0, DateTimeKind.Utc); // at reset
-        Assert.Equal(new DateTime(2025, 4, 16), ScoringDayCalculator.GetScoringDay(ts, reset));
+        var atReset = new DateTime(2025, 4, 15, 12, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(new DateTime(2025, 4, 16), ScoringDayCalculator.GetScoringDay(atReset, reset));
     }
 
     // ---- Midnight reset ----
@@ -74,9 +72,9 @@ public class ScoringDayCalculatorTests
     [Fact]
     public void GetScoringDay_MidnightReset_StartOfDaySemantics()
     {
-        var reset = TimeSpan.Zero; // 00:00 UTC
+        var midnight = TimeSpan.Zero;
         var ts = new DateTime(2025, 4, 15, 0, 0, 0, DateTimeKind.Utc);
-        Assert.Equal(new DateTime(2025, 4, 15), ScoringDayCalculator.GetScoringDay(ts, reset));
+        Assert.Equal(new DateTime(2025, 4, 15), ScoringDayCalculator.GetScoringDay(ts, midnight));
     }
 
     // ---- FormatScoringDay ----

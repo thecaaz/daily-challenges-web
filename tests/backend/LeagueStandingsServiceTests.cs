@@ -6,7 +6,7 @@ using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
 using Moq;
-using static DailyChallenges.Tests.LeagueTestData;
+using static DailyChallenges.Tests.TestEntities;
 
 namespace DailyChallenges.Tests;
 
