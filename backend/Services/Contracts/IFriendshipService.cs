@@ -12,7 +12,7 @@ public interface IFriendshipService
     /// <summary>Returns one of the <see cref="RelationshipStatus"/> values.</summary>
     Task<string> GetRelationshipStatusAsync(int requestingUserId, int targetUserId);
 
-    /// <summary>Throws <see cref="KeyNotFoundException"/> or <see cref="Exceptions.NotFoundException"/> when the two are not friends.</summary>
+    /// <summary>Throws <see cref="Exceptions.NotFoundException"/> when the two are not friends.</summary>
     Task RemoveFriendAsync(int userId, int friendId);
 }
 

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DailyChallenges.DTOs;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
@@ -44,7 +45,7 @@ public sealed class GameQueryService(
     /// </summary>
     public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null)
     {
-        var game = await games.GetByIdWithoutBlobAsync(gameId) ?? throw new KeyNotFoundException("Game not found");
+        var game = await games.GetByIdWithoutBlobAsync(gameId) ?? throw new NotFoundException("Game not found");
         var dto = new GameOverviewDto { Game = DtoMapper.ToDto(game, nowUtc: time.GetUtcNow().UtcDateTime) };
 
         var parts = OverviewInclude.Parse(include);

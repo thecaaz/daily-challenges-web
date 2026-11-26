@@ -37,14 +37,14 @@ public sealed class LeagueInvitationService(
         var league = await leagues.GetExistingWithMembersAsync(leagueId);
         league.RequireOwner(inviterId);
         var invitee = await users.GetByUsernameAsync(username)
-            ?? throw new KeyNotFoundException($"User '{username}' not found.");
+            ?? throw new NotFoundException($"User '{username}' not found.");
 
         RequireNotSelfOrMember(league, invitee, username);
         await RequireNoPendingInvitationAsync(leagueId, invitee);
         var nowUtc = UtcNow;
         await RequireReinviteCooldownElapsedAsync(leagueId, invitee, nowUtc);
         var inviter = await users.GetByIdAsync(inviterId)
-            ?? throw new KeyNotFoundException("Inviter not found.");
+            ?? throw new NotFoundException("Inviter not found.");
 
         var invitation = await CreateDirectInvitationAsync(
             new LeagueInvitation
@@ -85,7 +85,7 @@ public sealed class LeagueInvitationService(
     public async Task<LeagueDetailDto> JoinByTokenAsync(string token, int userId)
     {
         var invitation = await invitations.GetInvitationByTokenAsync(token)
-            ?? throw new KeyNotFoundException(InviteLinkUnavailable);
+            ?? throw new NotFoundException(InviteLinkUnavailable);
         if (invitation.ExpiresAt < UtcNow)
             throw new ValidationException("This invite link has expired.");
 
@@ -101,7 +101,7 @@ public sealed class LeagueInvitationService(
     public async Task CancelInvitationAsync(int invitationId, int requestingUserId)
     {
         var invitation = await invitations.GetInvitationByIdAsync(invitationId)
-            ?? throw new KeyNotFoundException(InvitationNotFound);
+            ?? throw new NotFoundException(InvitationNotFound);
         var league = await leagues.GetExistingAsync(invitation.LeagueId);
         if (league.OwnerId != requestingUserId)
             throw new ForbiddenException("Only the league owner can cancel invitations.");
@@ -188,7 +188,7 @@ public sealed class LeagueInvitationService(
     private async Task<LeagueInvitation> GetPendingInvitationSentToAsync(int invitationId, int userId)
     {
         var invitation = await invitations.GetInvitationByIdAsync(invitationId)
-            ?? throw new KeyNotFoundException(InvitationNotFound);
+            ?? throw new NotFoundException(InvitationNotFound);
         if (invitation.InviteeId != userId)
             throw new ForbiddenException("This invitation was not sent to you.");
         RequirePending(invitation);

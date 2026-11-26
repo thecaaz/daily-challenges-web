@@ -47,9 +47,8 @@ public sealed class FriendshipService(
 
     public async Task RemoveFriendAsync(int userId, int friendId)
     {
-        var friendship = await friends.GetExistingAsync(userId, friendId)
-            ?? throw new KeyNotFoundException(FriendshipNotFoundMessage);
-        if (friendship.Status != FriendRequestStatus.Accepted)
+        var friendship = await friends.GetExistingAsync(userId, friendId);
+        if (friendship is null || friendship.Status != FriendRequestStatus.Accepted)
             throw new NotFoundException(FriendshipNotFoundMessage);
 
         await friends.DeleteAsync(friendship.Id);

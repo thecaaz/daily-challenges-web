@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,7 +37,7 @@ public sealed class EfGameRepository(AppDbContext db) : IGameRepository
     public async Task<Game> UpdateAsync(Game game)
     {
         var existing = await db.Games.FirstOrDefaultAsync(g => g.Id == game.Id)
-            ?? throw new KeyNotFoundException("Game not found");
+            ?? throw new NotFoundException("Game not found");
 
         existing.Name = game.Name;
         existing.Url = game.Url;

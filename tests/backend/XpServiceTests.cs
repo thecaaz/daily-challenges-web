@@ -1,3 +1,4 @@
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
@@ -267,12 +268,12 @@ public class XpServiceTests
     // ── AdjustXpAsync ─────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task AdjustXp_UserNotFound_ThrowsKeyNotFoundException()
+    public async Task AdjustXp_UserNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((User?)null);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Service.AdjustXpAsync(new XpAdjustment(99, 100, "test")));
     }
 

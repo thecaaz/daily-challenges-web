@@ -41,6 +41,11 @@ public sealed class ExceptionToHttpResponseMiddleware(RequestDelegate next, ILog
         }
     }
 
+    /// <summary>
+    /// Our own code throws only domain exceptions. The KeyNotFoundException and ArgumentException arms stay for
+    /// BCL and framework throws (dictionary lookups, Enum.Parse, ArgumentNullException.ThrowIfNull, LevelCalculator
+    /// range checks); removing them would turn those 404/400 responses into 500s.
+    /// </summary>
     private static (int Status, string Message) Map(Exception ex) => ex switch
     {
         NotFoundException => (StatusCodes.Status404NotFound, ex.Message),

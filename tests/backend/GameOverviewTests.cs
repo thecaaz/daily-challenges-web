@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services;
@@ -70,6 +71,6 @@ public class GameOverviewTests
     [Fact]
     public async Task GetOverviewAsync_MissingGame_ThrowsKeyNotFound()
     {
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => Build().GetOverviewAsync(404, null));
+        await Assert.ThrowsAsync<NotFoundException>(() => Build().GetOverviewAsync(404, null));
     }
 }

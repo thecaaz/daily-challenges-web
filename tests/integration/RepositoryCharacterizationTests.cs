@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.Exceptions;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
@@ -137,7 +138,7 @@ public class RepositoryCharacterizationTests
         Assert.Equal("9", updated.Score);
         Assert.Equal(9, updated.ScoreValue);
         Assert.Equal("a", updated.Username);
-        var missing = await Assert.ThrowsAsync<KeyNotFoundException>(() => repo.UpdateAsync(new Submission { Id = 999 }));
+        var missing = await Assert.ThrowsAsync<NotFoundException>(() => repo.UpdateAsync(new Submission { Id = 999 }));
         Assert.Equal("Submission not found", missing.Message);
     }
 
@@ -224,7 +225,7 @@ public class RepositoryCharacterizationTests
         Assert.Equal("New", updated.Name);
         Assert.Equal(new byte[] { 1 }, updated.ScreenshotData);
         Assert.Equal("image/png", updated.ScreenshotContentType);
-        var missing = await Assert.ThrowsAsync<KeyNotFoundException>(() => repo.UpdateAsync(new Game { Id = 99 }));
+        var missing = await Assert.ThrowsAsync<NotFoundException>(() => repo.UpdateAsync(new Game { Id = 99 }));
         Assert.Equal("Game not found", missing.Message);
     }
 }

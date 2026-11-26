@@ -76,7 +76,7 @@ public sealed class GameCommandService(
     private async Task<Game> ApplyUpdateAsync(int id, ValidatedUpdate update)
     {
         var (request, settings, image) = update;
-        var game = await games.GetByIdAsync(id) ?? throw new KeyNotFoundException("Game not found");
+        var game = await games.GetByIdAsync(id) ?? throw new NotFoundException("Game not found");
 
         if (!string.IsNullOrWhiteSpace(request.Name)) game.Name = request.Name;
         if (settings.Url != null) game.Url = settings.Url.Length == 0 ? null : settings.Url;

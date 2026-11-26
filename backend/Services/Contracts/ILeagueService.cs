@@ -6,7 +6,7 @@ namespace DailyChallenges.Services.Contracts;
 public interface ILeagueService
 {
     /// <summary>Creates the league with <paramref name="ownerId"/> as its owner and first member.</summary>
-    /// <exception cref="ArgumentException">The trimmed name is empty or longer than 100 characters.</exception>
+    /// <exception cref="Exceptions.ValidationException">The trimmed name is empty or longer than 100 characters.</exception>
     Task<LeagueDto> CreateLeagueAsync(int ownerId, string name);
 
     Task<LeagueDto> RenameLeagueAsync(int leagueId, int requestingUserId, string newName);

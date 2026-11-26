@@ -51,7 +51,7 @@ public class LeagueServiceTests
     {
         var sut = Build();
 
-        await Assert.ThrowsAsync<ArgumentException>(() => sut.Service.CreateLeagueAsync(1, "   "));
+        await Assert.ThrowsAsync<ValidationException>(() => sut.Service.CreateLeagueAsync(1, "   "));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class LeagueServiceTests
         var sut = Build();
         var longName = new string('x', 101);
 
-        await Assert.ThrowsAsync<ArgumentException>(() => sut.Service.CreateLeagueAsync(1, longName));
+        await Assert.ThrowsAsync<ValidationException>(() => sut.Service.CreateLeagueAsync(1, longName));
     }
 
     [Fact]

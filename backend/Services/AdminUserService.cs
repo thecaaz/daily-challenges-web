@@ -69,5 +69,5 @@ public sealed class AdminUserService(
     }
 
     private async Task<User> GetExistingUserAsync(int userId) =>
-        await users.GetByIdAsync(userId) ?? throw new KeyNotFoundException($"User {userId} not found");
+        await users.GetByIdAsync(userId) ?? throw new NotFoundException($"User {userId} not found");
 }

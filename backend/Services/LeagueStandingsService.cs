@@ -1,4 +1,5 @@
 using DailyChallenges.DTOs;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services.Contracts;
@@ -21,7 +22,7 @@ public sealed class LeagueStandingsService(
     {
         await leagues.RequireMembershipAsync(query.LeagueId, query.RequestingUserId);
         var game = await games.GetByIdWithoutBlobAsync(query.GameId)
-            ?? throw new KeyNotFoundException("Game not found.");
+            ?? throw new NotFoundException("Game not found.");
 
         var currentDay = visibility.GetCurrentScoringDay(game);
         var day = query.ScoringDay?.Date ?? currentDay;

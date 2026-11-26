@@ -42,7 +42,7 @@ public sealed class AdminUserDeletionService(
 
     private async Task<User> GetDeletableUserAsync(int userId)
     {
-        var user = await accounts.GetUserAsync(userId) ?? throw new KeyNotFoundException($"User {userId} not found");
+        var user = await accounts.GetUserAsync(userId) ?? throw new NotFoundException($"User {userId} not found");
         if (user.IsAdmin) throw new ForbiddenException("Cannot delete an admin account");
         return user;
     }

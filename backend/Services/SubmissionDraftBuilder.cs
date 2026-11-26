@@ -66,10 +66,10 @@ public sealed class SubmissionDraftBuilder(
 
     private async Task AttachScreenshotAsync(Submission submission, IFormFile? screenshot)
     {
-        if (screenshot is not { Length: > 0 }) throw new ArgumentException(ScreenshotRequiredMessage);
+        if (screenshot is not { Length: > 0 }) throw new ValidationException(ScreenshotRequiredMessage);
 
         var (data, contentType) = await files.ReadFileAsync(screenshot);
-        if (data is not { Length: > 0 }) throw new ArgumentException(ScreenshotRequiredMessage);
+        if (data is not { Length: > 0 }) throw new ValidationException(ScreenshotRequiredMessage);
 
         submission.ScreenshotData = data;
         submission.ScreenshotContentType = contentType ?? string.Empty;

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DailyChallenges.DTOs;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
@@ -43,7 +44,7 @@ public sealed class GameHighscoreService(
     }
 
     private async Task<Game> GetExistingGameAsync(int id) =>
-        await games.GetByIdWithoutBlobAsync(id) ?? throw new KeyNotFoundException("Game not found");
+        await games.GetByIdWithoutBlobAsync(id) ?? throw new NotFoundException("Game not found");
 
     /// <summary>Screenshots of the current scoring day get signed URLs; scored entries are ranked 1, 2, 3… in order.</summary>
     private HighscoreResult ToRankedResult(List<Submission> top, DateTime currentDay)

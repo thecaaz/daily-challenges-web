@@ -17,7 +17,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
     {
         var leagueName = RequireValidName(name);
         var owner = await users.GetByIdAsync(ownerId)
-            ?? throw new KeyNotFoundException("User not found.");
+            ?? throw new NotFoundException("User not found.");
 
         var league = await leagues.CreateAsync(NewLeagueOwnedBy(ownerId, leagueName));
 
@@ -31,7 +31,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
         league.RequireOwner(requestingUserId);
 
         if (!await leagues.RenameAsync(leagueId, leagueName))
-            throw new KeyNotFoundException(LeagueAccess.LeagueNotFound);
+            throw new NotFoundException(LeagueAccess.LeagueNotFound);
 
         league.Name = leagueName;
         return LeagueDtoMapper.ToDto(league);
@@ -43,7 +43,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
         league.RequireOwner(requestingUserId);
 
         if (!await leagues.DeleteAsync(leagueId))
-            throw new KeyNotFoundException(LeagueAccess.LeagueNotFound);
+            throw new NotFoundException(LeagueAccess.LeagueNotFound);
     }
 
     public async Task<List<LeagueDto>> GetMyLeaguesAsync(int userId)
@@ -90,7 +90,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
     {
         var trimmed = name.Trim();
         if (trimmed.Length is 0 or > MaxNameLength)
-            throw new ArgumentException($"League name must be between 1 and {MaxNameLength} characters.");
+            throw new ValidationException($"League name must be between 1 and {MaxNameLength} characters.");
         return trimmed;
     }
 

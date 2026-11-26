@@ -52,19 +52,19 @@ public class FriendServiceTests
     // ── SendRequestAsync ──────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SendRequest_ToSelf_ThrowsArgumentException()
+    public async Task SendRequest_ToSelf_ThrowsValidationException()
     {
         var sut = Build();
-        await Assert.ThrowsAsync<ArgumentException>(() =>
+        await Assert.ThrowsAsync<ValidationException>(() =>
             sut.Requests.SendRequestAsync(1, 1));
     }
 
     [Fact]
-    public async Task SendRequest_TargetNotFound_ThrowsKeyNotFoundException()
+    public async Task SendRequest_TargetNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync((User?)null);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Requests.SendRequestAsync(1, 2));
     }
 
@@ -264,7 +264,7 @@ public class FriendServiceTests
     {
         var sut = Build();
 
-        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => sut.Requests.SendRequestByUsernameAsync(1, " ghost"));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => sut.Requests.SendRequestByUsernameAsync(1, " ghost"));
 
         Assert.Equal("No user found with username ' ghost'.", ex.Message);
     }
@@ -289,7 +289,7 @@ public class FriendServiceTests
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
         sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(5, 1, 2));
 
-        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => sut.Requests.SendRequestAsync(1, 2));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => sut.Requests.SendRequestAsync(1, 2));
 
         Assert.Equal("Sender not found.", ex.Message);
     }
@@ -360,11 +360,11 @@ public class FriendServiceTests
     // ── Accept / DeclineRequestAsync ─────────────────────────────────────────────────
 
     [Fact]
-    public async Task AnswerRequest_RequestNotFound_ThrowsKeyNotFoundException()
+    public async Task AnswerRequest_RequestNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((FriendRequest?)null);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Requests.AcceptRequestAsync(99, 2));
     }
 
@@ -465,11 +465,11 @@ public class FriendServiceTests
     // ── CancelRequestAsync ────────────────────────────────────────────────────
 
     [Fact]
-    public async Task CancelRequest_RequestNotFound_ThrowsKeyNotFoundException()
+    public async Task CancelRequest_RequestNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((FriendRequest?)null);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Requests.CancelRequestAsync(1, 1));
     }
 
@@ -508,11 +508,11 @@ public class FriendServiceTests
     // ── RemoveFriendAsync ─────────────────────────────────────────────────────
 
     [Fact]
-    public async Task RemoveFriend_FriendshipNotFound_ThrowsKeyNotFoundException()
+    public async Task RemoveFriend_FriendshipNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
         sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Friendships.RemoveFriendAsync(1, 2));
     }
 

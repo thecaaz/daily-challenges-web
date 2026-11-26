@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using DailyChallenges.Services.Ranking;
 using Microsoft.EntityFrameworkCore;
@@ -152,7 +153,7 @@ public sealed class EfSubmissionRepository(AppDbContext db) : ISubmissionReposit
     public async Task<Submission> UpdateAsync(Submission submission)
     {
         var existing = await db.Submissions.FirstOrDefaultAsync(s => s.Id == submission.Id)
-            ?? throw new KeyNotFoundException("Submission not found");
+            ?? throw new NotFoundException("Submission not found");
 
         existing.Score = submission.Score;
         existing.ScoreValue = submission.ScoreValue;

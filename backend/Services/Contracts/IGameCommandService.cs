@@ -11,7 +11,7 @@ public interface IGameCommandService
     /// Updates a game. Omitted (null) fields stay unchanged; "" clears Url and Description.
     /// A ResetTime change re-derives the stored ScoringDay of the game's not-yet-finalized submissions
     /// (and of their XpEvents) in the same transaction, or fails with a ConflictException.
-    /// Throws ValidationException for invalid input and KeyNotFoundException for a missing game.
+    /// Throws ValidationException for invalid input and NotFoundException for a missing game.
     /// </summary>
     Task<GameDto> UpdateAsync(int id, GameUpdateRequest request);
 

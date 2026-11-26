@@ -1,3 +1,4 @@
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
@@ -58,7 +59,7 @@ public sealed class XpService(
     {
         var (userId, delta, reason, adminUserId) = adjustment;
         var user = await users.GetByIdAsync(userId)
-            ?? throw new KeyNotFoundException($"User {userId} not found");
+            ?? throw new NotFoundException($"User {userId} not found");
 
         var applied = ApplyClampedDelta(user, delta);
 

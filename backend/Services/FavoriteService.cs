@@ -1,3 +1,4 @@
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 
@@ -7,7 +8,7 @@ public sealed class FavoriteService(IFavoriteRepository favorites, IGameReposito
 {
     public async Task AddFavoriteAsync(int userId, int gameId)
     {
-        _ = await games.GetByIdAsync(gameId) ?? throw new KeyNotFoundException("Game not found");
+        _ = await games.GetByIdAsync(gameId) ?? throw new NotFoundException("Game not found");
         await favorites.AddAsync(new Favorite { UserId = userId, GameId = gameId, CreatedAt = time.GetUtcNow().UtcDateTime });
     }
 

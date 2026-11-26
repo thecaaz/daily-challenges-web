@@ -6,8 +6,8 @@ namespace DailyChallenges.Services.Contracts;
 public interface IFriendRequestService
 {
     /// <summary>
-    /// Creates a pending request, or reopens a declined one. Throws <see cref="ArgumentException"/> for
-    /// a request to oneself, <see cref="KeyNotFoundException"/> for an unknown user and
+    /// Creates a pending request, or reopens a declined one. Throws <see cref="Exceptions.ValidationException"/> for
+    /// a request to oneself, <see cref="Exceptions.NotFoundException"/> for an unknown user and
     /// <see cref="Exceptions.ConflictException"/> when the pair is already friends, already has a pending
     /// request, or the sender was declined within the re-request cooldown.
     /// </summary>

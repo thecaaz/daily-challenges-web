@@ -1,4 +1,5 @@
 using DailyChallenges.DTOs;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
@@ -26,7 +27,7 @@ public sealed class SubmissionScoreEditService(
 
     private async Task<(Submission Updated, bool NeedsRefinalizing)> SaveScoreAsync(int id, string? score)
     {
-        var submission = await submissions.GetByIdAsync(id) ?? throw new KeyNotFoundException("Submission not found");
+        var submission = await submissions.GetByIdAsync(id) ?? throw new NotFoundException("Submission not found");
         if (!string.IsNullOrWhiteSpace(score)) ApplyScore(submission, score.Trim());
 
         var updated = await submissions.UpdateAsync(submission);

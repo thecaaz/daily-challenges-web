@@ -8,13 +8,13 @@ public interface IAdminUserService
 
     /// <summary>
     /// Adjusts TotalXp in one transaction (never below 0). Throws ValidationException for a zero delta and
-    /// KeyNotFoundException for a missing user.
+    /// NotFoundException for a missing user.
     /// </summary>
     Task<UserDto> AdjustXpAsync(XpAdjustment adjustment);
 
     /// <summary>
     /// Sets a new password and ends the user's sessions. Throws ValidationException for a blank or invalid password,
-    /// KeyNotFoundException for a missing user and ForbiddenException for another admin's account.
+    /// NotFoundException for a missing user and ForbiddenException for another admin's account.
     /// </summary>
     Task SetPasswordAsync(int userId, string? newPassword, int? requestingAdminId = null);
 }

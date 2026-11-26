@@ -11,10 +11,10 @@ public static class LeagueAccess
     public const string NotAMember = "You are not a member of this league.";
 
     public static async Task<League> GetExistingAsync(this ILeagueRepository leagues, int leagueId) =>
-        await leagues.GetByIdAsync(leagueId) ?? throw new KeyNotFoundException(LeagueNotFound);
+        await leagues.GetByIdAsync(leagueId) ?? throw new NotFoundException(LeagueNotFound);
 
     public static async Task<League> GetExistingWithMembersAsync(this ILeagueRepository leagues, int leagueId) =>
-        await leagues.GetByIdWithMembersAsync(leagueId) ?? throw new KeyNotFoundException(LeagueNotFound);
+        await leagues.GetByIdWithMembersAsync(leagueId) ?? throw new NotFoundException(LeagueNotFound);
 
     public static async Task RequireMembershipAsync(this ILeagueRepository leagues, int leagueId, int userId)
     {

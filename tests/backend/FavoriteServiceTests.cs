@@ -1,3 +1,4 @@
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services;
@@ -22,7 +23,7 @@ public class FavoriteServiceTests
     {
         var (service, favorites, _) = Build();
 
-        var ex = await Assert.ThrowsAsync<KeyNotFoundException>(() => service.AddFavoriteAsync(1, 9));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.AddFavoriteAsync(1, 9));
 
         Assert.Equal("Game not found", ex.Message);
         favorites.Verify(r => r.AddAsync(It.IsAny<Favorite>()), Times.Never);

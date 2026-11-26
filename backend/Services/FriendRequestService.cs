@@ -30,15 +30,15 @@ public sealed class FriendRequestService(
     public async Task<FriendRequestDto> SendRequestAsync(int senderId, int targetUserId)
     {
         if (senderId == targetUserId)
-            throw new ArgumentException("You cannot send a friend request to yourself.");
+            throw new ValidationException("You cannot send a friend request to yourself.");
 
         var target = await users.GetByIdAsync(targetUserId)
-            ?? throw new KeyNotFoundException("User not found.");
+            ?? throw new NotFoundException("User not found.");
         var attempt = new FriendRequestAttempt(senderId, target, time.GetUtcNow().UtcDateTime);
 
         var request = await CreateOrReopenAsync(attempt);
         var sender = await users.GetByIdAsync(senderId)
-            ?? throw new KeyNotFoundException("Sender not found.");
+            ?? throw new NotFoundException("Sender not found.");
         await NotifyTargetUnlessRecentlyNotifiedAsync(attempt, sender.Username);
         return DtoMapper.ToDto(request);
     }
@@ -46,7 +46,7 @@ public sealed class FriendRequestService(
     public async Task<FriendRequestDto> SendRequestByUsernameAsync(int senderId, string username)
     {
         var target = await users.GetByUsernameAsync(username.Trim())
-            ?? throw new KeyNotFoundException($"No user found with username '{username}'.");
+            ?? throw new NotFoundException($"No user found with username '{username}'.");
 
         return await SendRequestAsync(senderId, target.Id);
     }
@@ -72,9 +72,8 @@ public sealed class FriendRequestService(
     /// <summary>A request the caller did not send reads as "not found", like in <see cref="GetPendingRequestToAsync"/>.</summary>
     public async Task CancelRequestAsync(int requestId, int senderId)
     {
-        var request = await friends.GetByIdAsync(requestId)
-            ?? throw new KeyNotFoundException(RequestNotFoundMessage);
-        if (request.SenderId != senderId)
+        var request = await friends.GetByIdAsync(requestId);
+        if (request is null || request.SenderId != senderId)
             throw new NotFoundException(RequestNotFoundMessage);
         if (request.Status != FriendRequestStatus.Pending)
             throw new ConflictException("Only pending requests can be cancelled.");
@@ -147,9 +146,8 @@ public sealed class FriendRequestService(
     /// <summary>Wrong owner reads as "not found" so callers cannot probe which request ids exist.</summary>
     private async Task<FriendRequest> GetPendingRequestToAsync(int requestId, int receiverId)
     {
-        var request = await friends.GetByIdAsync(requestId)
-            ?? throw new KeyNotFoundException(RequestNotFoundMessage);
-        if (request.ReceiverId != receiverId)
+        var request = await friends.GetByIdAsync(requestId);
+        if (request is null || request.ReceiverId != receiverId)
             throw new NotFoundException(RequestNotFoundMessage);
         if (request.Status != FriendRequestStatus.Pending)
             throw new ConflictException("This request is no longer pending.");
