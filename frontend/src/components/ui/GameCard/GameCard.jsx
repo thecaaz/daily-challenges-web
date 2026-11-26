@@ -9,6 +9,7 @@ import ExtensionIcon from '@mui/icons-material/Extension'
 import FavoriteButton from '../FavoriteButton'
 import useAdapter from '../../../hooks/useAdapter'
 import imageUrl from '../../../utils/imageUrl'
+import { placeholderGradient } from '../../../styles/tokens'
 
 /**
  * A game tile linking to the game. The favourite button sits in the card
@@ -36,7 +37,7 @@ export default function GameCard({ game }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'linear-gradient(135deg, rgba(255,122,182,0.12), rgba(255,209,102,0.12))',
+              background: placeholderGradient(0.12),
               fontSize: '3.5rem',
             }}
           >

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Box, CircularProgress, IconButton, Typography } from '@mui/material'
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 import { isSafeHttpUrl } from '../../utils/safeUrl'
+import { MAXIMIZED_PLAYER_Z_INDEX } from '../../styles/zIndex'
 
 // Games may run scripts, keep their own origin (storage/cookies), submit forms,
 // open popups, show alert/confirm dialogs and download files (e.g. a result
@@ -9,6 +10,8 @@ import { isSafeHttpUrl } from '../../utils/safeUrl'
 const IFRAME_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads'
 /** Send only our origin: some games check which site embeds them. */
 const ORIGIN_ONLY_REFERRER = 'strict-origin-when-cross-origin'
+/** Stacking order inside the player: the iframe covers the loading overlay once loaded. */
+const LAYER = { loadingOverlay: 0, iframe: 1, restoreButton: 2 }
 
 export default function GameIframePlayer({ src, title, iframeRef, isMaximized, onRestore }) {
   const [iframeLoaded, setIframeLoaded] = useState(false)
@@ -22,9 +25,9 @@ export default function GameIframePlayer({ src, title, iframeRef, isMaximized, o
   }
 
   return (
-    <Box sx={isMaximized ? { position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', zIndex: 2147483646 } : { width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh', position: 'relative' }}>
+    <Box sx={isMaximized ? { position: 'fixed', left: 0, top: 0, width: '100vw', height: '100vh', zIndex: MAXIMIZED_PLAYER_Z_INDEX } : { width: '100vw', marginLeft: 'calc(50% - 50vw)', height: '80vh', position: 'relative' }}>
       {!iframeLoaded && (
-        <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.paper', zIndex: 0 }}>
+        <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.paper', zIndex: LAYER.loadingOverlay }}>
           <CircularProgress />
           <Typography sx={{ mt: 2 }}>Loading game...</Typography>
         </Box>
@@ -36,7 +39,7 @@ export default function GameIframePlayer({ src, title, iframeRef, isMaximized, o
           title="Restore"
           aria-label="Restore"
           size="small"
-          sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2, bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}
+          sx={{ position: 'absolute', top: 8, right: 8, zIndex: LAYER.restoreButton, bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}
         >
           <FullscreenExitIcon />
         </IconButton>
@@ -51,7 +54,7 @@ export default function GameIframePlayer({ src, title, iframeRef, isMaximized, o
         src={src}
         title={title || 'Play'}
         onLoad={() => setIframeLoaded(true)}
-        style={{ width: '100%', height: '100%', border: 0, visibility: iframeLoaded ? 'visible' : 'hidden', position: 'relative', zIndex: 1 }}
+        style={{ width: '100%', height: '100%', border: 0, visibility: iframeLoaded ? 'visible' : 'hidden', position: 'relative', zIndex: LAYER.iframe }}
       />
     </Box>
   )

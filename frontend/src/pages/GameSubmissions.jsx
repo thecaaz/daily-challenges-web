@@ -80,7 +80,7 @@ function GameLoadError({ onRetry }) {
 function CompareFab({ onClick }) {
   return (
     <Tooltip title="Compare selected submissions">
-      <Fab color="primary" onClick={onClick} sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1300 }}>
+      <Fab color="primary" onClick={onClick} sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: (theme) => theme.zIndex.modal }}>
         <CompareArrowsIcon />
       </Fab>
     </Tooltip>

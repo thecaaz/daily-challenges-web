@@ -15,7 +15,7 @@
   top: -4px;
   font-size: 12px;
   font-weight: 700;
-  color: #ff7ab6;
+  color: var(--accent);
   pointer-events: none;
   animation: xpPop 2.5s ease-out forwards;
   white-space: nowrap;

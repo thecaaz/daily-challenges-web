@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react'
+import { TOPMOST_Z_INDEX } from '../styles/zIndex'
 
-const TOPMOST_Z_INDEX = '2147483647'
-const FULLSCREEN_STYLE = { position: 'fixed', left: '0', top: '0', width: '100vw', height: '100vh', zIndex: TOPMOST_Z_INDEX }
+const FULLSCREEN_STYLE = { position: 'fixed', left: '0', top: '0', width: '100vw', height: '100vh', zIndex: String(TOPMOST_Z_INDEX) }
 const OVERRIDDEN_STYLE_KEYS = ['position', 'zIndex', 'left', 'top', 'width', 'height']
 
 /**

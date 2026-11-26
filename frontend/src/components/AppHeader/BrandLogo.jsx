@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Box, Typography } from '@mui/material'
+import { brandIcon } from '../../styles/tokens'
 
 const logoLinkSx = {
   display: 'flex',
@@ -17,8 +18,8 @@ const logoIconSx = {
   lineHeight: 1,
   borderRadius: '10px',
   p: '6px',
-  background: 'linear-gradient(180deg,#fff,#ffeef8)',
-  boxShadow: '0 4px 12px rgba(255,122,182,0.15)',
+  background: brandIcon.background,
+  boxShadow: brandIcon.shadow,
 }
 
 /** App icon, name and tagline, linking home. */

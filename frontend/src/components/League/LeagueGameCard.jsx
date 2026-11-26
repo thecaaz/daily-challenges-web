@@ -8,9 +8,10 @@ import imageUrl from '../../utils/imageUrl'
 import timeAgo from '../../utils/timeAgo'
 import formatNumber from '../../utils/formatNumber'
 import RecentPlaysBar from './RecentPlaysBar'
+import { placeholderGradient } from '../../styles/tokens'
 
 const ICON_SIZE = 40
-const PLACEHOLDER_ICON_BACKGROUND = 'linear-gradient(135deg, rgba(255,122,182,0.25), rgba(255,209,102,0.25))'
+const PLACEHOLDER_ICON_BACKGROUND = placeholderGradient(0.25)
 
 const stopPropagation = (event) => event.stopPropagation()
 

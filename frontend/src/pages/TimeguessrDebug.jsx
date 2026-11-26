@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import { useScoreCapture } from '../hooks/useScoreCapture'
 import useObjectUrl from '../hooks/useObjectUrl'
+import { imageFrame } from '../styles/tokens'
 
 const GAME_URL = 'https://timeguessr.com/roundonedaily'
 
@@ -28,7 +29,7 @@ export default function TimeguessrDebug() {
       </Box>
       {captureError && <Typography color="error" sx={{ mt: 1 }}>Capture failed: {captureError}</Typography>}
       {score && <pre style={{ whiteSpace: 'pre-wrap', marginTop: 12 }}>{score}</pre>}
-      {previewUrl && <img src={previewUrl} alt="capture preview" style={{ maxWidth: 480, display: 'block', border: '1px solid #ddd', padding: 4, marginTop: 12 }} />}
+      {previewUrl && <img src={previewUrl} alt="capture preview" style={{ maxWidth: 480, display: 'block', border: `1px solid ${imageFrame.borderColor}`, padding: 4, marginTop: 12 }} />}
     </Box>
   )
 }

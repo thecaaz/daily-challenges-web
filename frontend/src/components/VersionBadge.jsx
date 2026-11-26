@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Chip, Tooltip } from '@mui/material'
 import useReleaseInfo from '../hooks/useReleaseInfo'
 import ChangelogModal from './ChangelogModal'
+import { faintOutline } from '../styles/tokens'
 
 export default function VersionBadge() {
   const info = useReleaseInfo()
@@ -21,7 +22,7 @@ export default function VersionBadge() {
           size="small"
           clickable
           onClick={() => setOpen(true)}
-          sx={{ ml: 1, bgcolor: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'inherit' }}
+          sx={{ ml: 1, bgcolor: 'transparent', border: faintOutline, color: 'inherit' }}
         />
       </Tooltip>
       <ChangelogModal open={open} onClose={() => setOpen(false)} version={labelBase} rawVersion={raw} changelog={info.changelog} />

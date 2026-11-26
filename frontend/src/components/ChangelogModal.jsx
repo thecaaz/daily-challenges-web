@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Typography, Box } fr
 import AppButton from './ui/AppButton'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import tokens from '../styles/tokens'
 
 export default function ChangelogModal({ open, onClose, version, rawVersion, changelog }) {
   return (
@@ -24,7 +25,7 @@ export default function ChangelogModal({ open, onClose, version, rawVersion, cha
               '& a': { color: theme.palette.primary.main },
               '& ul, & ol': { pl: 3, mb: 1 },
               '& pre': {
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                backgroundColor: tokens(theme.palette.mode).codeBackground,
                 padding: theme.spacing(1),
                 borderRadius: theme.shape.borderRadius,
                 overflow: 'auto',
