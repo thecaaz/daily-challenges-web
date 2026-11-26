@@ -1,16 +1,13 @@
 using DailyChallenges.Data;
-using DailyChallenges.DTOs;
 using DailyChallenges.Repositories.Contracts;
-using DailyChallenges.Services;
 using DailyChallenges.Services.Ranking;
 using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.Repositories;
 
-public sealed class EfLeagueStandingsRepository(AppDbContext db, TimeProvider time) : ILeagueStandingsRepository
+public sealed class EfLeagueStandingsRepository(AppDbContext db) : ILeagueStandingsRepository
 {
     private const string UnknownUsername = "Unknown";
-    private const int DefaultPageSize = 20;
 
     public async Task<List<LeagueLeaderboardRow>> GetLeaderboardAsync(LeagueGameDay gameDay, IRankingStrategy strategy)
     {
@@ -26,32 +23,27 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db, TimeProvider ti
     }
 
     /// <inheritdoc />
-    public async Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(LeagueGameSummaryQuery query)
+    /// <remarks>Only the needed columns are projected, which keeps screenshot blobs out of the query.</remarks>
+    public async Task<List<LeagueSubmissionRow>> GetMemberSubmissionsAsync(int leagueId, DateTime firstScoringDay, DateTime lastScoringDay)
     {
-        var memberIds = await GetMemberIdsAsync(query.LeagueId);
-        if (memberIds.Count == 0) return ([], 0);
+        var memberIds = await GetMemberIdsAsync(leagueId);
+        if (memberIds.Count == 0) return [];
 
-        var nowUtc = time.GetUtcNow().UtcDateTime;
-        var candidateRows = await GetMemberSubmissionsAroundTodayAsync(memberIds, nowUtc, query.Days);
-        var currentDayByGame = candidateRows
-            .GroupBy(r => r.GameId)
-            .ToDictionary(g => g.Key, g => ScoringDayCalculator.GetCurrentScoringDay(g.First().GameResetTime, nowUtc).Date);
-        var windowRows = candidateRows
-            .Where(r => IsWithinLastScoringDays(r.ScoringDay, currentDayByGame[r.GameId], query.Days))
-            .ToList();
-        var playedGamesCurrentDay = currentDayByGame
-            .Where(entry => windowRows.Any(r => r.GameId == entry.Key))
-            .ToDictionary(entry => entry.Key, entry => entry.Value);
-        var gamesRequesterPlayedToday = await GetGamesSubmittedOnCurrentDayAsync(query.RequestingUserId, playedGamesCurrentDay);
-
-        var calculator = new LeagueGameSummaryCalculator(query.RequestingUserId, query.Days, gamesRequesterPlayedToday);
-        var summaries = windowRows
-            .GroupBy(r => r.GameId)
-            .Select(game => calculator.Summarize(game.ToList(), currentDayByGame[game.Key]))
-            .OrderByDescending(summary => summary.LastPlayedAt)
-            .ToList();
-
-        return (PageOf(summaries, query.Page, query.PageSize), summaries.Count);
+        return await db.Submissions
+            .Where(s => s.UserId.HasValue && memberIds.Contains(s.UserId!.Value)
+                        && s.ScoringDay >= firstScoringDay && s.ScoringDay <= lastScoringDay)
+            .Select(s => new LeagueSubmissionRow(
+                s.GameId,
+                s.Game!.Name,
+                s.Game.ScreenshotContentType != null && s.Game.ScreenshotContentType != "",
+                s.Game!.RankingMode,
+                s.Game!.ResetTime,
+                s.UserId!.Value,
+                s.Score,
+                s.ScoreValue,
+                s.ScoringDay,
+                s.CreatedAt))
+            .ToListAsync();
     }
 
     private async Task<List<int>> GetMemberIdsAsync(int leagueId) =>
@@ -94,60 +86,6 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db, TimeProvider ti
             .Select(s => new MemberBestSubmission(
                 s.UserId!.Value, s.Username ?? UnknownUsername, s.Score, s.ScoreValue!.Value, s.Id, s.HasScreenshot))
             .ToList();
-    }
-
-    /// <summary>
-    /// A game's current scoring day is within ±1 of the UTC date (late resets label "today" with tomorrow's
-    /// date), so this loads the widest possible range; callers narrow it per game. Only the needed columns
-    /// are projected, which keeps screenshot blobs out of the query.
-    /// </summary>
-    private async Task<List<LeagueSubmissionRow>> GetMemberSubmissionsAroundTodayAsync(List<int> memberIds, DateTime nowUtc, int days)
-    {
-        var rangeStart = nowUtc.Date.AddDays(-days);
-        var rangeEnd = nowUtc.Date.AddDays(1);
-
-        return await db.Submissions
-            .Where(s => s.UserId.HasValue && memberIds.Contains(s.UserId!.Value)
-                        && s.ScoringDay >= rangeStart && s.ScoringDay <= rangeEnd)
-            .Select(s => new LeagueSubmissionRow(
-                s.GameId,
-                s.Game!.Name,
-                s.Game.ScreenshotContentType != null && s.Game.ScreenshotContentType != "",
-                s.Game!.RankingMode,
-                s.Game!.ResetTime,
-                s.UserId!.Value,
-                s.Score,
-                s.ScoreValue,
-                s.ScoringDay,
-                s.CreatedAt))
-            .ToListAsync();
-    }
-
-    private static bool IsWithinLastScoringDays(DateTime scoringDay, DateTime currentScoringDay, int days) =>
-        scoringDay.Date <= currentScoringDay && scoringDay.Date > currentScoringDay.AddDays(-days);
-
-    private async Task<HashSet<int>> GetGamesSubmittedOnCurrentDayAsync(int userId, Dictionary<int, DateTime> currentDayByGame)
-    {
-        if (currentDayByGame.Count == 0) return [];
-
-        var gameIds = currentDayByGame.Keys.ToList();
-        var currentDays = currentDayByGame.Values.Distinct().ToList();
-        var userSubmissions = await db.Submissions
-            .Where(s => s.UserId == userId && gameIds.Contains(s.GameId) && currentDays.Contains(s.ScoringDay))
-            .Select(s => new { s.GameId, s.ScoringDay })
-            .ToListAsync();
-
-        return userSubmissions
-            .Where(s => currentDayByGame[s.GameId] == s.ScoringDay.Date)
-            .Select(s => s.GameId)
-            .ToHashSet();
-    }
-
-    private static List<LeagueGameSummaryDto> PageOf(List<LeagueGameSummaryDto> summaries, int page, int pageSize)
-    {
-        var size = pageSize < 1 ? DefaultPageSize : pageSize;
-        var number = Math.Max(1, page);
-        return summaries.Skip((number - 1) * size).Take(size).ToList();
     }
 
     private sealed record MemberBestSubmission(

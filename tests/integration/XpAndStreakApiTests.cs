@@ -3,8 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DailyChallenges.Models;
 using DailyChallenges.DTOs;
-using DailyChallenges.Repositories;
-using DailyChallenges.TestUtilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DailyChallenges.IntegrationTests;
@@ -118,36 +116,5 @@ public class XpAndStreakApiTests : IClassFixture<FixedClockApiFactory>
 
         // Stored value untouched; it restarts properly on the next submission.
         await _factory.WithDbAsync(async db => Assert.Equal(25, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == stale.Id)).Streak));
-    }
-}
-
-/// <summary>League summaries use each game's current scoring day as the end of the window (B8).</summary>
-public class LeagueSummaryWindowTests
-{
-    [Fact]
-    public async Task Late_reset_game_keeps_todays_plays_in_the_summary()
-    {
-        await using var db = new TestDb();
-        // 23:00 UTC with a 22:00 reset: the game's current scoring day is tomorrow's date.
-        var now = new DateTime(2026, 6, 15, 23, 0, 0, DateTimeKind.Utc);
-        var user = new User { Id = 1, Username = "late" };
-        var game = new Game { Id = 1, Name = "Late", ResetTime = TimeSpan.FromHours(22) };
-        db.Ctx.AddRange(user, game);
-        db.Ctx.Leagues.Add(new League { Id = 1, OwnerId = 1, Name = "L", CreatedAt = now });
-        db.Ctx.SaveChanges();
-        db.Ctx.LeagueMembers.Add(new LeagueMember { LeagueId = 1, UserId = 1, Role = LeagueRole.Owner, JoinedAt = now });
-        db.Ctx.Submissions.Add(new Submission
-        {
-            GameId = 1, UserId = 1, Username = "late", Score = "5", ScoreValue = 5,
-            CreatedAt = now.AddMinutes(-30), ScoringDay = new DateTime(2026, 6, 16), ScreenshotContentType = "image/png",
-        });
-        db.Ctx.SaveChanges();
-
-        var repo = new EfLeagueStandingsRepository(db.Ctx, new FixedTimeProvider(now));
-        var (items, _) = await repo.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 3));
-
-        var summary = Assert.Single(items);
-        Assert.Equal(1, summary.PlayCount);
-        Assert.Equal(new List<int> { 0, 0, 1 }, summary.RecentPlays);
     }
 }

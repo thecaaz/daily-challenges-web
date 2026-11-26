@@ -5,6 +5,7 @@ using DailyChallenges.Repositories;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
+using DailyChallenges.TestUtilities;
 using Moq;
 using static DailyChallenges.Tests.LeagueTestData;
 
@@ -12,6 +13,8 @@ namespace DailyChallenges.Tests;
 
 public class LeagueStandingsServiceTests
 {
+    private static readonly DateTime Now = new(2026, 6, 15, 10, 0, 0, DateTimeKind.Utc);
+
     private record Sut(
         LeagueStandingsService Service,
         Mock<ILeagueRepository> LeagueRepo,
@@ -27,7 +30,8 @@ public class LeagueStandingsServiceTests
             standingsRepo.Object,
             new Mock<IGameRepository>().Object,
             new Mock<IScoreVisibilityService>().Object,
-            new Mock<IScreenshotUrlSigner>().Object);
+            new Mock<IScreenshotUrlSigner>().Object,
+            new FixedTimeProvider(Now));
         return new Sut(svc, leagueRepo, standingsRepo);
     }
 
@@ -42,36 +46,42 @@ public class LeagueStandingsServiceTests
             () => sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 99, Days: 7, Page: 1, PageSize: 20)));
     }
 
+    private static LeagueSubmissionRow PlayOf(int gameId, int userId = 1) =>
+        new(gameId, $"G{gameId}", GameHasIcon: false, RankingMode.Highest, TimeSpan.Zero, userId, "10", 10, Now.Date, Now);
+
+    private static void AsMember(Sut sut)
+    {
+        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
+        sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 1)).ReturnsAsync(new LeagueMember { LeagueId = 1, UserId = 1 });
+    }
+
     [Fact]
-    public async Task GetLeagueGameSummaries_AsMember_ReturnsList()
+    public async Task GetLeagueGameSummaries_AsMember_SummarizesEachPlayedGame()
     {
         var sut = Build();
-        var league = MakeLeague(1, ownerId: 10);
-        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(league);
-        sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 1)).ReturnsAsync(new LeagueMember { LeagueId = 1, UserId = 1 });
-        var expected = (new List<LeagueGameSummaryDto>
-        {
-            new LeagueGameSummaryDto { GameId = 5, GameName = "G" }
-        }, 1);
-        sut.StandingsRepo.Setup(r => r.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, 7, 1, 20))).ReturnsAsync(expected);
+        AsMember(sut);
+        sut.StandingsRepo.Setup(r => r.GetMemberSubmissionsAsync(1, Now.Date.AddDays(-7), Now.Date.AddDays(1)))
+            .ReturnsAsync([PlayOf(5)]);
 
-        var result = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, 7, 1, 20));
+        var (items, total) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, 7, 1, 20));
 
-        Assert.Equal(expected, result);
+        Assert.Equal(1, total);
+        var summary = Assert.Single(items);
+        Assert.Equal((5, "G5", 1, 10.0, 1), (summary.GameId, summary.GameName, summary.PlayCount, summary.TopScoreValue, summary.MyRank));
     }
 
     [Fact]
     public async Task GetLeagueGameSummaries_OutOfRangeWindowAndPaging_AreClamped()
     {
         var sut = Build();
-        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
-        sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 1)).ReturnsAsync(new LeagueMember { LeagueId = 1, UserId = 1 });
-        sut.StandingsRepo.Setup(r => r.GetLeagueGameSummariesAsync(It.IsAny<LeagueGameSummaryQuery>()))
-            .ReturnsAsync((new List<LeagueGameSummaryDto>(), 0));
+        AsMember(sut);
+        sut.StandingsRepo.Setup(r => r.GetMemberSubmissionsAsync(1, Now.Date.AddDays(-31), Now.Date.AddDays(1)))
+            .ReturnsAsync(Enumerable.Range(1, Paging.MaxPageSize + 1).Select(gameId => PlayOf(gameId)).ToList());
 
-        await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, Days: 100, Page: 0, PageSize: 1000));
+        var (items, total) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, Days: 100, Page: 0, PageSize: 1000));
 
-        sut.StandingsRepo.Verify(r => r.GetLeagueGameSummariesAsync(
-            new LeagueGameSummaryQuery(1, 1, Days: 31, Page: 1, PageSize: Paging.MaxPageSize)), Times.Once);
+        Assert.Equal(Paging.MaxPageSize + 1, total);
+        Assert.Equal(Paging.MaxPageSize, items.Count);
+        Assert.All(items, summary => Assert.Equal(31, summary.RecentPlays.Count));
     }
 }

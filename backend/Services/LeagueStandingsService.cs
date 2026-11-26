@@ -11,7 +11,8 @@ public sealed class LeagueStandingsService(
     ILeagueStandingsRepository standings,
     IGameRepository games,
     IScoreVisibilityService visibility,
-    IScreenshotUrlSigner signer) : ILeagueStandingsService
+    IScreenshotUrlSigner signer,
+    TimeProvider time) : ILeagueStandingsService
 {
     private const int MinSummaryDays = 1;
     private const int MaxSummaryDays = 31;
@@ -44,7 +45,14 @@ public sealed class LeagueStandingsService(
     public async Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(LeagueGameSummaryQuery query)
     {
         await leagues.RequireMembershipAsync(query.LeagueId, query.RequestingUserId);
-        return await standings.GetLeagueGameSummariesAsync(WithinLimits(query));
+        var (leagueId, requestingUserId, days, page, pageSize) = WithinLimits(query);
+
+        var calculator = new LeagueGameSummaryCalculator(requestingUserId, days, time.GetUtcNow().UtcDateTime);
+        var (firstDay, lastDay) = calculator.CandidateScoringDays;
+        var candidateRows = await standings.GetMemberSubmissionsAsync(leagueId, firstDay, lastDay);
+        var summaries = calculator.SummarizeByGame(candidateRows);
+
+        return (summaries.Skip((page - 1) * pageSize).Take(pageSize).ToList(), summaries.Count);
     }
 
     /// <summary>Past days' screenshots are public; current-day ones need a short-lived signed URL.</summary>
