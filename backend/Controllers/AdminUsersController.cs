@@ -8,7 +8,7 @@ namespace DailyChallenges.Controllers;
 /// <summary>Admin user management. A token without a user id is answered with 401 here, not 403.</summary>
 [ApiController]
 [Route("api/admin/users")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = AuthRoles.Admin)]
 public sealed class AdminUsersController(
     IAdminUserService adminUsers,
     IAdminXpEventService adminXpEvents,

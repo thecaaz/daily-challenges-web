@@ -19,7 +19,7 @@ public class ScoreVisibilityServiceTests
     private static ClaimsPrincipal Principal(int userId, bool isAdmin)
     {
         var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, userId.ToString()) };
-        if (isAdmin) claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+        if (isAdmin) claims.Add(new Claim(ClaimTypes.Role, AuthRoles.Admin));
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
     }
 

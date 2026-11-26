@@ -1,3 +1,4 @@
+using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,7 +7,7 @@ namespace DailyChallenges.Controllers;
 
 [ApiController]
 [Route("api/admin/maintenance")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = AuthRoles.Admin)]
 public sealed class AdminMaintenanceController(IScoreMaintenanceService scores) : ControllerBase
 {
     /// <summary>

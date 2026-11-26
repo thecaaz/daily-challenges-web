@@ -19,7 +19,7 @@ public sealed class GamesController(
     public async Task<IActionResult> Get() => Ok(await gameQueries.GetAllAsync(User));
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromForm] GameCreateRequest request)
     {
         RejectLegacyTimezoneOffset();
@@ -51,7 +51,7 @@ public sealed class GamesController(
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromForm] GameUpdateRequest request)
     {
         RejectLegacyTimezoneOffset();
@@ -59,7 +59,7 @@ public sealed class GamesController(
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         await gameCommands.DeleteAsync(id);

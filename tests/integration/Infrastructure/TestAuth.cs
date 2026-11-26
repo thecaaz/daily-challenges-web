@@ -26,7 +26,7 @@ public static class TestAuth
             new(TokenClaims.TokenUse, TokenClaims.Access),
             new(TokenClaims.TokenVersion, "0", ClaimValueTypes.Integer32)
         };
-        if (isAdmin) claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+        if (isAdmin) claims.Add(new Claim(ClaimTypes.Role, AuthRoles.Admin));
 
         var creds = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(jwt.Issuer, jwt.Audience, claims,

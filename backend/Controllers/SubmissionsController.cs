@@ -49,7 +49,7 @@ public sealed class SubmissionsController(
     }
 
     [HttpGet("game/{gameId}/unfiltered")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> GetUnfilteredByGame(int gameId) =>
         Ok(await submissionQueries.GetUnfilteredByGameAsync(gameId));
 
@@ -79,12 +79,12 @@ public sealed class SubmissionsController(
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] SubmissionUpdateModel model) =>
         Ok(await submissionScoreEdits.UpdateAsync(id, model.Score));
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         await submissionDeletion.DeleteAsync(id);
