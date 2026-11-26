@@ -8,7 +8,8 @@ import useRequireAuth from '../../hooks/useRequireAuth'
 import useConfirm from '../../hooks/useConfirm'
 import useSubmitScore from '../../hooks/useSubmitScore'
 import ConfirmDialog from '../ui/ConfirmDialog'
-import { NON_NUMERIC_SCORE_WARNING, findSubmissionProblem, isNonNumericScore, trimScore } from './submissionRules'
+import { NON_NUMERIC_SCORE_WARNING, findSubmissionProblem, trimScore } from './submissionRules'
+import { isNonNumericScore } from '../../utils/parseScore'
 
 const FORM_MAX_WIDTH = 480
 const NON_NUMERIC_CONFIRMATION = {

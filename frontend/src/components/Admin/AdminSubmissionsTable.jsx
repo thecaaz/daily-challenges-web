@@ -3,13 +3,9 @@ import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Typography, Bo
 import { Link } from 'react-router-dom'
 import AppButton from '../ui/AppButton'
 import { formatDateTime } from '../../utils/dateFormat'
-import parseScore from '../../utils/parseScore'
+import { isNonNumericScore } from '../../utils/parseScore'
 
 const NOT_A_NUMBER_STYLE = { color: '#ed6c02', fontSize: '0.75rem', marginTop: 2 }
-
-function isNonNumericScore(score) {
-  return score !== '' && score != null && isNaN(parseScore(score))
-}
 
 /**
  * Moderation table for one game's submissions: edit a score inline, then save

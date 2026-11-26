@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import parseScore from '../utils/parseScore'
+import parseScore, { isNonNumericScore } from '../utils/parseScore'
 // Shared spec, also used by the backend ScoreParserTests and the extension's
 // scoreparse tests. Only tests may import from outside frontend/.
 import spec from '../../../tests/fixtures/score-parsing.json'
@@ -33,5 +33,25 @@ describe('parseScore (frontend specifics)', () => {
 
   it('never returns -0', () => {
     expect(Object.is(parseScore('-0'), 0)).toBe(true)
+  })
+})
+
+describe('isNonNumericScore', () => {
+  it('flags text that is not a score', () => {
+    expect(isNonNumericScore('abc')).toBe(true)
+    expect(isNonNumericScore(' 12 points ')).toBe(true)
+  })
+
+  it('accepts numbers and times, trimmed', () => {
+    expect(isNonNumericScore(' 1,234 ')).toBe(false)
+    expect(isNonNumericScore('1:05')).toBe(false)
+    expect(isNonNumericScore(42)).toBe(false)
+  })
+
+  it('treats a blank score as missing, not non-numeric', () => {
+    expect(isNonNumericScore(null)).toBe(false)
+    expect(isNonNumericScore(undefined)).toBe(false)
+    expect(isNonNumericScore('')).toBe(false)
+    expect(isNonNumericScore('   ')).toBe(false)
   })
 })

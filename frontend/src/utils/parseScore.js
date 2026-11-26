@@ -97,3 +97,13 @@ function toFiniteNumber(sign, digits, fraction) {
 function withoutNegativeZero(number) {
   return number === 0 ? 0 : number
 }
+
+/**
+ * True when the trimmed score is filled in but is not a number under the spec
+ * (it is still accepted, but may not rank correctly). A blank score is missing,
+ * not non-numeric.
+ */
+export function isNonNumericScore(score) {
+  const text = String(score ?? '').trim()
+  return text !== '' && isNaN(parseScore(text))
+}
