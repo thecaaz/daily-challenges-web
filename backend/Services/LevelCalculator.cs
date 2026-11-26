@@ -68,7 +68,7 @@ public sealed class LevelCalculator
     /// into that level, and XP still needed to advance to the next level.
     /// Every level needs at least 1 XP and levels stop at <see cref="MaxLevel"/>, so this always terminates.
     /// </summary>
-    public (int Level, long XpIntoLevel, long XpToNextLevel) GetLevelInfo(long totalXp)
+    public (int Level, long XpIntoLevel, long XpToNextLevel) GetLevelProgress(long totalXp)
     {
         var remaining = Math.Max(0, totalXp);
         var level = 1;
@@ -87,5 +87,5 @@ public sealed class LevelCalculator
 
     /// <summary>Returns just the level for a given total XP amount.</summary>
     public int GetLevelFromTotalXp(long totalXp)
-        => GetLevelInfo(totalXp).Level;
+        => GetLevelProgress(totalXp).Level;
 }

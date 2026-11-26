@@ -10,7 +10,7 @@ public class LevelCalculatorTests
     public void Level1_RequiresZeroXp()
     {
         var calc = Default();
-        var (level, xpInto, xpToNext) = calc.GetLevelInfo(0);
+        var (level, xpInto, xpToNext) = calc.GetLevelProgress(0);
         Assert.Equal(1, level);
         Assert.Equal(0, xpInto);
         Assert.Equal(100, xpToNext); // level 1 needs 100 XP to advance
@@ -35,32 +35,32 @@ public class LevelCalculatorTests
     }
 
     [Fact]
-    public void GetLevelInfo_AtExactLevelBoundary_AdvancesToNextLevel()
+    public void GetLevelProgress_AtExactLevelBoundary_AdvancesToNextLevel()
     {
         var calc = Default();
         // Exactly 100 XP puts us at level 2 with 0 XP into it
-        var (level, xpInto, xpToNext) = calc.GetLevelInfo(100);
+        var (level, xpInto, xpToNext) = calc.GetLevelProgress(100);
         Assert.Equal(2, level);
         Assert.Equal(0, xpInto);
     }
 
     [Fact]
-    public void GetLevelInfo_PartialXpIntoLevel()
+    public void GetLevelProgress_PartialXpIntoLevel()
     {
         var calc = Default();
         // 150 XP: 100 completes level 1, 50 into level 2
-        var (level, xpInto, _) = calc.GetLevelInfo(150);
+        var (level, xpInto, _) = calc.GetLevelProgress(150);
         Assert.Equal(2, level);
         Assert.Equal(50, xpInto);
     }
 
     [Fact]
-    public void GetLevelFromTotalXp_MatchesGetLevelInfo()
+    public void GetLevelFromTotalXp_MatchesGetLevelProgress()
     {
         var calc = Default();
         for (long xp = 0; xp <= 1000; xp += 50)
         {
-            var (expectedLevel, _, _) = calc.GetLevelInfo(xp);
+            var (expectedLevel, _, _) = calc.GetLevelProgress(xp);
             Assert.Equal(expectedLevel, calc.GetLevelFromTotalXp(xp));
         }
     }
@@ -80,7 +80,7 @@ public class LevelCalculatorTests
         Assert.Equal(200, calc.XpRequiredForLevel(1));
         Assert.Equal(400, calc.XpRequiredForLevel(2)); // 200 * 2
         Assert.Equal(1000, calc.XpRequiredForLevel(5)); // 200 * 5
-        var (level, _, _) = calc.GetLevelInfo(600); // 200+400=600 → level 3
+        var (level, _, _) = calc.GetLevelProgress(600); // 200+400=600 → level 3
         Assert.Equal(3, level);
     }
 
@@ -89,7 +89,7 @@ public class LevelCalculatorTests
     {
         var calc = Default();
         // Smoke test: very high XP should resolve quickly
-        var (level, _, _) = calc.GetLevelInfo(1_000_000);
+        var (level, _, _) = calc.GetLevelProgress(1_000_000);
         Assert.True(level > 50);
     }
 
@@ -122,7 +122,7 @@ public class LevelCalculatorTests
     {
         // round(0.1 * L^0.1) is 0 for every realistic level: each level still costs at least 1 XP.
         var calc = new LevelCalculator(0.1, 0.1);
-        var (level, _, toNext) = calc.GetLevelInfo(1_000);
+        var (level, _, toNext) = calc.GetLevelProgress(1_000);
         Assert.Equal(1_001, level);
         Assert.Equal(1, toNext);
         Assert.Equal(LevelCalculator.MaxLevel, calc.GetLevelFromTotalXp(long.MaxValue));
@@ -147,8 +147,8 @@ public class LevelCalculatorTests
         var calc = Default();
 
         Assert.Equal(totalXp, calc.TotalXpForLevel(level));
-        Assert.Equal((level, 0L, calc.XpRequiredForLevel(level)), calc.GetLevelInfo(totalXp));
-        Assert.Equal((level - 1, calc.XpRequiredForLevel(level - 1) - 1, 1L), calc.GetLevelInfo(totalXp - 1));
+        Assert.Equal((level, 0L, calc.XpRequiredForLevel(level)), calc.GetLevelProgress(totalXp));
+        Assert.Equal((level - 1, calc.XpRequiredForLevel(level - 1) - 1, 1L), calc.GetLevelProgress(totalXp - 1));
     }
 }
 

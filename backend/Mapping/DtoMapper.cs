@@ -10,127 +10,123 @@ public static class DtoMapper
     private const string UtcTimestampFormat = "yyyy-MM-ddTHH:mm:ss'Z'";
 
     /// <summary>
-    /// Maps a User entity to a UserDto, computing XP-into-level and XP-to-next-level.
+    /// Maps a User entity to a UserDto with its <see cref="UserProgression"/>.
     /// <paramref name="todayUtc"/> (from the caller's TimeProvider) decides the effective streak.
     /// </summary>
-    public static UserDto ToDto(User u, LevelCalculator levelCalc, DateTime todayUtc)
+    public static UserDto ToDto(User user, LevelCalculator levels, DateTime todayUtc)
     {
-        var (level, xpInto, xpToNext) = levelCalc.GetLevelInfo(u.TotalXp);
+        var progression = UserProgression.Of(user, levels, todayUtc);
         return new UserDto
         {
-            Id = u.Id,
-            Username = u.Username,
-            IsAdmin = u.IsAdmin,
-            TotalXp = u.TotalXp,
-            Level = level,
-            XpIntoLevel = xpInto,
-            XpToNextLevel = xpToNext,
-            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
-            LastSubmissionAt = u.LastSubmissionAt
+            Id = user.Id,
+            Username = user.Username,
+            IsAdmin = user.IsAdmin,
+            TotalXp = user.TotalXp,
+            Level = progression.Level,
+            XpIntoLevel = progression.XpIntoLevel,
+            XpToNextLevel = progression.XpToNextLevel,
+            Streak = progression.Streak,
+            LastSubmissionAt = user.LastSubmissionAt
         };
     }
 
     /// <summary>Signals a screenshot by its content type, not the blob (list queries do not load the blob).</summary>
-    public static SubmissionDto ToDto(Submission s) => new()
+    public static SubmissionDto ToDto(Submission submission) => new()
     {
-        Id = s.Id,
-        GameId = s.GameId,
-        UserId = s.UserId,
-        Score = s.Score,
-        ScoreValue = s.ScoreValue,
+        Id = submission.Id,
+        GameId = submission.GameId,
+        UserId = submission.UserId,
+        Score = submission.Score,
+        ScoreValue = submission.ScoreValue,
         Rank = null,
-        Username = s.Username,
-        ScreenshotUrl = SubmissionScreenshotUrl.For(s.Id, s.ScreenshotContentType),
-        CreatedAt = s.CreatedAt
+        Username = submission.Username,
+        ScreenshotUrl = SubmissionScreenshotUrl.For(submission.Id, submission.ScreenshotContentType),
+        CreatedAt = submission.CreatedAt
     };
 
     /// <summary>
     /// Maps a game, including its current scoring day at <paramref name="nowUtc"/> (from the caller's TimeProvider).
     /// ResetTime is UTC and exported as "hh:mm"; the image is signalled by its content type, not the blob.
     /// </summary>
-    public static GameDto ToDto(Game g, DateTime nowUtc)
+    public static GameDto ToDto(Game game, DateTime nowUtc)
     {
-        var window = CurrentScoringDayWindow.For(g.ResetTime, nowUtc);
+        var window = CurrentScoringDayWindow.For(game.ResetTime, nowUtc);
         return new GameDto
         {
-            Id = g.Id,
-            Name = g.Name,
-            Url = g.Url,
-            Description = g.Description,
-            ImageUrl = GameImageUrl.For(g.Id, g.ScreenshotContentType),
-            ResetTime = g.ResetTime.ToString(ResetTimeFormat),
-            RankingMode = g.RankingMode.ToString().ToLowerInvariant(),
+            Id = game.Id,
+            Name = game.Name,
+            Url = game.Url,
+            Description = game.Description,
+            ImageUrl = GameImageUrl.For(game.Id, game.ScreenshotContentType),
+            ResetTime = game.ResetTime.ToString(ResetTimeFormat),
+            RankingMode = game.RankingMode.ToString().ToLowerInvariant(),
             CurrentScoringDay = window.Day,
             CurrentScoringDayUtcStart = window.UtcStart,
             CurrentScoringDayUtcEnd = window.UtcEnd
         };
     }
 
-    public static XpEventDto ToDto(XpEvent e) => new()
+    public static XpEventDto ToDto(XpEvent xpEvent) => new()
     {
-        Id = e.Id,
-        UserId = e.UserId,
-        SubmissionId = e.SubmissionId,
-        GameId = e.GameId,
-        ScoringDay = e.ScoringDay.HasValue ? ScoringDayCalculator.FormatScoringDay(e.ScoringDay.Value) : null,
-        Amount = e.Amount,
-        EventType = e.EventType,
-        Details = e.Details,
-        CreatedAt = e.CreatedAt
+        Id = xpEvent.Id,
+        UserId = xpEvent.UserId,
+        SubmissionId = xpEvent.SubmissionId,
+        GameId = xpEvent.GameId,
+        ScoringDay = xpEvent.ScoringDay.HasValue ? ScoringDayCalculator.FormatScoringDay(xpEvent.ScoringDay.Value) : null,
+        Amount = xpEvent.Amount,
+        EventType = xpEvent.EventType,
+        Details = xpEvent.Details,
+        CreatedAt = xpEvent.CreatedAt
     };
 
-    public static NotificationDto ToDto(Notification n) => new()
+    public static NotificationDto ToDto(Notification notification) => new()
     {
-        Id = n.Id,
-        Message = n.Message,
-        Type = n.Type,
-        GameId = n.GameId,
-        ScoringDay = ScoringDayCalculator.FormatScoringDay(n.ScoringDay),
-        Rank = n.Rank,
-        ActorUserId = n.ActorUserId,
-        IsRead = n.IsRead,
-        CreatedAt = n.CreatedAt
+        Id = notification.Id,
+        Message = notification.Message,
+        Type = notification.Type,
+        GameId = notification.GameId,
+        ScoringDay = ScoringDayCalculator.FormatScoringDay(notification.ScoringDay),
+        Rank = notification.Rank,
+        ActorUserId = notification.ActorUserId,
+        IsRead = notification.IsRead,
+        CreatedAt = notification.CreatedAt
     };
 
-    public static UserProfileDto ToUserProfileDto(User u, List<UserGameStatDto> topGames, LevelCalculator levelCalc, DateTime todayUtc)
+    public static UserProfileDto ToUserProfileDto(User user, UserProgression progression, List<UserGameStatDto> topGames) => new()
     {
-        var (level, xpInto, xpToNext) = levelCalc.GetLevelInfo(u.TotalXp);
-        return new UserProfileDto
-        {
-            UserId = u.Id,
-            Username = u.Username,
-            TotalXp = u.TotalXp,
-            Level = level,
-            XpIntoLevel = xpInto,
-            XpToNextLevel = xpToNext,
-            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
-            LastSubmissionAt = u.LastSubmissionAt,
-            TopGames = topGames ?? []
-        };
-    }
-
-    public static FriendRequestDto ToDto(FriendRequest fr) => new()
-    {
-        Id = fr.Id,
-        SenderId = fr.SenderId,
-        SenderUsername = fr.Sender?.Username ?? string.Empty,
-        ReceiverId = fr.ReceiverId,
-        ReceiverUsername = fr.Receiver?.Username ?? string.Empty,
-        Status = fr.Status.ToString().ToLowerInvariant(),
-        CreatedAt = fr.CreatedAt
+        UserId = user.Id,
+        Username = user.Username,
+        TotalXp = user.TotalXp,
+        Level = progression.Level,
+        XpIntoLevel = progression.XpIntoLevel,
+        XpToNextLevel = progression.XpToNextLevel,
+        Streak = progression.Streak,
+        LastSubmissionAt = user.LastSubmissionAt,
+        TopGames = topGames ?? []
     };
 
-    public static FriendDto ToFriendDto(User u, LevelCalculator levelCalc, DateTime todayUtc)
+    public static FriendRequestDto ToDto(FriendRequest friendRequest) => new()
     {
-        var (level, _, _) = levelCalc.GetLevelInfo(u.TotalXp);
+        Id = friendRequest.Id,
+        SenderId = friendRequest.SenderId,
+        SenderUsername = friendRequest.Sender?.Username ?? string.Empty,
+        ReceiverId = friendRequest.ReceiverId,
+        ReceiverUsername = friendRequest.Receiver?.Username ?? string.Empty,
+        Status = friendRequest.Status.ToString().ToLowerInvariant(),
+        CreatedAt = friendRequest.CreatedAt
+    };
+
+    public static FriendDto ToFriendDto(User user, LevelCalculator levels, DateTime todayUtc)
+    {
+        var progression = UserProgression.Of(user, levels, todayUtc);
         return new FriendDto
         {
-            UserId = u.Id,
-            Username = u.Username,
-            Level = level,
-            TotalXp = u.TotalXp,
-            Streak = StreakCalculator.GetEffectiveStreak(u, todayUtc),
-            LastSubmissionAt = u.LastSubmissionAt
+            UserId = user.Id,
+            Username = user.Username,
+            Level = progression.Level,
+            TotalXp = user.TotalXp,
+            Streak = progression.Streak,
+            LastSubmissionAt = user.LastSubmissionAt
         };
     }
 

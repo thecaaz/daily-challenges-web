@@ -55,7 +55,7 @@ public sealed class UserProfileService(
         var top = await profiles.GetMostPlayedGamesAsync(userId, topGames, scope.HiddenSubmissionIds);
         await AttachScoreHistoryAsync(scope, top, now);
 
-        var profile = DtoMapper.ToUserProfileDto(user, top, levels, now);
+        var profile = DtoMapper.ToUserProfileDto(user, UserProgression.Of(user, levels, now), top);
         profile.ScoresHidden = scope.HiddenSubmissionIds.Count > 0;
         return profile;
     }
