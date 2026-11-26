@@ -6,7 +6,6 @@ import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 import HiddenScoresCard from '../components/ui/HiddenScoresCard'
-import SubmissionCard from '../components/SubmissionCard'
 import useGame from '../hooks/useGame'
 import useGameHighscores from '../hooks/useGameHighscores'
 
@@ -20,7 +19,7 @@ function HighscoreResults({ highscores, error, onRetry }) {
     )
   }
   if (highscores.length === 0) return <div className="muted">No highscores yet.</div>
-  return <SubmissionGrid items={highscores} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
+  return <SubmissionGrid submissions={highscores} />
 }
 
 export default function GameHighscore() {

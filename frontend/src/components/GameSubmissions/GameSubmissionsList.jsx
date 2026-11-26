@@ -1,7 +1,6 @@
 import React from 'react'
 import { Box, Typography, CircularProgress } from '@mui/material'
 import AppButton from '../ui/AppButton'
-import SubmissionCard from '../SubmissionCard'
 import SubmissionGrid from '../ui/SubmissionGrid/SubmissionGrid'
 
 /**
@@ -19,12 +18,10 @@ export default function GameSubmissionsList({ list, compare }) {
         <Typography color="text.secondary" sx={{ mt: 2 }}>No submissions for this day yet.</Typography>
       )}
       <SubmissionGrid
-        items={list.submissions}
-        ItemComponent={SubmissionCard}
-        containerSx={{ mt: 1 }}
-        itemProps={(item) => ({
+        submissions={list.submissions}
+        cardPropsFor={submission => ({
           compareMode: compare.isComparing,
-          selected: compare.isSelected(item.id),
+          selected: compare.isSelected(submission.id),
           onToggleCompare: compare.toggle,
         })}
       />
