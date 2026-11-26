@@ -36,7 +36,7 @@ public class GameOverviewTests
         _submissionQueries.Setup(q => q.GetAvailableDatesAsync(GameId)).ThrowsAsync(new InvalidOperationException("dates broke"));
         _submissionQueries.Setup(q => q.HasUserSubmittedForLatestAsync(GameId, It.IsAny<ClaimsPrincipal?>())).ThrowsAsync(new TimeoutException("check broke"));
 
-        var overview = await Build().GetOverviewAsync(GameId, null);
+        var overview = await Build().GetOverviewAsync(GameId, null, include: null);
 
         Assert.Empty(overview.AvailableDates!);
         Assert.False(overview.HasSubmittedForLatest);
@@ -52,7 +52,7 @@ public class GameOverviewTests
         _submissionQueries.Setup(q => q.GetAvailableDatesAsync(GameId)).ReturnsAsync(new List<string> { "2026-06-15" });
         _submissionQueries.Setup(q => q.HasUserSubmittedForLatestAsync(GameId, It.IsAny<ClaimsPrincipal?>())).ThrowsAsync(new InvalidOperationException("check broke"));
 
-        var overview = await Build().GetOverviewAsync(GameId, null);
+        var overview = await Build().GetOverviewAsync(GameId, null, include: null);
 
         Assert.Equal(new[] { "2026-06-15" }, overview.AvailableDates);
         Assert.Equal("hasSubmitted", Assert.Single(overview.Errors!).Part);
@@ -71,6 +71,6 @@ public class GameOverviewTests
     [Fact]
     public async Task GetOverviewAsync_MissingGame_ThrowsKeyNotFound()
     {
-        await Assert.ThrowsAsync<NotFoundException>(() => Build().GetOverviewAsync(404, null));
+        await Assert.ThrowsAsync<NotFoundException>(() => Build().GetOverviewAsync(404, null, include: null));
     }
 }

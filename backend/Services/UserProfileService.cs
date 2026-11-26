@@ -29,7 +29,7 @@ public sealed class UserProfileService(
     /// Hidden-scores rule, simplified so the cache still works: each game's current scoring day is
     /// left out unless the viewer is the profile owner or an admin (stricter than the full rule).
     /// </summary>
-    public async Task<UserProfileDto?> GetProfileAsync(int userId, int topGames = 10, ClaimsPrincipal? viewer = null)
+    public async Task<UserProfileDto?> GetProfileAsync(int userId, int topGames, ClaimsPrincipal? viewer)
     {
         var canSeeCurrentDay = viewer.GetUserId() == userId || viewer.IsAdmin();
         var cacheKey = CacheKey(userId, topGames, canSeeCurrentDay);

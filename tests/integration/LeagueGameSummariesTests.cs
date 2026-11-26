@@ -82,7 +82,7 @@ public class LeagueGameSummariesTests
         db.Ctx.SaveChanges();
 
         var (items, _) = await CreateService(db.Ctx, new FixedTimeProvider(lateEvening))
-            .GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 3));
+            .GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 3, Page: 1, PageSize: 20));
 
         var summary = Assert.Single(items);
         Assert.Equal(1, summary.PlayCount);

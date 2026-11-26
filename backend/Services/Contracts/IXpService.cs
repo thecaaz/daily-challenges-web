@@ -46,7 +46,7 @@ public interface IXpService
 }
 
 /// <summary>A manual XP change of <see cref="Delta"/> for a user, made by <see cref="AdminUserId"/> when known.</summary>
-public sealed record XpAdjustment(int UserId, int Delta, string? Reason, int? AdminUserId = null);
+public sealed record XpAdjustment(int UserId, int Delta, string? Reason, int? AdminUserId);
 
 /// <summary>The XP <see cref="Amount"/> a deleted submission had awarded, to be taken back on its scoring day.</summary>
-public sealed record SubmissionXpRevocation(int UserId, int SubmissionId, int GameId, DateTime ScoringDay, int Amount, string? Reason = null);
+public sealed record SubmissionXpRevocation(int UserId, int SubmissionId, int GameId, DateTime ScoringDay, int Amount, string? Reason);

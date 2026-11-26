@@ -69,7 +69,7 @@ public sealed class GamesController(
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(int id)
     {
-        var overview = await gameQueries.GetOverviewAsync(id, User);
+        var overview = await gameQueries.GetOverviewAsync(id, User, include: null);
         if (overview?.Game == null) return NotFound();
         return Ok(overview.Game);
     }

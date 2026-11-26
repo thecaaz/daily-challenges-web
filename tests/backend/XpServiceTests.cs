@@ -274,7 +274,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((User?)null);
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            sut.Service.AdjustXpAsync(new XpAdjustment(99, 100, "test")));
+            sut.Service.AdjustXpAsync(new XpAdjustment(99, 100, "test", AdminUserId: null)));
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 100);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "bonus"));
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "bonus", AdminUserId: null));
 
         Assert.Equal(150, user.TotalXp);
     }
@@ -296,7 +296,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 100);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -30, "penalty"));
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -30, "penalty", AdminUserId: null));
 
         Assert.Equal(70, user.TotalXp);
     }
@@ -308,7 +308,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 10);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty"));
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty", AdminUserId: null));
 
         Assert.Equal(0, user.TotalXp);
     }

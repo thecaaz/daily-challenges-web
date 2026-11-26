@@ -15,6 +15,6 @@ public sealed record LeagueLeaderboardQuery(
 public sealed record LeagueGameSummaryQuery(
     int LeagueId,
     int RequestingUserId,
-    int Days = 7,
-    int Page = 1,
-    int PageSize = 20);
+    int Days,
+    int Page,
+    int PageSize);

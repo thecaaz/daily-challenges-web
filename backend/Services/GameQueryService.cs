@@ -18,7 +18,7 @@ public sealed class GameQueryService(
     private const string AvailableDatesPart = "availableDates";
     private const string HasSubmittedPart = "hasSubmitted";
 
-    public async Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user = null)
+    public async Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var allGames = await games.GetAllAsync();
@@ -43,7 +43,7 @@ public sealed class GameQueryService(
     /// Sub-requests run one after another (they share the scoped DbContext, which allows only one operation
     /// at a time), and failures are reported per part.
     /// </summary>
-    public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include = null)
+    public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include)
     {
         var game = await games.GetByIdWithoutBlobAsync(gameId) ?? throw new NotFoundException("Game not found");
         var dto = new GameOverviewDto { Game = DtoMapper.ToDto(game, nowUtc: time.GetUtcNow().UtcDateTime) };

@@ -24,7 +24,7 @@ public sealed class AdminUserService(
 
     private DateTime TodayUtc => time.GetUtcNow().UtcDateTime.Date;
 
-    public async Task<(List<UserDto> Items, int TotalCount)> GetUsersAsync(int page = 1, int pageSize = 50, string? search = null)
+    public async Task<(List<UserDto> Items, int TotalCount)> GetUsersAsync(int page, int pageSize, string? search)
     {
         var (pageUsers, total) = await users.GetPagedAsync(page, pageSize, search);
         var items = pageUsers.Select(u => DtoMapper.ToDto(u, levels, TodayUtc)).ToList();
@@ -52,7 +52,7 @@ public sealed class AdminUserService(
     }
 
     /// <summary>Bumping TokenVersion ends every existing session of the user (refresh tokens carry the old version).</summary>
-    public async Task SetPasswordAsync(int userId, string? newPassword, int? requestingAdminId = null)
+    public async Task SetPasswordAsync(int userId, string? newPassword, int? requestingAdminId)
     {
         if (string.IsNullOrWhiteSpace(newPassword)) throw new ValidationException(PasswordRequiredMessage);
         CredentialRules.ValidatePassword(newPassword);
