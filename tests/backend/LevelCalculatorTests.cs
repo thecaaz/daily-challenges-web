@@ -10,7 +10,7 @@ public class LevelCalculatorTests
     public void Level1_RequiresZeroXp_AndNeeds100ToAdvance()
     {
         var calc = Default();
-        var (level, xpInto, xpToNext) = calc.GetLevelInfo(0);
+        var (level, xpInto, xpToNext) = calc.GetLevelProgress(0);
         Assert.Equal(1, level);
         Assert.Equal(0, xpInto);
         Assert.Equal(100, xpToNext);
@@ -35,33 +35,33 @@ public class LevelCalculatorTests
     }
 
     [Fact]
-    public void GetLevelInfo_AtExactLevelBoundary_AdvancesToNextLevel()
+    public void GetLevelProgress_AtExactLevelBoundary_AdvancesToNextLevel()
     {
         var calc = Default();
         const long level2Threshold = 100;
-        var (level, xpInto, _) = calc.GetLevelInfo(level2Threshold);
+        var (level, xpInto, _) = calc.GetLevelProgress(level2Threshold);
         Assert.Equal(2, level);
         Assert.Equal(0, xpInto);
     }
 
     [Fact]
-    public void GetLevelInfo_PartialXpIntoLevel()
+    public void GetLevelProgress_PartialXpIntoLevel()
     {
         var calc = Default();
         const long level1Cost = 100;
         const long xpIntoLevel2 = 50;
-        var (level, xpInto, _) = calc.GetLevelInfo(level1Cost + xpIntoLevel2);
+        var (level, xpInto, _) = calc.GetLevelProgress(level1Cost + xpIntoLevel2);
         Assert.Equal(2, level);
         Assert.Equal(xpIntoLevel2, xpInto);
     }
 
     [Fact]
-    public void GetLevelFromTotalXp_MatchesGetLevelInfo()
+    public void GetLevelFromTotalXp_MatchesGetLevelProgress()
     {
         var calc = Default();
         for (long xp = 0; xp <= 1000; xp += 50)
         {
-            var (expectedLevel, _, _) = calc.GetLevelInfo(xp);
+            var (expectedLevel, _, _) = calc.GetLevelProgress(xp);
             Assert.Equal(expectedLevel, calc.GetLevelFromTotalXp(xp));
         }
     }
@@ -89,16 +89,16 @@ public class LevelCalculatorTests
         const long level1Cost = 200;
         const long level2Cost = 400;
 
-        var (level, _, _) = LinearCurveWithBase200().GetLevelInfo(level1Cost + level2Cost);
+        var (level, _, _) = LinearCurveWithBase200().GetLevelProgress(level1Cost + level2Cost);
 
         Assert.Equal(3, level);
     }
 
     [Fact]
-    public void GetLevelInfo_VeryHighXp_ResolvesWithoutLooping()
+    public void GetLevelProgress_VeryHighXp_ResolvesWithoutLooping()
     {
         var calc = Default();
-        var (level, _, _) = calc.GetLevelInfo(1_000_000);
+        var (level, _, _) = calc.GetLevelProgress(1_000_000);
         Assert.True(level > 50);
     }
 
@@ -131,7 +131,7 @@ public class LevelCalculatorTests
     public void TinyCurve_StillTerminates()
     {
         var calc = new LevelCalculator(0.1, 0.1);
-        var (level, _, toNext) = calc.GetLevelInfo(1_000);
+        var (level, _, toNext) = calc.GetLevelProgress(1_000);
         Assert.Equal(1_001, level);
         Assert.Equal(1, toNext);
         Assert.Equal(LevelCalculator.MaxLevel, calc.GetLevelFromTotalXp(long.MaxValue));
@@ -156,8 +156,8 @@ public class LevelCalculatorTests
         var calc = Default();
 
         Assert.Equal(totalXp, calc.TotalXpForLevel(level));
-        Assert.Equal((level, 0L, calc.XpRequiredForLevel(level)), calc.GetLevelInfo(totalXp));
-        Assert.Equal((level - 1, calc.XpRequiredForLevel(level - 1) - 1, 1L), calc.GetLevelInfo(totalXp - 1));
+        Assert.Equal((level, 0L, calc.XpRequiredForLevel(level)), calc.GetLevelProgress(totalXp));
+        Assert.Equal((level - 1, calc.XpRequiredForLevel(level - 1) - 1, 1L), calc.GetLevelProgress(totalXp - 1));
     }
 }
 

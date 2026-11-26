@@ -7,4 +7,7 @@ public sealed class HighestRankingStrategy : IRankingStrategy
 {
     public IOrderedQueryable<Submission> ApplyOrdering(IQueryable<Submission> query)
         => query.OrderByDescending(s => s.ScoreValue).ThenBy(s => s.CreatedAt);
+
+    public IOrderedEnumerable<T> OrderBestFirst<T>(IEnumerable<T> rows) where T : IRankable
+        => rows.OrderByDescending(r => r.ScoreValue).ThenBy(r => r.CreatedAt);
 }

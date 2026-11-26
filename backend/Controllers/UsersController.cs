@@ -1,5 +1,4 @@
 using DailyChallenges.DTOs;
-using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,13 +19,8 @@ public sealed class UsersController(IUserProfileService profiles) : ControllerBa
 
     [HttpGet("me/profile")]
     [Authorize]
-    public async Task<ActionResult<UserProfileDto>> GetMyProfile(int topGames = DefaultTopGames)
-    {
-        var userId = User.GetUserId();
-        if (userId == null) return Unauthorized();
-
-        return await GetProfileResultAsync(userId.Value, topGames);
-    }
+    public Task<ActionResult<UserProfileDto>> GetMyProfile([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int userId, int topGames = DefaultTopGames) =>
+        GetProfileResultAsync(userId, topGames);
 
     private async Task<ActionResult<UserProfileDto>> GetProfileResultAsync(int userId, int topGames)
     {

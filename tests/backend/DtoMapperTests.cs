@@ -232,7 +232,7 @@ public class DtoMapperTests
 
         Assert.Equal(expected, DtoMapper.ToDto(user, DefaultCalc(), BaseTime).Streak);
         Assert.Equal(expected, DtoMapper.ToFriendDto(user, DefaultCalc(), BaseTime).Streak);
-        Assert.Equal(expected, DtoMapper.ToUserProfileDto(user, new List<UserGameStatDto>(), DefaultCalc(), BaseTime).Streak);
+        Assert.Equal(expected, DtoMapper.ToUserProfileDto(user, UserProgression.Of(user, DefaultCalc(), BaseTime), new List<UserGameStatDto>()).Streak);
         Assert.Equal(storedStreak, user.Streak);
     }
 
@@ -249,7 +249,7 @@ public class DtoMapperTests
     {
         var user = new User { Id = 1, Username = "u", LastSubmissionAt = BaseTime };
 
-        var dto = DtoMapper.ToUserProfileDto(user, TopGamesPlayedBeforeBaseTime(), DefaultCalc(), BaseTime);
+        var dto = DtoMapper.ToUserProfileDto(user, UserProgression.Of(user, DefaultCalc(), BaseTime), TopGamesPlayedBeforeBaseTime());
 
         Assert.Equal(BaseTime, dto.LastSubmissionAt);
     }
@@ -259,7 +259,7 @@ public class DtoMapperTests
     {
         var user = new User { Id = 1, Username = "u", LastSubmissionAt = null };
 
-        var dto = DtoMapper.ToUserProfileDto(user, TopGamesPlayedBeforeBaseTime(), DefaultCalc(), BaseTime);
+        var dto = DtoMapper.ToUserProfileDto(user, UserProgression.Of(user, DefaultCalc(), BaseTime), TopGamesPlayedBeforeBaseTime());
 
         Assert.Null(dto.LastSubmissionAt);
     }

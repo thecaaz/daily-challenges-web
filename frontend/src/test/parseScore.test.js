@@ -25,8 +25,7 @@ describe('parseScore (frontend specifics)', () => {
     expect(parseScore(undefined)).toBeNaN()
   })
 
-  // Regression: TimeGuessr 40456 renders as "40,456" (en-US) or "40.456" (de-DE).
-  it('treats a separator with three trailing digits as grouping', () => {
+  it('treats a separator with three trailing digits as grouping, as TimeGuessr renders 40456 in en-US and de-DE', () => {
     expect(parseScore('40,456')).toBe(40456)
     expect(parseScore('40.456')).toBe(40456)
     expect(parseScore('-40.456')).toBe(-40456)

@@ -8,7 +8,6 @@ vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => mockAuth,
 }))
 
-// GameHeader extras that talk to the extension / favorites: not under test here.
 vi.mock('../hooks/useAdapter', () => ({ default: () => null }))
 vi.mock('../components/ui/FavoriteButton', () => ({ default: () => null }))
 
@@ -25,6 +24,7 @@ vi.mock('../api', () => ({
 
 import GameSubmissions from '../pages/GameSubmissions'
 import { appendUniqueById } from '../hooks/useSubmissionPages'
+import { letPendingWorkSettle } from './timing'
 
 const TODAY = '2026-11-04'
 const YESTERDAY = '2026-11-03'
@@ -80,7 +80,7 @@ function setupList(listResponse) {
   mockGet.mockImplementation((url) => {
     if (url.startsWith('/games/1/overview')) return Promise.resolve(overview())
     if (url.includes('today-submitters')) return Promise.resolve({ data: { count: 0, usernames: [] } })
-    if (url.startsWith('/submissions/game/1')) return listResponse()
+    if (url.startsWith('/submissions/game/1')) return listResponse(url)
     return Promise.reject(new Error(`unexpected GET ${url}`))
   })
 }
@@ -102,18 +102,11 @@ describe('GameSubmissions hidden scores', () => {
     expect(listCalls()).toEqual([`/submissions/game/1?page=1&pageSize=50&scoringDay=${TODAY}`])
   })
 
-  it('Load more skips items already shown', async () => {
+  it('Load more skips items already shown when a new submission shifted the rows', async () => {
     const item = (id, username) => ({ id, username, userId: id, score: String(id), rank: id, scoringDay: YESTERDAY, createdAt: '2026-11-03T10:00:00Z' })
-    mockGet.mockImplementation((url) => {
-      if (url.startsWith('/games/1/overview')) {
-        return Promise.resolve({ data: { game: { id: 1, name: 'Wordle', currentScoringDay: TODAY }, availableDates: [YESTERDAY, TODAY], hasSubmittedForLatest: true } })
-      }
-      if (url.includes('today-submitters')) return Promise.resolve({ data: { count: 0, usernames: [] } })
-      if (url.includes('page=1&')) return Promise.resolve({ data: { items: [item(11, 'alice'), item(12, 'bob')], page: 1, totalPages: 2 } })
-      // A new submission shifted the rows: bob shows up again on page 2.
-      if (url.includes('page=2&')) return Promise.resolve({ data: { items: [item(12, 'bob'), item(13, 'carol')], page: 2, totalPages: 2 } })
-      return Promise.reject(new Error(`unexpected GET ${url}`))
-    })
+    const firstPage = { items: [item(11, 'alice'), item(12, 'bob')], page: 1, totalPages: 2 }
+    const secondPageRepeatingBob = { items: [item(12, 'bob'), item(13, 'carol')], page: 2, totalPages: 2 }
+    setupList(url => Promise.resolve({ data: url.includes('page=1&') ? firstPage : secondPageRepeatingBob }))
     renderAt(`/games/1?scoringDay=${YESTERDAY}`)
 
     await waitFor(() => expect(screen.getByText('bob')).toBeInTheDocument())
@@ -127,8 +120,7 @@ describe('GameSubmissions hidden scores', () => {
     renderAt('/games/1')
 
     await waitFor(() => expect(screen.getByText(/scores are hidden/i)).toBeInTheDocument())
-    // Give any pending effects a chance to run.
-    await new Promise(r => setTimeout(r, 20))
+    await letPendingWorkSettle()
     expect(listCalls()).toEqual([])
   })
 

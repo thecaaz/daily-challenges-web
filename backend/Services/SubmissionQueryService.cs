@@ -13,8 +13,7 @@ public sealed class SubmissionQueryService(
     IGameRepository games,
     IUserSubmissionChecker submissionChecker,
     IScoreVisibilityService visibility,
-    IScreenshotUrlSigner screenshotSigner,
-    TimeProvider time) : ISubmissionQueryService
+    IScreenshotUrlSigner screenshotSigner) : ISubmissionQueryService
 {
     private const int FirstPlace = 1;
 
@@ -86,33 +85,44 @@ public sealed class SubmissionQueryService(
         return SignScreenshotOnCurrentDay(dto, day, currentDay);
     }
 
-    /// <summary>1-based rank among the day's scored submissions; null for unscored rows.</summary>
+    /// <summary>Null for unscored rows.</summary>
     private async Task AssignRanksForDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy, List<SubmissionDto> dtos)
     {
-        var rankedForDay = await submissions.GetByGameAndDayByScoreValueAsync(gameId, scoringDay, strategy);
-        var rankById = rankedForDay
-            .Select((submission, index) => (submission.Id, Rank: index + 1))
-            .ToDictionary(entry => entry.Id, entry => entry.Rank);
-
+        var rankById = await GetRanksForDayAsync(gameId, scoringDay, strategy);
         foreach (var dto in dtos)
             dto.Rank = rankById.TryGetValue(dto.Id, out var rank) ? rank : null;
+    }
+
+    /// <summary>1-based rank of each of the day's scored submissions, by submission id.</summary>
+    private async Task<Dictionary<int, int>> GetRanksForDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy)
+    {
+        var rankedForDay = await submissions.GetByGameAndDayByScoreValueAsync(gameId, scoringDay, strategy);
+        return rankedForDay
+            .Select((submission, index) => (submission.Id, Rank: index + 1))
+            .ToDictionary(entry => entry.Id, entry => entry.Rank);
     }
 
     public Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user) =>
         submissionChecker.HasUserSubmittedForLatestAsync(gameId, user);
 
+    /// <summary>A missing game has no submissions (they are deleted with it), so nobody submitted.</summary>
     public async Task<TodaySubmittersDto> GetTodaySubmittersAsync(int gameId)
     {
         var game = await games.GetByIdWithoutBlobAsync(gameId);
-        var usernames = await submissions.GetUsernamesForDayAsync(gameId, GetCurrentScoringDay(game));
+        if (game == null) return SubmissionDtoMapper.ToTodaySubmittersDto([]);
+
+        var usernames = await submissions.GetUsernamesForDayAsync(gameId, visibility.GetCurrentScoringDay(game));
         return SubmissionDtoMapper.ToTodaySubmittersDto(usernames);
     }
 
+    /// <summary>A missing game has no submissions (they are deleted with it).</summary>
     public async Task<List<SubmissionDto>> GetUnfilteredByGameAsync(int gameId)
     {
         var game = await games.GetByIdWithoutBlobAsync(gameId);
+        if (game == null) return [];
+
         var gameSubmissions = await submissions.GetByGameAsync(gameId);
-        var currentDay = GetCurrentScoringDay(game);
+        var currentDay = visibility.GetCurrentScoringDay(game);
         return gameSubmissions.Select(s => ToAdminDto(s, currentDay)).ToList();
     }
 
@@ -125,10 +135,6 @@ public sealed class SubmissionQueryService(
         var dto = DtoMapper.ToDto(submission) with { ScoringDay = ScoringDayCalculator.FormatScoringDay(submission.ScoringDay) };
         return SignScreenshotOnCurrentDay(dto, submission.ScoringDay.Date, currentDay);
     }
-
-    /// <summary>A missing game falls back to a midnight UTC reset.</summary>
-    private DateTime GetCurrentScoringDay(Game? game) =>
-        ScoringDayCalculator.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, time.GetUtcNow().UtcDateTime).Date;
 
     public async Task<List<string>> GetAvailableDatesAsync(int gameId)
     {
@@ -189,12 +195,11 @@ public sealed class SubmissionQueryService(
         if (!submission.ScoreValue.HasValue) return;
 
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
-        var rankedForDay = await submissions.GetByGameAndDayByScoreValueAsync(game.Id, submission.ScoringDay.Date, strategy);
-        var index = rankedForDay.FindIndex(s => s.Id == submission.Id);
-        if (index < 0) return;
+        var rankById = await GetRanksForDayAsync(game.Id, submission.ScoringDay.Date, strategy);
+        if (!rankById.TryGetValue(submission.Id, out var rank)) return;
 
-        dto.Rank = index + 1;
-        dto.IsDayWinner = dto.Rank == FirstPlace;
+        dto.Rank = rank;
+        dto.IsDayWinner = rank == FirstPlace;
     }
 
     /// <summary>

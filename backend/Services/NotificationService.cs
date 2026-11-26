@@ -29,18 +29,12 @@ public sealed class NotificationService(INotificationRepository notifications) :
 
     public Task MarkAllReadAsync(int userId) => notifications.MarkAllReadAsync(userId);
 
-    /// <summary>Someone else's notification reads as "not found" so ids cannot be probed.</summary>
-    public async Task DeleteOwnAsync(int id, int userId)
+    /// <summary>For non-admins, someone else's notification reads as "not found" so ids cannot be probed.</summary>
+    public async Task DeleteAsync(int id, RequestingUser requester)
     {
         var notification = await GetExistingAsync(id);
-        if (notification.UserId != userId)
+        if (!requester.IsAdmin && notification.UserId != requester.UserId)
             throw new NotFoundException(NotFoundMessage);
-        await notifications.DeleteAsync(id);
-    }
-
-    public async Task DeleteAnyAsync(int id)
-    {
-        await GetExistingAsync(id);
         await notifications.DeleteAsync(id);
     }
 

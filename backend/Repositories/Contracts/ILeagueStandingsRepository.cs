@@ -1,4 +1,4 @@
-using DailyChallenges.DTOs;
+using DailyChallenges.Models;
 using DailyChallenges.Services.Ranking;
 
 namespace DailyChallenges.Repositories.Contracts;
@@ -16,6 +16,19 @@ public sealed record LeagueLeaderboardRow(
     int SubmissionId,
     bool HasScreenshot);
 
+/// <summary>A league member's submission with the game fields summaries need, projected without blobs.</summary>
+public sealed record LeagueSubmissionRow(
+    int GameId,
+    string GameName,
+    bool GameHasIcon,
+    RankingMode GameRankingMode,
+    TimeSpan GameResetTime,
+    int UserId,
+    string Score,
+    double? ScoreValue,
+    DateTime ScoringDay,
+    DateTime CreatedAt) : IRankable;
+
 /// <summary>Read models that rank league members against each other.</summary>
 public interface ILeagueStandingsRepository
 {
@@ -26,9 +39,8 @@ public interface ILeagueStandingsRepository
     Task<List<LeagueLeaderboardRow>> GetLeaderboardAsync(LeagueGameDay gameDay, IRankingStrategy strategy);
 
     /// <summary>
-    /// Returns a compact summary for each game played by league members in the
-    /// given recent window (days). Includes play counts, top score, the
-    /// requesting user's best score and rank, and a small recent-play histogram.
+    /// Returns every submission of the league's members whose scoring day lies between
+    /// <paramref name="firstScoringDay"/> and <paramref name="lastScoringDay"/> (both inclusive), scored or not.
     /// </summary>
-    Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(LeagueGameSummaryQuery query);
+    Task<List<LeagueSubmissionRow>> GetMemberSubmissionsAsync(int leagueId, DateTime firstScoringDay, DateTime lastScoringDay);
 }

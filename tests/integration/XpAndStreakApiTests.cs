@@ -3,8 +3,6 @@ using System.Net.Http.Json;
 using DailyChallenges.DTOs;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
-using DailyChallenges.Repositories;
-using DailyChallenges.TestUtilities;
 using Microsoft.EntityFrameworkCore;
 using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
@@ -132,37 +130,5 @@ public class XpAndStreakApiTests : IClassFixture<FixedClockApiFactory>
         await ReadSuccessJsonAsync(await _factory.CreateAuthenticatedClient(stale.Id, stale.Username).GetAsync("/api/auth/me"));
 
         await _factory.WithDbAsync(async db => Assert.Equal(StaleStoredStreak, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == stale.Id)).Streak));
-    }
-}
-
-/// <summary>League summaries use each game's current scoring day as the end of the window (B8).</summary>
-public class LeagueSummaryWindowTests
-{
-    /// <summary>At 23:00 UTC with a 22:00 reset, the game's current scoring day is tomorrow's date.</summary>
-    [Fact]
-    public async Task Late_reset_game_keeps_todays_plays_in_the_summary()
-    {
-        await using var db = new TestDb();
-        var now = new DateTime(2026, 6, 15, 23, 0, 0, DateTimeKind.Utc);
-        var currentScoringDay = new DateTime(2026, 6, 16);
-        var user = new User { Id = 1, Username = "late" };
-        var game = new Game { Id = 1, Name = "Late", ResetTime = TimeSpan.FromHours(22) };
-        db.Ctx.AddRange(user, game);
-        db.Ctx.Leagues.Add(new League { Id = 1, OwnerId = 1, Name = "L", CreatedAt = now });
-        db.Ctx.SaveChanges();
-        db.Ctx.LeagueMembers.Add(new LeagueMember { LeagueId = 1, UserId = 1, Role = LeagueRole.Owner, JoinedAt = now });
-        db.Ctx.Submissions.Add(new Submission
-        {
-            GameId = 1, UserId = 1, Username = "late", Score = "5", ScoreValue = 5,
-            CreatedAt = now.AddMinutes(-30), ScoringDay = currentScoringDay, ScreenshotContentType = "image/png",
-        });
-        db.Ctx.SaveChanges();
-
-        var repo = new EfLeagueStandingsRepository(db.Ctx, new FixedTimeProvider(now));
-        var (items, _) = await repo.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 3));
-
-        var summary = Assert.Single(items);
-        Assert.Equal(1, summary.PlayCount);
-        Assert.Equal(new List<int> { 0, 0, 1 }, summary.RecentPlays);
     }
 }

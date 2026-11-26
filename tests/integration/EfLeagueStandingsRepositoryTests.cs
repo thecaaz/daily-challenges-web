@@ -27,48 +27,41 @@ public class EfLeagueStandingsRepositoryTests
     }
 
     [Fact]
-    public async Task GetLeagueGameSummaries_ReturnsAggregatesAndUserRank()
+    public async Task GetMemberSubmissions_returns_members_rows_within_the_inclusive_day_range()
     {
         await using var db = new TestDb();
+        foreach (var id in new[] { 1, 2, 3 }) db.Ctx.SeedUser(id);
+        db.Ctx.Leagues.Add(new League { Id = 1, OwnerId = 1, Name = "L1" });
+        db.Ctx.SaveChanges();
+        db.Ctx.LeagueMembers.Add(new LeagueMember { LeagueId = 1, UserId = 1 });
+        db.Ctx.LeagueMembers.Add(new LeagueMember { LeagueId = 1, UserId = 2 });
+        db.Ctx.SaveChanges();
+        db.Ctx.SeedGame(1, RankingMode.Lowest);
+        var first = new DateTime(2026, 6, 14);
+        var last = new DateTime(2026, 6, 16);
+        SeedSub(db.Ctx, 1, 10, first, userId: 1);
+        SeedSub(db.Ctx, 1, null, last, userId: 2);
+        SeedSub(db.Ctx, 1, 30, first.AddDays(-1), userId: 1);
+        SeedSub(db.Ctx, 1, 40, last.AddDays(1), userId: 2);
+        SeedSub(db.Ctx, 1, 50, first, userId: 3);
+        SeedSub(db.Ctx, 1, 60, first);
 
-        // users
+        var rows = await new EfLeagueStandingsRepository(db.Ctx).GetMemberSubmissionsAsync(1, first, last);
+
+        Assert.Equal(new[] { (1, first), (2, last) }, rows.Select(r => (r.UserId, r.ScoringDay)).OrderBy(r => r.UserId));
+        Assert.All(rows, r => Assert.Equal(("Game1", RankingMode.Lowest, false), (r.GameName, r.GameRankingMode, r.GameHasIcon)));
+    }
+
+    [Fact]
+    public async Task GetMemberSubmissions_of_a_league_without_members_is_empty()
+    {
+        await using var db = new TestDb();
         db.Ctx.SeedUser(1);
-        db.Ctx.SeedUser(2);
-
-        // league + members
-        db.Ctx.Leagues.Add(new League { Id = 1, OwnerId = 1, Name = "L1", CreatedAt = DateTime.UtcNow });
-        db.Ctx.SaveChanges();
-        db.Ctx.LeagueMembers.Add(new LeagueMember { LeagueId = 1, UserId = 1, Role = LeagueRole.Owner, JoinedAt = DateTime.UtcNow });
-        db.Ctx.LeagueMembers.Add(new LeagueMember { LeagueId = 1, UserId = 2, Role = LeagueRole.Member, JoinedAt = DateTime.UtcNow });
-        db.Ctx.SaveChanges();
-
-        // game
         db.Ctx.SeedGame(1);
+        var day = new DateTime(2026, 6, 15);
+        SeedSub(db.Ctx, 1, 10, day, userId: 1);
 
-        var day1 = DateTime.UtcNow.Date.AddDays(-1);
-        var day2 = DateTime.UtcNow.Date;
-
-        // submissions: user1=100 (day1), user2=200 (day1), user1=300 (day2)
-        SeedSub(db.Ctx, 1, 100, day1, userId: 1);
-        SeedSub(db.Ctx, 1, 200, day1, userId: 2);
-        SeedSub(db.Ctx, 1, 300, day2, userId: 1);
-
-        var repo = new EfLeagueStandingsRepository(db.Ctx, TimeProvider.System);
-
-        var (items, total) = await repo.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 2, Page: 1, PageSize: 20));
-
-        Assert.Equal(1, total);
-        Assert.Single(items);
-        var res = items[0];
-
-        Assert.Equal(1, res.GameId);
-        Assert.Equal(3, res.PlayCount);
-        Assert.Equal(300.0, res.TopScoreValue);
-        Assert.Equal(300.0, res.MyBestScoreValue);
-        Assert.Equal(1, res.MyRank); // user1 has the best score (300)
-
-        // recent plays oldest->newest: day1=2, day2=1
-        Assert.Equal(new List<int> { 2, 1 }, res.RecentPlays);
+        Assert.Empty(await new EfLeagueStandingsRepository(db.Ctx).GetMemberSubmissionsAsync(1, day, day));
     }
 
     [Theory]
@@ -93,7 +86,7 @@ public class EfLeagueStandingsRepositoryTests
         SeedSub(db.Ctx, 1, 20, day, userId: 3);
         SeedSub(db.Ctx, 1, 30, day, userId: 4);
 
-        var repo = new EfLeagueStandingsRepository(db.Ctx, TimeProvider.System);
+        var repo = new EfLeagueStandingsRepository(db.Ctx);
         var rows = await repo.GetLeaderboardAsync(new LeagueGameDay(1, 1, day), DailyChallenges.Services.Ranking.RankingStrategyFactory.GetStrategy(mode));
 
         Assert.Equal(new[] { 1, 1, 3, 4 }, rows.Select(r => r.Rank));

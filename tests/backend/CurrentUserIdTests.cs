@@ -67,6 +67,25 @@ public class CurrentUserIdTests
     }
 
     [Fact]
+    public void Filter_answers_unauthorized_when_the_parameter_asks_for_it()
+    {
+        var context = ExecutingContext(Authenticated(null), CurrentUserIdAttribute.UnauthorizedWhenMissingSource);
+
+        new RequireCurrentUserIdFilter().OnActionExecuting(context);
+
+        Assert.IsType<UnauthorizedResult>(context.Result);
+    }
+
+    [Fact]
+    public void Attribute_switches_to_the_unauthorized_source_when_missing_ids_answer_401()
+    {
+        var attribute = new CurrentUserIdAttribute { WhenMissing = MissingUserIdResponse.Unauthorized };
+
+        Assert.Same(CurrentUserIdAttribute.UnauthorizedWhenMissingSource, attribute.BindingSource);
+        Assert.False(attribute.BindingSource!.IsFromRequest);
+    }
+
+    [Fact]
     public void Filter_lets_a_caller_with_a_user_id_through()
     {
         var context = ExecutingContext(Authenticated("7"), CurrentUserIdAttribute.Source);

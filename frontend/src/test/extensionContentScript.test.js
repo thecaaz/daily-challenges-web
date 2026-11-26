@@ -146,7 +146,9 @@ describe('content script GET_SCORE', () => {
     })
 
     it('treats a left single quote as a grouping separator', async () => {
-      expect(await scoreOn('https://timeguessr.com/', '<div class="summary-score">40‘456</div>')).toBe(40456)
+      const LEFT_SINGLE_QUOTE = '\u2018'
+
+      expect(await scoreOn('https://timeguessr.com/', `<div class="summary-score">40${LEFT_SINGLE_QUOTE}456</div>`)).toBe(40456)
     })
 
     it('reads again shortly after opening the breakdown when the score was missing', async () => {

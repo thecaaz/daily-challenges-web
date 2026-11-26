@@ -5,10 +5,7 @@ using DailyChallenges.Services;
 
 namespace DailyChallenges.Controllers;
 
-/// <summary>
-/// Admin user management. A token without a user id is answered with 401 here (not the 403 of
-/// <see cref="CurrentUserIdAttribute"/>), so these actions read the id themselves.
-/// </summary>
+/// <summary>Admin user management. A token without a user id is answered with 401 here, not 403.</summary>
 [ApiController]
 [Route("api/admin/users")]
 [Authorize(Roles = "Admin")]
@@ -32,7 +29,6 @@ public sealed class AdminUsersController(
     public async Task<IActionResult> AdjustXp(int id, [FromBody] AdminAdjustXpDto dto)
     {
         if (dto == null) return BadRequest();
-        if (dto.Delta == 0) return BadRequest(new { message = "Delta must be non-zero" });
 
         return Ok(await adminUsers.AdjustXpAsync(new XpAdjustment(id, dto.Delta, dto.Reason, User.GetUserId())));
     }
@@ -53,23 +49,17 @@ public sealed class AdminUsersController(
         return File(data, ContentTypes.CsvUtf8, filename);
     }
 
-    /// <summary>The service validates the length (400) and refuses another admin's account (403).</summary>
+    /// <summary>The service validates the password (400) and refuses another admin's account (403).</summary>
     [HttpPost("{id}/password")]
-    public async Task<IActionResult> SetPassword(int id, [FromBody] AdminSetPasswordDto dto)
+    public async Task<IActionResult> SetPassword([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int requestingAdminId, int id, [FromBody] AdminSetPasswordDto dto)
     {
-        if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
-            return BadRequest(new { message = "NewPassword is required" });
-        if (User.GetUserId() is not int requestingAdminId) return Unauthorized();
-
-        await adminUsers.SetPasswordAsync(id, dto.NewPassword, requestingAdminId);
+        await adminUsers.SetPasswordAsync(id, dto?.NewPassword, requestingAdminId);
         return NoContent();
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteUser(int id)
+    public async Task<IActionResult> DeleteUser([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int requestingAdminId, int id)
     {
-        if (User.GetUserId() is not int requestingAdminId) return Unauthorized();
-
         await adminUserDeletion.DeleteUserAsync(id, requestingAdminId);
         return NoContent();
     }

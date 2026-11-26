@@ -37,10 +37,7 @@ public sealed class NotificationsController(INotificationService notifications) 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete([CurrentUserId] int userId, int id)
     {
-        if (User.IsAdmin())
-            await notifications.DeleteAnyAsync(id);
-        else
-            await notifications.DeleteOwnAsync(id, userId);
+        await notifications.DeleteAsync(id, new RequestingUser(userId, User.IsAdmin()));
         return NoContent();
     }
 }

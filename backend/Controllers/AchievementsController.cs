@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using DailyChallenges.DTOs;
-using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
 
 namespace DailyChallenges.Controllers;
@@ -23,10 +22,6 @@ public sealed class AchievementsController(IAchievementService achievements) : C
     /// <summary>Returns the authenticated user's achievements (convenience endpoint).</summary>
     [HttpGet("users/me/achievements")]
     [Authorize]
-    public async Task<ActionResult<List<AchievementDto>>> GetMine()
-    {
-        if (User.GetUserId() is not int userId) return Unauthorized();
-
-        return Ok(await achievements.GetForUserAsync(userId));
-    }
+    public async Task<ActionResult<List<AchievementDto>>> GetMine([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int userId) =>
+        Ok(await achievements.GetForUserAsync(userId));
 }
