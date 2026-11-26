@@ -133,20 +133,32 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('child')).toHaveTextContent('hello bob')
   })
 
-  it('login accepts a PascalCase AccessToken and skips storing a missing one', async () => {
+  it('login stores the camelCase accessToken of the auth result', async () => {
     mockRefresh.mockRejectedValue(new Error('no session'))
     mockGet.mockResolvedValue({ data: { id: 2, username: 'bob' } })
     let ctx
     function Grab() { ctx = useAuth(); return null }
     render(<AuthProvider><Child /><Grab /></AuthProvider>)
     await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('anonymous'))
+    mockPost.mockResolvedValueOnce({ data: { user: { id: 2, username: 'bob' }, accessToken: 'TOK', expiresInSeconds: 1800 } })
 
-    mockPost.mockResolvedValueOnce({ data: { AccessToken: 'TOK' } })
-    await act(async () => { await ctx.login('bob', 'pw') })
-    mockPost.mockResolvedValueOnce({ data: {} })
     await act(async () => { await ctx.login('bob', 'pw') })
 
     expect(mockSetAccessToken.mock.calls).toEqual([['TOK']])
+  })
+
+  it('login stores no token when the response has none', async () => {
+    mockRefresh.mockRejectedValue(new Error('no session'))
+    mockGet.mockResolvedValue({ data: { id: 2, username: 'bob' } })
+    let ctx
+    function Grab() { ctx = useAuth(); return null }
+    render(<AuthProvider><Child /><Grab /></AuthProvider>)
+    await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('anonymous'))
+    mockPost.mockResolvedValueOnce({ data: {} })
+
+    await act(async () => { await ctx.login('bob', 'pw') })
+
+    expect(mockSetAccessToken).not.toHaveBeenCalledWith(expect.any(String))
   })
 
   it('register posts the credentials and returns the response body', async () => {

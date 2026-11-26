@@ -1,12 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import api, { refreshSession, setAccessToken, AUTH_EXPIRED_EVENT } from '../api'
+import { extractAccessToken } from '../api/accessToken'
 import Loading from '../components/ui/Loading'
 
 const AuthContext = createContext()
 
 const UNAUTHORIZED = 401
-
-const extractToken = (data) => data?.accessToken || data?.AccessToken || null
 
 const isUnauthorized = (err) => err?.response?.status === UNAUTHORIZED
 
@@ -46,7 +45,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (username, password) => {
     const res = await api.post('/auth/login', { username, password })
-    const token = extractToken(res.data)
+    const token = extractAccessToken(res.data)
     if (token) setAccessToken(token)
     await fetchMe()
     return res.data
