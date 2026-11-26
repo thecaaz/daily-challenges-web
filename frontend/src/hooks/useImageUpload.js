@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import compressImage from '../utils/compressImage'
+import useObjectUrl from './useObjectUrl'
 
 const IMAGE_TYPE_PREFIX = 'image/'
 const CLIPBOARD_FILENAME = 'clipboard.png'
@@ -44,22 +45,6 @@ export default function useImageUpload(showSnackbar, { enabled = true } = {}) {
   const clear = useCallback(() => setScreenshot(null), [])
 
   return { screenshot, previewUrl, setScreenshot, onFileChange, clear }
-}
-
-function useObjectUrl(blob) {
-  const [url, setUrl] = useState(null)
-
-  useEffect(() => {
-    if (!blob) {
-      setUrl(null)
-      return
-    }
-    const objectUrl = URL.createObjectURL(blob)
-    setUrl(objectUrl)
-    return () => { URL.revokeObjectURL(objectUrl) }
-  }, [blob])
-
-  return url
 }
 
 async function compressOr(image, fallback) {
