@@ -33,10 +33,11 @@ public class LeaguesAndSocialTests
 
     // ── H8: rename / delete ───────────────────────────────────────────────────
 
-    [Fact]
-    public async Task Owner_can_rename_and_delete_a_league_with_members_and_invitations()
+    private sealed record LeagueSeed(int[] Ids, HttpClient Owner, HttpClient Member, int LeagueId);
+
+    /// <summary>A league "Before" with a member, a pending invitation for "invitee" and an invite link.</summary>
+    private static async Task<LeagueSeed> SeedLeagueWithMemberInviteAndLinkAsync(ApiFactory f)
     {
-        using var f = new FixedClockApiFactory();
         var ids = await SeedUsersAsync(f, "owner", "member", "invitee");
         var owner = f.CreateAuthenticatedClient(ids[0], "owner");
         var member = f.CreateAuthenticatedClient(ids[1], "member");
@@ -46,73 +47,160 @@ public class LeaguesAndSocialTests
         await ReadSuccessJsonAsync(await member.PostAsync($"/api/leagues/invitations/{inviteId}/accept", null));
         await InviteAsync(owner, leagueId, "invitee");
         await ReadSuccessJsonAsync(await owner.PostAsync($"/api/leagues/{leagueId}/invite-link", null));
+        return new LeagueSeed(ids, owner, member, leagueId);
+    }
 
-        var renamed = await ReadSuccessJsonAsync(await owner.PatchAsJsonAsync($"/api/leagues/{leagueId}/name", new { name = "After" }));
+    /// <summary>The owner's user row must not be written back from the read-only graph.</summary>
+    [Fact]
+    public async Task Owner_can_rename_a_league_with_members_and_invitations()
+    {
+        using var f = new FixedClockApiFactory();
+        var seed = await SeedLeagueWithMemberInviteAndLinkAsync(f);
+
+        var renamed = await ReadSuccessJsonAsync(await seed.Owner.PatchAsJsonAsync($"/api/leagues/{seed.LeagueId}/name", new { name = "After" }));
+
         Assert.Equal("After", renamed.GetProperty("name").GetString());
         Assert.Equal(2, renamed.GetProperty("memberCount").GetInt32());
-        Assert.Equal("After", await f.QueryDbAsync(db => db.Leagues.Where(l => l.Id == leagueId).Select(l => l.Name).SingleAsync()));
-        // The owner's user row was not written back from the read-only graph.
-        Assert.Equal("owner", await f.QueryDbAsync(db => db.Users.Where(u => u.Id == ids[0]).Select(u => u.Username).SingleAsync()));
+        Assert.Equal("After", await f.QueryDbAsync(db => db.Leagues.Where(l => l.Id == seed.LeagueId).Select(l => l.Name).SingleAsync()));
+        Assert.Equal("owner", await f.QueryDbAsync(db => db.Users.Where(u => u.Id == seed.Ids[0]).Select(u => u.Username).SingleAsync()));
+    }
 
-        // A member who is not the owner can do neither.
-        Assert.Equal(HttpStatusCode.Forbidden, (await member.PatchAsJsonAsync($"/api/leagues/{leagueId}/name", new { name = "x" })).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await member.DeleteAsync($"/api/leagues/{leagueId}")).StatusCode);
+    [Fact]
+    public async Task Member_who_is_not_the_owner_can_neither_rename_nor_delete_the_league()
+    {
+        using var f = new FixedClockApiFactory();
+        var seed = await SeedLeagueWithMemberInviteAndLinkAsync(f);
 
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/leagues/{leagueId}")).StatusCode);
+        var rename = await seed.Member.PatchAsJsonAsync($"/api/leagues/{seed.LeagueId}/name", new { name = "x" });
+        var delete = await seed.Member.DeleteAsync($"/api/leagues/{seed.LeagueId}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, rename.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, delete.StatusCode);
+    }
+
+    [Fact]
+    public async Task Owner_can_delete_a_league_with_members_and_invitations()
+    {
+        using var f = new FixedClockApiFactory();
+        var seed = await SeedLeagueWithMemberInviteAndLinkAsync(f);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await seed.Owner.DeleteAsync($"/api/leagues/{seed.LeagueId}")).StatusCode);
+
         Assert.False(await f.QueryDbAsync(db => db.Leagues.AnyAsync()));
         Assert.False(await f.QueryDbAsync(db => db.LeagueMembers.AnyAsync()));
         Assert.False(await f.QueryDbAsync(db => db.LeagueInvitations.AnyAsync()));
-        Assert.Equal(HttpStatusCode.NotFound, (await owner.DeleteAsync($"/api/leagues/{leagueId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await seed.Owner.DeleteAsync($"/api/leagues/{seed.LeagueId}")).StatusCode);
     }
 
     // ── Invitations ───────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Duplicate_pending_invite_is_409_and_the_database_rejects_one_too()
+    public async Task Duplicate_pending_invite_is_409()
     {
         using var f = new FixedClockApiFactory();
         var ids = await SeedUsersAsync(f, "owner", "bob");
         var owner = f.CreateAuthenticatedClient(ids[0], "owner");
         var leagueId = await CreateLeagueAsync(owner);
-
         await InviteAsync(owner, leagueId, "bob");
-        var again = await owner.PostAsJsonAsync($"/api/leagues/{leagueId}/invitations", new { username = "bob" });
-        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
 
-        // The filtered unique index backs the service check (concurrent invites).
+        var again = await owner.PostAsJsonAsync($"/api/leagues/{leagueId}/invitations", new { username = "bob" });
+
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+    }
+
+    /// <summary>The filtered unique index backs the service check against concurrent invites.</summary>
+    [Fact]
+    public async Task Database_rejects_a_duplicate_pending_invite()
+    {
+        using var f = new FixedClockApiFactory();
+        var ids = await SeedUsersAsync(f, "owner", "bob");
+        var owner = f.CreateAuthenticatedClient(ids[0], "owner");
+        var leagueId = await CreateLeagueAsync(owner);
+        await InviteAsync(owner, leagueId, "bob");
+
         await f.WithDbAsync(async db =>
         {
             db.LeagueInvitations.Add(new LeagueInvitation { LeagueId = leagueId, InviterId = ids[0], InviteeId = ids[1], Status = LeagueInvitationStatus.Pending });
             var ex = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
             Assert.True(ex.IsUniqueViolation());
         });
+
         Assert.Equal(1, await f.QueryDbAsync(db => db.LeagueInvitations.CountAsync()));
+    }
+
+    private sealed record DeclinedInvite(HttpClient Owner, HttpClient Bob, int LeagueId, int InviteId);
+
+    private static async Task<DeclinedInvite> DeclineAnInviteAsync(FixedClockApiFactory f)
+    {
+        var ids = await SeedUsersAsync(f, "owner", "bob");
+        var owner = f.CreateAuthenticatedClient(ids[0], "owner");
+        var bob = f.CreateAuthenticatedClient(ids[1], "bob");
+        var leagueId = await CreateLeagueAsync(owner);
+        var inviteId = await InviteAsync(owner, leagueId, "bob");
+        Assert.Equal(HttpStatusCode.NoContent, (await bob.PostAsync($"/api/leagues/invitations/{inviteId}/decline", null)).StatusCode);
+        return new DeclinedInvite(owner, bob, leagueId, inviteId);
+    }
+
+    [Fact]
+    public async Task Declining_an_invite_that_is_no_longer_pending_is_409()
+    {
+        using var f = new FixedClockApiFactory();
+        var declined = await DeclineAnInviteAsync(f);
+
+        var again = await declined.Bob.PostAsync($"/api/leagues/invitations/{declined.InviteId}/decline", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
     }
 
     [Fact]
     public async Task Reinvite_after_a_decline_is_409_for_24_hours()
     {
         using var f = new FixedClockApiFactory();
+        var declined = await DeclineAnInviteAsync(f);
+
+        f.Clock.Advance(TimeSpan.FromHours(23));
+        var tooSoon = await declined.Owner.PostAsJsonAsync($"/api/leagues/{declined.LeagueId}/invitations", new { username = "bob" });
+        Assert.Equal(HttpStatusCode.Conflict, tooSoon.StatusCode);
+
+        f.Clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromMinutes(1));
+        await InviteAsync(declined.Owner, declined.LeagueId, "bob");
+    }
+
+    [Fact]
+    public async Task Accepting_an_invite_twice_is_409()
+    {
+        using var f = new FixedClockApiFactory();
         var ids = await SeedUsersAsync(f, "owner", "bob");
         var owner = f.CreateAuthenticatedClient(ids[0], "owner");
         var bob = f.CreateAuthenticatedClient(ids[1], "bob");
         var leagueId = await CreateLeagueAsync(owner);
-
         var inviteId = await InviteAsync(owner, leagueId, "bob");
-        Assert.Equal(HttpStatusCode.NoContent, (await bob.PostAsync($"/api/leagues/invitations/{inviteId}/decline", null)).StatusCode);
-        // Declining twice: no longer pending.
-        Assert.Equal(HttpStatusCode.Conflict, (await bob.PostAsync($"/api/leagues/invitations/{inviteId}/decline", null)).StatusCode);
+        await ReadSuccessJsonAsync(await bob.PostAsync($"/api/leagues/invitations/{inviteId}/accept", null));
 
-        f.Clock.Advance(TimeSpan.FromHours(23));
-        var tooSoon = await owner.PostAsJsonAsync($"/api/leagues/{leagueId}/invitations", new { username = "bob" });
-        Assert.Equal(HttpStatusCode.Conflict, tooSoon.StatusCode);
+        var again = await bob.PostAsync($"/api/leagues/invitations/{inviteId}/accept", null);
 
-        f.Clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromMinutes(1));
-        await InviteAsync(owner, leagueId, "bob");
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
     }
 
     [Fact]
-    public async Task Accepting_twice_or_after_cancel_is_409_and_links_are_single_use()
+    public async Task Accepting_a_cancelled_invite_is_409()
+    {
+        using var f = new FixedClockApiFactory();
+        var ids = await SeedUsersAsync(f, "owner", "carol");
+        var owner = f.CreateAuthenticatedClient(ids[0], "owner");
+        var carol = f.CreateAuthenticatedClient(ids[1], "carol");
+        var leagueId = await CreateLeagueAsync(owner);
+        var cancelled = await InviteAsync(owner, leagueId, "carol");
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/leagues/invitations/{cancelled}")).StatusCode);
+
+        var accept = await carol.PostAsync($"/api/leagues/invitations/{cancelled}/accept", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, accept.StatusCode);
+    }
+
+    /// <summary>Bob joins by invitation first, so he is a member when he uses the link.</summary>
+    [Fact]
+    public async Task Invite_link_is_used_up_by_the_first_non_member_but_not_by_a_member()
     {
         using var f = new FixedClockApiFactory();
         var ids = await SeedUsersAsync(f, "owner", "bob", "carol", "dave");
@@ -121,17 +209,10 @@ public class LeaguesAndSocialTests
         var carol = f.CreateAuthenticatedClient(ids[2], "carol");
         var dave = f.CreateAuthenticatedClient(ids[3], "dave");
         var leagueId = await CreateLeagueAsync(owner);
-
         var inviteId = await InviteAsync(owner, leagueId, "bob");
         await ReadSuccessJsonAsync(await bob.PostAsync($"/api/leagues/invitations/{inviteId}/accept", null));
-        Assert.Equal(HttpStatusCode.Conflict, (await bob.PostAsync($"/api/leagues/invitations/{inviteId}/accept", null)).StatusCode);
-
-        var cancelled = await InviteAsync(owner, leagueId, "carol");
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/leagues/invitations/{cancelled}")).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await carol.PostAsync($"/api/leagues/invitations/{cancelled}/accept", null)).StatusCode);
-
-        // A member using a link does not use it up; the first non-member does.
         var token = (await ReadSuccessJsonAsync(await owner.PostAsync($"/api/leagues/{leagueId}/invite-link", null))).GetProperty("token").GetString();
+
         Assert.Equal(HttpStatusCode.Conflict, (await bob.PostAsync($"/api/leagues/join/{token}", null)).StatusCode);
         await ReadSuccessJsonAsync(await carol.PostAsync($"/api/leagues/join/{token}", null));
         Assert.Equal(HttpStatusCode.NotFound, (await dave.PostAsync($"/api/leagues/join/{token}", null)).StatusCode);
@@ -150,7 +231,7 @@ public class LeaguesAndSocialTests
         var ids = await SeedUsersAsync(f, "owner");
         var owner = f.CreateAuthenticatedClient(ids[0], "owner");
         var leagueId = await CreateLeagueAsync(owner);
-        var today = FixedClockApiFactory.Now.Date; // reset 00:00 → the game's current day is the UTC date
+        var today = FixedClockApiFactory.Now.Date;
         await f.WithDbAsync(async db =>
         {
             var game = new Game { Name = "G", ResetTime = TimeSpan.Zero };
@@ -210,8 +291,8 @@ public class LeaguesAndSocialTests
         Assert.Equal(HttpStatusCode.Conflict, (await alice.PostAsJsonAsync("/api/friends/requests", new { targetUserId = ids[1] })).StatusCode);
 
         f.Clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromMinutes(1));
-        var resent = await ReadSuccessJsonAsync(await alice.PostAsJsonAsync("/api/friends/requests", new { targetUserId = ids[1] }));
-        Assert.Equal(requestId, resent.GetProperty("id").GetInt32()); // the same row, turned back into Pending
+        var reopenedRequest = await ReadSuccessJsonAsync(await alice.PostAsJsonAsync("/api/friends/requests", new { targetUserId = ids[1] }));
+        Assert.Equal(requestId, reopenedRequest.GetProperty("id").GetInt32());
         Assert.Equal("pending_sent", await StatusAsync(alice, ids[1]));
         Assert.Equal("pending_received", await StatusAsync(bob, ids[0]));
         Assert.Equal(1, await f.QueryDbAsync(db => db.FriendRequests.CountAsync()));
@@ -239,6 +320,10 @@ public class LeaguesAndSocialTests
 
     // ── Notifications ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// "bobby sent you a friend request." contains "bob": the old substring check skipped bob's notification.
+    /// bob then cancels and asks again within the cooldown, which must still leave one notification from bob.
+    /// </summary>
     [Fact]
     public async Task Friend_request_notification_cooldown_matches_the_exact_sender()
     {
@@ -249,10 +334,7 @@ public class LeaguesAndSocialTests
         var carol = ids[2];
 
         await ReadSuccessJsonAsync(await bobby.PostAsJsonAsync("/api/friends/requests", new { targetUserId = carol }));
-        // "bobby sent you a friend request." contains "bob": the old substring check skipped bob's notification.
         var requestId = (await ReadSuccessJsonAsync(await bob.PostAsJsonAsync("/api/friends/requests", new { targetUserId = carol }))).GetProperty("id").GetInt32();
-
-        // bob cancels and asks again within the cooldown: still only one notification from bob.
         Assert.Equal(HttpStatusCode.NoContent, (await bob.DeleteAsync($"/api/friends/requests/{requestId}")).StatusCode);
         await ReadSuccessJsonAsync(await bob.PostAsJsonAsync("/api/friends/requests", new { targetUserId = carol }));
 
