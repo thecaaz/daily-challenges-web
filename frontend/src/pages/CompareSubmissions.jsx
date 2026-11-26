@@ -13,6 +13,9 @@ import goBackOrRoute from '../utils/navigation'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 import { isScoreHidden } from '../components/SubmissionCard'
+import { winnerGold } from '../styles/tokens'
+
+const winnerIconSx = { color: winnerGold, fontSize: '1.2rem' }
 
 function SubmitterName({ submission }) {
   const name = <Typography variant="h6" sx={{ fontWeight: 700 }}>{submission.username}</Typography>
@@ -36,7 +39,7 @@ function SubmissionPanel({ submission }) {
           <SubmitterName submission={submission} />
           {submission.isDayWinner && (
             <Tooltip title={winnerTitle}>
-              <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />
+              <EmojiEventsIcon sx={winnerIconSx} />
             </Tooltip>
           )}
           {submission.rank != null && (

@@ -13,6 +13,9 @@ import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 import useAsyncData from '../hooks/useAsyncData'
 import { isScoreHidden } from '../components/SubmissionCard'
+import { winnerGold } from '../styles/tokens'
+
+const winnerIconSx = { color: winnerGold, fontSize: '1.1rem' }
 
 function getSubmissionOrNull(id) {
   return api.get(`/submissions/${id}`)
@@ -71,7 +74,7 @@ export default function SubmissionDetail() {
             )}
             {submission.isDayWinner && (
               <Tooltip title={submission.scoringDay ? `Winner for ${submission.scoringDay}` : 'Winner'}>
-                <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.1rem' }} />
+                <EmojiEventsIcon sx={winnerIconSx} />
               </Tooltip>
             )}
           </Box>

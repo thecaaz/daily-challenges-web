@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { Box, Paper, Stack, TextField, Typography } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import AppButton from './AppButton'
 
 export const USERNAME_MIN = 3
@@ -117,10 +118,15 @@ export default function AuthForm({
         {linkText && linkTo && (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 3, textAlign: 'center' }}>
             {linkPrefix && <span>{linkPrefix} </span>}
-            <RouterLink to={linkTo} style={{ color: '#ff7ab6', fontWeight: 600 }}>{linkText}</RouterLink>
+            <AccentLink to={linkTo}>{linkText}</AccentLink>
           </Typography>
         )}
       </Paper>
     </Box>
   )
+}
+
+function AccentLink({ to, children }) {
+  const theme = useTheme()
+  return <RouterLink to={to} style={{ color: theme.palette.primary.main, fontWeight: 600 }}>{children}</RouterLink>
 }
