@@ -33,19 +33,34 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
         Assert.Equal(JsonValueKind.Array, (await ReadJsonAsync(res)).ValueKind);
     }
 
+    private const string AuthorizedEndpoint = "/api/notifications/unread-count";
+
     [Fact]
-    public async Task Authorized_endpoint_requires_a_valid_token()
+    public async Task Authorized_endpoint_rejects_a_request_without_a_token()
     {
-        var anonymous = await _factory.CreateClient().GetAsync("/api/notifications/unread-count");
-        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        var res = await _factory.CreateClient().GetAsync(AuthorizedEndpoint);
 
-        var badToken = _factory.CreateClient();
-        badToken.DefaultRequestHeaders.Authorization = new("Bearer", "not-a-jwt");
-        Assert.Equal(HttpStatusCode.Unauthorized, (await badToken.GetAsync("/api/notifications/unread-count")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
 
-        var authed = await _factory.CreateAuthenticatedClient(userId: 4242).GetAsync("/api/notifications/unread-count");
-        Assert.Equal(HttpStatusCode.OK, authed.StatusCode);
-        Assert.Equal(0, (await ReadJsonAsync(authed)).GetProperty("unreadCount").GetInt32());
+    [Fact]
+    public async Task Authorized_endpoint_rejects_a_malformed_token()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", "not-a-jwt");
+
+        var res = await client.GetAsync(AuthorizedEndpoint);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authorized_endpoint_accepts_a_valid_token()
+    {
+        var res = await _factory.CreateAuthenticatedClient(userId: 4242).GetAsync(AuthorizedEndpoint);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Equal(0, (await ReadJsonAsync(res)).GetProperty("unreadCount").GetInt32());
     }
 
     [Fact]

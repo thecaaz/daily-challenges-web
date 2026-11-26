@@ -86,15 +86,31 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
-    [Fact]
-    public async Task Invalid_ranking_mode_returns_400()
+    [Theory]
+    [InlineData("fastest")]
+    [InlineData("7")]
+    public async Task Invalid_ranking_mode_returns_400(string rankingMode)
     {
-        Assert.Equal(HttpStatusCode.BadRequest, (await Admin().PostAsync("/api/games", Form(("name", "BadMode"), ("rankingMode", "fastest")))).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await Admin().PostAsync("/api/games", Form(("name", "BadMode"), ("rankingMode", "7")))).StatusCode);
+        var res = await Admin().PostAsync("/api/games", Form(("name", "BadMode"), ("rankingMode", rankingMode)));
 
-        var id = await CreateGameAsync(("name", "Mode"), ("rankingMode", "LOWEST"));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Ranking_mode_is_case_insensitive_on_create()
+    {
+        var id = await CreateGameAsync(("name", "ModeCaseInsensitive"), ("rankingMode", "LOWEST"));
+
         Assert.Equal("lowest", (await GetGameAsync(id)).GetProperty("rankingMode").GetString());
+    }
+
+    [Fact]
+    public async Task Ranking_mode_can_be_changed_on_update()
+    {
+        var id = await CreateGameAsync(("name", "ModeUpdated"), ("rankingMode", "lowest"));
+
         var res = await Admin().PutAsync($"/api/games/{id}", Form(("rankingMode", "highest")));
+
         Assert.Equal("highest", (await ReadSuccessJsonAsync(res)).GetProperty("rankingMode").GetString());
     }
 
