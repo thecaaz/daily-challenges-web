@@ -64,7 +64,7 @@ not "split mechanically".
 - **Prefer expressions** where they stay readable: expression-bodied members, `switch`
   expressions, pattern matching, LINQ over manual loops that build collections.
 - **Parameters:** ≤ 3; more → a `record` (`SubmissionQuery`). Optional parameters only at
-  API boundaries.
+  API boundaries. A trailing `CancellationToken ct` is plumbing and doesn't count.
 
 ## 5. Comments
 
