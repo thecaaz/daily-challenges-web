@@ -155,6 +155,20 @@ describe('Admin page', () => {
     expect(mockGet.mock.calls.filter(c => c[0] === '/games')).toHaveLength(2)
   })
 
+  it('keeps the listed games when reloading them fails', async () => {
+    setupApi()
+    mockPut.mockResolvedValue({ data: {} })
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Wordle' }))
+    mockGet.mockRejectedValue(new Error('boom'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(mockSnackbarValue.showSnackbar).toHaveBeenCalledWith('Failed to load games', 'error'))
+    expect(screen.getByText('Wordle')).toBeInTheDocument()
+    expect(screen.getByText('Tango')).toBeInTheDocument()
+  })
+
   it('deletes a game after confirmation and clears its open panels', async () => {
     setupApi({ submissionsByGame: { 7: [submission(1, 'alice', '10')] } })
     mockDelete.mockResolvedValue({})
