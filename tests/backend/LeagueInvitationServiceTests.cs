@@ -94,9 +94,10 @@ public class LeagueInvitationServiceTests
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(MakeUser(20, "bob"));
         sut.InvitationRepo.Setup(r => r.GetLastDeclinedAtAsync(1, 20)).ReturnsAsync(DateTime.UtcNow.AddHours(-23));
 
-        await Assert.ThrowsAsync<ConflictException>(
+        var ex = await Assert.ThrowsAsync<ConflictException>(
             () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
 
+        Assert.Equal("bob declined an invitation to this league recently. Try again after 24 hours.", ex.Message);
         sut.InvitationRepo.Verify(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()), Times.Never);
     }
 

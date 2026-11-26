@@ -134,7 +134,7 @@ public sealed class LeagueInvitationService(
     {
         var lastDeclinedAt = await invitations.GetLastDeclinedAtAsync(leagueId, invitee.Id);
         if (lastDeclinedAt > nowUtc - ReinviteCooldown)
-            throw new ConflictException($"{invitee.Username} declined an invitation to this league recently. Try again after 24 hours.");
+            throw new ConflictException($"{invitee.Username} declined an invitation to this league recently. Try again after {ReinviteCooldown.TotalHours:0} hours.");
     }
 
     /// <summary>The filtered unique index also catches a concurrent request that created the pending invite first.</summary>
