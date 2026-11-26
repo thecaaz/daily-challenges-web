@@ -43,10 +43,20 @@ public class ConcurrentRegistrationTests : IClassFixture<FileDbApiFactory>
     private Task<HttpResponseMessage> RegisterAsync(string username) =>
         _factory.CreateClient().PostAsJsonAsync("/api/auth/register", new { username, password = "password-123" });
 
+    /// <summary>
+    /// Both races share the fixture's database and the first one needs it empty, so they run in this one test:
+    /// of several simultaneous first registrations exactly one becomes admin; of the same name registered in
+    /// different cases at once, one wins and the rest get 409.
+    /// </summary>
     [Fact]
     public async Task Concurrent_registrations_make_one_admin_and_reject_case_insensitive_duplicates()
     {
-        // Empty database: of several simultaneous first registrations exactly one becomes admin.
+        await AssertExactlyOneOfTheFirstRegistrationsBecomesAdminAsync();
+        await AssertOnlyOneCaseVariantOfANameWinsAsync();
+    }
+
+    private async Task AssertExactlyOneOfTheFirstRegistrationsBecomesAdminAsync()
+    {
         var first = await Task.WhenAll(Enumerable.Range(0, 6).Select(i => RegisterAsync($"first{i}")));
         Assert.All(first, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
         var admins = 0;
@@ -56,8 +66,10 @@ public class ConcurrentRegistrationTests : IClassFixture<FileDbApiFactory>
             if (doc.RootElement.GetProperty("isAdmin").GetBoolean()) admins++;
         }
         Assert.Equal(1, admins);
+    }
 
-        // The same name in different cases at once: one wins, the rest get 409.
+    private async Task AssertOnlyOneCaseVariantOfANameWinsAsync()
+    {
         var racers = await Task.WhenAll(new[] { "Racer", "racer", "RACER", " racer ", "rAcEr" }.Select(RegisterAsync));
         Assert.Single(racers, r => r.StatusCode == HttpStatusCode.OK);
         Assert.Equal(4, racers.Count(r => r.StatusCode == HttpStatusCode.Conflict));
@@ -97,29 +109,58 @@ public class AuthRateLimitTests : IClassFixture<RateLimitedApiFactory>
         return _factory.CreateClient().SendAsync(req);
     }
 
+    /// <summary>Uses up the login window of <paramref name="clientIp"/> (each test uses its own IP, as they share the limiter).</summary>
+    private async Task ExhaustLoginWindowAsync(string clientIp)
+    {
+        for (var i = 0; i < RateLimitedApiFactory.PermitLimit; i++)
+            Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(clientIp)).StatusCode);
+    }
+
     [Fact]
     public async Task Login_is_limited_per_client_ip_with_429_and_message()
     {
-        for (var i = 0; i < RateLimitedApiFactory.PermitLimit; i++)
-            Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync("203.0.113.10")).StatusCode);
+        await ExhaustLoginWindowAsync("203.0.113.10");
 
         var limited = await LoginAsync("203.0.113.10");
+
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
         using var doc = JsonDocument.Parse(await limited.Content.ReadAsStringAsync());
         Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("message").GetString()));
+    }
 
-        // Register shares the bucket.
+    [Fact]
+    public async Task Register_shares_the_login_window()
+    {
+        await ExhaustLoginWindowAsync("203.0.113.11");
         var register = new HttpRequestMessage(HttpMethod.Post, "/api/auth/register")
         {
             Content = JsonContent.Create(new { username = "limited-user", password = "password-123" })
         };
-        register.Headers.Add("X-Forwarded-For", "203.0.113.10");
-        Assert.Equal(HttpStatusCode.TooManyRequests, (await _factory.CreateClient().SendAsync(register)).StatusCode);
+        register.Headers.Add("X-Forwarded-For", "203.0.113.11");
 
-        // Another client (X-Forwarded-For from the trusted proxy) has its own window.
-        Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync("203.0.113.20")).StatusCode);
+        var res = await _factory.CreateClient().SendAsync(register);
 
-        // Other endpoints aren't limited.
-        Assert.Equal(HttpStatusCode.OK, (await _factory.CreateClient().GetAsync("/api/games")).StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, res.StatusCode);
+    }
+
+    /// <summary>The client IP comes from X-Forwarded-For, sent by the trusted proxy.</summary>
+    [Fact]
+    public async Task Another_client_ip_has_its_own_window()
+    {
+        await ExhaustLoginWindowAsync("203.0.113.12");
+
+        var otherClient = await LoginAsync("203.0.113.20");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, otherClient.StatusCode);
+    }
+
+    [Fact]
+    public async Task Endpoints_other_than_auth_are_not_limited()
+    {
+        await ExhaustLoginWindowAsync("203.0.113.13");
+
+        var res = await _factory.CreateClient().GetAsync("/api/games");
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 }

@@ -37,17 +37,19 @@ public class ApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
-            // Swap the database for the shared in-memory connection.
             ReplaceDbContext(services, o => o.UseSqlite(_connection));
-
-            // No background finalization while tests run.
-            var hosted = services
-                .Where(d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(ScoringDayBackgroundService))
-                .ToList();
-            foreach (var d in hosted) services.Remove(d);
-
+            RemoveBackgroundFinalization(services);
             ConfigureServices(services);
         });
+    }
+
+    /// <summary>Tests finalize scoring days explicitly, so the hosted background service must not run.</summary>
+    private static void RemoveBackgroundFinalization(IServiceCollection services)
+    {
+        var hosted = services
+            .Where(d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(ScoringDayBackgroundService))
+            .ToList();
+        foreach (var d in hosted) services.Remove(d);
     }
 
     /// <summary>

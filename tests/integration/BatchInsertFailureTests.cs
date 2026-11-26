@@ -10,6 +10,7 @@ namespace DailyChallenges.IntegrationTests;
 /// </summary>
 public class BatchInsertFailureTests
 {
+    /// <summary>The later SaveChanges would rethrow the unique violation if the failed insert were still pending.</summary>
     [Fact]
     public async Task Failed_achievement_batch_does_not_poison_the_context()
     {
@@ -26,7 +27,7 @@ public class BatchInsertFailureTests
 
         Assert.DoesNotContain(db.Ctx.ChangeTracker.Entries(), e => e.State == EntityState.Added);
         db.Ctx.Users.Add(new User { Id = 2, Username = "later" });
-        await db.Ctx.SaveChangesAsync(); // would rethrow the unique violation if the failed insert were still pending
+        await db.Ctx.SaveChangesAsync();
         Assert.Equal(2, await db.Ctx.Users.CountAsync());
     }
 
@@ -36,10 +37,11 @@ public class BatchInsertFailureTests
         await using var db = new TestDb();
         var repo = new EfNotificationRepository(db.Ctx);
 
-        // UserId 42 does not exist: foreign key violation.
+        const int missingUserId = 42;
+
         await Assert.ThrowsAsync<DbUpdateException>(() => repo.CreateBatchAsync(new List<Notification>
         {
-            new() { UserId = 42, Message = "m", Type = "achievement", ScoringDay = DateTime.UtcNow.Date, CreatedAt = DateTime.UtcNow },
+            new() { UserId = missingUserId, Message = "m", Type = "achievement", ScoringDay = DateTime.UtcNow.Date, CreatedAt = DateTime.UtcNow },
         }));
 
         Assert.DoesNotContain(db.Ctx.ChangeTracker.Entries(), e => e.State == EntityState.Added);
