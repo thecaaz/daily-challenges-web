@@ -34,8 +34,8 @@ public class DashboardApiTests
         ScreenshotContentType = "image/png",
     };
 
-    private static async Task<JsonElement> GetDashboardAsync(FixedClockApiFactory f, User user) =>
-        await ReadSuccessJsonAsync(await f.CreateAuthenticatedClient(user.Id, user.Username).GetAsync("/api/dashboard"));
+    private static async Task<JsonElement> GetDashboardAsync(FixedClockApiFactory factory, User user) =>
+        await ReadSuccessJsonAsync(await factory.CreateAuthenticatedClient(user.Id, user.Username).GetAsync("/api/dashboard"));
 
     /// <summary>
     /// At 10:00 UTC game A (reset 00:00) is on Today and game B (reset 11:00) still on Yesterday;
@@ -45,9 +45,9 @@ public class DashboardApiTests
     public async Task Stat_totals_count_every_game_on_its_own_current_scoring_day_and_are_not_capped()
     {
         const int manyGamesPlayedToday = 12;
-        using var f = new FixedClockApiFactory();
+        using var factory = new FixedClockApiFactory();
         User viewer = null!;
-        await f.WithDbAsync(async db =>
+        await factory.WithDbAsync(async db =>
         {
             viewer = new User { Username = "dash-viewer", PasswordHash = "x" };
             var u1 = new User { Username = "dash-u1", PasswordHash = "x" };
@@ -71,7 +71,7 @@ public class DashboardApiTests
             await db.SaveChangesAsync();
         });
 
-        var dashboard = await GetDashboardAsync(f, viewer);
+        var dashboard = await GetDashboardAsync(factory, viewer);
 
         Assert.Equal(2 + manyGamesPlayedToday, dashboard.GetProperty("activeGameCount").GetInt32());
         Assert.Equal(2 + 1 + manyGamesPlayedToday, dashboard.GetProperty("submissionCountToday").GetInt32());
@@ -81,15 +81,15 @@ public class DashboardApiTests
     [Fact]
     public async Task Stat_totals_are_zero_without_submissions()
     {
-        using var f = new FixedClockApiFactory();
+        using var factory = new FixedClockApiFactory();
         var viewer = new User { Username = "dash-empty", PasswordHash = "x" };
-        await f.WithDbAsync(async db =>
+        await factory.WithDbAsync(async db =>
         {
             db.AddRange(viewer, new Game { Name = "Quiet", ResetTime = TimeSpan.Zero });
             await db.SaveChangesAsync();
         });
 
-        var dashboard = await GetDashboardAsync(f, viewer);
+        var dashboard = await GetDashboardAsync(factory, viewer);
 
         Assert.Equal(0, dashboard.GetProperty("activeGameCount").GetInt32());
         Assert.Equal(0, dashboard.GetProperty("submissionCountToday").GetInt32());
@@ -102,10 +102,10 @@ public class DashboardApiTests
     /// most recently), all inside the 7-day window; game 0 also has 7 older friend submissions. Noise that must not
     /// count: a stranger and the pending user playing game 11 very recently, and a friend play older than 7 days on game 10.
     /// </summary>
-    private static async Task<FriendActivitySeed> SeedFriendActivityAsync(FixedClockApiFactory f)
+    private static async Task<FriendActivitySeed> SeedFriendActivityAsync(FixedClockApiFactory factory)
     {
         FriendActivitySeed seed = null!;
-        await f.WithDbAsync(async db =>
+        await factory.WithDbAsync(async db =>
         {
             var viewer = new User { Username = "fa-viewer", PasswordHash = "x" };
             var friend1 = new User { Username = "fa-friend1", PasswordHash = "x" };
@@ -142,10 +142,10 @@ public class DashboardApiTests
     [Fact]
     public async Task Friend_activity_keeps_the_10_most_recent_games_with_5_latest_friend_submissions_each()
     {
-        using var f = new FixedClockApiFactory();
-        var (viewer, friend1, friend2, games) = await SeedFriendActivityAsync(f);
+        using var factory = new FixedClockApiFactory();
+        var (viewer, friend1, friend2, games) = await SeedFriendActivityAsync(factory);
 
-        var activity = (await GetDashboardAsync(f, viewer)).GetProperty("friendActivity").EnumerateArray().ToList();
+        var activity = (await GetDashboardAsync(factory, viewer)).GetProperty("friendActivity").EnumerateArray().ToList();
 
         Assert.Equal(games.Take(FriendActivityGameCap).Select(g => g.Id), activity.Select(a => a.GetProperty("gameId").GetInt32()));
 
@@ -169,10 +169,10 @@ public class DashboardApiTests
     [Fact]
     public async Task Recent_activity_query_limits_games_and_submissions_per_game()
     {
-        using var f = new FixedClockApiFactory();
+        using var factory = new FixedClockApiFactory();
         User u1 = null!, u2 = null!;
         List<Game> games = null!;
-        await f.WithDbAsync(async db =>
+        await factory.WithDbAsync(async db =>
         {
             u1 = new User { Username = "ra-u1", PasswordHash = "x" };
             u2 = new User { Username = "ra-u2", PasswordHash = "x" };
@@ -189,10 +189,10 @@ public class DashboardApiTests
         });
 
         List<Submission> rows = null!;
-        using (var scope = f.Services.CreateScope())
+        using (var scope = factory.Services.CreateScope())
         {
             rows = await scope.ServiceProvider.GetRequiredService<ISubmissionRepository>()
-                .GetRecentActivityByUsersAsync(new RecentActivityQuery(new[] { u1.Id, u2.Id }, Now.AddDays(-7), MaxGames: 3, PerGame: 2));
+                .GetRecentActivityByUsersAsync(new RecentActivityQuery(new[] { u1.Id, u2.Id }, Now.AddDays(-7), MaxGames: 3, PerGame: 2), CancellationToken.None);
         }
 
         Assert.Equal(
@@ -216,10 +216,10 @@ public class DashboardApiTests
     [Fact]
     public async Task User_today_ranks_follow_leaderboard_order_with_earliest_tie_first_and_skip_unscored()
     {
-        using var f = new FixedClockApiFactory();
+        using var factory = new FixedClockApiFactory();
         User viewer = null!;
         Game highest = null!, lowest = null!;
-        await f.WithDbAsync(async db =>
+        await factory.WithDbAsync(async db =>
         {
             viewer = new User { Username = "rank-viewer", PasswordHash = "x" };
             var u1 = new User { Username = "rank-u1", PasswordHash = "x" };
@@ -243,7 +243,7 @@ public class DashboardApiTests
             await db.SaveChangesAsync();
         });
 
-        var ranks = (await GetDashboardAsync(f, viewer)).GetProperty("userTodayRanks").EnumerateArray().ToList();
+        var ranks = (await GetDashboardAsync(factory, viewer)).GetProperty("userTodayRanks").EnumerateArray().ToList();
 
         Assert.Equal(new[] { lowest.Id, highest.Id }, ranks.Select(r => r.GetProperty("gameId").GetInt32()));
         Assert.Equal(new[] { 2, 3 }, ranks.Select(r => r.GetProperty("rank").GetInt32()));
@@ -257,10 +257,10 @@ public class DashboardApiTests
     [Fact]
     public async Task Recent_games_list_anonymous_players_once_and_flag_the_viewers_own_submissions()
     {
-        using var f = new FixedClockApiFactory();
+        using var factory = new FixedClockApiFactory();
         User viewer = null!;
         Game played = null!, other = null!;
-        await f.WithDbAsync(async db =>
+        await factory.WithDbAsync(async db =>
         {
             viewer = new User { Username = "recent-viewer", PasswordHash = "x" };
             var u1 = new User { Username = "recent-u1", PasswordHash = "x" };
@@ -278,7 +278,7 @@ public class DashboardApiTests
             await db.SaveChangesAsync();
         });
 
-        var recent = (await GetDashboardAsync(f, viewer)).GetProperty("recentGames").EnumerateArray().ToList();
+        var recent = (await GetDashboardAsync(factory, viewer)).GetProperty("recentGames").EnumerateArray().ToList();
 
         Assert.Equal(new[] { played.Id, other.Id }, recent.Select(r => r.GetProperty("game").GetProperty("id").GetInt32()));
         Assert.Equal(new[] { 3, 1 }, recent.Select(r => r.GetProperty("todayCount").GetInt32()));

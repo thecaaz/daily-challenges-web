@@ -17,19 +17,19 @@ public sealed class SubmissionQueryService(
 {
     private const int FirstPlace = 1;
 
-    public async Task<SubmissionPageDto> GetByGameAsync(GameSubmissionsPageRequest request, ClaimsPrincipal? user)
+    public async Task<SubmissionPageDto> GetByGameAsync(GameSubmissionsPageRequest request, ClaimsPrincipal? user, CancellationToken ct)
     {
         var (gameId, scoringDay, page, pageSize) = request;
-        var game = await games.GetByIdWithoutBlobAsync(gameId);
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct);
         if (game == null) return new SubmissionPageDto { Page = page, PageSize = pageSize };
 
         var currentDay = visibility.GetCurrentScoringDay(game);
-        var hasSubmittedForLatest = await submissionChecker.HasUserSubmittedForDayAsync(user.GetUserId(), gameId, currentDay);
+        var hasSubmittedForLatest = await submissionChecker.HasUserSubmittedForDayAsync(user.GetUserId(), gameId, currentDay, ct);
         var excludedDay = scoringDay.HasValue || hasSubmittedForLatest ? (DateTime?)null : currentDay;
-        var areScoresHidden = scoringDay?.Date == currentDay && !await visibility.CanSeeDayAsync(user, game, currentDay);
+        var areScoresHidden = scoringDay?.Date == currentDay && !await visibility.CanSeeDayAsync(user, game, currentDay, ct);
 
         var (pageItems, totalCount) = await submissions.GetByGameFilteredAsync(
-            new SubmissionPageQuery(gameId, page, pageSize) { ScoringDay = scoringDay, ExcludeScoringDay = excludedDay });
+            new SubmissionPageQuery(gameId, page, pageSize) { ScoringDay = scoringDay, ExcludeScoringDay = excludedDay }, ct);
         if (areScoresHidden)
             return new SubmissionPageDto
             {
@@ -42,9 +42,9 @@ public sealed class SubmissionQueryService(
             };
 
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
-        var dtos = await ToDtosWithWinnerFlagsAsync(gameId, pageItems, strategy, currentDay);
+        var dtos = await ToDtosWithWinnerFlagsAsync(gameId, pageItems, strategy, currentDay, ct);
         if (scoringDay.HasValue)
-            await AssignRanksForDayAsync(gameId, scoringDay.Value.Date, strategy, dtos);
+            await AssignRanksForDayAsync(gameId, scoringDay.Value.Date, strategy, dtos, ct);
 
         return new SubmissionPageDto
         {
@@ -61,19 +61,19 @@ public sealed class SubmissionQueryService(
             .Select(s => SubmissionDtoMapper.Mask(SubmissionDtoMapper.ToDtoWithScoringDay(s, s.ScoringDay.Date)))
             .ToList();
 
-    private async Task<List<SubmissionDto>> ToDtosWithWinnerFlagsAsync(int gameId, List<Submission> pageItems, IRankingStrategy strategy, DateTime currentDay)
+    private async Task<List<SubmissionDto>> ToDtosWithWinnerFlagsAsync(int gameId, List<Submission> pageItems, IRankingStrategy strategy, DateTime currentDay, CancellationToken ct)
     {
-        var winnersByDay = await GetWinnersByDayAsync(gameId, pageItems, strategy);
+        var winnersByDay = await GetWinnersByDayAsync(gameId, pageItems, strategy, ct);
         return pageItems.Select(s => ToDtoWithWinnerFlag(s, winnersByDay, currentDay)).ToList();
     }
 
     /// <summary>Winners only of the scoring days present in the page.</summary>
-    private async Task<Dictionary<DateTime, Submission>> GetWinnersByDayAsync(int gameId, List<Submission> pageItems, IRankingStrategy strategy)
+    private async Task<Dictionary<DateTime, Submission>> GetWinnersByDayAsync(int gameId, List<Submission> pageItems, IRankingStrategy strategy, CancellationToken ct)
     {
         var daysInPage = pageItems.Select(s => s.ScoringDay.Date).Distinct().ToList();
         if (daysInPage.Count == 0) return [];
 
-        var winners = await submissions.GetWinnersForGameAndDaysAsync(gameId, daysInPage, strategy);
+        var winners = await submissions.GetWinnersForGameAndDaysAsync(gameId, daysInPage, strategy, ct);
         return winners.ToDictionary(w => w.ScoringDay.Date);
     }
 
@@ -86,42 +86,42 @@ public sealed class SubmissionQueryService(
     }
 
     /// <summary>Null for unscored rows.</summary>
-    private async Task AssignRanksForDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy, List<SubmissionDto> dtos)
+    private async Task AssignRanksForDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy, List<SubmissionDto> dtos, CancellationToken ct)
     {
-        var rankById = await GetRanksForDayAsync(gameId, scoringDay, strategy);
+        var rankById = await GetRanksForDayAsync(gameId, scoringDay, strategy, ct);
         foreach (var dto in dtos)
             dto.Rank = rankById.TryGetValue(dto.Id, out var rank) ? rank : null;
     }
 
     /// <summary>1-based rank of each of the day's scored submissions, by submission id.</summary>
-    private async Task<Dictionary<int, int>> GetRanksForDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy)
+    private async Task<Dictionary<int, int>> GetRanksForDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy, CancellationToken ct)
     {
-        var rankedForDay = await submissions.GetByGameAndDayByScoreValueAsync(gameId, scoringDay, strategy);
+        var rankedForDay = await submissions.GetByGameAndDayByScoreValueAsync(gameId, scoringDay, strategy, ct);
         return rankedForDay
             .Select((submission, index) => (submission.Id, Rank: index + 1))
             .ToDictionary(entry => entry.Id, entry => entry.Rank);
     }
 
-    public Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user) =>
-        submissionChecker.HasUserSubmittedForLatestAsync(gameId, user);
+    public Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user, CancellationToken ct) =>
+        submissionChecker.HasUserSubmittedForLatestAsync(gameId, user, ct);
 
     /// <summary>A missing game has no submissions (they are deleted with it), so nobody submitted.</summary>
-    public async Task<TodaySubmittersDto> GetTodaySubmittersAsync(int gameId)
+    public async Task<TodaySubmittersDto> GetTodaySubmittersAsync(int gameId, CancellationToken ct)
     {
-        var game = await games.GetByIdWithoutBlobAsync(gameId);
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct);
         if (game == null) return SubmissionDtoMapper.ToTodaySubmittersDto([]);
 
-        var usernames = await submissions.GetUsernamesForDayAsync(gameId, visibility.GetCurrentScoringDay(game));
+        var usernames = await submissions.GetUsernamesForDayAsync(gameId, visibility.GetCurrentScoringDay(game), ct);
         return SubmissionDtoMapper.ToTodaySubmittersDto(usernames);
     }
 
     /// <summary>A missing game has no submissions (they are deleted with it).</summary>
-    public async Task<List<SubmissionDto>> GetUnfilteredByGameAsync(int gameId)
+    public async Task<List<SubmissionDto>> GetUnfilteredByGameAsync(int gameId, CancellationToken ct)
     {
-        var game = await games.GetByIdWithoutBlobAsync(gameId);
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct);
         if (game == null) return [];
 
-        var gameSubmissions = await submissions.GetByGameAsync(gameId);
+        var gameSubmissions = await submissions.GetByGameAsync(gameId, ct);
         var currentDay = visibility.GetCurrentScoringDay(game);
         return gameSubmissions.Select(s => ToAdminDto(s, currentDay)).ToList();
     }
@@ -136,9 +136,9 @@ public sealed class SubmissionQueryService(
         return SignScreenshotOnCurrentDay(dto, submission.ScoringDay.Date, currentDay);
     }
 
-    public async Task<List<string>> GetAvailableDatesAsync(int gameId)
+    public async Task<List<string>> GetAvailableDatesAsync(int gameId, CancellationToken ct)
     {
-        var dates = await submissions.GetAvailableDatesAsync(gameId);
+        var dates = await submissions.GetAvailableDatesAsync(gameId, ct);
         return dates
             .Select(ScoringDayCalculator.FormatScoringDay)
             .Distinct()
@@ -146,17 +146,17 @@ public sealed class SubmissionQueryService(
             .ToList();
     }
 
-    public async Task<SubmissionDto?> GetWinnerAsync(int gameId, DateTime? scoringDay, ClaimsPrincipal? user)
+    public async Task<SubmissionDto?> GetWinnerAsync(int gameId, DateTime? scoringDay, ClaimsPrincipal? user, CancellationToken ct)
     {
-        var game = await games.GetByIdWithoutBlobAsync(gameId);
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct);
         if (game == null) return null;
 
         var currentDay = visibility.GetCurrentScoringDay(game);
         var day = scoringDay?.Date ?? GetPreviousDay(currentDay);
-        if (!await visibility.CanSeeDayAsync(user, game, day)) return null;
+        if (!await visibility.CanSeeDayAsync(user, game, day, ct)) return null;
 
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
-        var winner = await submissions.GetWinnerForGameAndDayAsync(gameId, day, strategy);
+        var winner = await submissions.GetWinnerForGameAndDayAsync(gameId, day, strategy, ct);
         if (winner == null) return null;
 
         var winnerDay = winner.ScoringDay.Date;
@@ -166,36 +166,36 @@ public sealed class SubmissionQueryService(
 
     private static DateTime GetPreviousDay(DateTime day) => day.AddDays(-1);
 
-    public async Task<SubmissionDto?> GetByIdAsync(int id, ClaimsPrincipal? user)
+    public async Task<SubmissionDto?> GetByIdAsync(int id, ClaimsPrincipal? user, CancellationToken ct)
     {
-        var submission = await submissions.GetByIdWithoutBlobAsync(id);
+        var submission = await submissions.GetByIdWithoutBlobAsync(id, ct);
         if (submission == null) return null;
 
         var day = submission.ScoringDay.Date;
         var dto = SubmissionDtoMapper.ToDtoWithScoringDay(submission, day);
 
-        var game = await games.GetByIdWithoutBlobAsync(submission.GameId);
+        var game = await games.GetByIdWithoutBlobAsync(submission.GameId, ct);
         if (game == null) return SubmissionDtoMapper.Mask(dto);
-        if (!await CanSeeSubmissionAsync(user, game, submission)) return SubmissionDtoMapper.Mask(dto);
+        if (!await CanSeeSubmissionAsync(user, game, submission, ct)) return SubmissionDtoMapper.Mask(dto);
 
-        await AssignRankAndWinnerFlagAsync(dto, game, submission);
+        await AssignRankAndWinnerFlagAsync(dto, game, submission, ct);
         return SignScreenshotOnCurrentDay(dto, day, visibility.GetCurrentScoringDay(game));
     }
 
     /// <summary>The owner always sees their own submission; anyone else follows the hidden-scores rule.</summary>
-    private async Task<bool> CanSeeSubmissionAsync(ClaimsPrincipal? user, Game game, Submission submission)
+    private async Task<bool> CanSeeSubmissionAsync(ClaimsPrincipal? user, Game game, Submission submission, CancellationToken ct)
     {
         var userId = user.GetUserId();
         var isOwner = userId.HasValue && submission.UserId == userId;
-        return isOwner || await visibility.CanSeeDayAsync(user, game, submission.ScoringDay.Date);
+        return isOwner || await visibility.CanSeeDayAsync(user, game, submission.ScoringDay.Date, ct);
     }
 
-    private async Task AssignRankAndWinnerFlagAsync(SubmissionDto dto, Game game, Submission submission)
+    private async Task AssignRankAndWinnerFlagAsync(SubmissionDto dto, Game game, Submission submission, CancellationToken ct)
     {
         if (!submission.ScoreValue.HasValue) return;
 
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
-        var rankById = await GetRanksForDayAsync(game.Id, submission.ScoringDay.Date, strategy);
+        var rankById = await GetRanksForDayAsync(game.Id, submission.ScoringDay.Date, strategy, ct);
         if (!rankById.TryGetValue(submission.Id, out var rank)) return;
 
         dto.Rank = rank;
@@ -206,17 +206,17 @@ public sealed class SubmissionQueryService(
     /// &lt;img&gt; requests carry no Bearer token, so a current-day screenshot is served only with a valid
     /// signature (handed out with the DTO to callers allowed to see it). Past days are public.
     /// </summary>
-    public async Task<(byte[]? Data, string? ContentType)> GetScreenshotAsync(int id, long? exp, string? sig)
+    public async Task<(byte[]? Data, string? ContentType)> GetScreenshotAsync(int id, long? exp, string? sig, CancellationToken ct)
     {
-        var submission = await submissions.GetByIdWithoutBlobAsync(id);
+        var submission = await submissions.GetByIdWithoutBlobAsync(id, ct);
         if (submission == null) return (null, null);
 
-        var game = await games.GetByIdWithoutBlobAsync(submission.GameId);
+        var game = await games.GetByIdWithoutBlobAsync(submission.GameId, ct);
         var isSignatureRequired = game != null && visibility.IsCurrentDay(game, submission.ScoringDay);
         if (isSignatureRequired && !screenshotSigner.IsValid(id, exp, sig))
             throw new ForbiddenException("Screenshot is hidden until you submit for this day.");
 
-        var (data, contentType) = await submissions.GetBlobAsync(id);
+        var (data, contentType) = await submissions.GetBlobAsync(id, ct);
         return data is { Length: > 0 } ? (data, contentType) : (null, null);
     }
 

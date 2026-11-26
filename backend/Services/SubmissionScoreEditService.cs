@@ -18,20 +18,20 @@ public sealed class SubmissionScoreEditService(
     IScoreVisibilityService visibility,
     IScreenshotUrlSigner screenshotSigner) : ISubmissionScoreEditService
 {
-    public async Task<SubmissionDto> UpdateAsync(int id, string? score)
+    public async Task<SubmissionDto> UpdateAsync(int id, string? score, CancellationToken ct)
     {
-        var (updated, needsRefinalizing) = await transactions.RunAsync(() => SaveScoreAsync(id, score));
+        var (updated, needsRefinalizing) = await transactions.RunAsync(() => SaveScoreAsync(id, score, ct), ct);
         if (needsRefinalizing) await finalizedDays.RefinalizeAsync(updated.GameId, updated.ScoringDay);
-        return await ToAdminDtoAsync(updated);
+        return await ToAdminDtoAsync(updated, ct);
     }
 
-    private async Task<(Submission Updated, bool NeedsRefinalizing)> SaveScoreAsync(int id, string? score)
+    private async Task<(Submission Updated, bool NeedsRefinalizing)> SaveScoreAsync(int id, string? score, CancellationToken ct)
     {
-        var submission = await submissions.GetByIdAsync(id) ?? throw new NotFoundException("Submission not found");
+        var submission = await submissions.GetByIdAsync(id, ct) ?? throw new NotFoundException("Submission not found");
         if (!string.IsNullOrWhiteSpace(score)) ApplyScore(submission, score.Trim());
 
-        var updated = await submissions.UpdateAsync(submission);
-        var needsRefinalizing = await finalizedDays.UnfinalizeIfWinnerChangedAsync(updated.GameId, updated.ScoringDay);
+        var updated = await submissions.UpdateAsync(submission, ct);
+        var needsRefinalizing = await finalizedDays.UnfinalizeIfWinnerChangedAsync(updated.GameId, updated.ScoringDay, ct);
         return (updated, needsRefinalizing);
     }
 
@@ -43,9 +43,9 @@ public sealed class SubmissionScoreEditService(
     }
 
     /// <summary>Admin-only endpoint: admins may see the current day, so its screenshot gets a signed URL.</summary>
-    private async Task<SubmissionDto> ToAdminDtoAsync(Submission updated)
+    private async Task<SubmissionDto> ToAdminDtoAsync(Submission updated, CancellationToken ct)
     {
-        var game = await games.GetByIdWithoutBlobAsync(updated.GameId);
+        var game = await games.GetByIdWithoutBlobAsync(updated.GameId, ct);
         var isCurrentDay = game != null && visibility.IsCurrentDay(game, updated.ScoringDay);
         var dto = SubmissionDtoMapper.ToDtoWithScoringDay(updated, updated.ScoringDay.Date);
         return SubmissionDtoMapper.WithScreenshotUrl(dto, isCurrentDay ? screenshotSigner.SignedUrl : screenshotSigner.UnsignedUrl);

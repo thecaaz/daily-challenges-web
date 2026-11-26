@@ -9,16 +9,16 @@ public interface ISessionRepository
     /// Inserts the revocation unless its jti is already revoked (INSERT OR IGNORE, atomic).
     /// Returns true when this call inserted it.
     /// </summary>
-    Task<bool> TryRevokeAsync(RevokedRefreshToken revocation);
+    Task<bool> TryRevokeAsync(RevokedRefreshToken revocation, CancellationToken ct);
 
     /// <summary>The revocation of <paramref name="jti"/>, or null when it was never revoked (or was purged).</summary>
-    Task<RevokedRefreshToken?> GetRevocationAsync(string jti);
+    Task<RevokedRefreshToken?> GetRevocationAsync(string jti, CancellationToken ct);
 
     /// <summary>
     /// Increments the user's TokenVersion, which invalidates every token issued before, but only while it
     /// still equals <paramref name="tokenVersion"/>, so concurrent callers bump it once. True when bumped.
     /// </summary>
-    Task<bool> EndAllSessionsAsync(int userId, int tokenVersion);
+    Task<bool> EndAllSessionsAsync(int userId, int tokenVersion, CancellationToken ct);
 
     /// <summary>
     /// Deletes revocations whose token expired before <paramref name="nowUtc"/> (an expired token can't be

@@ -20,9 +20,9 @@ public sealed class SubmissionDeletionService(
 
     private sealed record DeletedSubmission(int GameId, DateTime ScoringDay, bool NeedsRefinalizing);
 
-    public async Task DeleteAsync(int id)
+    public async Task DeleteAsync(int id, CancellationToken ct)
     {
-        var deleted = await transactions.RunAsync(() => RemoveSubmissionAsync(id));
+        var deleted = await transactions.RunAsync(() => RemoveSubmissionAsync(id, ct), ct);
         if (deleted == null) return;
 
         logger.LogInformation("Deleted submission {SubmissionId} (game {GameId}, day {Day}); re-finalizing: {Refinalize}",
@@ -31,22 +31,22 @@ public sealed class SubmissionDeletionService(
         if (deleted.NeedsRefinalizing) await finalizedDays.RefinalizeAsync(deleted.GameId, deleted.ScoringDay);
     }
 
-    private async Task<DeletedSubmission?> RemoveSubmissionAsync(int id)
+    private async Task<DeletedSubmission?> RemoveSubmissionAsync(int id, CancellationToken ct)
     {
-        var submission = await submissions.GetByIdWithoutBlobAsync(id);
+        var submission = await submissions.GetByIdWithoutBlobAsync(id, ct);
         if (submission == null) return null;
 
         var day = submission.ScoringDay.Date;
-        await RevokeAwardedXpAsync(submission, day);
-        await submissions.DeleteAsync(id);
-        var needsRefinalizing = await finalizedDays.UnfinalizeIfWinnerChangedAsync(submission.GameId, day);
+        await RevokeAwardedXpAsync(submission, day, ct);
+        await submissions.DeleteAsync(id, ct);
+        var needsRefinalizing = await finalizedDays.UnfinalizeIfWinnerChangedAsync(submission.GameId, day, ct);
         return new DeletedSubmission(submission.GameId, day, needsRefinalizing);
     }
 
-    private async Task RevokeAwardedXpAsync(Submission submission, DateTime day)
+    private async Task RevokeAwardedXpAsync(Submission submission, DateTime day, CancellationToken ct)
     {
         if (submission is not { UserId: int userId, XpAwarded: int xpAwarded and > 0 }) return;
 
-        await xp.RevokeSubmissionAsync(new SubmissionXpRevocation(userId, submission.Id, submission.GameId, day, xpAwarded, XpRevocationReason));
+        await xp.RevokeSubmissionAsync(new SubmissionXpRevocation(userId, submission.Id, submission.GameId, day, xpAwarded, XpRevocationReason), ct);
     }
 }

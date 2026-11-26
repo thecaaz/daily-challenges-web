@@ -23,9 +23,9 @@ public class NotificationServiceTests
     public async Task GetNotifications_MapsThePage()
     {
         var (service, repo) = Build();
-        repo.Setup(r => r.GetByUserPagedAsync(1, 2, 5)).ReturnsAsync((new List<Notification> { OwnedBy(1) }, 7, 4));
+        repo.Setup(r => r.GetByUserPagedAsync(1, 2, 5, It.IsAny<CancellationToken>())).ReturnsAsync((new List<Notification> { OwnedBy(1) }, 7, 4));
 
-        var page = await service.GetNotificationsAsync(1, 2, 5);
+        var page = await service.GetNotificationsAsync(1, 2, 5, CancellationToken.None);
 
         Assert.Equal(7, page.TotalCount);
         Assert.Equal(4, page.UnreadCount);
@@ -40,44 +40,44 @@ public class NotificationServiceTests
     {
         var (service, repo) = Build();
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false)));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false), CancellationToken.None));
 
         Assert.Equal("Notification not found", ex.Message);
-        repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
+        repo.Verify(r => r.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task Delete_SomeoneElsesNotification_ThrowsNotFound()
     {
         var (service, repo) = Build();
-        repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(2));
+        repo.Setup(r => r.GetByIdAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(OwnedBy(2));
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false)));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false), CancellationToken.None));
 
         Assert.Equal("Notification not found", ex.Message);
-        repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
+        repo.Verify(r => r.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task Delete_OwnNotification_Deletes()
     {
         var (service, repo) = Build();
-        repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(1));
+        repo.Setup(r => r.GetByIdAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(OwnedBy(1));
 
-        await service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false));
+        await service.DeleteAsync(3, new RequestingUser(1, IsAdmin: false), CancellationToken.None);
 
-        repo.Verify(r => r.DeleteAsync(3), Times.Once);
+        repo.Verify(r => r.DeleteAsync(3, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task Delete_AdminMayDeleteAnyNotification()
     {
         var (service, repo) = Build();
-        repo.Setup(r => r.GetByIdAsync(3)).ReturnsAsync(OwnedBy(2));
+        repo.Setup(r => r.GetByIdAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(OwnedBy(2));
 
-        await service.DeleteAsync(3, new RequestingUser(1, IsAdmin: true));
+        await service.DeleteAsync(3, new RequestingUser(1, IsAdmin: true), CancellationToken.None);
 
-        repo.Verify(r => r.DeleteAsync(3), Times.Once);
+        repo.Verify(r => r.DeleteAsync(3, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -85,20 +85,20 @@ public class NotificationServiceTests
     {
         var (service, repo) = Build();
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: true)));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.DeleteAsync(3, new RequestingUser(1, IsAdmin: true), CancellationToken.None));
 
         Assert.Equal("Notification not found", ex.Message);
-        repo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
+        repo.Verify(r => r.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task GetNotifications_ClampsPaging()
     {
         var (service, repo) = Build();
-        repo.Setup(r => r.GetByUserPagedAsync(1, 1, Paging.MaxPageSize)).ReturnsAsync((new List<Notification>(), 0, 0));
+        repo.Setup(r => r.GetByUserPagedAsync(1, 1, Paging.MaxPageSize, It.IsAny<CancellationToken>())).ReturnsAsync((new List<Notification>(), 0, 0));
 
-        await service.GetNotificationsAsync(1, 0, 5000);
+        await service.GetNotificationsAsync(1, 0, 5000, CancellationToken.None);
 
-        repo.Verify(r => r.GetByUserPagedAsync(1, 1, Paging.MaxPageSize), Times.Once);
+        repo.Verify(r => r.GetByUserPagedAsync(1, 1, Paging.MaxPageSize, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

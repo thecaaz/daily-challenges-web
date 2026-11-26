@@ -14,16 +14,16 @@ public sealed class SessionService(
     ILogger<SessionService> logger) : ISessionService
 {
     /// <summary>Rotation: the presented token is consumed; a replayed (stolen or old) token is rejected.</summary>
-    public async Task<AuthResultDto?> RefreshAsync(HttpRequest request, HttpResponse response)
+    public async Task<AuthResultDto?> RefreshAsync(HttpRequest request, HttpResponse response, CancellationToken ct)
     {
         var token = ReadPresentedToken(request);
         if (token == null) return null;
 
-        var user = await users.GetByIdAsync(token.UserId);
+        var user = await users.GetByIdAsync(token.UserId, ct);
         if (user == null) return null;
         if (IsFromOlderTokenVersion(token, user)) return null;
 
-        if (!await revocations.TryRevokeAsync(token, RevokedRefreshTokenReason.Rotated))
+        if (!await revocations.TryRevokeAsync(token, RevokedRefreshTokenReason.Rotated, ct))
         {
             await revocations.HandleReuseAsync(token);
             return null;
@@ -32,11 +32,11 @@ public sealed class SessionService(
         return sessions.Issue(user, response);
     }
 
-    public async Task LogoutAsync(HttpRequest request, HttpResponse response)
+    public async Task LogoutAsync(HttpRequest request, HttpResponse response, CancellationToken ct)
     {
         var token = ReadPresentedToken(request);
         if (token != null)
-            await revocations.TryRevokeAsync(token, RevokedRefreshTokenReason.Logout);
+            await revocations.TryRevokeAsync(token, RevokedRefreshTokenReason.Logout, ct);
 
         cookie.Delete(response);
     }

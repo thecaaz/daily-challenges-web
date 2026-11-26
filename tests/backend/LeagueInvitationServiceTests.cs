@@ -25,7 +25,7 @@ public class LeagueInvitationServiceTests
         var invitationRepo = new Mock<ILeagueInvitationRepository>();
         var userRepo = new Mock<IUserProfileRepository>();
         var notifRepo = new Mock<INotificationRepository>();
-        notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>())).Returns(Task.CompletedTask);
+        notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var time = new FixedTimeProvider(DateTime.UtcNow);
 
         var leagueService = new LeagueService(leagueRepo.Object, userRepo.Object, time);
@@ -41,20 +41,20 @@ public class LeagueInvitationServiceTests
         var league = MakeLeague(1, ownerId: 10);
         var invitee = MakeUser(20, "bob");
         var inviter = MakeUser(10, "owner");
-        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
-        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(invitee);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(10)).ReturnsAsync(inviter);
-        sut.InvitationRepo.Setup(r => r.GetPendingInvitationAsync(1, 20)).ReturnsAsync((LeagueInvitation?)null);
-        sut.InvitationRepo.Setup(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()))
-            .ReturnsAsync((LeagueInvitation i) => { i.Id = 5; return i; });
+        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(league);
+        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob", It.IsAny<CancellationToken>())).ReturnsAsync(invitee);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync(inviter);
+        sut.InvitationRepo.Setup(r => r.GetPendingInvitationAsync(1, 20, It.IsAny<CancellationToken>())).ReturnsAsync((LeagueInvitation?)null);
+        sut.InvitationRepo.Setup(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LeagueInvitation i, CancellationToken _) => { i.Id = 5; return i; });
 
-        var result = await sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob");
+        var result = await sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob", CancellationToken.None);
 
         Assert.Equal(5, result.Id);
         Assert.Equal(1, result.LeagueId);
         Assert.Equal(10, result.InviterId);
         Assert.Equal(20, result.InviteeId);
-        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Once);
+        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -64,11 +64,11 @@ public class LeagueInvitationServiceTests
         var league = MakeLeague(1, ownerId: 10);
         league.Members.Add(new LeagueMember { UserId = 20, User = MakeUser(20, "bob") });
         var invitee = MakeUser(20, "bob");
-        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
-        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(invitee);
+        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(league);
+        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob", It.IsAny<CancellationToken>())).ReturnsAsync(invitee);
 
         await Assert.ThrowsAsync<ConflictException>(
-            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob", CancellationToken.None));
     }
 
     [Fact]
@@ -78,27 +78,27 @@ public class LeagueInvitationServiceTests
         var league = MakeLeague(1, ownerId: 10);
         var invitee = MakeUser(20, "bob");
         var existing = new LeagueInvitation { Id = 3, LeagueId = 1, InviteeId = 20, Status = LeagueInvitationStatus.Pending };
-        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
-        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(invitee);
-        sut.InvitationRepo.Setup(r => r.GetPendingInvitationAsync(1, 20)).ReturnsAsync(existing);
+        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(league);
+        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob", It.IsAny<CancellationToken>())).ReturnsAsync(invitee);
+        sut.InvitationRepo.Setup(r => r.GetPendingInvitationAsync(1, 20, It.IsAny<CancellationToken>())).ReturnsAsync(existing);
 
         await Assert.ThrowsAsync<ConflictException>(
-            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob", CancellationToken.None));
     }
 
     [Fact]
     public async Task InviteByUsername_DeclinedWithin24h_Throws()
     {
         var sut = Build();
-        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
-        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(MakeUser(20, "bob"));
-        sut.InvitationRepo.Setup(r => r.GetLastDeclinedAtAsync(1, 20)).ReturnsAsync(DateTime.UtcNow.AddHours(-23));
+        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeLeague(1, ownerId: 10));
+        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob", It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(20, "bob"));
+        sut.InvitationRepo.Setup(r => r.GetLastDeclinedAtAsync(1, 20, It.IsAny<CancellationToken>())).ReturnsAsync(DateTime.UtcNow.AddHours(-23));
 
         var ex = await Assert.ThrowsAsync<ConflictException>(
-            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob", CancellationToken.None));
 
         Assert.Equal("bob declined an invitation to this league recently. Try again after 24 hours.", ex.Message);
-        sut.InvitationRepo.Verify(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()), Times.Never);
+        sut.InvitationRepo.Verify(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -107,25 +107,25 @@ public class LeagueInvitationServiceTests
         var sut = Build();
         var league = MakeLeague(1, ownerId: 10);
         var self = MakeUser(10, "owner");
-        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
-        sut.UserRepo.Setup(r => r.GetByUsernameAsync("owner")).ReturnsAsync(self);
+        sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(league);
+        sut.UserRepo.Setup(r => r.GetByUsernameAsync("owner", It.IsAny<CancellationToken>())).ReturnsAsync(self);
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "owner"));
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "owner", CancellationToken.None));
     }
 
     [Fact]
     public async Task AcceptInvitation_ClaimLost_ThrowsConflict()
     {
         var sut = Build();
-        sut.InvitationRepo.Setup(r => r.GetInvitationByIdAsync(5)).ReturnsAsync(new LeagueInvitation
+        sut.InvitationRepo.Setup(r => r.GetInvitationByIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(new LeagueInvitation
             { Id = 5, LeagueId = 1, InviterId = 10, InviteeId = 20, Status = LeagueInvitationStatus.Pending });
-        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
-        sut.InvitationRepo.Setup(r => r.AcceptInvitationAsync(5, 20, It.IsAny<DateTime>()))
+        sut.LeagueRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeLeague(1, ownerId: 10));
+        sut.InvitationRepo.Setup(r => r.AcceptInvitationAsync(5, 20, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(AcceptInvitationResult.NotPending);
 
-        await Assert.ThrowsAsync<ConflictException>(() => sut.Service.AcceptInvitationAsync(5, 20));
+        await Assert.ThrowsAsync<ConflictException>(() => sut.Service.AcceptInvitationAsync(5, 20, CancellationToken.None));
 
-        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
+        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

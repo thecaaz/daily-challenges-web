@@ -5,7 +5,7 @@ namespace DailyChallenges.Services;
 public interface IGameCommandService
 {
     /// <summary>Throws ValidationException for an invalid reset time, URL or ranking mode.</summary>
-    Task<GameDto> CreateAsync(GameCreateRequest request);
+    Task<GameDto> CreateAsync(GameCreateRequest request, CancellationToken ct);
 
     /// <summary>
     /// Updates a game. Omitted (null) fields stay unchanged; "" clears Url and Description.
@@ -13,7 +13,7 @@ public interface IGameCommandService
     /// (and of their XpEvents) in the same transaction, or fails with a ConflictException.
     /// Throws ValidationException for invalid input and NotFoundException for a missing game.
     /// </summary>
-    Task<GameDto> UpdateAsync(int id, GameUpdateRequest request);
+    Task<GameDto> UpdateAsync(int id, GameUpdateRequest request, CancellationToken ct);
 
-    Task DeleteAsync(int id);
+    Task DeleteAsync(int id, CancellationToken ct);
 }

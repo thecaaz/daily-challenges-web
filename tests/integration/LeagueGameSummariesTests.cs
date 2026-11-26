@@ -54,7 +54,7 @@ public class LeagueGameSummariesTests
         SeedSubmission(db.Ctx, userId: 1, 300, today);
 
         var (items, total) = await CreateService(db.Ctx, TimeProvider.System)
-            .GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 2, Page: 1, PageSize: 20));
+            .GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 2, Page: 1, PageSize: 20), CancellationToken.None);
 
         Assert.Equal(1, total);
         var summary = Assert.Single(items);
@@ -82,7 +82,7 @@ public class LeagueGameSummariesTests
         db.Ctx.SaveChanges();
 
         var (items, _) = await CreateService(db.Ctx, new FixedTimeProvider(lateEvening))
-            .GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 3, Page: 1, PageSize: 20));
+            .GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 1, Days: 3, Page: 1, PageSize: 20), CancellationToken.None);
 
         var summary = Assert.Single(items);
         Assert.Equal(1, summary.PlayCount);

@@ -8,12 +8,12 @@ namespace DailyChallenges.Services;
 
 public sealed class CurrentUserService(IUserRepository users, LevelCalculator levels, TimeProvider time) : ICurrentUserService
 {
-    public async Task<UserDto?> GetCurrentUserAsync(ClaimsPrincipal user)
+    public async Task<UserDto?> GetCurrentUserAsync(ClaimsPrincipal user, CancellationToken ct)
     {
         var userId = user.GetUserId();
         if (userId == null) return null;
 
-        var current = await users.GetByIdAsync(userId.Value);
+        var current = await users.GetByIdAsync(userId.Value, ct);
         if (current == null) return null;
 
         return DtoMapper.ToDto(current, levels, time.GetUtcNow().UtcDateTime);

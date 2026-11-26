@@ -29,13 +29,13 @@ public sealed class UserProfileService(
     /// Hidden-scores rule, simplified so the cache still works: each game's current scoring day is
     /// left out unless the viewer is the profile owner or an admin (stricter than the full rule).
     /// </summary>
-    public async Task<UserProfileDto?> GetProfileAsync(int userId, int topGames, ClaimsPrincipal? viewer)
+    public async Task<UserProfileDto?> GetProfileAsync(int userId, int topGames, ClaimsPrincipal? viewer, CancellationToken ct)
     {
         var canSeeCurrentDay = viewer.GetUserId() == userId || viewer.IsAdmin();
         var cacheKey = CacheKey(userId, topGames, canSeeCurrentDay);
         if (cache.TryGetValue<UserProfileDto?>(cacheKey, out var cached)) return cached;
 
-        var profile = await BuildProfileAsync(userId, topGames, canSeeCurrentDay);
+        var profile = await BuildProfileAsync(userId, topGames, canSeeCurrentDay, ct);
         if (profile == null) return null;
 
         cache.Set(cacheKey, profile, CacheTtl);
@@ -45,36 +45,36 @@ public sealed class UserProfileService(
     private static string CacheKey(int userId, int topGames, bool canSeeCurrentDay) =>
         $"UserProfile:{userId}:{topGames}:{(canSeeCurrentDay ? AllDaysCacheScope : PastDaysCacheScope)}";
 
-    private async Task<UserProfileDto?> BuildProfileAsync(int userId, int topGames, bool canSeeCurrentDay)
+    private async Task<UserProfileDto?> BuildProfileAsync(int userId, int topGames, bool canSeeCurrentDay, CancellationToken ct)
     {
-        var user = await profiles.GetByIdAsync(userId);
+        var user = await profiles.GetByIdAsync(userId, ct);
         if (user == null) return null;
 
         var now = time.GetUtcNow().UtcDateTime;
-        var scope = await GetProfileScopeAsync(userId, canSeeCurrentDay, now);
-        var top = await profiles.GetMostPlayedGamesAsync(userId, topGames, scope.HiddenSubmissionIds);
-        await AttachScoreHistoryAsync(scope, top, now);
+        var scope = await GetProfileScopeAsync(userId, canSeeCurrentDay, now, ct);
+        var top = await profiles.GetMostPlayedGamesAsync(userId, topGames, scope.HiddenSubmissionIds, ct);
+        await AttachScoreHistoryAsync(scope, top, now, ct);
 
         var profile = DtoMapper.ToUserProfileDto(user, UserProgression.Of(user, levels, now), top);
         profile.ScoresHidden = scope.HiddenSubmissionIds.Count > 0;
         return profile;
     }
 
-    private async Task<ProfileScope> GetProfileScopeAsync(int userId, bool canSeeCurrentDay, DateTime now)
+    private async Task<ProfileScope> GetProfileScopeAsync(int userId, bool canSeeCurrentDay, DateTime now, CancellationToken ct)
     {
-        var allGames = await games.GetAllAsync();
+        var allGames = await games.GetAllAsync(ct);
         var currentDayByGame = allGames.ToDictionary(g => g.Id, g => ScoringDayCalculator.GetCurrentScoringDay(g.ResetTime, now).Date);
-        var hiddenIds = canSeeCurrentDay ? new HashSet<int>() : await GetCurrentDaySubmissionIdsAsync(userId, currentDayByGame);
+        var hiddenIds = canSeeCurrentDay ? new HashSet<int>() : await GetCurrentDaySubmissionIdsAsync(userId, currentDayByGame, ct);
         return new ProfileScope(userId, currentDayByGame, hiddenIds);
     }
 
     /// <summary>Ids of the user's submissions that are on their game's current scoring day.</summary>
-    private async Task<HashSet<int>> GetCurrentDaySubmissionIdsAsync(int userId, Dictionary<int, DateTime> currentDayByGame)
+    private async Task<HashSet<int>> GetCurrentDaySubmissionIdsAsync(int userId, Dictionary<int, DateTime> currentDayByGame, CancellationToken ct)
     {
         if (currentDayByGame.Count == 0) return new HashSet<int>();
 
         var candidates = await submissions.GetByUserAndGamesAndDaysAsync(
-            userId, currentDayByGame.Keys.ToList(), currentDayByGame.Values.Distinct().ToList());
+            userId, currentDayByGame.Keys.ToList(), currentDayByGame.Values.Distinct().ToList(), ct);
 
         return candidates
             .Where(s => currentDayByGame.TryGetValue(s.GameId, out var day) && s.ScoringDay.Date == day)
@@ -87,13 +87,13 @@ public sealed class UserProfileService(
     /// (a late reset can make "today" tomorrow's UTC date). One query over the union of those days,
     /// then filtered per game.
     /// </summary>
-    private async Task AttachScoreHistoryAsync(ProfileScope scope, List<UserGameStatDto> topGames, DateTime now)
+    private async Task AttachScoreHistoryAsync(ProfileScope scope, List<UserGameStatDto> topGames, DateTime now, CancellationToken ct)
     {
         if (topGames.Count == 0) return;
 
         var gameIds = topGames.Select(g => g.GameId).ToList();
         var candidates = await submissions.GetByUserAndGamesAndDaysAsync(
-            scope.UserId, gameIds, GetSparklineDayUnion(gameIds, scope.CurrentDayByGame, now));
+            scope.UserId, gameIds, GetSparklineDayUnion(gameIds, scope.CurrentDayByGame, now), ct);
 
         var historyByGame = candidates
             .Where(s => !scope.HiddenSubmissionIds.Contains(s.Id))

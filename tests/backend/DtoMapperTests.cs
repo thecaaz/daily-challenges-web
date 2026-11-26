@@ -162,13 +162,13 @@ public class DtoMapperTests
     [Fact]
     public void ToDto_Notification_MapsAllFields()
     {
-        var n = new Notification
+        var notification = new Notification
         {
             Id = 20, UserId = 3, GameId = 4, Message = "You won!",
             Type = "day_win", ScoringDay = BaseTime.Date,
             Rank = 1, IsRead = false, CreatedAt = BaseTime
         };
-        var dto = DtoMapper.ToDto(n);
+        var dto = DtoMapper.ToDto(notification);
 
         Assert.Equal(20, dto.Id);
         Assert.Equal("You won!", dto.Message);

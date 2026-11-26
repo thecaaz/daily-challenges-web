@@ -8,11 +8,11 @@ public interface IScoreMaintenanceService
     /// Re-parses every Submission.Score with the current ScoreParser and reports the differences
     /// without writing anything (a dry run).
     /// </summary>
-    Task<ReparseScoresReportDto> PreviewReparseScoresAsync();
+    Task<ReparseScoresReportDto> PreviewReparseScoresAsync(CancellationToken ct);
 
     /// <summary>
     /// Re-parses every Submission.Score with the current ScoreParser, writes the changed ScoreValues in one
     /// transaction and reports them. Finalized days are not re-finalized.
     /// </summary>
-    Task<ReparseScoresReportDto> ReparseScoresAsync();
+    Task<ReparseScoresReportDto> ReparseScoresAsync(CancellationToken ct);
 }

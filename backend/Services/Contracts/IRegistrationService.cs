@@ -9,5 +9,5 @@ public interface IRegistrationService
     /// Throws ValidationException for invalid credentials and ConflictException when the username is taken
     /// (case-insensitively).
     /// </summary>
-    Task<UserDto> RegisterAsync(string username, string password);
+    Task<UserDto> RegisterAsync(string username, string password, CancellationToken ct);
 }

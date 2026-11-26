@@ -23,10 +23,10 @@ public class EfScoringDayResultRepositoryTests
         var gameId = await SeedGameAsync(db);
         var repo = new EfScoringDayResultRepository(db.Ctx);
 
-        var claimed = await repo.TryCreateAsync(new ScoringDayResult { GameId = gameId, ScoringDay = Day });
+        var claimed = await repo.TryCreateAsync(new ScoringDayResult { GameId = gameId, ScoringDay = Day }, CancellationToken.None);
 
         Assert.True(claimed);
-        Assert.True(await repo.ExistsAsync(gameId, Day));
+        Assert.True(await repo.ExistsAsync(gameId, Day, CancellationToken.None));
     }
 
     [Fact]
@@ -35,11 +35,11 @@ public class EfScoringDayResultRepositoryTests
         await using var db = new TestDb();
         var gameId = await SeedGameAsync(db);
         var repo = new EfScoringDayResultRepository(db.Ctx);
-        await repo.TryCreateAsync(new ScoringDayResult { GameId = gameId, ScoringDay = Day, WinnerUserId = null });
+        await repo.TryCreateAsync(new ScoringDayResult { GameId = gameId, ScoringDay = Day, WinnerUserId = null }, CancellationToken.None);
         db.Ctx.ChangeTracker.Clear();
 
         var duplicate = new ScoringDayResult { GameId = gameId, ScoringDay = Day };
-        var claimed = await repo.TryCreateAsync(duplicate);
+        var claimed = await repo.TryCreateAsync(duplicate, CancellationToken.None);
 
         Assert.False(claimed);
         Assert.Equal(EntityState.Detached, db.Ctx.Entry(duplicate).State);

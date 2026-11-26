@@ -9,15 +9,15 @@ public sealed class UserSubmissionChecker(
     TimeProvider time) : IUserSubmissionChecker
 {
     /// <summary>A missing game falls back to a midnight UTC reset.</summary>
-    public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user)
+    public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user, CancellationToken ct)
     {
         if (user.GetUserId() is not int userId) return false;
 
-        var game = await games.GetByIdWithoutBlobAsync(gameId);
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct);
         var currentDay = ScoringDayCalculator.GetCurrentScoringDay(game?.ResetTime ?? TimeSpan.Zero, time.GetUtcNow().UtcDateTime);
-        return await submissions.ExistsForUserGameDayAsync(userId, gameId, currentDay);
+        return await submissions.ExistsForUserGameDayAsync(userId, gameId, currentDay, ct);
     }
 
-    public async Task<bool> HasUserSubmittedForDayAsync(int? userId, int gameId, DateTime scoringDay) =>
-        userId.HasValue && await submissions.ExistsForUserGameDayAsync(userId.Value, gameId, scoringDay);
+    public async Task<bool> HasUserSubmittedForDayAsync(int? userId, int gameId, DateTime scoringDay, CancellationToken ct) =>
+        userId.HasValue && await submissions.ExistsForUserGameDayAsync(userId.Value, gameId, scoringDay, ct);
 }

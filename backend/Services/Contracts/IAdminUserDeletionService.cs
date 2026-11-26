@@ -8,5 +8,5 @@ public interface IAdminUserDeletionService
     /// stay anonymized. Throws ValidationException for the caller's own account, NotFoundException for a
     /// missing user and ForbiddenException for an admin account.
     /// </summary>
-    Task DeleteUserAsync(int userId, int requestingAdminId);
+    Task DeleteUserAsync(int userId, int requestingAdminId, CancellationToken ct);
 }

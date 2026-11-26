@@ -14,17 +14,17 @@ public sealed class UsersController(IUserProfileService profiles) : ControllerBa
     private const int MaxTopGames = 50;
 
     [HttpGet("{id}/profile")]
-    public Task<ActionResult<UserProfileDto>> GetProfile(int id, int topGames = DefaultTopGames) =>
-        GetProfileResultAsync(id, topGames);
+    public Task<ActionResult<UserProfileDto>> GetProfile(int id, int topGames = DefaultTopGames, CancellationToken ct = default) =>
+        GetProfileResultAsync(id, topGames, ct);
 
     [HttpGet("me/profile")]
     [Authorize]
-    public Task<ActionResult<UserProfileDto>> GetMyProfile([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int userId, int topGames = DefaultTopGames) =>
-        GetProfileResultAsync(userId, topGames);
+    public Task<ActionResult<UserProfileDto>> GetMyProfile([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int userId, int topGames = DefaultTopGames, CancellationToken ct = default) =>
+        GetProfileResultAsync(userId, topGames, ct);
 
-    private async Task<ActionResult<UserProfileDto>> GetProfileResultAsync(int userId, int topGames)
+    private async Task<ActionResult<UserProfileDto>> GetProfileResultAsync(int userId, int topGames, CancellationToken ct)
     {
-        var profile = await profiles.GetProfileAsync(userId, Math.Clamp(topGames, MinTopGames, MaxTopGames), User);
+        var profile = await profiles.GetProfileAsync(userId, Math.Clamp(topGames, MinTopGames, MaxTopGames), User, ct);
         if (profile == null) return NotFound();
         return Ok(profile);
     }

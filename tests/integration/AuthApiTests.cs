@@ -381,7 +381,7 @@ public class AuthApiTests : IClassFixture<ApiFactory>
         });
         var service = ActivatorUtilities.CreateInstance<ScoringDayBackgroundService>(_factory.Services);
 
-        var purged = await service.PurgeExpiredRevokedTokensAsync();
+        var purged = await service.PurgeExpiredRevokedTokensAsync(CancellationToken.None);
 
         Assert.True(purged >= 1);
         await _factory.WithDbAsync(async db =>

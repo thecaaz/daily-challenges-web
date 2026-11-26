@@ -32,7 +32,7 @@ public class EfXpEventRepositoryTests
         db.Ctx.SeedUser(1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime>(), TodayTypes);
+        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime>(), TodayTypes, CancellationToken.None);
 
         Assert.Equal(0, result);
     }
@@ -47,7 +47,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1, gameId: 1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1 }, TodayTypes);
+        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1 }, TodayTypes, CancellationToken.None);
 
         Assert.Equal(150, result);
     }
@@ -62,7 +62,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 1, "submission_revoked", -50, Day1, gameId: 1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1 }, new[] { "submission" });
+        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1 }, new[] { "submission" }, CancellationToken.None);
 
         Assert.Equal(50, result);
     }
@@ -78,7 +78,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 2, "submission", 999, Day1, gameId: 1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1 }, TodayTypes);
+        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1 }, TodayTypes, CancellationToken.None);
 
         Assert.Equal(50, result);
     }
@@ -99,7 +99,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 1, "day_win", 9, Day1, gameId: 2);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1, [2] = Day2 }, TodayTypes);
+        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1, [2] = Day2 }, TodayTypes, CancellationToken.None);
 
         Assert.Equal(110, result);
     }
@@ -114,7 +114,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 1, "submission", 30, Day1, gameId: null);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1 }, new[] { "admin_adjustment", "submission" });
+        var result = await repo.SumAmountByUserAndGameDaysAsync(1, new Dictionary<int, DateTime> { [1] = Day1 }, new[] { "admin_adjustment", "submission" }, CancellationToken.None);
 
         Assert.Equal(0, result);
     }
@@ -130,9 +130,9 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1, gameId: 1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        Assert.True(await repo.HasDayWinAsync(1, 1, Day1));
-        Assert.False(await repo.HasDayWinAsync(1, 1, Day2));
-        Assert.False(await repo.HasDayWinAsync(1, 2, Day1));
+        Assert.True(await repo.HasDayWinAsync(1, 1, Day1, CancellationToken.None));
+        Assert.False(await repo.HasDayWinAsync(1, 1, Day2, CancellationToken.None));
+        Assert.False(await repo.HasDayWinAsync(1, 2, Day1, CancellationToken.None));
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class EfXpEventRepositoryTests
         var repo = new EfXpEventRepository(db.Ctx);
 
         var ev = new XpEvent { UserId = 1, EventType = "submission", Amount = 50, ScoringDay = Day1 };
-        var result = await repo.AddAsync(ev);
+        var result = await repo.AddAsync(ev, CancellationToken.None);
 
         Assert.True(result.Id > 0);
         Assert.Equal(50, result.Amount);
@@ -179,7 +179,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 2, "submission", 100, Day1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1), 1, 10);
+        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1), 1, 10, CancellationToken.None);
 
         Assert.Equal(1, total);
         Assert.Single(items);
@@ -195,7 +195,7 @@ public class EfXpEventRepositoryTests
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1);
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1) { EventType = "submission" }, 1, 10);
+        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1) { EventType = "submission" }, 1, 10, CancellationToken.None);
 
         Assert.Equal(1, total);
         Assert.All(items, e => Assert.Equal("submission", e.EventType));
@@ -212,7 +212,7 @@ public class EfXpEventRepositoryTests
         var repo = new EfXpEventRepository(db.Ctx);
         var april1st = new XpEventFilter(1) { From = Day1, To = Day2 };
 
-        var (items, total) = await repo.GetByUserPagedAsync(april1st, 1, 10);
+        var (items, total) = await repo.GetByUserPagedAsync(april1st, 1, 10, CancellationToken.None);
 
         Assert.Equal(2, total);
         Assert.Equal(new[] { Day1.AddHours(23), Day1 }, items.Select(e => DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc)));

@@ -15,8 +15,8 @@ public interface IScoreVisibilityService
     /// <summary>True when <paramref name="scoringDay"/> is the game's current scoring day.</summary>
     bool IsCurrentDay(Game game, DateTime scoringDay);
 
-    Task<bool> CanSeeDayAsync(ClaimsPrincipal? user, Game game, DateTime scoringDay);
+    Task<bool> CanSeeDayAsync(ClaimsPrincipal? user, Game game, DateTime scoringDay, CancellationToken ct);
 
     /// <summary>Same rule for callers that already resolved who the viewer is.</summary>
-    Task<bool> CanSeeDayAsync(ScoreViewer viewer, Game game, DateTime scoringDay);
+    Task<bool> CanSeeDayAsync(ScoreViewer viewer, Game game, DateTime scoringDay, CancellationToken ct);
 }

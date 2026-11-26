@@ -24,18 +24,18 @@ public sealed class DashboardService(
     /// Each XP event counts only on its own game's current scoring day. The stat-card totals are real
     /// counts, not the length of the capped recent-games list.
     /// </summary>
-    public async Task<DashboardDataDto> GetDashboardDataAsync(int userId)
+    public async Task<DashboardDataDto> GetDashboardDataAsync(int userId, CancellationToken ct)
     {
-        var today = await todaySnapshots.LoadAsync(userId);
-        var friendUsers = await friends.GetFriendsAsync(userId);
-        var (activeGameCount, submissionCountToday) = await submissions.CountOnGameDaysAsync(today.ScoringDayByGame);
+        var today = await todaySnapshots.LoadAsync(userId, ct);
+        var friendUsers = await friends.GetFriendsAsync(userId, ct);
+        var (activeGameCount, submissionCountToday) = await submissions.CountOnGameDaysAsync(today.ScoringDayByGame, ct);
 
         return new DashboardDataDto
         {
             RecentGames = DashboardRecentGames.Build(today),
-            FriendActivity = await friendActivity.BuildAsync(friendUsers.Select(u => u.Id).ToHashSet(), today),
+            FriendActivity = await friendActivity.BuildAsync(friendUsers.Select(u => u.Id).ToHashSet(), today, ct),
             Friends = ToFriendDtos(friendUsers, today.Now),
-            XpEarnedToday = await xpEvents.SumAmountByUserAndGameDaysAsync(userId, today.ScoringDayByGame, TodayXpEventTypes),
+            XpEarnedToday = await xpEvents.SumAmountByUserAndGameDaysAsync(userId, today.ScoringDayByGame, TodayXpEventTypes, ct),
             UserTodayRanks = DashboardTodayRanks.Compute(today),
             ActiveGameCount = activeGameCount,
             SubmissionCountToday = submissionCountToday

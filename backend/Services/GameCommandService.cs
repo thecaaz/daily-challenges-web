@@ -24,7 +24,7 @@ public sealed class GameCommandService(
 
     private sealed record ValidatedUpdate(GameUpdateRequest Request, ParsedSettings Settings, UploadedImage? Image);
 
-    public async Task<GameDto> CreateAsync(GameCreateRequest request)
+    public async Task<GameDto> CreateAsync(GameCreateRequest request, CancellationToken ct)
     {
         var settings = ParseSettings(request.ResetTime, request.Url, request.RankingMode);
 
@@ -41,7 +41,7 @@ public sealed class GameCommandService(
             game.ScreenshotContentType = image.ContentType;
         }
 
-        var created = await games.CreateAsync(game);
+        var created = await games.CreateAsync(game, ct);
         return ToDto(created);
     }
 
@@ -49,7 +49,7 @@ public sealed class GameCommandService(
     /// A unique violation while saving means two submissions of one user landed on the same scoring day;
     /// it surfaces as the same ConflictException the re-derivation throws for a detected merge.
     /// </summary>
-    public async Task<GameDto> UpdateAsync(int id, GameUpdateRequest request)
+    public async Task<GameDto> UpdateAsync(int id, GameUpdateRequest request, CancellationToken ct)
     {
         var update = new ValidatedUpdate(
             request,
@@ -58,7 +58,7 @@ public sealed class GameCommandService(
 
         try
         {
-            var updated = await transactions.RunAsync(() => ApplyUpdateAsync(id, update));
+            var updated = await transactions.RunAsync(() => ApplyUpdateAsync(id, update, ct), ct);
             return ToDto(updated);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
@@ -67,16 +67,16 @@ public sealed class GameCommandService(
         }
     }
 
-    public async Task DeleteAsync(int id) => await games.DeleteAsync(id);
+    public async Task DeleteAsync(int id, CancellationToken ct) => await games.DeleteAsync(id, ct);
 
     /// <summary>
     /// Omitted (null) fields stay unchanged; "" clears Url and Description. A ResetTime change re-derives the
     /// stored ScoringDay of the game's not-yet-finalized submissions in the same transaction.
     /// </summary>
-    private async Task<Game> ApplyUpdateAsync(int id, ValidatedUpdate update)
+    private async Task<Game> ApplyUpdateAsync(int id, ValidatedUpdate update, CancellationToken ct)
     {
         var (request, settings, image) = update;
-        var game = await games.GetByIdAsync(id) ?? throw new NotFoundException("Game not found");
+        var game = await games.GetByIdAsync(id, ct) ?? throw new NotFoundException("Game not found");
 
         if (!string.IsNullOrWhiteSpace(request.Name)) game.Name = request.Name;
         if (settings.Url != null) game.Url = settings.Url.Length == 0 ? null : settings.Url;
@@ -90,11 +90,11 @@ public sealed class GameCommandService(
 
         if (settings.ResetTime.HasValue && settings.ResetTime.Value != game.ResetTime)
         {
-            await scoringDays.RederiveAsync(game.Id, settings.ResetTime.Value);
+            await scoringDays.RederiveAsync(game.Id, settings.ResetTime.Value, ct);
             game.ResetTime = settings.ResetTime.Value;
         }
 
-        return await games.UpdateAsync(game);
+        return await games.UpdateAsync(game, ct);
     }
 
     private GameDto ToDto(Game game) => DtoMapper.ToDto(game, nowUtc: time.GetUtcNow().UtcDateTime);

@@ -129,10 +129,10 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
         var client = _factory.CreateClient();
         var games = (await ReadJsonAsync(await client.GetAsync("/api/games"))).EnumerateArray().ToList();
 
-        var a = games.Single(g => g.GetProperty("id").GetInt32() == withImage.Id);
-        var b = games.Single(g => g.GetProperty("id").GetInt32() == withoutImage.Id);
-        Assert.Equal($"/api/games/{withImage.Id}/image", a.GetProperty("imageUrl").GetString());
-        Assert.False(b.TryGetProperty("imageUrl", out _));
+        var gameWithImage = games.Single(g => g.GetProperty("id").GetInt32() == withImage.Id);
+        var gameWithoutImage = games.Single(g => g.GetProperty("id").GetInt32() == withoutImage.Id);
+        Assert.Equal($"/api/games/{withImage.Id}/image", gameWithImage.GetProperty("imageUrl").GetString());
+        Assert.False(gameWithoutImage.TryGetProperty("imageUrl", out _));
 
         var image = await client.GetAsync($"/api/games/{withImage.Id}/image");
         Assert.Equal(HttpStatusCode.OK, image.StatusCode);

@@ -21,23 +21,23 @@ public sealed class ScoringDayFinalizerService(
     /// finalization.
     /// Call it on a fresh DI scope: the user row must not be tracked before the transaction begins.
     /// </summary>
-    public async Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay)
+    public async Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay, CancellationToken ct)
     {
         var day = scoringDay.Date;
-        if (await results.ExistsAsync(gameId, day))
+        if (await results.ExistsAsync(gameId, day, ct))
         {
             logger.LogDebug("Scoring day {Day} for game {GameId} already finalized, skipping", ScoringDayCalculator.FormatScoringDay(day), gameId);
             return;
         }
 
-        var game = await games.GetByIdWithoutBlobAsync(gameId);
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct);
         if (game == null)
         {
             logger.LogWarning("Game {GameId} not found during finalization", gameId);
             return;
         }
 
-        var outcome = await transactions.RunAsync(() => recorder.RecordAsync(game, day));
+        var outcome = await transactions.RunAsync(() => recorder.RecordAsync(game, day, ct), ct);
         if (outcome == null)
         {
             logger.LogDebug("Scoring day {Day} for game {GameId} was finalized concurrently, skipping", ScoringDayCalculator.FormatScoringDay(day), gameId);

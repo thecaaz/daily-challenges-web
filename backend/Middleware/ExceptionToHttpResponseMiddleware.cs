@@ -11,6 +11,8 @@ namespace DailyChallenges.Middleware;
 /// Domain exceptions carry their own message; anything unexpected becomes a generic 500.
 /// Once the response has started the status code can no longer change, so the exception is
 /// logged and rethrown and the server aborts the response.
+/// A cancellation caused by the client aborting the request is not an error: nobody is left to
+/// read a response, so it is logged at Debug and no body is written.
 /// </summary>
 public sealed class ExceptionToHttpResponseMiddleware(RequestDelegate next, ILogger<ExceptionToHttpResponseMiddleware> logger)
 {
@@ -26,6 +28,10 @@ public sealed class ExceptionToHttpResponseMiddleware(RequestDelegate next, ILog
         try
         {
             await next(context);
+        }
+        catch (OperationCanceledException ex) when (context.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogDebug(ex, "Request aborted by the client");
         }
         catch (Exception ex)
         {

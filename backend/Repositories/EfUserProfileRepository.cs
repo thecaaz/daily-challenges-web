@@ -15,17 +15,17 @@ public sealed class EfUserProfileRepository(AppDbContext db) : IUserProfileRepos
     private const string HighestRankingMode = "highest";
     private const string LowestRankingMode = "lowest";
 
-    public Task<User?> GetByIdAsync(int userId) =>
-        db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+    public Task<User?> GetByIdAsync(int userId, CancellationToken ct) =>
+        db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct);
 
-    public Task<User?> GetByUsernameAsync(string username) =>
-        db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Username == username);
+    public Task<User?> GetByUsernameAsync(string username, CancellationToken ct) =>
+        db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Username == username, ct);
 
     /// <summary>
     /// Most played games first. The best score is the max for <see cref="RankingMode.Highest"/> games and the
     /// min otherwise, so a third ranking mode needs this projection adjusted.
     /// </summary>
-    public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames, IReadOnlyCollection<int>? excludeSubmissionIds)
+    public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames, IReadOnlyCollection<int>? excludeSubmissionIds, CancellationToken ct)
     {
         var limit = topGames < 1 ? DefaultTopGames : topGames;
         var excluded = (excludeSubmissionIds ?? Array.Empty<int>()).ToList();
@@ -33,9 +33,9 @@ public sealed class EfUserProfileRepository(AppDbContext db) : IUserProfileRepos
         var stats = await GameStatsQuery(userId, excluded)
             .OrderByDescending(x => x.Plays)
             .Take(limit)
-            .ToListAsync();
+            .ToListAsync(ct);
 
-        await PopulateBestSubmissionIdAsync(userId, stats, excluded);
+        await PopulateBestSubmissionIdAsync(userId, stats, excluded, ct);
         return stats;
     }
 
@@ -67,7 +67,7 @@ public sealed class EfUserProfileRepository(AppDbContext db) : IUserProfileRepos
     }
 
     /// <summary>The newest submission with each game's best score.</summary>
-    private async Task PopulateBestSubmissionIdAsync(int userId, List<UserGameStatDto> stats, List<int> excluded)
+    private async Task PopulateBestSubmissionIdAsync(int userId, List<UserGameStatDto> stats, List<int> excluded, CancellationToken ct)
     {
         var gameIdsWithScore = stats.Where(x => x.HighestScore.HasValue).Select(x => x.GameId).ToList();
         if (gameIdsWithScore.Count == 0) return;
@@ -81,7 +81,7 @@ public sealed class EfUserProfileRepository(AppDbContext db) : IUserProfileRepos
                 g.Key.ScoreKey,
                 SubmissionId = g.OrderByDescending(x => x.CreatedAt).Select(x => x.Id).FirstOrDefault()
             })
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var submissionIdByGameScore = scoreLookup.ToDictionary(x => (x.GameId, x.ScoreKey), x => (int?)x.SubmissionId);
         foreach (var stat in stats)

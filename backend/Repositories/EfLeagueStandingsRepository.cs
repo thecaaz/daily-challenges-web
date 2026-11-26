@@ -9,12 +9,12 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db) : ILeagueStandi
 {
     private const string UnknownUsername = "Unknown";
 
-    public async Task<List<LeagueLeaderboardRow>> GetLeaderboardAsync(LeagueGameDay gameDay, IRankingStrategy strategy)
+    public async Task<List<LeagueLeaderboardRow>> GetLeaderboardAsync(LeagueGameDay gameDay, IRankingStrategy strategy, CancellationToken ct)
     {
-        var memberIds = await GetMemberIdsAsync(gameDay.LeagueId);
+        var memberIds = await GetMemberIdsAsync(gameDay.LeagueId, ct);
         if (memberIds.Count == 0) return [];
 
-        var bestPerMember = await GetBestSubmissionPerMemberAsync(memberIds, gameDay, strategy);
+        var bestPerMember = await GetBestSubmissionPerMemberAsync(memberIds, gameDay, strategy, ct);
         var ranks = CompetitionRanking.RanksOf(bestPerMember.Select(s => s.ScoreValue).ToList());
         return bestPerMember
             .Select((s, index) => new LeagueLeaderboardRow(
@@ -24,9 +24,9 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db) : ILeagueStandi
 
     /// <inheritdoc />
     /// <remarks>Only the needed columns are projected, which keeps screenshot blobs out of the query.</remarks>
-    public async Task<List<LeagueSubmissionRow>> GetMemberSubmissionsAsync(int leagueId, DateTime firstScoringDay, DateTime lastScoringDay)
+    public async Task<List<LeagueSubmissionRow>> GetMemberSubmissionsAsync(int leagueId, DateTime firstScoringDay, DateTime lastScoringDay, CancellationToken ct)
     {
-        var memberIds = await GetMemberIdsAsync(leagueId);
+        var memberIds = await GetMemberIdsAsync(leagueId, ct);
         if (memberIds.Count == 0) return [];
 
         return await db.Submissions
@@ -43,21 +43,21 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db) : ILeagueStandi
                 s.ScoreValue,
                 s.ScoringDay,
                 s.CreatedAt))
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    private async Task<List<int>> GetMemberIdsAsync(int leagueId) =>
+    private async Task<List<int>> GetMemberIdsAsync(int leagueId, CancellationToken ct) =>
         await db.LeagueMembers
             .Where(m => m.LeagueId == leagueId)
             .Select(m => m.UserId)
-            .ToListAsync();
+            .ToListAsync(ct);
 
     /// <summary>
     /// The rows come back in strategy order (best first), and GroupBy keeps the order in which keys first
     /// appear, so the first row of each member's group is their best and the groups stay in ranking order.
     /// </summary>
     private async Task<List<MemberBestSubmission>> GetBestSubmissionPerMemberAsync(
-        List<int> memberIds, LeagueGameDay gameDay, IRankingStrategy strategy)
+        List<int> memberIds, LeagueGameDay gameDay, IRankingStrategy strategy, CancellationToken ct)
     {
         var targetDay = gameDay.ScoringDay.Date;
         var scoredSubmissions = db.Submissions
@@ -78,7 +78,7 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db) : ILeagueStandi
                 Username = s.Username != null ? s.Username : s.User != null ? s.User.Username : UnknownUsername,
                 HasScreenshot = s.ScreenshotContentType != null && s.ScreenshotContentType != ""
             })
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return submissionsBestFirst
             .GroupBy(s => s.UserId!.Value)

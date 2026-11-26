@@ -10,13 +10,13 @@ public sealed class DashboardTodaySnapshotLoader(
     TimeProvider time,
     ILogger<DashboardTodaySnapshotLoader> logger)
 {
-    public async Task<DashboardTodaySnapshot> LoadAsync(int viewerId)
+    public async Task<DashboardTodaySnapshot> LoadAsync(int viewerId, CancellationToken ct)
     {
         var now = time.GetUtcNow().UtcDateTime;
-        var favoriteGameIds = (await favorites.GetFavoriteGameIdsForUserAsync(viewerId)).ToHashSet();
-        var allGames = await games.GetAllAsync();
+        var favoriteGameIds = (await favorites.GetFavoriteGameIdsForUserAsync(viewerId, ct)).ToHashSet();
+        var allGames = await games.GetAllAsync(ct);
         var scoringDayByGame = GetCurrentScoringDays(allGames, now);
-        var fetched = await submissions.GetByScoringDaysAsync(scoringDayByGame.Values.Distinct().ToList());
+        var fetched = await submissions.GetByScoringDaysAsync(scoringDayByGame.Values.Distinct().ToList(), ct);
 
         var todaySubmissions = fetched
             .Where(s => scoringDayByGame.TryGetValue(s.GameId, out var day) && s.ScoringDay == day)

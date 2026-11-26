@@ -21,12 +21,12 @@ public sealed class ScoreMaintenanceService(
 
     private sealed record ScoreDiff(int Total, List<ScoreValueChange> Changes);
 
-    public async Task<ReparseScoresReportDto> PreviewReparseScoresAsync() =>
-        BuildReport(await DiffStoredScoresAsync(), dryRun: true);
+    public async Task<ReparseScoresReportDto> PreviewReparseScoresAsync(CancellationToken ct) =>
+        BuildReport(await DiffStoredScoresAsync(ct), dryRun: true);
 
-    public async Task<ReparseScoresReportDto> ReparseScoresAsync()
+    public async Task<ReparseScoresReportDto> ReparseScoresAsync(CancellationToken ct)
     {
-        var report = await transactions.RunAsync(RewriteChangedScoresAsync);
+        var report = await transactions.RunAsync(() => RewriteChangedScoresAsync(ct), ct);
         logger.LogWarning("Re-parsed scores: {Changed} of {Total} ScoreValues rewritten ({BecameNull} now unranked, {BecameNumeric} now ranked)",
             report.Changed, report.Total, report.BecameNull, report.BecameNumeric);
         return report;
@@ -36,17 +36,17 @@ public sealed class ScoreMaintenanceService(
     /// Diffs inside the write transaction, so no submission changes between the diff and the update.
     /// One UPDATE per changed row, all or nothing.
     /// </summary>
-    private async Task<ReparseScoresReportDto> RewriteChangedScoresAsync()
+    private async Task<ReparseScoresReportDto> RewriteChangedScoresAsync(CancellationToken ct)
     {
-        var diff = await DiffStoredScoresAsync();
+        var diff = await DiffStoredScoresAsync(ct);
         foreach (var change in diff.Changes)
-            await submissions.SetScoreValueAsync(change.Id, change.NewValue);
+            await submissions.SetScoreValueAsync(change.Id, change.NewValue, ct);
         return BuildReport(diff, dryRun: false);
     }
 
-    private async Task<ScoreDiff> DiffStoredScoresAsync()
+    private async Task<ScoreDiff> DiffStoredScoresAsync(CancellationToken ct)
     {
-        var rows = await submissions.GetScoreRowsAsync();
+        var rows = await submissions.GetScoreRowsAsync(ct);
         var changes = rows
             .Select(row => new ScoreValueChange(row.Id, row.Score, row.ScoreValue, ParseScoreValue(row.Score)))
             .Where(change => change.NewValue != change.OldValue)

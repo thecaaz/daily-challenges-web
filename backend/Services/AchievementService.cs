@@ -18,12 +18,13 @@ public sealed class AchievementService(
     /// <summary>
     /// A boundary: callers run this after committing their own work (submission, day win, friendship), and a
     /// failed achievement check must never break or undo that, so every failure is logged and swallowed here.
+    /// It runs with <see cref="CancellationToken.None"/> so a client abort cannot skip the awards of committed work.
     /// </summary>
     public async Task CheckAndAwardAsync(int userId, AchievementTrigger trigger)
     {
         try
         {
-            await AwardNewlyEarnedAsync(userId, trigger);
+            await AwardNewlyEarnedAsync(userId, trigger, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -31,9 +32,9 @@ public sealed class AchievementService(
         }
     }
 
-    public async Task<List<AchievementDto>> GetForUserAsync(int userId)
+    public async Task<List<AchievementDto>> GetForUserAsync(int userId, CancellationToken ct)
     {
-        var unlocked = await userAchievements.GetUnlockedWithTimestampsAsync(userId);
+        var unlocked = await userAchievements.GetUnlockedWithTimestampsAsync(userId, ct);
 
         return AchievementCatalog.All.Select(def => new AchievementDto
         {
@@ -50,30 +51,30 @@ public sealed class AchievementService(
             .Select(def => new AchievementCatalogEntryDto(def.Id, def.Name, def.Description, def.IconKey))
             .ToList();
 
-    private async Task AwardNewlyEarnedAsync(int userId, AchievementTrigger trigger)
+    private async Task AwardNewlyEarnedAsync(int userId, AchievementTrigger trigger, CancellationToken ct)
     {
-        var candidates = await GetLockedCandidatesAsync(userId, trigger);
+        var candidates = await GetLockedCandidatesAsync(userId, trigger, ct);
         if (candidates.Count == 0) return;
 
-        var user = await users.GetByIdAsync(userId);
+        var user = await users.GetByIdAsync(userId, ct);
         if (user == null) return;
 
-        var values = await progress.GetAsync(user, candidates.Select(def => def.Metric));
+        var values = await progress.GetAsync(user, candidates.Select(def => def.Metric), ct);
         var newlyUnlocked = candidates.Where(def => values[def.Metric] >= def.Threshold).ToList();
         if (newlyUnlocked.Count == 0) return;
 
-        await SaveUnlocksAsync(userId, newlyUnlocked);
+        await SaveUnlocksAsync(userId, newlyUnlocked, ct);
     }
 
-    private async Task<List<AchievementDefinition>> GetLockedCandidatesAsync(int userId, AchievementTrigger trigger)
+    private async Task<List<AchievementDefinition>> GetLockedCandidatesAsync(int userId, AchievementTrigger trigger, CancellationToken ct)
     {
-        var alreadyUnlockedIds = await userAchievements.GetUnlockedIdsAsync(userId);
+        var alreadyUnlockedIds = await userAchievements.GetUnlockedIdsAsync(userId, ct);
         return AchievementCatalog.All
             .Where(def => def.Trigger == trigger && !alreadyUnlockedIds.Contains(def.Id))
             .ToList();
     }
 
-    private async Task SaveUnlocksAsync(int userId, List<AchievementDefinition> newlyUnlocked)
+    private async Task SaveUnlocksAsync(int userId, List<AchievementDefinition> newlyUnlocked, CancellationToken ct)
     {
         var now = time.GetUtcNow().UtcDateTime;
 
@@ -85,7 +86,7 @@ public sealed class AchievementService(
             UserId = userId,
             AchievementId = def.Id,
             UnlockedAt = now
-        }).ToList());
+        }).ToList(), ct);
         await notifications.CreateBatchAsync(newlyUnlocked.Select(def => new Notification
         {
             UserId = userId,
@@ -95,6 +96,6 @@ public sealed class AchievementService(
             Type = NotificationTypes.Achievement,
             IsRead = false,
             CreatedAt = now
-        }).ToList());
+        }).ToList(), ct);
     }
 }

@@ -19,13 +19,13 @@ public sealed class RegistrationService(
     private const string UsernameTakenMessage = "Username already taken";
 
     /// <summary>The password is hashed before the transaction starts, so the write lock isn't held for the BCrypt work.</summary>
-    public async Task<UserDto> RegisterAsync(string username, string password)
+    public async Task<UserDto> RegisterAsync(string username, string password, CancellationToken ct)
     {
         var name = CredentialRules.ValidateUsername(username);
         CredentialRules.ValidatePassword(password);
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
 
-        var user = await CreateUserAsync(name, passwordHash);
+        var user = await CreateUserAsync(name, passwordHash, ct);
 
         return DtoMapper.ToDto(user, levels, time.GetUtcNow().UtcDateTime);
     }
@@ -35,11 +35,11 @@ public sealed class RegistrationService(
     /// transaction, serialized with other registrations, so two concurrent first registrations can't
     /// both become admin. The NOCASE unique index on Username is the last line of defence.
     /// </summary>
-    private async Task<User> CreateUserAsync(string username, string passwordHash)
+    private async Task<User> CreateUserAsync(string username, string passwordHash, CancellationToken ct)
     {
         try
         {
-            return await transactions.RunAsync(() => InsertNewUserAsync(username, passwordHash));
+            return await transactions.RunAsync(() => InsertNewUserAsync(username, passwordHash, ct), ct);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
@@ -47,12 +47,12 @@ public sealed class RegistrationService(
         }
     }
 
-    private async Task<User> InsertNewUserAsync(string username, string passwordHash)
+    private async Task<User> InsertNewUserAsync(string username, string passwordHash, CancellationToken ct)
     {
-        if (await users.ExistsWithUsernameAsync(username))
+        if (await users.ExistsWithUsernameAsync(username, ct))
             throw new ConflictException(UsernameTakenMessage);
 
-        var isFirstUser = await users.IsEmptyAsync();
-        return await users.CreateAsync(new User { Username = username, PasswordHash = passwordHash, IsAdmin = isFirstUser });
+        var isFirstUser = await users.IsEmptyAsync(ct);
+        return await users.CreateAsync(new User { Username = username, PasswordHash = passwordHash, IsAdmin = isFirstUser }, ct);
     }
 }

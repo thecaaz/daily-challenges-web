@@ -14,20 +14,20 @@ public interface IXpService
     /// stamps Submission.XpAwarded and writes a "submission" XpEvent (the streak bonus is part of its amount).
     /// </summary>
     /// <returns>Amount of XP awarded (0 if the user was not found).</returns>
-    Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay);
+    Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay, CancellationToken ct);
 
     /// <summary>
     /// Admin-level manual XP adjustment. TotalXp is clamped at 0; the "admin_adjustment" XpEvent records the
     /// applied delta as Amount and the requested delta in Details.
     /// </summary>
     /// <returns>The delta actually applied.</returns>
-    Task<int> AdjustXpAsync(XpAdjustment adjustment);
+    Task<int> AdjustXpAsync(XpAdjustment adjustment, CancellationToken ct);
 
     /// <summary>
     /// Awards win XP for winning a scoring day on a game. Idempotent: returns 0 without changes when a
     /// "day_win" event already exists for that user, game and day.
     /// </summary>
-    Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay);
+    Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay, CancellationToken ct);
 
     /// <summary>
     /// Takes back the XP of a submission that is being deleted: subtracts the amount from TotalXp
@@ -35,14 +35,14 @@ public interface IXpService
     /// Streak and LastSubmissionAt are left alone.
     /// </summary>
     /// <returns>The XP actually removed.</returns>
-    Task<int> RevokeSubmissionAsync(SubmissionXpRevocation revocation);
+    Task<int> RevokeSubmissionAsync(SubmissionXpRevocation revocation, CancellationToken ct);
 
     /// <summary>
     /// Takes back a day win: deletes the user's "day_win" XpEvent for the game and day and subtracts its amount
     /// from TotalXp (clamped at 0). Deleting (not offsetting) the event lets the finalizer award the day again.
     /// </summary>
     /// <returns>The amount of the removed event (0 when there was none).</returns>
-    Task<int> RevokeDayWinAsync(int userId, int gameId, DateTime scoringDay);
+    Task<int> RevokeDayWinAsync(int userId, int gameId, DateTime scoringDay, CancellationToken ct);
 }
 
 /// <summary>A manual XP change of <see cref="Delta"/> for a user, made by <see cref="AdminUserId"/> when known.</summary>

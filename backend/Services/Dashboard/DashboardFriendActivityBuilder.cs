@@ -18,12 +18,12 @@ public sealed class DashboardFriendActivityBuilder(ISubmissionRepository submiss
     private const int UnknownUserId = 0;
     private static readonly TimeSpan ActivityWindow = TimeSpan.FromDays(7);
 
-    public async Task<List<FriendActivityDto>> BuildAsync(IReadOnlyCollection<int> friendIds, DashboardTodaySnapshot today)
+    public async Task<List<FriendActivityDto>> BuildAsync(IReadOnlyCollection<int> friendIds, DashboardTodaySnapshot today, CancellationToken ct)
     {
         if (friendIds.Count == 0) return new List<FriendActivityDto>();
 
         var since = time.GetUtcNow().UtcDateTime - ActivityWindow;
-        var friendSubmissions = await submissions.GetRecentActivityByUsersAsync(new RecentActivityQuery(friendIds, since, MaxGames, PerGame));
+        var friendSubmissions = await submissions.GetRecentActivityByUsersAsync(new RecentActivityQuery(friendIds, since, MaxGames, PerGame), ct);
 
         return friendSubmissions
             .GroupBy(s => s.GameId)

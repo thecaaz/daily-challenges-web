@@ -18,24 +18,24 @@ public sealed class SubmissionDraftBuilder(
     public const string AlreadySubmittedMessage = "User has already submitted for this game";
     private const string ScreenshotRequiredMessage = "screenshot is required";
 
-    public async Task<Submission> BuildAsync(SubmissionDraftRequest request, ClaimsPrincipal user)
+    public async Task<Submission> BuildAsync(SubmissionDraftRequest request, ClaimsPrincipal user, CancellationToken ct)
     {
-        var game = await games.GetByIdWithoutBlobAsync(request.GameId) ?? throw new ValidationException("invalid gameId");
+        var game = await games.GetByIdWithoutBlobAsync(request.GameId, ct) ?? throw new ValidationException("invalid gameId");
         if (string.IsNullOrWhiteSpace(request.Score)) throw new ValidationException("score is required");
 
-        await EnsureFirstSubmissionOfDayAsync(user.GetUserId(), game);
+        await EnsureFirstSubmissionOfDayAsync(user.GetUserId(), game, ct);
         var submission = NewSubmission(game, request, user);
         await AttachScreenshotAsync(submission, request.Screenshot);
         return submission;
     }
 
     /// <summary>One submission per user per game per scoring day; anonymous submissions are not limited.</summary>
-    private async Task EnsureFirstSubmissionOfDayAsync(int? userId, Game game)
+    private async Task EnsureFirstSubmissionOfDayAsync(int? userId, Game game, CancellationToken ct)
     {
         if (userId is not int signedInUserId) return;
 
         var currentDay = ScoringDayCalculator.GetCurrentScoringDay(game.ResetTime, time.GetUtcNow().UtcDateTime).Date;
-        if (await submissions.ExistsForUserGameDayAsync(signedInUserId, game.Id, currentDay))
+        if (await submissions.ExistsForUserGameDayAsync(signedInUserId, game.Id, currentDay, ct))
             throw new ConflictException(AlreadySubmittedMessage);
     }
 

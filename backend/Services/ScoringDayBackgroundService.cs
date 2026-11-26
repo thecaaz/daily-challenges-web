@@ -43,9 +43,9 @@ public sealed class ScoringDayBackgroundService(
     /// One tick: for every game, finalize each ended scoring day that is not finalized yet, oldest first
     /// (at most <see cref="MaxDaysPerTick"/> per game, within <see cref="ScoringDayCatchUpWindow"/>).
     /// </summary>
-    public async Task ProcessAllGamesAsync(CancellationToken ct = default)
+    public async Task ProcessAllGamesAsync(CancellationToken ct)
     {
-        foreach (var game in await GetGamesAsync())
+        foreach (var game in await GetGamesAsync(ct))
         {
             if (ct.IsCancellationRequested) break;
 
@@ -61,7 +61,7 @@ public sealed class ScoringDayBackgroundService(
     }
 
     /// <summary>Deletes revoked refresh tokens that have expired anyway (they can't be replayed any more).</summary>
-    public async Task<int> PurgeExpiredRevokedTokensAsync(CancellationToken ct = default)
+    public async Task<int> PurgeExpiredRevokedTokensAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var sessions = scope.ServiceProvider.GetRequiredService<ISessionRepository>();
@@ -112,10 +112,10 @@ public sealed class ScoringDayBackgroundService(
         }
     }
 
-    private async Task<List<(int Id, string Name, TimeSpan ResetTime)>> GetGamesAsync()
+    private async Task<List<(int Id, string Name, TimeSpan ResetTime)>> GetGamesAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
-        var games = await scope.ServiceProvider.GetRequiredService<IGameRepository>().GetAllAsync();
+        var games = await scope.ServiceProvider.GetRequiredService<IGameRepository>().GetAllAsync(ct);
         return games.Select(g => (g.Id, g.Name, g.ResetTime)).ToList();
     }
 
@@ -126,10 +126,10 @@ public sealed class ScoringDayBackgroundService(
     private async Task FinalizeEndedDaysAsync(int gameId, TimeSpan resetTime, CancellationToken ct)
     {
         var currentDay = ScoringDayCalculator.GetCurrentScoringDay(resetTime, time.GetUtcNow().UtcDateTime).Date;
-        var window = await GetCatchUpWindowAsync(gameId, currentDay);
+        var window = await GetCatchUpWindowAsync(gameId, currentDay, ct);
         if (window == null) return;
 
-        foreach (var day in await GetDaysToFinalizeAsync(gameId, window))
+        foreach (var day in await GetDaysToFinalizeAsync(gameId, window, ct))
         {
             if (ct.IsCancellationRequested) break;
             if (!await TryFinalizeDayAsync(gameId, day, ct)) break;
@@ -137,21 +137,21 @@ public sealed class ScoringDayBackgroundService(
     }
 
     /// <summary>Null when the game has no submissions (nothing to finalize) or no ended day is in the window.</summary>
-    private async Task<ScoringDayCatchUpWindow?> GetCatchUpWindowAsync(int gameId, DateTime currentDay)
+    private async Task<ScoringDayCatchUpWindow?> GetCatchUpWindowAsync(int gameId, DateTime currentDay, CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
-        var lastFinalizedDay = await scope.ServiceProvider.GetRequiredService<IScoringDayResultRepository>().GetLastFinalizedDayAsync(gameId);
-        var firstSubmissionDay = await scope.ServiceProvider.GetRequiredService<ISubmissionRepository>().GetFirstScoringDayAsync(gameId);
+        var lastFinalizedDay = await scope.ServiceProvider.GetRequiredService<IScoringDayResultRepository>().GetLastFinalizedDayAsync(gameId, ct);
+        var firstSubmissionDay = await scope.ServiceProvider.GetRequiredService<ISubmissionRepository>().GetFirstScoringDayAsync(gameId, ct);
         if (firstSubmissionDay is not DateTime firstDay) return null;
 
         return ScoringDayCatchUpWindow.For(currentDay, lastFinalizedDay, firstDay, GapScanDays);
     }
 
-    private async Task<List<DateTime>> GetDaysToFinalizeAsync(int gameId, ScoringDayCatchUpWindow window)
+    private async Task<List<DateTime>> GetDaysToFinalizeAsync(int gameId, ScoringDayCatchUpWindow window, CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var finalizedDays = await scope.ServiceProvider.GetRequiredService<IScoringDayResultRepository>()
-            .GetFinalizedDaysAsync(gameId, window.FirstDay, window.LastDay);
+            .GetFinalizedDaysAsync(gameId, window.FirstDay, window.LastDay, ct);
         return window.UnfinalizedDays(finalizedDays.ToHashSet()).Take(MaxDaysPerTick).ToList();
     }
 
@@ -161,7 +161,7 @@ public sealed class ScoringDayBackgroundService(
         try
         {
             using var scope = scopeFactory.CreateScope();
-            await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, day);
+            await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, day, ct);
             return true;
         }
         catch (Exception ex) when (!IsShutdown(ex, ct))
