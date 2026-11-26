@@ -13,6 +13,7 @@ public class BlobFreeQueryTests
 {
     private static readonly DateTime Day1 = new(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly byte[] Png = { 0x89, 0x50, 0x4E, 0x47, 1, 2, 3 };
+    private const int MissingId = 9999;
 
     private static (Game Game, Submission Sub) Seed(AppDbContext ctx)
     {
@@ -73,16 +74,28 @@ public class BlobFreeQueryTests
     }
 
     [Fact]
-    public async Task Submission_blob_read_returns_the_blob_and_null_for_a_missing_row()
+    public async Task Submission_blob_read_returns_the_blob()
     {
         await using var db = new TestDb();
         var (_, seeded) = Seed(db.Ctx);
         var repo = new EfSubmissionRepository(db.Ctx);
 
         var (data, contentType) = await repo.GetBlobAsync(seeded.Id, CancellationToken.None);
+
         Assert.Equal(Png, data);
         Assert.Equal("image/png", contentType);
-        Assert.Equal((null, null), await repo.GetBlobAsync(9999, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Submission_blob_read_returns_null_for_a_missing_row()
+    {
+        await using var db = new TestDb();
+        Seed(db.Ctx);
+        var repo = new EfSubmissionRepository(db.Ctx);
+
+        var blob = await repo.GetBlobAsync(MissingId, CancellationToken.None);
+
+        Assert.Equal((null, null), blob);
     }
 
     [Fact]
@@ -114,25 +127,45 @@ public class BlobFreeQueryTests
     }
 
     [Fact]
-    public async Task Game_list_omits_blob_but_blob_and_write_paths_work()
+    public async Task Game_list_omits_the_blob()
     {
         await using var db = new TestDb();
         Seed(db.Ctx);
         var repo = new EfGameRepository(db.Ctx);
 
         var listed = (await repo.GetAllAsync(CancellationToken.None)).Single();
+
         Assert.Null(listed.ScreenshotData);
         Assert.Equal("image/png", listed.ScreenshotContentType);
         Assert.Equal("G", listed.Name);
+    }
 
-        Assert.Equal(Png, (await repo.GetBlobAsync(1, CancellationToken.None)).Data);
+    [Fact]
+    public async Task Game_blob_read_returns_the_blob()
+    {
+        await using var db = new TestDb();
+        var (game, _) = Seed(db.Ctx);
+        var repo = new EfGameRepository(db.Ctx);
 
-        var tracked = await repo.GetByIdAsync(1, CancellationToken.None);
+        var blob = await repo.GetBlobAsync(game.Id, CancellationToken.None);
+
+        Assert.Equal(Png, blob.Data);
+    }
+
+    [Fact]
+    public async Task Game_update_keeps_the_blob()
+    {
+        await using var db = new TestDb();
+        var (game, _) = Seed(db.Ctx);
+        var repo = new EfGameRepository(db.Ctx);
+        var tracked = await repo.GetByIdAsync(game.Id, CancellationToken.None);
+
         tracked!.Name = "Renamed";
         await repo.UpdateAsync(tracked, CancellationToken.None);
+
         db.Ctx.ChangeTracker.Clear();
         Assert.Equal("Renamed", (await repo.GetAllAsync(CancellationToken.None)).Single().Name);
-        Assert.Equal(Png, (await repo.GetBlobAsync(1, CancellationToken.None)).Data);
+        Assert.Equal(Png, (await repo.GetBlobAsync(game.Id, CancellationToken.None)).Data);
     }
 }
 
