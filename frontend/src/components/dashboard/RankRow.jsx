@@ -4,8 +4,23 @@ import { Link } from 'react-router-dom'
 import imageUrl from '../../utils/imageUrl'
 import formatNumber from '../../utils/formatNumber'
 
+const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' }
+const PODIUM_SIZE = 3
+
+function rankChipColor(position) {
+  if (position === 1) return 'warning'
+  if (position <= PODIUM_SIZE) return 'success'
+  return 'default'
+}
+
+function rankChipLabel({ rank: position, totalSubmissions }) {
+  const medal = MEDALS[position]
+  const medalPrefix = medal ? `${medal} ` : ''
+  return `${medalPrefix}#${position} / ${totalSubmissions}`
+}
+
 export default function RankRow({ rank }) {
-  const medal = rank.rank === 1 ? '🥇' : rank.rank === 2 ? '🥈' : rank.rank === 3 ? '🥉' : null
+  const chipLabel = rankChipLabel(rank)
   return (
     <ListItem
       disableGutters
@@ -35,9 +50,9 @@ export default function RankRow({ rank }) {
         <Typography variant="caption" color="text.secondary">Score: {formatNumber(rank.score)}</Typography>
       </Box>
       <Chip
-        label={`${medal ? medal + ' ' : ''}#${rank.rank} / ${rank.totalSubmissions}`}
+        label={chipLabel}
         size="small"
-        color={rank.rank === 1 ? 'warning' : rank.rank <= 3 ? 'success' : 'default'}
+        color={rankChipColor(rank.rank)}
         sx={{ fontWeight: 700, flexShrink: 0 }}
       />
     </ListItem>
