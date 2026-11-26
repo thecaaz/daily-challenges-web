@@ -183,7 +183,6 @@ internal sealed record FriendRequestAttempt(int SenderId, User Target, DateTime 
 /// <summary>Builds the notifications the friend flow sends.</summary>
 internal static class FriendNotifications
 {
-    private const string UnknownUsername = "Someone";
 
     public static Notification RequestReceived(FriendRequestAttempt attempt, string senderUsername) => new()
     {
@@ -201,7 +200,7 @@ internal static class FriendNotifications
         UserId = request.SenderId,
         GameId = null,
         ScoringDay = now.Date,
-        Message = $"{receiverUsername ?? UnknownUsername} accepted your friend request.",
+        Message = $"{receiverUsername ?? DisplayNames.Someone} accepted your friend request.",
         Type = NotificationTypes.FriendRequestAccepted,
         ActorUserId = request.ReceiverId,
         CreatedAt = now

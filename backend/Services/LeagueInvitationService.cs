@@ -235,7 +235,7 @@ public sealed class LeagueInvitationService(
         await SendNotificationAsync(new Notification
         {
             UserId = league.OwnerId,
-            Message = $"{joiner?.Username ?? "Someone"} joined your league \"{league.Name}\".",
+            Message = $"{joiner?.Username ?? DisplayNames.Someone} joined your league \"{league.Name}\".",
             Type = NotificationTypes.LeagueJoined,
             ActorUserId = joinerId
         });

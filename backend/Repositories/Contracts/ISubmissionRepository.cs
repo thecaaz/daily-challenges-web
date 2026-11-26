@@ -28,7 +28,7 @@ public interface ISubmissionRepository
     Task<Submission?> GetWinnerForGameAndDayAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy, CancellationToken ct);
     Task<List<Submission>> GetWinnersForGameAndDaysAsync(int gameId, List<DateTime> days, IRankingStrategy strategy, CancellationToken ct);
     Task<List<DateTime>> GetAvailableDatesAsync(int gameId, CancellationToken ct);
-    Task<List<string>> GetUsernamesForDayAsync(int gameId, DateTime scoringDay, CancellationToken ct);
+    Task<List<string?>> GetUsernamesForDayAsync(int gameId, DateTime scoringDay, CancellationToken ct);
     Task<int> CountByUserAsync(int userId, CancellationToken ct);
     /// <summary>Id, Score and ScoreValue of every submission, ordered by Id (for the score re-parse maintenance job).</summary>
     Task<List<(int Id, string Score, double? ScoreValue)>> GetScoreRowsAsync(CancellationToken ct);

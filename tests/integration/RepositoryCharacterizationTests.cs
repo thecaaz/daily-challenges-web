@@ -90,7 +90,7 @@ public class RepositoryCharacterizationTests
     }
 
     [Fact]
-    public async Task Submissions_usernames_for_day_cover_only_that_day_with_Anonymous_for_missing_names()
+    public async Task Submissions_usernames_for_day_cover_only_that_day_with_null_for_missing_names()
     {
         await using var db = new TestDb();
         db.Ctx.SeedGame(1);
@@ -101,7 +101,7 @@ public class RepositoryCharacterizationTests
 
         var usernames = await repo.GetUsernamesForDayAsync(1, Day1.AddHours(3), CancellationToken.None);
 
-        Assert.Equal(new[] { "Anonymous", "dora" }, usernames.OrderBy(n => n));
+        Assert.Equal(new string?[] { null, "dora" }, usernames.OrderBy(name => name));
     }
 
     [Fact]

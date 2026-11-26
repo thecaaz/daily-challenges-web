@@ -9,7 +9,6 @@ public static class DashboardRecentGames
 {
     public const int MaxGames = 10;
     public const int MaxUsernamesPerGame = 20;
-    public const string AnonymousUsername = "Anonymous";
 
     public static List<GameActivityDto> Build(DashboardTodaySnapshot today) =>
         today.Games
@@ -30,7 +29,7 @@ public static class DashboardRecentGames
             Game = dto,
             TodayCount = todaySubmissions.Count,
             TodayUsernames = todaySubmissions
-                .Select(s => !string.IsNullOrEmpty(s.Username) ? s.Username : AnonymousUsername)
+                .Select(s => !string.IsNullOrEmpty(s.Username) ? s.Username : DisplayNames.Anonymous)
                 .Distinct()
                 .Take(MaxUsernamesPerGame)
                 .ToList()

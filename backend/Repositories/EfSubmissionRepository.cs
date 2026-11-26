@@ -9,7 +9,6 @@ namespace DailyChallenges.Repositories;
 public sealed class EfSubmissionRepository(AppDbContext db) : ISubmissionRepository
 {
     private const int DefaultTopCount = 10;
-    private const string AnonymousUsername = "Anonymous";
 
     public Task<List<Submission>> GetByGameAsync(int gameId, CancellationToken ct) =>
         db.Submissions.ForGame(gameId).NewestFirst().SelectWithoutBlob().ToListAsync(ct);
@@ -97,13 +96,13 @@ public sealed class EfSubmissionRepository(AppDbContext db) : ISubmissionReposit
         return db.Submissions.AnyAsync(s => s.UserId == userId && s.GameId == gameId && s.ScoringDay == day, ct);
     }
 
-    /// <summary>Submissions without a username are listed as <see cref="AnonymousUsername"/>.</summary>
-    public Task<List<string>> GetUsernamesForDayAsync(int gameId, DateTime scoringDay, CancellationToken ct) =>
+    /// <summary>Usernames as stored; submissions without one yield <c>null</c>.</summary>
+    public Task<List<string?>> GetUsernamesForDayAsync(int gameId, DateTime scoringDay, CancellationToken ct) =>
         db.Submissions
             .ForGame(gameId)
             .OnScoringDay(scoringDay)
             .AsNoTracking()
-            .Select(s => s.Username ?? AnonymousUsername)
+            .Select(s => s.Username)
             .ToListAsync(ct);
 
     public async Task<Submission> CreateAsync(Submission submission, CancellationToken ct)

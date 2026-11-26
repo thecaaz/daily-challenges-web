@@ -115,7 +115,7 @@ public sealed class SubmissionQueryService(
         if (game == null) return SubmissionDtoMapper.ToTodaySubmittersDto([]);
 
         var usernames = await submissions.GetUsernamesForDayAsync(gameId, visibility.GetCurrentScoringDay(game), ct);
-        return SubmissionDtoMapper.ToTodaySubmittersDto(usernames);
+        return SubmissionDtoMapper.ToTodaySubmittersDto(usernames.Select(name => name ?? DisplayNames.Anonymous).ToList());
     }
 
     /// <summary>A missing game has no submissions (they are deleted with it).</summary>

@@ -1,3 +1,4 @@
+using DailyChallenges.Models;
 using DailyChallenges.Data;
 using DailyChallenges.Repositories.Contracts;
 using DailyChallenges.Services.Ranking;
@@ -7,7 +8,6 @@ namespace DailyChallenges.Repositories;
 
 public sealed class EfLeagueStandingsRepository(AppDbContext db) : ILeagueStandingsRepository
 {
-    private const string UnknownUsername = "Unknown";
 
     public async Task<List<LeagueLeaderboardRow>> GetLeaderboardAsync(LeagueGameDay gameDay, IRankingStrategy strategy, CancellationToken ct)
     {
@@ -75,7 +75,7 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db) : ILeagueStandi
                 s.UserId,
                 s.Score,
                 s.ScoreValue,
-                Username = s.Username != null ? s.Username : s.User != null ? s.User.Username : UnknownUsername,
+                Username = s.Username != null ? s.Username : s.User != null ? s.User.Username : DisplayNames.Unknown,
                 HasScreenshot = s.ScreenshotContentType != null && s.ScreenshotContentType != ""
             })
             .ToListAsync(ct);
@@ -84,7 +84,7 @@ public sealed class EfLeagueStandingsRepository(AppDbContext db) : ILeagueStandi
             .GroupBy(s => s.UserId!.Value)
             .Select(memberSubmissions => memberSubmissions.First())
             .Select(s => new MemberBestSubmission(
-                s.UserId!.Value, s.Username ?? UnknownUsername, s.Score, s.ScoreValue!.Value, s.Id, s.HasScreenshot))
+                s.UserId!.Value, s.Username ?? DisplayNames.Unknown, s.Score, s.ScoreValue!.Value, s.Id, s.HasScreenshot))
             .ToList();
     }
 
