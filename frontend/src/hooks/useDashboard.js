@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '../api'
 import useLatestRequest from './useLatestRequest'
+import { onFavoriteChange } from '../utils/favoriteEvents'
 
 const isSameGame = (a, b) => String(a) === String(b)
 
@@ -70,15 +71,10 @@ export default function useDashboard(userId) {
     return ignorePendingResponse
   }, [load, ignorePendingResponse, userId])
 
-  useEffect(() => {
-    const handleFavoriteChanged = event => {
-      const change = event?.detail || {}
-      if (typeof change.gameId === 'undefined') return
-      setDashboard(prev => applyFavoriteChange(prev, change))
-    }
-    window.addEventListener('favorite-changed', handleFavoriteChanged)
-    return () => window.removeEventListener('favorite-changed', handleFavoriteChanged)
-  }, [])
+  useEffect(() => onFavoriteChange(change => {
+    if (typeof change.gameId === 'undefined') return
+    setDashboard(prev => applyFavoriteChange(prev, change))
+  }), [])
 
   const summary = dashboard ? summarizeDashboard(dashboard) : null
 

@@ -4,6 +4,7 @@ import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { withRedirect } from '../utils/safeRedirect'
+import { announceFavoriteChange } from '../utils/favoriteEvents'
 
 /**
  * Optimistic favourite toggle for a game; anonymous users are sent to log in.
@@ -27,7 +28,7 @@ export default function useFavorite(gameId, initial = false) {
 
     const next = !isFavorite
     setIsFavorite(next)
-    window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: next, optimistic: true } }))
+    announceFavoriteChange({ gameId, isFavorite: next, optimistic: true })
     setLoading(true)
     try {
       if (next) {
@@ -35,10 +36,10 @@ export default function useFavorite(gameId, initial = false) {
       } else {
         await api.delete(`/favorites/${gameId}`)
       }
-      window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: next, confirmed: true } }))
+      announceFavoriteChange({ gameId, isFavorite: next, confirmed: true })
     } catch (err) {
       setIsFavorite(!next)
-      window.dispatchEvent(new CustomEvent('favorite-changed', { detail: { gameId, isFavorite: !next } }))
+      announceFavoriteChange({ gameId, isFavorite: !next })
       console.error('Failed to toggle favorite', err)
       showSnackbar('Failed to update favorite', 'error')
     } finally {

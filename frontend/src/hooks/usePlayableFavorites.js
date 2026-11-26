@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import api from '../api'
 import { hasAdapterForUrl } from '../utils/adapters'
+import { onFavoriteChange } from '../utils/favoriteEvents'
 
 const EMPTY = Object.freeze({ total: 0, submittedCount: 0, pendingGames: [], playable: [] })
 
@@ -83,12 +84,10 @@ export default function usePlayableFavorites(userId, { enabled = true, subscribe
 
   useEffect(() => {
     if (!enabled || !subscribe || userId == null) return undefined
-    const onChanged = (ev) => {
-      if (ev?.detail?.optimistic) return
+    return onFavoriteChange(change => {
+      if (change.optimistic) return
       load()
-    }
-    window.addEventListener('favorite-changed', onChanged)
-    return () => window.removeEventListener('favorite-changed', onChanged)
+    })
   }, [enabled, subscribe, userId, load])
 
   return {
