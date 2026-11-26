@@ -39,6 +39,13 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
 
     // ── Reset time: UTC "HH:mm" only ─────────────────────────────────────────
 
+    /// <summary>What the edit form sends back: the fields it got from GET.</summary>
+    private static MultipartFormDataContent EditFormEchoing(JsonElement game) => Form(
+        ("name", game.GetProperty("name").GetString()!),
+        ("resetTime", game.GetProperty("resetTime").GetString()!),
+        ("url", game.GetProperty("url").GetString()!),
+        ("rankingMode", game.GetProperty("rankingMode").GetString()!));
+
     [Fact]
     public async Task Get_then_put_round_trip_keeps_the_reset_time()
     {
@@ -46,13 +53,7 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
         var game = await GetGameAsync(id);
         Assert.Equal("22:30", game.GetProperty("resetTime").GetString());
 
-        // The edit form sends back what it got.
-        var res = await Admin().PutAsync($"/api/games/{id}", Form(
-            ("name", game.GetProperty("name").GetString()!),
-            ("resetTime", game.GetProperty("resetTime").GetString()!),
-            ("url", game.GetProperty("url").GetString()!),
-            ("rankingMode", game.GetProperty("rankingMode").GetString()!)));
-        await ReadSuccessJsonAsync(res);
+        await ReadSuccessJsonAsync(await Admin().PutAsync($"/api/games/{id}", EditFormEchoing(game)));
 
         var again = await GetGameAsync(id);
         Assert.Equal("22:30", again.GetProperty("resetTime").GetString());
@@ -116,22 +117,27 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
     }
 
     [Fact]
-    public async Task Empty_url_and_description_clear_them_and_omitted_fields_stay()
+    public async Task Omitted_url_and_description_stay_unchanged()
+    {
+        var id = await CreateGameAsync(("name", "Keep"), ("url", "https://example.com"), ("description", "Some text"));
+
+        var game = await ReadSuccessJsonAsync(await Admin().PutAsync($"/api/games/{id}", Form(("name", "Keep renamed"))));
+
+        Assert.Equal("https://example.com", game.GetProperty("url").GetString());
+        Assert.Equal("Some text", game.GetProperty("description").GetString());
+    }
+
+    /// <summary>Null values are omitted from the JSON, so a cleared field is absent.</summary>
+    [Fact]
+    public async Task Empty_url_and_description_clear_them_and_leave_the_name()
     {
         var id = await CreateGameAsync(("name", "Clear"), ("url", "https://example.com"), ("description", "Some text"));
 
-        // Omitted: unchanged.
-        var res = await Admin().PutAsync($"/api/games/{id}", Form(("name", "Clear renamed")));
-        var game = await ReadSuccessJsonAsync(res);
-        Assert.Equal("https://example.com", game.GetProperty("url").GetString());
-        Assert.Equal("Some text", game.GetProperty("description").GetString());
+        var game = await ReadSuccessJsonAsync(await Admin().PutAsync($"/api/games/{id}", Form(("url", ""), ("description", ""))));
 
-        // "": cleared (null values are omitted from the JSON).
-        res = await Admin().PutAsync($"/api/games/{id}", Form(("url", ""), ("description", "")));
-        game = await ReadSuccessJsonAsync(res);
         Assert.False(game.TryGetProperty("url", out _));
         Assert.False(game.TryGetProperty("description", out _));
-        Assert.Equal("Clear renamed", game.GetProperty("name").GetString());
+        Assert.Equal("Clear", game.GetProperty("name").GetString());
     }
 
     // ── Reset change re-derives stored scoring days ──────────────────────────
@@ -189,19 +195,29 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
         return day?.Date;
     }
 
+    /// <summary>End-of-day reset: Today-1 20:00 now belongs to Today; Today 09:30 stays on Today.</summary>
+    private const string EndOfDayResetMovingYesterdayEvening = "18:00";
+
     [Fact]
     public async Task Reset_change_re_derives_scoring_days_of_unfinalized_submissions_and_their_xp_events()
     {
         var seed = await SeedResetGameAsync("Rederive", userAPlaysToday: false);
 
-        // 18:00 is an end-of-day reset: Today-1 20:00 now belongs to Today; Today 09:30 stays on Today.
-        var res = await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", "18:00")));
-        Assert.Equal("18:00", (await ReadSuccessJsonAsync(res)).GetProperty("resetTime").GetString());
+        var res = await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", EndOfDayResetMovingYesterdayEvening)));
 
+        Assert.Equal(EndOfDayResetMovingYesterdayEvening, (await ReadSuccessJsonAsync(res)).GetProperty("resetTime").GetString());
         Assert.Equal(Today, await ScoringDayOf(seed.MovedSubId));
         Assert.Equal(Today, await XpEventDayOf(seed.MovedSubId));
         Assert.Equal(Today, await ScoringDayOf(seed.StaysSubId));
-        // Finalized days are never touched.
+    }
+
+    [Fact]
+    public async Task Reset_change_never_touches_finalized_days()
+    {
+        var seed = await SeedResetGameAsync("KeepFinalized", userAPlaysToday: false);
+
+        await ReadSuccessJsonAsync(await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", EndOfDayResetMovingYesterdayEvening))));
+
         Assert.Equal(Today.AddDays(-2), await ScoringDayOf(seed.FinalizedSubId));
         Assert.Equal(Today.AddDays(-2), await XpEventDayOf(seed.FinalizedSubId));
     }
@@ -211,7 +227,7 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
     {
         var seed = await SeedResetGameAsync("Merge", userAPlaysToday: true);
 
-        var res = await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", "18:00"), ("name", "Merge renamed")));
+        var res = await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", EndOfDayResetMovingYesterdayEvening), ("name", "Merge renamed")));
 
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
         var game = await GetGameAsync(seed.GameId);
@@ -220,23 +236,38 @@ public class GameAdminApiTests : IClassFixture<FixedClockApiFactory>
         Assert.Equal(Today.AddDays(-1), await ScoringDayOf(seed.MovedSubId));
     }
 
-    [Fact]
-    public async Task Reset_change_into_a_finalized_day_returns_409()
+    /// <summary><see cref="SeedResetGameAsync"/> with Today-1 finalized as well.</summary>
+    private async Task<ResetSeed> SeedResetGameWithYesterdayFinalizedAsync(string name)
     {
-        var seed = await SeedResetGameAsync("IntoFinalized", userAPlaysToday: false);
-        // Finalize Today-1 as well; 09:45 (start-of-day reset) would put Today 09:30 on Today-1.
+        var seed = await SeedResetGameAsync(name, userAPlaysToday: false);
         await _factory.WithDbAsync(async db =>
         {
             db.ScoringDayResults.Add(new ScoringDayResult { GameId = seed.GameId, ScoringDay = Today.AddDays(-1), ProcessedAt = Today });
             await db.SaveChangesAsync();
         });
+        return seed;
+    }
+
+    /// <summary>09:45 is a start-of-day reset that would put Today 09:30 on the finalized Today-1.</summary>
+    [Fact]
+    public async Task Reset_change_moving_a_submission_into_a_finalized_day_returns_409()
+    {
+        var seed = await SeedResetGameWithYesterdayFinalizedAsync("IntoFinalized");
 
         var res = await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", "09:45")));
+
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
         Assert.Equal(Today, await ScoringDayOf(seed.StaysSubId));
+    }
 
-        // 11:00 would also make the current day (Today-1) a finalized one.
-        res = await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", "11:00")));
+    /// <summary>With an 11:00 reset the current day (it is 10:00) would be Today-1, which is already finalized.</summary>
+    [Fact]
+    public async Task Reset_change_making_the_current_day_a_finalized_one_returns_409()
+    {
+        var seed = await SeedResetGameWithYesterdayFinalizedAsync("CurrentFinalized");
+
+        var res = await Admin().PutAsync($"/api/games/{seed.GameId}", Form(("resetTime", "11:00")));
+
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
         Assert.Equal("00:00", (await GetGameAsync(seed.GameId)).GetProperty("resetTime").GetString());
     }
