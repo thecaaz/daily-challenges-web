@@ -71,20 +71,6 @@ public class RepositoryCharacterizationTests
     }
 
     [Fact]
-    public async Task Submissions_paged_treats_page_below_one_as_first_page()
-    {
-        await using var db = new TestDb();
-        db.Ctx.SeedGame(1);
-        SeedSub(db.Ctx, 1, 1, Day1, "a", 1);
-        var newest = SeedSub(db.Ctx, 1, 2, Day1, "b", 2);
-        var repo = new EfSubmissionRepository(db.Ctx);
-
-        var page = await repo.GetByGamePagedAsync(1, 0, 1);
-
-        Assert.Equal(newest.Id, Assert.Single(page).Id);
-    }
-
-    [Fact]
     public async Task Submissions_top_scores_default_to_ten_and_can_exclude_a_day()
     {
         await using var db = new TestDb();
@@ -104,24 +90,17 @@ public class RepositoryCharacterizationTests
     }
 
     [Fact]
-    public async Task Submissions_latest_for_user_and_usernames_for_day()
+    public async Task Submissions_usernames_for_day_cover_only_that_day_with_Anonymous_for_missing_names()
     {
         await using var db = new TestDb();
         db.Ctx.SeedGame(1);
-        db.Ctx.Users.Add(new User { Id = 4, Username = "dora" });
-        db.Ctx.SaveChanges();
-        var older = SeedSub(db.Ctx, 1, 1, Day1, "dora", 1);
-        older.UserId = 4;
-        var newer = SeedSub(db.Ctx, 1, 2, Day2, "dora", 2);
-        newer.UserId = 4;
+        SeedSub(db.Ctx, 1, 1, Day1, "dora", 1);
+        SeedSub(db.Ctx, 1, 2, Day2, "erin", 2);
         SeedSub(db.Ctx, 1, 3, Day1, null, 3);
-        db.Ctx.SaveChanges();
         var repo = new EfSubmissionRepository(db.Ctx);
 
-        var latest = await repo.GetByGameAndUserAsync(1, 4);
         var usernames = await repo.GetUsernamesForDayAsync(1, Day1.AddHours(3));
 
-        Assert.Equal(newer.Id, latest!.Id);
         Assert.Equal(new[] { "Anonymous", "dora" }, usernames.OrderBy(n => n));
     }
 

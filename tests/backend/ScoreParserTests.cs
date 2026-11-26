@@ -36,13 +36,11 @@ public class ScoreParserTests
         if (expected == null)
         {
             Assert.False(ok, $"'{input}' should be invalid but parsed as {value}");
-            Assert.True(double.IsNaN(ScoreParser.ParseScore(input)));
         }
         else
         {
             Assert.True(ok, $"'{input}' should parse as {expected}");
             Assert.Equal(expected.Value, value, precision: 9);
-            Assert.Equal(expected.Value, ScoreParser.ParseScore(input), precision: 9);
         }
     }
 
@@ -52,7 +50,6 @@ public class ScoreParserTests
     public void Null_is_invalid()
     {
         Assert.False(ScoreParser.TryParseDouble(null, out _));
-        Assert.True(double.IsNaN(ScoreParser.ParseScore(null)));
     }
 
     [Theory]

@@ -15,7 +15,7 @@ namespace DailyChallenges.Services;
 ///   With grouping, the first group has 1-3 digits and every following group exactly 3.
 /// - The last '.'/',' is the decimal point when followed by 1-2 digits, or when the integer part
 ///   before it is '0' or empty. Otherwise it is a grouping separator, so "1.234" is 1234.
-/// Invalid input yields false / NaN; callers store a null ScoreValue (unranked).
+/// Invalid input yields false; callers store a null ScoreValue (unranked).
 /// </summary>
 public static class ScoreParser
 {
@@ -31,12 +31,6 @@ public static class ScoreParser
     private static readonly Regex Digits = new("^[0-9]+$", RegexOptions.Compiled);
     private static readonly Regex Time = new(
         "^([0-9]+):([0-5][0-9])(?::([0-5][0-9]))?(?:[.,]([0-9]{1,3}))?$", RegexOptions.Compiled);
-
-    /// <summary>The parsed value, or NaN when <paramref name="s"/> is not a valid score.</summary>
-    public static double ParseScore(string? s)
-    {
-        return TryParseDouble(s, out var v) ? v : double.NaN;
-    }
 
     public static bool TryParseDouble(string? s, out double value)
     {

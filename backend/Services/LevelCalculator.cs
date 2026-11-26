@@ -53,16 +53,6 @@ public sealed class LevelCalculator
         return Math.Max(1L, (long)xp);
     }
 
-    /// <summary>Total cumulative XP needed to enter <paramref name="level"/> (level 1 = 0).</summary>
-    public long TotalXpForLevel(int level)
-    {
-        if (level < 1) return 0;
-        long total = 0;
-        for (int l = 1; l < level; l++)
-            total += XpRequiredForLevel(l);
-        return total;
-    }
-
     /// <summary>
     /// Decomposes <paramref name="totalXp"/> into the current level, XP already accumulated
     /// into that level, and XP still needed to advance to the next level.

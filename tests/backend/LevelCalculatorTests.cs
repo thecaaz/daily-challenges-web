@@ -23,18 +23,6 @@ public class LevelCalculatorTests
     }
 
     [Fact]
-    public void TotalXpForLevel1_IsZero()
-    {
-        Assert.Equal(0, Default().TotalXpForLevel(1));
-    }
-
-    [Fact]
-    public void TotalXpForLevel2_Is100()
-    {
-        Assert.Equal(100, Default().TotalXpForLevel(2));
-    }
-
-    [Fact]
     public void GetLevelProgress_AtExactLevelBoundary_AdvancesToNextLevel()
     {
         var calc = Default();
@@ -155,7 +143,6 @@ public class LevelCalculatorTests
     {
         var calc = Default();
 
-        Assert.Equal(totalXp, calc.TotalXpForLevel(level));
         Assert.Equal((level, 0L, calc.XpRequiredForLevel(level)), calc.GetLevelProgress(totalXp));
         Assert.Equal((level - 1, calc.XpRequiredForLevel(level - 1) - 1, 1L), calc.GetLevelProgress(totalXp - 1));
     }

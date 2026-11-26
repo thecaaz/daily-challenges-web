@@ -49,15 +49,4 @@ public class FavoriteServiceTests
 
         favorites.Verify(r => r.RemoveAsync(1, 9), Times.Once);
     }
-
-    [Fact]
-    public async Task Queries_DelegateToTheRepository()
-    {
-        var (service, favorites, _) = Build();
-        favorites.Setup(r => r.GetFavoriteGameIdsForUserAsync(1)).ReturnsAsync(new List<int> { 9 });
-        favorites.Setup(r => r.ExistsAsync(1, 9)).ReturnsAsync(true);
-
-        Assert.Equal(new List<int> { 9 }, await service.GetFavoriteGameIdsForUserAsync(1));
-        Assert.True(await service.ExistsAsync(1, 9));
-    }
 }

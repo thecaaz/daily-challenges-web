@@ -6,11 +6,9 @@ namespace DailyChallenges.Repositories;
 public interface ISubmissionRepository
 {
     Task<List<Submission>> GetByGameAsync(int gameId);
-    Task<List<Submission>> GetByGamePagedAsync(int gameId, int page, int pageSize);
     /// <summary>Best scored submissions, ordered and limited in SQL (see <see cref="TopScoresQuery"/>).</summary>
     Task<List<Submission>> GetTopByScoreValueAsync(TopScoresQuery query, IRankingStrategy strategy);
     Task<List<Submission>> GetByGameAndDayByScoreValueAsync(int gameId, DateTime scoringDay, IRankingStrategy strategy);
-    Task<Submission?> GetByGameAndUserAsync(int gameId, int userId);
     /// <summary>True when the user has a submission for the game on the stored scoring day.</summary>
     Task<bool> ExistsForUserGameDayAsync(int userId, int gameId, DateTime scoringDay);
     Task<List<Submission>> GetByUserAndGamesAndDaysAsync(int userId, List<int> gameIds, List<DateTime> scoringDays);

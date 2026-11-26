@@ -46,15 +46,6 @@ public sealed class EfUserRepository(AppDbContext db) : IUserRepository
         return user;
     }
 
-    public async Task DeleteAsync(int userId)
-    {
-        var user = await db.Users.FindAsync(userId);
-        if (user == null) return;
-
-        db.Users.Remove(user);
-        await db.SaveChangesAsync();
-    }
-
     /// <summary>Lower-cases both sides: instr() (what Contains translates to) ignores the column's NOCASE collation.</summary>
     private static IQueryable<User> MatchingSearch(IQueryable<User> users, string? search)
     {

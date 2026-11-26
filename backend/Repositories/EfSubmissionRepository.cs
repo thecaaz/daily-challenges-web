@@ -14,9 +14,6 @@ public sealed class EfSubmissionRepository(AppDbContext db) : ISubmissionReposit
     public Task<List<Submission>> GetByGameAsync(int gameId) =>
         db.Submissions.ForGame(gameId).NewestFirst().SelectWithoutBlob().ToListAsync();
 
-    public Task<List<Submission>> GetByGamePagedAsync(int gameId, int page, int pageSize) =>
-        db.Submissions.ForGame(gameId).NewestFirst().TakePage(page, pageSize).SelectWithoutBlob().ToListAsync();
-
     public Task<List<Submission>> GetTopByScoreValueAsync(TopScoresQuery query, IRankingStrategy strategy)
     {
         var scored = db.Submissions.ForGame(query.GameId).Scored().ExcludingScoringDay(query.ExcludeScoringDay);
@@ -93,14 +90,6 @@ public sealed class EfSubmissionRepository(AppDbContext db) : ISubmissionReposit
             .SelectWithoutBlob()
             .ToListAsync();
     }
-
-    /// <summary>The user's most recent submission to the game.</summary>
-    public Task<Submission?> GetByGameAndUserAsync(int gameId, int userId) =>
-        db.Submissions
-            .Where(s => s.GameId == gameId && s.UserId == userId)
-            .NewestFirst()
-            .SelectWithoutBlob()
-            .FirstOrDefaultAsync();
 
     public Task<bool> ExistsForUserGameDayAsync(int userId, int gameId, DateTime scoringDay)
     {

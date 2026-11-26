@@ -13,8 +13,4 @@ public sealed class FavoriteService(IFavoriteRepository favorites, IGameReposito
     }
 
     public Task RemoveFavoriteAsync(int userId, int gameId) => favorites.RemoveAsync(userId, gameId);
-
-    public Task<List<int>> GetFavoriteGameIdsForUserAsync(int userId) => favorites.GetFavoriteGameIdsForUserAsync(userId);
-
-    public Task<bool> ExistsAsync(int userId, int gameId) => favorites.ExistsAsync(userId, gameId);
 }

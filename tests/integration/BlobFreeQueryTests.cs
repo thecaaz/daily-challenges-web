@@ -42,11 +42,9 @@ public class BlobFreeQueryTests
         var results = new List<Submission?>
         {
             (await repo.GetByGameAsync(1)).Single(),
-            (await repo.GetByGamePagedAsync(1, 1, 10)).Single(),
             (await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 10), strategy)).Single(),
             (await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 10) { UserId = 1 }, strategy)).Single(),
             (await repo.GetByGameAndDayByScoreValueAsync(1, Day1, strategy)).Single(),
-            await repo.GetByGameAndUserAsync(1, 1),
             (await repo.GetByUserAndGamesAndDaysAsync(1, new List<int> { 1 }, new List<DateTime> { Day1 })).Single(),
             (await repo.GetByScoringDaysAsync(new List<DateTime> { Day1 })).Single(),
             (await repo.GetRecentActivityByUsersAsync(new RecentActivityQuery(new[] { 1 }, Day1, 10, 5))).Single(),
