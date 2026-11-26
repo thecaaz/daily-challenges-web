@@ -53,4 +53,26 @@ describe('getApiErrorMessage', () => {
     expect(getApiErrorMessage(undefined, 'fb')).toBe('fb')
     expect(getApiErrorMessage(null)).toBe('Something went wrong')
   })
+
+  it('skips unusable ProblemDetails entries across fields', () => {
+    const data = { title: 'Invalid', errors: { Name: ['', '<b>x</b>'], Email: 'Email is taken.' } }
+
+    expect(getApiErrorMessage(resp(400, data), 'fb')).toBe('Email is taken.')
+  })
+
+  it('uses the first usable entry of an errors array', () => {
+    expect(getApiErrorMessage(resp(400, { errors: [null, '  ', 'Too short'] }), 'fb')).toBe('Too short')
+  })
+
+  it('reads { message } items of an errors array', () => {
+    expect(getApiErrorMessage(resp(400, { errors: [{ code: 1 }, { message: 'Bad name' }] }), 'fb')).toBe('Bad name')
+  })
+
+  it('falls through to detail when no errors entry is usable', () => {
+    expect(getApiErrorMessage(resp(400, { errors: { Name: [] }, detail: 'See docs' }), 'fb')).toBe('See docs')
+  })
+
+  it('ignores an errors field that is a string', () => {
+    expect(getApiErrorMessage(resp(400, { errors: 'nope', title: 'Bad' }), 'fb')).toBe('Bad')
+  })
 })
