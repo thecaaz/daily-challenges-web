@@ -20,8 +20,7 @@ public sealed class Notification
     public string Message { get; set; } = string.Empty;
 
     /// <summary>
-    /// Discriminator: "day_win", "day_placement", "friend_request", "friend_request_accepted",
-    /// "league_invite", "league_joined", "achievement". Rank is only set for day_win / day_placement.
+    /// Discriminator, one of <see cref="NotificationTypes"/>. Rank is only set for day_win / day_placement.
     /// </summary>
     [Required]
     public string Type { get; set; } = string.Empty;

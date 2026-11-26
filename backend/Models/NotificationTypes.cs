@@ -10,5 +10,7 @@ public static class NotificationTypes
     public const string DayPlacement = "day_placement";
     public const string FriendRequest = "friend_request";
     public const string FriendRequestAccepted = "friend_request_accepted";
+    public const string LeagueInvite = "league_invite";
+    public const string LeagueJoined = "league_joined";
     public const string Achievement = "achievement";
 }

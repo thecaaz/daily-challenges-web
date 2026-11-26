@@ -29,8 +29,6 @@ public sealed class LeagueInvitationService(
     private const string InvitationNotFound = "Invitation not found.";
     private const string InvitationNotPending = "This invitation is no longer pending.";
     private const string InviteLinkUnavailable = "Invite link not found or already used.";
-    private const string InviteNotificationType = "league_invite";
-    private const string JoinedNotificationType = "league_joined";
 
     public async Task<LeagueInvitationDto> InviteByUsernameAsync(int leagueId, int inviterId, string username)
     {
@@ -227,7 +225,7 @@ public sealed class LeagueInvitationService(
         {
             UserId = invitee.Id,
             Message = $"{inviter.Username} invited you to join the league \"{league.Name}\".",
-            Type = InviteNotificationType,
+            Type = NotificationTypes.LeagueInvite,
             ActorUserId = inviter.Id
         });
 
@@ -238,7 +236,7 @@ public sealed class LeagueInvitationService(
         {
             UserId = league.OwnerId,
             Message = $"{joiner?.Username ?? "Someone"} joined your league \"{league.Name}\".",
-            Type = JoinedNotificationType,
+            Type = NotificationTypes.LeagueJoined,
             ActorUserId = joinerId
         });
     }
