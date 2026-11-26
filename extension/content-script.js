@@ -138,8 +138,8 @@
     if (!adapter) return null
     try {
       return finiteOrNull(await adapter.readScore(document))
-    } catch (e) {
-      console.error('ScoreBridge: readScore failed', e)
+    } catch (error) {
+      console.error('ScoreBridge: readScore failed', error)
       return null
     }
   }
@@ -167,8 +167,8 @@
   async function requestTabCapture(rect) {
     try {
       return await browser.runtime.sendMessage({ type: MessageType.CAPTURE_TAB, rect })
-    } catch (e) {
-      return { ok: false, error: String((e && e.message) || e) }
+    } catch (error) {
+      return { ok: false, error: String((error && error.message) || error) }
     }
   }
 
@@ -204,8 +204,8 @@
     }
   }
 
-  function finiteOrNull(n) {
-    return typeof n === 'number' && Number.isFinite(n) ? n : null
+  function finiteOrNull(value) {
+    return typeof value === 'number' && Number.isFinite(value) ? value : null
   }
 
   /** Posts to this window only; never to an iframe, never to '*'. */

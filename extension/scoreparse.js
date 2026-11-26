@@ -34,14 +34,14 @@
    * Parse a whole score string. Returns a number, or null when the trimmed
    * string is not exactly one score.
    *
-   * opts.integerOnly: never treat a '.'/',' as a decimal point (for games
+   * options.integerOnly: never treat a '.'/',' as a decimal point (for games
    * whose scores are always whole numbers, e.g. TimeGuessr "40.456").
    */
-  function parseScore(input, opts) {
+  function parseScore(input, options) {
     if (input == null) return null
     var text = String(input).trim()
     if (text === '') return null
-    var integerOnly = !!(opts && opts.integerOnly)
+    var integerOnly = !!(options && options.integerOnly)
 
     if (text.indexOf(TIME_SEPARATOR) !== -1) return integerOnly ? null : parseTime(text)
 
@@ -115,9 +115,9 @@
   }
 
   /** Read the first score in free page text and parse it with the spec. */
-  function readNumber(text, opts) {
+  function readNumber(text, options) {
     var token = findScoreToken(text)
-    return token === null ? null : parseScore(token, opts)
+    return token === null ? null : parseScore(token, options)
   }
 
   return { parseScore: parseScore, findScoreToken: findScoreToken, readNumber: readNumber }

@@ -24,13 +24,13 @@ const CaptureError = Object.freeze({
   NO_DATA: 'no data',
 })
 
-browser.runtime.onMessage.addListener((msg, sender) => {
-  if (!msg || msg.type !== CAPTURE_TAB) return undefined
+browser.runtime.onMessage.addListener((message, sender) => {
+  if (!message || message.type !== CAPTURE_TAB) return undefined
 
   const refusal = refusalFor(sender)
   if (refusal) return Promise.resolve({ ok: false, error: refusal })
 
-  return capture(sender.tab, sanitizeRect(msg.rect)).then(captureResult, captureFailure)
+  return capture(sender.tab, sanitizeRect(message.rect)).then(captureResult, captureFailure)
 })
 
 /** Why `sender` may not capture, or null when it may. */
