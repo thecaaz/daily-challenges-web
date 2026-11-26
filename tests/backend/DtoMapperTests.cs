@@ -53,8 +53,7 @@ public class DtoMapperTests
         var sub = new Submission
         {
             Id = 42, GameId = 1, UserId = 3, Score = "3/6",
-            ScoreValue = 3.0, Username = "bob", CreatedAt = BaseTime,
-            ScreenshotData = null
+            ScoreValue = 3.0, Username = "bob", CreatedAt = BaseTime
         };
         var dto = DtoMapper.ToDto(sub);
 
@@ -68,10 +67,10 @@ public class DtoMapperTests
         Assert.Null(dto.ScreenshotUrl);
     }
 
+    /// <summary>Blob-free projections leave ScreenshotData empty; the content type signals a screenshot.</summary>
     [Fact]
     public void ToDto_Submission_WithScreenshotContentType_SetsScreenshotUrl()
     {
-        // Blob-free projections leave ScreenshotData empty; the content type signals a screenshot.
         var sub = new Submission { Id = 99, GameId = 1, UserId = 1, Score = "1", ScreenshotContentType = "image/jpeg" };
         var dto = DtoMapper.ToDto(sub);
         Assert.Equal("/api/submissions/99/screenshot", dto.ScreenshotUrl);
@@ -96,7 +95,7 @@ public class DtoMapperTests
             Description = "Classic word game", ResetTime = TimeSpan.Zero,
             RankingMode = RankingMode.Lowest, ScreenshotData = null
         };
-        var dto = DtoMapper.ToDto(game);
+        var dto = DtoMapper.ToDto(game, BaseTime);
 
         Assert.Equal(5, dto.Id);
         Assert.Equal("Wordle", dto.Name);
@@ -110,7 +109,7 @@ public class DtoMapperTests
     public void ToDto_Game_WithImageContentType_SetsImageUrl()
     {
         var game = new Game { Id = 3, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest, ScreenshotContentType = "image/png" };
-        var dto = DtoMapper.ToDto(game);
+        var dto = DtoMapper.ToDto(game, BaseTime);
         Assert.Equal("/api/games/3/image", dto.ImageUrl);
     }
 
@@ -118,7 +117,7 @@ public class DtoMapperTests
     public void ToDto_Game_BlobWithoutContentType_HasNoImageUrl()
     {
         var game = new Game { Id = 3, Name = "G", ScreenshotData = [0x89, 0x50], ScreenshotContentType = null };
-        Assert.Null(DtoMapper.ToDto(game).ImageUrl);
+        Assert.Null(DtoMapper.ToDto(game, BaseTime).ImageUrl);
     }
 
     [Fact]
@@ -129,22 +128,8 @@ public class DtoMapperTests
             Id = 1, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest,
             Submissions = [new Submission { Id = 1, GameId = 1, UserId = 1, Score = "1" }]
         };
-        var dto = DtoMapper.ToDto(game, includeSubmissions: false);
+        var dto = DtoMapper.ToDto(game, BaseTime);
         Assert.Null(dto.Submissions);
-    }
-
-    [Fact]
-    public void ToDto_Game_IncludeSubmissionsTrue_SubmissionsMapped()
-    {
-        var game = new Game
-        {
-            Id = 1, Name = "G", ResetTime = TimeSpan.Zero, RankingMode = RankingMode.Highest,
-            Submissions = [new Submission { Id = 77, GameId = 1, UserId = 1, Score = "5" }]
-        };
-        var dto = DtoMapper.ToDto(game, includeSubmissions: true);
-        Assert.NotNull(dto.Submissions);
-        Assert.Single(dto.Submissions);
-        Assert.Equal(77, dto.Submissions![0].Id);
     }
 
     // ── XpEvent → XpEventDto ─────────────────────────────────────────────────
@@ -177,13 +162,13 @@ public class DtoMapperTests
     [Fact]
     public void ToDto_Notification_MapsAllFields()
     {
-        var n = new Notification
+        var notification = new Notification
         {
             Id = 20, UserId = 3, GameId = 4, Message = "You won!",
             Type = "day_win", ScoringDay = BaseTime.Date,
             Rank = 1, IsRead = false, CreatedAt = BaseTime
         };
-        var dto = DtoMapper.ToDto(n);
+        var dto = DtoMapper.ToDto(notification);
 
         Assert.Equal(20, dto.Id);
         Assert.Equal("You won!", dto.Message);
@@ -242,29 +227,41 @@ public class DtoMapperTests
     public void Streak_IsEffective_ZeroAfterAGap(int lastPlayedDaysAgo, int expected)
     {
         var last = BaseTime.Date.AddDays(lastPlayedDaysAgo).AddHours(23);
-        var user = new User { Id = 1, Username = "u", Streak = 5, LastSubmissionAt = last };
+        const int storedStreak = 5;
+        var user = new User { Id = 1, Username = "u", Streak = storedStreak, LastSubmissionAt = last };
 
         Assert.Equal(expected, DtoMapper.ToDto(user, DefaultCalc(), BaseTime).Streak);
         Assert.Equal(expected, DtoMapper.ToFriendDto(user, DefaultCalc(), BaseTime).Streak);
-        Assert.Equal(expected, DtoMapper.ToUserProfileDto(user, new List<UserGameStatDto>(), DefaultCalc(), BaseTime).Streak);
-        Assert.Equal(5, user.Streak); // the stored value is untouched
+        Assert.Equal(expected, DtoMapper.ToUserProfileDto(user, UserProgression.Of(user, DefaultCalc(), BaseTime), new List<UserGameStatDto>()).Streak);
+        Assert.Equal(storedStreak, user.Streak);
     }
 
+    /// <summary>Top games last played three days and one day before <see cref="BaseTime"/>.</summary>
+    private static List<UserGameStatDto> TopGamesPlayedBeforeBaseTime() => new()
+    {
+        new() { GameId = 1, LastPlayed = BaseTime.AddDays(-3) },
+        new() { GameId = 2, LastPlayed = BaseTime.AddDays(-1) },
+    };
+
+    /// <summary>The top-N games can miss the latest play (or hide today's): the user's own field is the truth.</summary>
     [Fact]
     public void ToUserProfileDto_LastSubmissionAt_IsTheUsersOwnTimestamp_NotTheTopGamesMax()
     {
-        // The top-N games can miss the latest play (or hide today's): the user's own field is the truth.
         var user = new User { Id = 1, Username = "u", LastSubmissionAt = BaseTime };
-        var topGames = new List<UserGameStatDto>
-        {
-            new() { GameId = 1, LastPlayed = BaseTime.AddDays(-3) },
-            new() { GameId = 2, LastPlayed = BaseTime.AddDays(-1) },
-        };
 
-        Assert.Equal(BaseTime, DtoMapper.ToUserProfileDto(user, topGames, DefaultCalc(), BaseTime).LastSubmissionAt);
+        var dto = DtoMapper.ToUserProfileDto(user, UserProgression.Of(user, DefaultCalc(), BaseTime), TopGamesPlayedBeforeBaseTime());
 
-        user.LastSubmissionAt = null;
-        Assert.Null(DtoMapper.ToUserProfileDto(user, topGames, DefaultCalc(), BaseTime).LastSubmissionAt);
+        Assert.Equal(BaseTime, dto.LastSubmissionAt);
+    }
+
+    [Fact]
+    public void ToUserProfileDto_UserWithoutLastSubmissionAt_IsNullEvenWithTopGames()
+    {
+        var user = new User { Id = 1, Username = "u", LastSubmissionAt = null };
+
+        var dto = DtoMapper.ToUserProfileDto(user, UserProgression.Of(user, DefaultCalc(), BaseTime), TopGamesPlayedBeforeBaseTime());
+
+        Assert.Null(dto.LastSubmissionAt);
     }
 
     [Fact]

@@ -1,21 +1,21 @@
 using DailyChallenges.DTOs;
 
-namespace DailyChallenges.Services
+namespace DailyChallenges.Services;
+
+public interface INotificationService
 {
-    public interface INotificationService
-    {
-        Task<NotificationPageDto> GetNotificationsAsync(int userId, int page = 1, int pageSize = 20);
+    /// <summary>Newest first. Out-of-range paging values are clamped (see <see cref="Paging"/>).</summary>
+    Task<NotificationPageDto> GetNotificationsAsync(int userId, int page, int pageSize, CancellationToken ct);
 
-        Task<int> GetUnreadCountAsync(int userId);
+    Task<int> GetUnreadCountAsync(int userId, CancellationToken ct);
 
-        Task MarkReadAsync(int id, int userId);
+    Task MarkReadAsync(int id, int userId, CancellationToken ct);
 
-        Task MarkAllReadAsync(int userId);
+    Task MarkAllReadAsync(int userId, CancellationToken ct);
 
-        /// <summary>
-        /// Deletes a notification if the requesting user is the owner or an admin.
-        /// Throws NotFoundException if not found or not owned by the caller (unless admin).
-        /// </summary>
-        Task DeleteAsync(int id, int requestingUserId, bool isAdmin);
-    }
+    /// <summary>
+    /// Admins may delete any notification, everyone else only their own. Throws NotFoundException if it is
+    /// missing or (for non-admins) someone else's.
+    /// </summary>
+    Task DeleteAsync(int id, RequestingUser requester, CancellationToken ct);
 }

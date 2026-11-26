@@ -3,89 +3,96 @@ using DailyChallenges.DTOs;
 using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace DailyChallenges.Repositories
+namespace DailyChallenges.Repositories;
+
+public sealed class EfUserProfileRepository(AppDbContext db) : IUserProfileRepository
 {
-    public class EfUserProfileRepository : IUserProfileRepository
+    private const int DefaultTopGames = 10;
+
+    /// <summary>Scores are matched to their submission after rounding to this many decimals (float equality is unreliable).</summary>
+    private const int ScoreMatchDecimals = 2;
+
+    private const string HighestRankingMode = "highest";
+    private const string LowestRankingMode = "lowest";
+
+    public Task<User?> GetByIdAsync(int userId, CancellationToken ct) =>
+        db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId, ct);
+
+    public Task<User?> GetByUsernameAsync(string username, CancellationToken ct) =>
+        db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Username == username, ct);
+
+    /// <summary>
+    /// Most played games first. The best score is the max for <see cref="RankingMode.Highest"/> games and the
+    /// min otherwise, so a third ranking mode needs this projection adjusted.
+    /// </summary>
+    public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames, IReadOnlyCollection<int>? excludeSubmissionIds, CancellationToken ct)
     {
-        private readonly AppDbContext _db;
-        public EfUserProfileRepository(AppDbContext db) => _db = db;
+        var limit = topGames < 1 ? DefaultTopGames : topGames;
+        var excluded = (excludeSubmissionIds ?? Array.Empty<int>()).ToList();
 
-        public async Task<User?> GetByIdAsync(int userId)
-        {
-            return await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
-        }
+        var stats = await GameStatsQuery(userId, excluded)
+            .OrderByDescending(x => x.Plays)
+            .Take(limit)
+            .ToListAsync(ct);
 
-        public async Task<User?> GetByUsernameAsync(string username)
-        {
-            return await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Username == username);
-        }
-
-        public async Task<List<UserGameStatDto>> GetMostPlayedGamesAsync(int userId, int topGames = 10, IReadOnlyCollection<int>? excludeSubmissionIds = null)
-        {
-            if (topGames < 1) topGames = 10;
-            var excluded = (excludeSubmissionIds ?? Array.Empty<int>()).ToList();
-
-            var grouped = _db.Submissions
-                .Where(s => s.UserId == userId && s.ScoreValue != null && !excluded.Contains(s.Id))
-                .GroupBy(s => s.GameId)
-                .Select(g => new
-                {
-                    GameId = g.Key,
-                    Plays = g.Count(),
-                    MaxScore = g.Max(x => x.ScoreValue),
-                    MinScore = g.Min(x => x.ScoreValue),
-                    LastPlayed = g.Max(x => x.CreatedAt)
-                });
-
-            var q = from g in grouped
-                    join gm in _db.Games.AsNoTracking() on g.GameId equals gm.Id
-                    select new UserGameStatDto
-                    {
-                        GameId = g.GameId,
-                        Name = gm.Name,
-                        Url = gm.Url,
-                        Plays = g.Plays,
-                        // WARNING: Will need to be adjusted if we add more ranking modes in the future
-                        HighestScore = gm.RankingMode == RankingMode.Highest ? g.MaxScore : g.MinScore,
-                        LastPlayed = g.LastPlayed,
-                        RankingMode = gm.RankingMode == RankingMode.Highest ? "highest" : "lowest"
-                    };
-
-            var list = await q.OrderByDescending(x => x.Plays).Take(topGames).ToListAsync();
-
-            await PopulateBestSubmissionIdAsync(userId, list, excluded);
-
-            return list;
-        }
-
-        private async Task PopulateBestSubmissionIdAsync(int userId, List<UserGameStatDto> list, List<int> excluded)
-        {
-            var gameIdsWithScore = list.Where(x => x.HighestScore.HasValue).Select(x => x.GameId).ToList();
-
-            if (gameIdsWithScore.Count <= 0) return;
-            
-            var scoreLookup = await _db.Submissions
-                .Where(s => s.UserId == userId && gameIdsWithScore.Contains(s.GameId) && s.ScoreValue != null && !excluded.Contains(s.Id))
-                .GroupBy(s => new { s.GameId, ScoreKey = Math.Round(s.ScoreValue!.Value, 2) })
-                .Select(g => new
-                {
-                    g.Key.GameId,
-                    ScoreKey = g.Key.ScoreKey,
-                    SubmissionId = g.OrderByDescending(x => x.CreatedAt).Select(x => x.Id).FirstOrDefault()
-                })
-                .ToListAsync();
-
-            var dict = scoreLookup.ToDictionary(x => (x.GameId, x.ScoreKey), x => (int?)x.SubmissionId);
-
-            foreach (var item in list)
-            {
-                if (!item.HighestScore.HasValue) continue;
-
-                dict.TryGetValue((item.GameId, Math.Round(item.HighestScore.Value, 2)), out var submissionId);
-                item.BestSubmissionId = submissionId;
-
-            }
-        }
-
+        await PopulateBestSubmissionIdAsync(userId, stats, excluded, ct);
+        return stats;
     }
+
+    private IQueryable<UserGameStatDto> GameStatsQuery(int userId, List<int> excluded)
+    {
+        var grouped = ScoredSubmissions(userId, excluded)
+            .GroupBy(s => s.GameId)
+            .Select(g => new
+            {
+                GameId = g.Key,
+                Plays = g.Count(),
+                MaxScore = g.Max(x => x.ScoreValue),
+                MinScore = g.Min(x => x.ScoreValue),
+                LastPlayed = g.Max(x => x.CreatedAt)
+            });
+
+        return from g in grouped
+               join gm in db.Games.AsNoTracking() on g.GameId equals gm.Id
+               select new UserGameStatDto
+               {
+                   GameId = g.GameId,
+                   Name = gm.Name,
+                   Url = gm.Url,
+                   Plays = g.Plays,
+                   HighestScore = gm.RankingMode == RankingMode.Highest ? g.MaxScore : g.MinScore,
+                   LastPlayed = g.LastPlayed,
+                   RankingMode = gm.RankingMode == RankingMode.Highest ? HighestRankingMode : LowestRankingMode
+               };
+    }
+
+    /// <summary>The newest submission with each game's best score.</summary>
+    private async Task PopulateBestSubmissionIdAsync(int userId, List<UserGameStatDto> stats, List<int> excluded, CancellationToken ct)
+    {
+        var gameIdsWithScore = stats.Where(x => x.HighestScore.HasValue).Select(x => x.GameId).ToList();
+        if (gameIdsWithScore.Count == 0) return;
+
+        var scoreLookup = await ScoredSubmissions(userId, excluded)
+            .Where(s => gameIdsWithScore.Contains(s.GameId))
+            .GroupBy(s => new { s.GameId, ScoreKey = Math.Round(s.ScoreValue!.Value, ScoreMatchDecimals) })
+            .Select(g => new
+            {
+                g.Key.GameId,
+                g.Key.ScoreKey,
+                SubmissionId = g.OrderByDescending(x => x.CreatedAt).Select(x => x.Id).FirstOrDefault()
+            })
+            .ToListAsync(ct);
+
+        var submissionIdByGameScore = scoreLookup.ToDictionary(x => (x.GameId, x.ScoreKey), x => (int?)x.SubmissionId);
+        foreach (var stat in stats)
+        {
+            if (stat.HighestScore is not { } bestScore) continue;
+
+            submissionIdByGameScore.TryGetValue((stat.GameId, Math.Round(bestScore, ScoreMatchDecimals)), out var submissionId);
+            stat.BestSubmissionId = submissionId;
+        }
+    }
+
+    private IQueryable<Submission> ScoredSubmissions(int userId, List<int> excluded) =>
+        db.Submissions.Where(s => s.UserId == userId && s.ScoreValue != null && !excluded.Contains(s.Id));
 }

@@ -8,6 +8,7 @@ import MilitaryTechIcon from '@mui/icons-material/MilitaryTech'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import BoltIcon from '@mui/icons-material/Bolt'
+import { medalColors } from '../styles/tokens'
 
 const ICON_MAP = {
   submit_first:  <SendIcon />,
@@ -18,10 +19,10 @@ const ICON_MAP = {
   streak_100:    <BoltIcon />,
   win_1:         <EmojiEventsIcon />,
   win_10:        <MilitaryTechIcon />,
-  win_50:        <MilitaryTechIcon sx={{ color: 'gold' }} />,
+  win_50:        <MilitaryTechIcon sx={{ color: medalColors.gold }} />,
   level_5:       <StarIcon />,
-  level_10:      <StarIcon sx={{ color: 'silver' }} />,
-  level_25:      <StarIcon sx={{ color: 'gold' }} />,
+  level_10:      <StarIcon sx={{ color: medalColors.silver }} />,
+  level_25:      <StarIcon sx={{ color: medalColors.gold }} />,
   first_friend:  <GroupIcon />,
 }
 

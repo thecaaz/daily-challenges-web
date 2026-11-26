@@ -16,19 +16,22 @@ export default function usePrompt() {
   const [state, setState] = useState({ open: false, title: '', message: '', label: '', confirmText: 'Confirm', value: '' })
   const resolveRef = useRef(null)
 
-  const prompt = useCallback(({ title = '', message = '', label = '', confirmText = 'Confirm' } = {}) => {
-    // Settle any prompt that is still open so its caller doesn't hang.
+  const settleOpenPrompt = useCallback(() => {
     const pending = resolveRef.current
     resolveRef.current = null
     pending?.(null)
+  }, [])
+
+  const prompt = useCallback(({ title = '', message = '', label = '', confirmText = 'Confirm' } = {}) => {
+    settleOpenPrompt()
     return new Promise((resolve) => {
       resolveRef.current = resolve
       setState({ open: true, title, message, label, confirmText, value: '' })
     })
-  }, [])
+  }, [settleOpenPrompt])
 
-  const onChange = useCallback((v) => {
-    setState(s => ({ ...s, value: v }))
+  const onChange = useCallback((value) => {
+    setState(s => ({ ...s, value }))
   }, [])
 
   const onConfirm = useCallback(() => {

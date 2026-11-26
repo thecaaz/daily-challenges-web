@@ -9,7 +9,7 @@
 export default function formatNumber(value) {
   if (value === null || value === undefined || value === '') return ''
   if (typeof value === 'number') return Number.isFinite(value) ? value.toLocaleString() : ''
-  const s = String(value).trim()
-  if (/^-?\d{1,15}$/.test(s)) return Number(s).toLocaleString()
-  return s
+  const text = String(value).trim()
+  if (/^-?\d{1,15}$/.test(text)) return Number(text).toLocaleString()
+  return text
 }

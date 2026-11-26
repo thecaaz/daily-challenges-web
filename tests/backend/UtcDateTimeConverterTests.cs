@@ -12,10 +12,9 @@ public class UtcDateTimeConverterTests
     [Fact]
     public void Unspecified_values_are_labelled_utc_without_shifting()
     {
-        // What SQLite hands back: the stored UTC wall-clock with Kind=Unspecified.
-        var value = new DateTime(2026, 4, 1, 10, 30, 0, DateTimeKind.Unspecified);
+        var utcWallClockAsReadFromSqlite = new DateTime(2026, 4, 1, 10, 30, 0, DateTimeKind.Unspecified);
 
-        Assert.Equal("\"2026-04-01T10:30:00Z\"", JsonSerializer.Serialize(value, Options));
+        Assert.Equal("\"2026-04-01T10:30:00Z\"", JsonSerializer.Serialize(utcWallClockAsReadFromSqlite, Options));
     }
 
     [Fact]

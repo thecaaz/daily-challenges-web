@@ -1,0 +1,30 @@
+/** MUI's 25 elevation levels, as soft warm-grey shadows. */
+const shadows = [
+  'none',
+  '0 2px 6px rgba(34,34,34,0.06)',
+  '0 4px 10px rgba(34,34,34,0.08)',
+  '0 6px 14px rgba(34,34,34,0.09)',
+  '0 8px 20px rgba(34,34,34,0.1)',
+  '0 10px 24px rgba(34,34,34,0.11)',
+  '0 12px 28px rgba(34,34,34,0.12)',
+  '0 14px 32px rgba(34,34,34,0.12)',
+  '0 16px 36px rgba(34,34,34,0.13)',
+  '0 18px 40px rgba(34,34,34,0.13)',
+  '0 20px 44px rgba(34,34,34,0.14)',
+  '0 22px 48px rgba(34,34,34,0.14)',
+  '0 24px 52px rgba(34,34,34,0.15)',
+  '0 26px 56px rgba(34,34,34,0.15)',
+  '0 28px 60px rgba(34,34,34,0.16)',
+  '0 30px 64px rgba(34,34,34,0.16)',
+  '0 32px 68px rgba(34,34,34,0.17)',
+  '0 34px 72px rgba(34,34,34,0.17)',
+  '0 36px 76px rgba(34,34,34,0.18)',
+  '0 38px 80px rgba(34,34,34,0.18)',
+  '0 40px 84px rgba(34,34,34,0.19)',
+  '0 42px 88px rgba(34,34,34,0.19)',
+  '0 44px 92px rgba(34,34,34,0.20)',
+  '0 46px 96px rgba(34,34,34,0.20)',
+  '0 48px 100px rgba(34,34,34,0.21)',
+]
+
+export default shadows

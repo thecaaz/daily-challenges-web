@@ -1,79 +1,66 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using DailyChallenges.DTOs;
 using DailyChallenges.Services;
 
-namespace DailyChallenges.Controllers
+namespace DailyChallenges.Controllers;
+
+/// <summary>Admin user management. A token without a user id is answered with 401 here, not 403.</summary>
+[ApiController]
+[Route("api/admin/users")]
+[Authorize(Roles = AuthRoles.Admin)]
+public sealed class AdminUsersController(
+    IAdminUserService adminUsers,
+    IAdminXpEventService adminXpEvents,
+    IAdminUserDeletionService adminUserDeletion) : ControllerBase
 {
-    [ApiController]
-    [Route("api/admin/users")]
-    [Authorize(Roles = "Admin")]
-    public class AdminUsersController : ControllerBase
+    private const int DefaultUserPageSize = 50;
+    private const int DefaultXpEventPageSize = 20;
+
+    [HttpGet]
+    public async Task<IActionResult> GetUsers([FromQuery] int page = Paging.FirstPage, [FromQuery] int pageSize = DefaultUserPageSize, [FromQuery] string? search = null, CancellationToken ct = default)
     {
-        private readonly IAdminUserService _adminService;
+        var (clampedPage, clampedPageSize) = Paging.Clamp(page, pageSize);
+        var (items, total) = await adminUsers.GetUsersAsync(clampedPage, clampedPageSize, search, ct);
+        return Ok(new { items, totalCount = total });
+    }
 
-        public AdminUsersController(IAdminUserService adminService)
-        {
-            _adminService = adminService;
-        }
+    [HttpPost("{id}/xp")]
+    public async Task<IActionResult> AdjustXp(int id, [FromBody] AdminAdjustXpDto dto, CancellationToken ct)
+    {
+        if (dto == null) return BadRequest();
 
-        [HttpGet]
-        public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
-        {
-            (page, pageSize) = Paging.Clamp(page, pageSize);
-            var (items, total) = await _adminService.GetUsersAsync(page, pageSize, search);
-            return Ok(new { items, totalCount = total });
-        }
+        return Ok(await adminUsers.AdjustXpAsync(new XpAdjustment(id, dto.Delta, dto.Reason, User.GetUserId()), ct));
+    }
 
-        [HttpPost("{id}/xp")]
-        public async Task<IActionResult> AdjustXp(int id, [FromBody] DTOs.AdminAdjustXpDto dto)
-        {
-            if (dto == null) return BadRequest();
-            if (dto.Delta == 0) return BadRequest(new { message = "Delta must be non-zero" });
+    /// <summary>`from` is inclusive, `to` is exclusive.</summary>
+    [HttpGet("{id}/xp-events")]
+    public async Task<IActionResult> GetXpEvents(int id, [FromQuery] int page = Paging.FirstPage, [FromQuery] int pageSize = DefaultXpEventPageSize, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] string? eventType = null, CancellationToken ct = default)
+    {
+        var (clampedPage, clampedPageSize) = Paging.Clamp(page, pageSize);
+        var (items, total) = await adminXpEvents.GetXpEventsAsync(new XpEventQuery(id, from, to, eventType), clampedPage, clampedPageSize, ct);
+        return Ok(new { items, totalCount = total });
+    }
 
-            var adminId = User.GetUserId();
+    [HttpGet("{id}/xp-events/export")]
+    public async Task<IActionResult> ExportXpEvents(int id, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] string? eventType = null, CancellationToken ct = default)
+    {
+        var (data, filename) = await adminXpEvents.ExportXpEventsCsvAsync(new XpEventQuery(id, from, to, eventType), ct);
+        return File(data, ContentTypes.CsvUtf8, filename);
+    }
 
-            var updated = await _adminService.AdjustXpAsync(id, dto.Delta, dto.Reason, adminId);
-            return Ok(updated);
-        }
+    /// <summary>The service validates the password (400) and refuses another admin's account (403).</summary>
+    [HttpPost("{id}/password")]
+    public async Task<IActionResult> SetPassword([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int requestingAdminId, int id, [FromBody] AdminSetPasswordDto dto, CancellationToken ct)
+    {
+        await adminUsers.SetPasswordAsync(id, dto?.NewPassword, requestingAdminId, ct);
+        return NoContent();
+    }
 
-        [HttpGet("{id}/xp-events")]
-        public async Task<IActionResult> GetXpEvents(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] string? eventType = null)
-        {
-            (page, pageSize) = Paging.Clamp(page, pageSize);
-            // `from` is inclusive, `to` is exclusive.
-            var (items, total) = await _adminService.GetXpEventsAsync(id, page, pageSize, from, to, eventType);
-            return Ok(new { items, totalCount = total });
-        }
-
-        [HttpGet("{id}/xp-events/export")]
-        public async Task<IActionResult> ExportXpEvents(int id, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] string? eventType = null)
-        {
-            var (data, filename) = await _adminService.ExportXpEventsCsvAsync(id, from, to, eventType);
-            return File(data, "text/csv; charset=utf-8", filename);
-        }
-
-        [HttpPost("{id}/password")]
-        public async Task<IActionResult> SetPassword(int id, [FromBody] DTOs.AdminSetPasswordDto dto)
-        {
-            if (dto == null || string.IsNullOrWhiteSpace(dto.NewPassword))
-                return BadRequest(new { message = "NewPassword is required" });
-
-            var requestingAdminId = User.GetUserId();
-            if (requestingAdminId == null) return Unauthorized();
-
-            // Validates the length (400) and refuses another admin's account (403).
-            await _adminService.SetPasswordAsync(id, dto.NewPassword, requestingAdminId.Value);
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
-        {
-            var requestingAdminId = User.GetUserId();
-            if (requestingAdminId == null) return Unauthorized();
-
-            await _adminService.DeleteUserAsync(id, requestingAdminId.Value);
-            return NoContent();
-        }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteUser([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int requestingAdminId, int id, CancellationToken ct)
+    {
+        await adminUserDeletion.DeleteUserAsync(id, requestingAdminId, ct);
+        return NoContent();
     }
 }

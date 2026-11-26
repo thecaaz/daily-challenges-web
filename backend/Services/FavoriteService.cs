@@ -1,41 +1,16 @@
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 
-namespace DailyChallenges.Services
+namespace DailyChallenges.Services;
+
+public sealed class FavoriteService(IFavoriteRepository favorites, IGameRepository games, TimeProvider time) : IFavoriteService
 {
-    public class FavoriteService : IFavoriteService
+    public async Task AddFavoriteAsync(int userId, int gameId, CancellationToken ct)
     {
-        private readonly IFavoriteRepository _repo;
-        private readonly IGameRepository _games;
-
-        public FavoriteService(IFavoriteRepository repo, IGameRepository games)
-        {
-            _repo = repo;
-            _games = games;
-        }
-
-        public async Task AddFavoriteAsync(int userId, int gameId)
-        {
-            var g = await _games.GetByIdAsync(gameId);
-            if (g == null) throw new KeyNotFoundException("Game not found");
-
-            var fav = new Favorite { UserId = userId, GameId = gameId };
-            await _repo.AddAsync(fav);
-        }
-
-        public async Task RemoveFavoriteAsync(int userId, int gameId)
-        {
-            await _repo.RemoveAsync(userId, gameId);
-        }
-
-        public async Task<List<int>> GetFavoriteGameIdsForUserAsync(int userId)
-        {
-            return await _repo.GetFavoriteGameIdsForUserAsync(userId);
-        }
-
-        public async Task<bool> ExistsAsync(int userId, int gameId)
-        {
-            return await _repo.ExistsAsync(userId, gameId);
-        }
+        _ = await games.GetByIdAsync(gameId, ct) ?? throw new NotFoundException("Game not found");
+        await favorites.AddAsync(new Favorite { UserId = userId, GameId = gameId, CreatedAt = time.GetUtcNow().UtcDateTime }, ct);
     }
+
+    public Task RemoveFavoriteAsync(int userId, int gameId, CancellationToken ct) => favorites.RemoveAsync(userId, gameId, ct);
 }

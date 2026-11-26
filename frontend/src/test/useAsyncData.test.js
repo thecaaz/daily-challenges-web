@@ -4,7 +4,7 @@ import useAsyncData from '../hooks/useAsyncData'
 
 describe('useAsyncData', () => {
   it('starts in loading state', () => {
-    const fetcher = vi.fn(() => new Promise(() => {})) // never resolves
+    const fetcher = vi.fn(() => new Promise(() => {}))
     const { result } = renderHook(() => useAsyncData(fetcher, []))
     expect(result.current.loading).toBe(true)
     expect(result.current.data).toBeNull()
@@ -79,12 +79,10 @@ describe('useAsyncData', () => {
     expect(result.current.error).toBe(false)
   })
 
-  it('resets data immediately when deps change', async () => {
-    let resolveSecond
+  it('does not show the old data under the new deps while they load', async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce('a')
-      .mockImplementationOnce(() => new Promise(r => { resolveSecond = r }))
-
+      .mockImplementationOnce(() => new Promise(() => {}))
     const { result, rerender } = renderHook(
       ({ id }) => useAsyncData(fetcher, [id]),
       { initialProps: { id: 1 } }
@@ -92,30 +90,42 @@ describe('useAsyncData', () => {
     await waitFor(() => expect(result.current.data).toBe('a'))
 
     rerender({ id: 2 })
-    // Old data must not be shown under the new key.
+
     expect(result.current.data).toBeNull()
     expect(result.current.loading).toBe(true)
+  })
+
+  it('shows the data for the new deps once they load', async () => {
+    let resolveSecond
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce('a')
+      .mockImplementationOnce(() => new Promise(r => { resolveSecond = r }))
+    const { result, rerender } = renderHook(
+      ({ id }) => useAsyncData(fetcher, [id]),
+      { initialProps: { id: 1 } }
+    )
+    await waitFor(() => expect(result.current.data).toBe('a'))
+    rerender({ id: 2 })
 
     await act(async () => { resolveSecond('b') })
+
     expect(result.current.data).toBe('b')
     expect(result.current.loading).toBe(false)
   })
 
-  it('ignores a stale response that resolves after deps changed', async () => {
+  it('does not let a late response for the old deps overwrite the newer data', async () => {
     const resolvers = {}
     const fetcher = vi.fn(id => new Promise(r => { resolvers[id] = r }))
-
     const { result, rerender } = renderHook(
       ({ id }) => useAsyncData(() => fetcher(id), [id]),
       { initialProps: { id: 1 } }
     )
     rerender({ id: 2 })
-
     await act(async () => { resolvers[2]('second') })
     expect(result.current.data).toBe('second')
 
-    // The first request finishes late; it must not overwrite the newer data.
     await act(async () => { resolvers[1]('first') })
+
     expect(result.current.data).toBe('second')
     expect(result.current.loading).toBe(false)
   })
@@ -155,5 +165,17 @@ describe('useAsyncData', () => {
     const { result } = renderHook(() => useAsyncData(fetcher, []))
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.error).toBe(true)
+  })
+
+  it('exposes the rejection reason as failure and clears it on the next fetch', async () => {
+    const reason = new Error('fail')
+    const fetcher = vi.fn().mockRejectedValueOnce(reason).mockResolvedValueOnce('ok')
+    const { result } = renderHook(() => useAsyncData(fetcher, []))
+    await waitFor(() => expect(result.current.failure).toBe(reason))
+
+    act(() => result.current.refetch())
+
+    await waitFor(() => expect(result.current.data).toBe('ok'))
+    expect(result.current.failure).toBeNull()
   })
 })

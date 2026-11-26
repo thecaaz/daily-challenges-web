@@ -1,16 +1,26 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Box, Button, Typography, Paper, List, ListItem, ListItemText, Chip } from '@mui/material'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import DownloadIcon from '@mui/icons-material/Download'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import EXTENSION_UPDATES from '../../../extension/updates.json'
-import { refreshAdapters, isExtensionDetected } from '../utils/adapters'
+import useExtensionInstalled from '../hooks/useExtensionInstalled'
 
 const DOWNLOAD_URL = '/extension.xpi'
 
-// The released version is the one updates.json advertises (bumped only after
-// the signed XPI is deployed), not manifest.json, which may already be ahead
-// of the shipped /extension.xpi.
+const FEATURES = [
+  'Reads your score automatically from supported game pages',
+  'Captures a screenshot of your result for submission',
+  'Pre-fills the submission form so you only need to confirm',
+]
+
+const SUPPORTED_GAMES = ['TimeGuessr', 'MapTap', 'Cutle', 'BlindCut', 'MotionPath']
+
+/**
+ * The released version is the one updates.json advertises (bumped only after
+ * the signed XPI is deployed), not manifest.json, which may already be ahead
+ * of the shipped /extension.xpi.
+ */
 export function releasedVersion(updates) {
   const addons = updates && updates.addons ? Object.values(updates.addons) : []
   const list = addons[0] && Array.isArray(addons[0].updates) ? addons[0].updates : []
@@ -20,18 +30,20 @@ export function releasedVersion(updates) {
 
 const RELEASED_VERSION = releasedVersion(EXTENSION_UPDATES)
 
-export default function Extension() {
-  const [installed, setInstalled] = useState(null)
+function PlainList({ items }) {
+  return (
+    <List dense disablePadding>
+      {items.map(item => (
+        <ListItem disableGutters key={item}>
+          <ListItemText primary={item} />
+        </ListItem>
+      ))}
+    </List>
+  )
+}
 
-  useEffect(() => {
-    let mounted = true
-    // Always ask again here: the user may have just installed the extension.
-    // A content script answering GET_ADAPTERS means the extension is present.
-    refreshAdapters()
-      .then(() => { if (mounted) setInstalled(isExtensionDetected() === true) })
-      .catch(() => { if (mounted) setInstalled(false) })
-    return () => { mounted = false }
-  }, [])
+export default function Extension() {
+  const installed = useExtensionInstalled()
 
   return (
     <Box>
@@ -56,35 +68,9 @@ export default function Extension() {
 
       <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>What it does</Typography>
-        <List dense disablePadding>
-          <ListItem disableGutters>
-            <ListItemText primary="Reads your score automatically from supported game pages" />
-          </ListItem>
-          <ListItem disableGutters>
-            <ListItemText primary="Captures a screenshot of your result for submission" />
-          </ListItem>
-          <ListItem disableGutters>
-            <ListItemText primary="Pre-fills the submission form so you only need to confirm" />
-          </ListItem>
-        </List>
+        <PlainList items={FEATURES} />
         <Typography variant="subtitle2" sx={{ mt: 1 }}>Supported games</Typography>
-        <List dense disablePadding>
-          <ListItem disableGutters>
-            <ListItemText primary="TimeGuessr" />
-          </ListItem>
-          <ListItem disableGutters>
-            <ListItemText primary="MapTap" />
-          </ListItem>
-          <ListItem disableGutters>
-            <ListItemText primary="Cutle" />
-          </ListItem>
-          <ListItem disableGutters>
-            <ListItemText primary="BlindCut" />
-          </ListItem>
-          <ListItem disableGutters>
-            <ListItemText primary="MotionPath" />
-          </ListItem>
-        </List>
+        <PlainList items={SUPPORTED_GAMES} />
       </Paper>
 
       <Button
@@ -100,7 +86,7 @@ export default function Extension() {
       </Button>
 
       <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>
-        {RELEASED_VERSION ? <>Version {RELEASED_VERSION} &mdash; </> : null}Firefox only
+        {RELEASED_VERSION && <>Version {RELEASED_VERSION} &mdash; </>}Firefox only
       </Typography>
     </Box>
   )

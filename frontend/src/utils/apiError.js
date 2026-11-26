@@ -10,6 +10,8 @@
 // It never stringifies an object and never returns HTML.
 
 const DEFAULT_FALLBACK = 'Something went wrong'
+/** Anything that looks like markup (e.g. an nginx error page) is unusable. */
+const MARKUP = /<[a-z!/][^>]*>/i
 const MAX_TEXT_LENGTH = 300
 
 const STATUS_MESSAGES = {
@@ -21,32 +23,20 @@ const STATUS_MESSAGES = {
 
 function cleanString(value) {
   if (typeof value !== 'string') return null
-  const s = value.trim()
-  if (!s || s.length > MAX_TEXT_LENGTH) return null
-  // Anything that looks like markup (e.g. an nginx error page) is unusable.
-  if (/<[a-z!/][^>]*>/i.test(s)) return null
-  return s
+  const text = value.trim()
+  if (!text || text.length > MAX_TEXT_LENGTH) return null
+  if (MARKUP.test(text)) return null
+  return text
 }
 
+/** `errors` is ProblemDetails' `{ field: [messages] }` or an array of strings / `{ message }`. */
 function firstProblemError(errors) {
-  if (!errors) return null
-  if (Array.isArray(errors)) {
-    for (const e of errors) {
-      const s = cleanString(e) || cleanString(e?.message)
-      if (s) return s
-    }
-    return null
-  }
-  if (typeof errors === 'object') {
-    for (const value of Object.values(errors)) {
-      const list = Array.isArray(value) ? value : [value]
-      for (const e of list) {
-        const s = cleanString(e)
-        if (s) return s
-      }
-    }
-  }
-  return null
+  if (!errors || typeof errors !== 'object') return null
+  return Object.values(errors).flat().map(problemText).find(Boolean) ?? null
+}
+
+function problemText(entry) {
+  return cleanString(entry) || cleanString(entry?.message)
 }
 
 function messageFromData(data) {
@@ -70,9 +60,12 @@ function messageFromStatus(status) {
   return null
 }
 
+/**
+ * Without a response at all (network error, CORS failure, timeout, or a
+ * non-axios error) the fallback is the only honest message.
+ */
 export function getApiErrorMessage(err, fallback = DEFAULT_FALLBACK) {
   const response = err?.response
-  // No response at all: network error, CORS failure, timeout, or a non-axios error.
   if (!response) return fallback
   return messageFromData(response.data) || messageFromStatus(response.status) || fallback
 }

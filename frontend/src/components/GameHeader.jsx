@@ -7,6 +7,23 @@ import FavoriteButton from './ui/FavoriteButton'
 import Countdown from './Countdown'
 import imageUrl from '../utils/imageUrl'
 import useAdapter from '../hooks/useAdapter'
+import { onImageText } from '../styles/tokens'
+
+const FALLBACK_DESCRIPTION = 'Compete on daily challenges — climb the leaderboard!'
+const MAX_DESCRIPTION_LENGTH = 300
+const descriptionStyle = { color: onImageText.body, whiteSpace: 'pre-line' }
+const truncatedDescriptionStyle = { ...descriptionStyle, cursor: 'help' }
+
+/**
+ * The text shown under the game title: the trimmed description (cut to
+ * MAX_DESCRIPTION_LENGTH characters with an ellipsis) or a fallback.
+ */
+function truncateDescription(description) {
+  const fullText = (description ?? '').trim()
+  if (!fullText) return { text: FALLBACK_DESCRIPTION, fullText, isTruncated: false }
+  if (fullText.length <= MAX_DESCRIPTION_LENGTH) return { text: fullText, fullText, isTruncated: false }
+  return { text: `${fullText.slice(0, MAX_DESCRIPTION_LENGTH)}…`, fullText, isTruncated: true }
+}
 
 /**
  * @param {object} props
@@ -17,13 +34,6 @@ export default function GameHeader({ game, onExpire }) {
   const adapter = useAdapter(game?.url)
 
   if (!game) return null
-
-  const desc = (game.description ?? '').trim()
-  const fallback = 'Compete on daily challenges — climb the leaderboard!'
-  const hasDesc = desc.length > 0
-  const maxLen = 300
-  const isLong = hasDesc && desc.length > maxLen
-  const displayText = hasDesc ? (isLong ? `${desc.slice(0, maxLen)}…` : desc) : fallback
 
   return (
     <div className="game-header" style={{ marginBottom: 16 }}>
@@ -84,15 +94,19 @@ export default function GameHeader({ game, onExpire }) {
             
           </Box>
 
-          {isLong ? (
-            <Tooltip title={desc} arrow>
-              <div className="muted" style={{ color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-line', cursor: 'help' }}>{displayText}</div>
-            </Tooltip>
-          ) : (
-            <div className="muted" style={{ color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-line' }}>{displayText}</div>
-          )}
+          <GameDescription description={game.description} />
         </Box>
       </div>
     </div>
   )
+}
+
+function GameDescription({ description }) {
+  const { text, fullText, isTruncated } = truncateDescription(description)
+  const descriptionDiv = (
+    <div className="muted" style={isTruncated ? truncatedDescriptionStyle : descriptionStyle}>{text}</div>
+  )
+
+  if (!isTruncated) return descriptionDiv
+  return <Tooltip title={fullText} arrow>{descriptionDiv}</Tooltip>
 }

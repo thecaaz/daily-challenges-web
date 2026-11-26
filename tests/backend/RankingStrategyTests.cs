@@ -80,10 +80,10 @@ public class RankingStrategyTests
         Assert.Equal([2, 3, 1], result.Select(s => s.Id));
     }
 
+    /// <summary>LINQ orders nulls first for ascending.</summary>
     [Fact]
     public void Lowest_NullScoreValueOrderedFirst()
     {
-        // LINQ orders nulls first for ascending
         var subs = new[] { Sub(1, 50, T0), Sub(2, null, T0), Sub(3, 10, T0) }.AsQueryable();
         var result = new LowestRankingStrategy().ApplyOrdering(subs).ToList();
         Assert.Null(result[0].ScoreValue);

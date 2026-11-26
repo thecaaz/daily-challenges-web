@@ -61,6 +61,6 @@ public class CredentialRulesTests
     [InlineData("a=b", "\"a=b\"")]
     public void Csv_text_cells_are_quoted_and_formula_prefixes_neutralized(string? input, string expected)
     {
-        Assert.Equal(expected, AdminUserService.EscapeCsvText(input));
+        Assert.Equal(expected, AdminXpEventService.EscapeCsvText(input));
     }
 }

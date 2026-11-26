@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { Typography, Card, Tooltip, CircularProgress } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from './AppButton'
-import api from '../../api'
+import useTodaySubmitters from '../../hooks/useTodaySubmitters'
 import formatNumber from '../../utils/formatNumber'
 
 function formatUsernames(names) {
@@ -13,13 +13,7 @@ function formatUsernames(names) {
 }
 
 export default function HiddenScoresCard({ gameId, search = '' }) {
-  const [submitters, setSubmitters] = useState(null)
-
-  useEffect(() => {
-    api.get(`/submissions/game/${gameId}/today-submitters`)
-      .then(res => setSubmitters(res.data))
-      .catch(() => setSubmitters({ count: 0, usernames: [] }))
-  }, [gameId])
+  const submitters = useTodaySubmitters(gameId)
 
   const renderSubmitters = () => {
     if (submitters === null) {

@@ -1,12 +1,11 @@
-namespace DailyChallenges.DTOs
+namespace DailyChallenges.DTOs;
+
+public sealed record FriendDto
 {
-    public class FriendDto
-    {
-        public int UserId { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public int Level { get; set; }
-        public long TotalXp { get; set; }
-        public int Streak { get; set; }
-        public DateTime? LastSubmissionAt { get; set; }
-    }
+    public int UserId { get; init; }
+    public string Username { get; init; } = string.Empty;
+    public int Level { get; init; }
+    public long TotalXp { get; init; }
+    public int Streak { get; init; }
+    public DateTime? LastSubmissionAt { get; init; }
 }

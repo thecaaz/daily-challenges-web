@@ -4,12 +4,12 @@
  */
 export function isSafeHttpUrl(value) {
   if (typeof value !== 'string') return false
-  const s = value.trim()
-  if (!s) return false
+  const text = value.trim()
+  if (!text) return false
   let url
   try {
-    url = new URL(s)
-  } catch (e) {
+    url = new URL(text)
+  } catch {
     return false
   }
   return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname)

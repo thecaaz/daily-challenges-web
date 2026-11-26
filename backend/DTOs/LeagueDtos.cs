@@ -1,104 +1,103 @@
-namespace DailyChallenges.DTOs
+namespace DailyChallenges.DTOs;
+
+public sealed record LeagueDto
 {
-    public class LeagueDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public int OwnerId { get; set; }
-        public string OwnerUsername { get; set; } = string.Empty;
-        public int MemberCount { get; set; }
-        public DateTime CreatedAt { get; set; }
-    }
+    public int Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public int OwnerId { get; init; }
+    public string OwnerUsername { get; init; } = string.Empty;
+    public int MemberCount { get; init; }
+    public DateTime CreatedAt { get; init; }
+}
 
-    public class LeagueMemberDto
-    {
-        public int UserId { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public int Level { get; set; }
-        public int Streak { get; set; }
-        public string Role { get; set; } = string.Empty;
-        public DateTime JoinedAt { get; set; }
-    }
+public sealed record LeagueMemberDto
+{
+    public int UserId { get; init; }
+    public string Username { get; init; } = string.Empty;
+    public int Level { get; init; }
+    public int Streak { get; init; }
+    public string Role { get; init; } = string.Empty;
+    public DateTime JoinedAt { get; init; }
+}
 
-    public class LeagueInvitationDto
-    {
-        public int Id { get; set; }
-        public int LeagueId { get; set; }
-        public string LeagueName { get; set; } = string.Empty;
-        public int InviterId { get; set; }
-        public string InviterUsername { get; set; } = string.Empty;
-        public int? InviteeId { get; set; }
-        public string? InviteeUsername { get; set; }
-        public string? Token { get; set; }
-        public string Status { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
-        public DateTime? ExpiresAt { get; set; }
-    }
+public sealed record LeagueInvitationDto
+{
+    public int Id { get; init; }
+    public int LeagueId { get; init; }
+    public string LeagueName { get; init; } = string.Empty;
+    public int InviterId { get; init; }
+    public string InviterUsername { get; init; } = string.Empty;
+    public int? InviteeId { get; init; }
+    public string? InviteeUsername { get; init; }
+    public string? Token { get; init; }
+    public string Status { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public DateTime? ExpiresAt { get; init; }
+}
 
-    public class LeagueDetailDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public int OwnerId { get; set; }
-        public string OwnerUsername { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
-        public List<LeagueMemberDto> Members { get; set; } = new();
-        public List<LeagueInvitationDto> PendingInvitations { get; set; } = new();
-    }
+public sealed record LeagueDetailDto
+{
+    public int Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public int OwnerId { get; init; }
+    public string OwnerUsername { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public List<LeagueMemberDto> Members { get; init; } = new();
+    public List<LeagueInvitationDto> PendingInvitations { get; init; } = new();
+}
 
-    public class LeagueLeaderboardEntryDto
-    {
-        // Rank, Score, ScoreValue, SubmissionId and ScreenshotUrl are null when the scores are hidden.
-        public int? Rank { get; set; }
-        public int UserId { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public string? Score { get; set; }
-        public double? ScoreValue { get; set; }
-        public int? SubmissionId { get; set; }
-        public string? ScreenshotUrl { get; set; }
-    }
+/// <summary>Rank, Score, ScoreValue, SubmissionId and ScreenshotUrl are null when the scores are hidden.</summary>
+public sealed record LeagueLeaderboardEntryDto
+{
+    public int? Rank { get; init; }
+    public int UserId { get; init; }
+    public string Username { get; init; } = string.Empty;
+    public string? Score { get; init; }
+    public double? ScoreValue { get; init; }
+    public int? SubmissionId { get; init; }
+    public string? ScreenshotUrl { get; init; }
+}
 
-    public class LeagueLeaderboardDto
-    {
-        public int LeagueId { get; set; }
-        public int GameId { get; set; }
-        public string ScoringDay { get; set; } = string.Empty;
-        public List<LeagueLeaderboardEntryDto> Entries { get; set; } = new();
-        /// <summary>True when the day is the game's current scoring day and the caller may not see its scores.</summary>
-        public bool ScoresHidden { get; set; }
-    }
+public sealed record LeagueLeaderboardDto
+{
+    public int LeagueId { get; init; }
+    public int GameId { get; init; }
+    public string ScoringDay { get; init; } = string.Empty;
+    public List<LeagueLeaderboardEntryDto> Entries { get; init; } = new();
+    /// <summary>True when the day is the game's current scoring day and the caller may not see its scores.</summary>
+    public bool ScoresHidden { get; init; }
+}
 
-    // ── Request bodies ────────────────────────────────────────────────────────
 
-    public class LeagueCreateRequest
-    {
-        public string Name { get; set; } = string.Empty;
-    }
+public sealed record LeagueCreateRequest
+{
+    public string Name { get; init; } = string.Empty;
+}
 
-    public class LeagueRenameRequest
-    {
-        public string Name { get; set; } = string.Empty;
-    }
+public sealed record LeagueRenameRequest
+{
+    public string Name { get; init; } = string.Empty;
+}
 
-    public class LeagueInviteByUsernameRequest
-    {
-        public string Username { get; set; } = string.Empty;
-    }
+public sealed record LeagueInviteByUsernameRequest
+{
+    public string Username { get; init; } = string.Empty;
+}
 
-    public class LeagueGameSummaryDto
-    {
-        public int GameId { get; set; }
-        public string GameName { get; set; } = string.Empty;
-        public string? IconUrl { get; set; }
-        public DateTime LastPlayedAt { get; set; }
-        public int PlayCount { get; set; }
-        public string? TopScore { get; set; }
-        public double? TopScoreValue { get; set; }
-        public string? MyBestScore { get; set; }
-        public double? MyBestScoreValue { get; set; }
-        public int? MyRank { get; set; }
-        public List<int> RecentPlays { get; set; } = new(); // counts per day, oldest->newest
-        /// <summary>The game's scoring days ("yyyy-MM-dd", oldest->newest) that RecentPlays counts, index for index.</summary>
-        public List<string> RecentPlayDays { get; set; } = new();
-    }
+public sealed record LeagueGameSummaryDto
+{
+    public int GameId { get; init; }
+    public string GameName { get; init; } = string.Empty;
+    public string? IconUrl { get; init; }
+    public DateTime LastPlayedAt { get; init; }
+    public int PlayCount { get; init; }
+    public string? TopScore { get; init; }
+    public double? TopScoreValue { get; init; }
+    public string? MyBestScore { get; init; }
+    public double? MyBestScoreValue { get; init; }
+    public int? MyRank { get; init; }
+    /// <summary>Counts per day, oldest->newest.</summary>
+    public List<int> RecentPlays { get; init; } = new();
+    /// <summary>The game's scoring days ("yyyy-MM-dd", oldest->newest) that RecentPlays counts, index for index.</summary>
+    public List<string> RecentPlayDays { get; init; } = new();
 }

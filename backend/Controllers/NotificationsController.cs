@@ -2,70 +2,42 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DailyChallenges.Services;
 
-namespace DailyChallenges.Controllers
+namespace DailyChallenges.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public sealed class NotificationsController(INotificationService notifications) : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Authorize]
-    public class NotificationsController : ControllerBase
+    private const int DefaultPageSize = 20;
+
+    [HttpGet]
+    public async Task<IActionResult> GetNotifications([CurrentUserId] int userId, [FromQuery] int page = Paging.FirstPage, [FromQuery] int pageSize = DefaultPageSize, CancellationToken ct = default) =>
+        Ok(await notifications.GetNotificationsAsync(userId, page, pageSize, ct));
+
+    [HttpGet("unread-count")]
+    public async Task<IActionResult> GetUnreadCount([CurrentUserId] int userId, CancellationToken ct) =>
+        Ok(new { unreadCount = await notifications.GetUnreadCountAsync(userId, ct) });
+
+    [HttpPost("{id}/read")]
+    public async Task<IActionResult> MarkRead([CurrentUserId] int userId, int id, CancellationToken ct)
     {
-        private readonly INotificationService _notificationService;
+        await notifications.MarkReadAsync(id, userId, ct);
+        return NoContent();
+    }
 
-        public NotificationsController(INotificationService notificationService)
-        {
-            _notificationService = notificationService;
-        }
+    [HttpPost("read-all")]
+    public async Task<IActionResult> MarkAllRead([CurrentUserId] int userId, CancellationToken ct)
+    {
+        await notifications.MarkAllReadAsync(userId, ct);
+        return NoContent();
+    }
 
-        [HttpGet]
-        public async Task<IActionResult> GetNotifications([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-
-            (page, pageSize) = Paging.Clamp(page, pageSize);
-            var dto = await _notificationService.GetNotificationsAsync(userId.Value, page, pageSize);
-            return Ok(dto);
-        }
-
-        [HttpGet("unread-count")]
-        public async Task<IActionResult> GetUnreadCount()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-
-            var count = await _notificationService.GetUnreadCountAsync(userId.Value);
-            return Ok(new { unreadCount = count });
-        }
-
-        [HttpPost("{id}/read")]
-        public async Task<IActionResult> MarkRead(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-
-            await _notificationService.MarkReadAsync(id, userId.Value);
-            return NoContent();
-        }
-
-        [HttpPost("read-all")]
-        public async Task<IActionResult> MarkAllRead()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-
-            await _notificationService.MarkAllReadAsync(userId.Value);
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-
-            // Missing or someone else's notification -> NotFoundException (404) via the middleware.
-            await _notificationService.DeleteAsync(id, userId.Value, User.IsInRole("Admin"));
-            return NoContent();
-        }
+    /// <summary>Admins may delete any notification; everyone else only their own (others read as 404).</summary>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete([CurrentUserId] int userId, int id, CancellationToken ct)
+    {
+        await notifications.DeleteAsync(id, new RequestingUser(userId, User.IsAdmin()), ct);
+        return NoContent();
     }
 }

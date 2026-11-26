@@ -67,16 +67,16 @@ Backend listens on `:5000`, sets `SQLITE_PATH` env var to locate the DB. A named
 
 ## Architecture pointers
 
-- `backend/Program.cs` — DI registration, auth setup, middleware pipeline, DB migration on startup
+- `backend/Program.cs` — composition root; calls the extension methods in `backend/Startup/` (DI registration per feature, auth setup, middleware pipeline, DB migration on startup)
 - `backend/Controllers/` — API endpoints
 - `backend/Services/` — business logic (interfaces in `Services/Contracts/`)
 - `backend/Repositories/` — data access (Ef* implementations)
-- `backend/Data/AppDbContext.cs` — EF context
+- `backend/Data/AppDbContext.cs` — EF context; per-entity model configuration in `backend/Data/Configurations/`
 - `backend/Migrations/` — EF migration files
 - `backend/Middleware/` — custom middleware (e.g., exception handling)
 - `frontend/src/main.jsx` — React entry point
 - `frontend/src/App.jsx` — routing
-- `frontend/src/api.js` — HTTP client (axios)
+- `frontend/src/api/` — HTTP client (axios), one module per concern (`index.js` wires them)
 - `frontend/src/contexts/` — React contexts (Auth, Snackbar, Theme)
 - `frontend/src/hooks/` — custom hooks
 - `frontend/src/pages/` — route components
@@ -91,6 +91,7 @@ Backend listens on `:5000`, sets `SQLITE_PATH` env var to locate the DB. A named
 
 ## Constraints & conventions
 
+- Code style follows `docs/clean-code.md` — read it before writing or refactoring code. In short: names over comments, no comments inside method/component bodies, small cohesive units, refactors in separate `refactor:` commits
 - Commits follow conventional commits (enforced by semantic-release on `main`)
 - Releases use semantic-release (`npm run release`), tags `v<major>.<minor>.<patch>`
 - No secrets in repo — JWT key, Docker Hub credentials, etc. come from env/secrets

@@ -1,0 +1,121 @@
+using System.Security.Claims;
+using DailyChallenges.DTOs;
+using DailyChallenges.Exceptions;
+using DailyChallenges.Mapping;
+using DailyChallenges.Models;
+using DailyChallenges.Repositories;
+
+namespace DailyChallenges.Services;
+
+public sealed class GameQueryService(
+    IGameRepository games,
+    ISubmissionRepository submissions,
+    ISubmissionQueryService submissionQueries,
+    IFavoriteRepository favorites,
+    TimeProvider time,
+    ILogger<GameQueryService> logger) : IGameQueryService
+{
+    private const string AvailableDatesPart = "availableDates";
+    private const string HasSubmittedPart = "hasSubmitted";
+
+    public async Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user, CancellationToken ct)
+    {
+        var now = time.GetUtcNow().UtcDateTime;
+        var allGames = await games.GetAllAsync(ct);
+        var dtos = allGames.Select(g => DtoMapper.ToDto(g, nowUtc: now)).ToList();
+
+        var userId = user.GetUserId();
+        if (!userId.HasValue) return dtos;
+
+        var currentDayByGame = allGames.ToDictionary(g => g.Id, g => ScoringDayCalculator.GetCurrentScoringDay(g.ResetTime, now).Date);
+        await MarkUserFlagsAsync(dtos, currentDayByGame, userId.Value, ct);
+        return dtos;
+    }
+
+    public async Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id, CancellationToken ct)
+    {
+        var (data, contentType) = await games.GetBlobAsync(id, ct);
+        if (data == null || data.Length == 0) return (null, null);
+        return (data, contentType);
+    }
+
+    /// <summary>
+    /// Sub-requests run one after another (they share the scoped DbContext, which allows only one operation
+    /// at a time), and failures are reported per part.
+    /// </summary>
+    public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include, CancellationToken ct)
+    {
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct) ?? throw new NotFoundException("Game not found");
+        var dto = new GameOverviewDto { Game = DtoMapper.ToDto(game, nowUtc: time.GetUtcNow().UtcDateTime) };
+
+        var parts = OverviewInclude.Parse(include);
+        var loader = new OverviewPartLoader(logger, ct);
+        dto.AvailableDates = parts.Wants(AvailableDatesPart)
+            ? await loader.LoadAsync(AvailableDatesPart, () => submissionQueries.GetAvailableDatesAsync(gameId, ct), new List<string>())
+            : new List<string>();
+        dto.HasSubmittedForLatest = parts.Wants(HasSubmittedPart)
+            && await loader.LoadAsync(HasSubmittedPart, () => submissionQueries.HasUserSubmittedForLatestAsync(gameId, user, ct), false);
+        dto.Errors = loader.Errors.Count > 0 ? loader.Errors : null;
+
+        await MarkFavoriteAsync(dto.Game, user, ct);
+        return dto;
+    }
+
+    private async Task MarkUserFlagsAsync(List<GameDto> dtos, IReadOnlyDictionary<int, DateTime> currentDayByGame, int userId, CancellationToken ct)
+    {
+        var userSubmissions = await submissions.GetByUserAndGamesAndDaysAsync(
+            userId, currentDayByGame.Keys.ToList(), currentDayByGame.Values.Distinct().ToList(), ct);
+        var submittedGameDays = userSubmissions.Select(s => (s.GameId, s.ScoringDay.Date)).ToHashSet();
+        var favoriteIds = (await favorites.GetFavoriteGameIdsForUserAsync(userId, ct)).ToHashSet();
+
+        foreach (var dto in dtos)
+        {
+            dto.HasSubmittedForLatest = submittedGameDays.Contains((dto.Id, currentDayByGame[dto.Id]));
+            dto.IsFavorite = favoriteIds.Contains(dto.Id);
+        }
+    }
+
+    private async Task MarkFavoriteAsync(GameDto game, ClaimsPrincipal? user, CancellationToken ct)
+    {
+        var userId = user.GetUserId();
+        if (!userId.HasValue) return;
+
+        var favoriteIds = await favorites.GetFavoriteGameIdsForUserAsync(userId.Value, ct);
+        game.IsFavorite = favoriteIds.Contains(game.Id);
+    }
+
+    /// <summary>The overview's comma-separated include filter; null or empty means every part.</summary>
+    private sealed record OverviewInclude(HashSet<string>? Parts)
+    {
+        public static OverviewInclude Parse(string? include) =>
+            new(string.IsNullOrEmpty(include)
+                ? null
+                : include.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(part => part.Trim()).ToHashSet());
+
+        public bool Wants(string part) => Parts == null || Parts.Contains(part);
+    }
+
+    /// <summary>
+    /// The failure boundary for one overview part: any exception is logged and reported in
+    /// <see cref="Errors"/> with its message, and the part falls back to its empty value so the rest of the
+    /// overview still renders. A cancellation of the request itself is not a part failure and is rethrown.
+    /// </summary>
+    private sealed class OverviewPartLoader(ILogger logger, CancellationToken requestAborted)
+    {
+        public List<OverviewErrorDto> Errors { get; } = new();
+
+        public async Task<T> LoadAsync<T>(string part, Func<Task<T>> load, T fallback)
+        {
+            try
+            {
+                return await load();
+            }
+            catch (Exception ex) when (!requestAborted.IsCancellationRequested)
+            {
+                logger.LogWarning(ex, "Game overview part {Part} failed", part);
+                Errors.Add(new OverviewErrorDto { Part = part, Message = ex.Message });
+                return fallback;
+            }
+        }
+    }
+}

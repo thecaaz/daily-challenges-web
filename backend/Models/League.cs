@@ -1,24 +1,23 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DailyChallenges.Models
+namespace DailyChallenges.Models;
+
+public sealed class League
 {
-    public class League
-    {
-        [Key]
-        public int Id { get; set; }
+    [Key]
+    public int Id { get; set; }
 
-        [Required]
-        [MaxLength(100)]
-        public string Name { get; set; } = string.Empty;
+    [Required]
+    [MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
 
-        /// <summary>The user who created the league and is its owner.</summary>
-        [Required]
-        public int OwnerId { get; set; }
-        public User? Owner { get; set; }
+    /// <summary>The user who created the league and is its owner.</summary>
+    [Required]
+    public int OwnerId { get; set; }
+    public User? Owner { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
-        public ICollection<LeagueMember> Members { get; set; } = new List<LeagueMember>();
-        public ICollection<LeagueInvitation> Invitations { get; set; } = new List<LeagueInvitation>();
-    }
+    public ICollection<LeagueMember> Members { get; set; } = new List<LeagueMember>();
+    public ICollection<LeagueInvitation> Invitations { get; set; } = new List<LeagueInvitation>();
 }

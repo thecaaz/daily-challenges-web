@@ -1,13 +1,12 @@
-namespace DailyChallenges.DTOs
+namespace DailyChallenges.DTOs;
+
+public sealed record FriendRequestDto
 {
-    public class FriendRequestDto
-    {
-        public int Id { get; set; }
-        public int SenderId { get; set; }
-        public string SenderUsername { get; set; } = string.Empty;
-        public int ReceiverId { get; set; }
-        public string ReceiverUsername { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
-    }
+    public int Id { get; init; }
+    public int SenderId { get; init; }
+    public string SenderUsername { get; init; } = string.Empty;
+    public int ReceiverId { get; init; }
+    public string ReceiverUsername { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
 }

@@ -6,12 +6,9 @@ import { achievementIcon } from '../../utils/achievementIcons'
 import parseUtcDate from '../../utils/parseUtcDate'
 
 export default function AchievementBadge({ achievement }) {
-  const unlocked = !!achievement.unlockedAt || !!achievement.UnlockedAt
-  const name = achievement.name || achievement.Name
-  const description = achievement.description || achievement.Description
-  const iconKey = achievement.iconKey || achievement.IconKey
+  const { name, description, iconKey, unlockedAt } = achievement
+  const isUnlocked = Boolean(unlockedAt)
 
-  const unlockedAt = achievement.unlockedAt || achievement.UnlockedAt
   const tooltipContent = (
     <Box sx={{ maxWidth: 200 }}>
       <Typography variant="subtitle2">{name}</Typography>
@@ -35,16 +32,16 @@ export default function AchievementBadge({ achievement }) {
           p: 1,
           borderRadius: 2,
           border: '1px solid',
-          borderColor: unlocked ? 'primary.main' : 'divider',
-          bgcolor: unlocked ? 'action.selected' : 'action.disabledBackground',
-          opacity: unlocked ? 1 : 0.45,
+          borderColor: isUnlocked ? 'primary.main' : 'divider',
+          bgcolor: isUnlocked ? 'action.selected' : 'action.disabledBackground',
+          opacity: isUnlocked ? 1 : 0.45,
           cursor: 'default',
           minWidth: 72,
           userSelect: 'none',
         }}
       >
         <Box sx={{ fontSize: 28, lineHeight: 1 }}>
-          {unlocked ? (achievementIcon(iconKey) || <EmojiEventsIcon />) : <LockIcon color="disabled" />}
+          {isUnlocked ? (achievementIcon(iconKey) || <EmojiEventsIcon />) : <LockIcon color="disabled" />}
         </Box>
         <Typography
           variant="caption"

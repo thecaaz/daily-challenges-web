@@ -7,9 +7,9 @@ export default function TopGamesList({ games = [] }) {
 
   return (
     <Grid container spacing={2}>
-      {games.map(g => (
-        <Grid item xs={12} sm={6} md={4} key={g.gameId ?? g.GameId}>
-          <UserGameStatCard game={g} />
+      {games.map(game => (
+        <Grid item xs={12} sm={6} md={4} key={game.gameId}>
+          <UserGameStatCard game={game} />
         </Grid>
       ))}
     </Grid>

@@ -4,135 +4,71 @@ using DailyChallenges.DTOs;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Contracts;
 
-namespace DailyChallenges.Controllers
+namespace DailyChallenges.Controllers;
+
+[ApiController]
+[Route("api/friends")]
+[Authorize]
+public sealed class FriendsController(
+    IFriendRequestService requests,
+    IFriendshipService friendships) : ControllerBase
 {
-    [ApiController]
-    [Route("api/friends")]
-    [Authorize]
-    public class FriendsController : ControllerBase
+    [HttpPost("requests")]
+    public async Task<ActionResult<FriendRequestDto>> SendRequest([CurrentUserId] int userId, [FromBody] SendFriendRequestDto body, CancellationToken ct) =>
+        Ok(await requests.SendRequestAsync(userId, body.TargetUserId, ct));
+
+    [HttpPost("requests/by-username")]
+    public async Task<ActionResult<FriendRequestDto>> SendRequestByUsername([CurrentUserId] int userId, [FromBody] SendFriendRequestByUsernameDto body, CancellationToken ct) =>
+        Ok(await requests.SendRequestByUsernameAsync(userId, body.Username, ct));
+
+    [HttpGet("requests/incoming")]
+    public async Task<ActionResult<List<FriendRequestDto>>> GetIncoming([CurrentUserId] int userId, CancellationToken ct) =>
+        Ok(await friendships.GetIncomingRequestsAsync(userId, ct));
+
+    [HttpGet("requests/sent")]
+    public async Task<ActionResult<List<FriendRequestDto>>> GetSent([CurrentUserId] int userId, CancellationToken ct) =>
+        Ok(await friendships.GetOutgoingRequestsAsync(userId, ct));
+
+    [HttpPost("requests/{id:int}/accept")]
+    public async Task<IActionResult> Accept([CurrentUserId] int userId, int id, CancellationToken ct)
     {
-        private readonly IFriendService _friends;
-
-        public FriendsController(IFriendService friends)
-        {
-            _friends = friends;
-        }
-
-        // ── Send request by userId ────────────────────────────────────────────
-
-        [HttpPost("requests")]
-        public async Task<ActionResult<FriendRequestDto>> SendRequest([FromBody] SendFriendRequestDto body)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            var result = await _friends.SendRequestAsync(userId.Value, body.TargetUserId);
-            return Ok(result);
-        }
-
-        // ── Send request by username ──────────────────────────────────────────
-
-        [HttpPost("requests/by-username")]
-        public async Task<ActionResult<FriendRequestDto>> SendRequestByUsername([FromBody] SendFriendRequestByUsernameDto body)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            var result = await _friends.SendRequestByUsernameAsync(userId.Value, body.Username);
-            return Ok(result);
-        }
-
-        // ── Incoming / outgoing lists ─────────────────────────────────────────
-
-        [HttpGet("requests/incoming")]
-        public async Task<ActionResult<List<FriendRequestDto>>> GetIncoming()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _friends.GetIncomingRequestsAsync(userId.Value));
-        }
-
-        [HttpGet("requests/sent")]
-        public async Task<ActionResult<List<FriendRequestDto>>> GetSent()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _friends.GetOutgoingRequestsAsync(userId.Value));
-        }
-
-        // ── Accept / reject ───────────────────────────────────────────────────
-
-        [HttpPost("requests/{id:int}/accept")]
-        public async Task<IActionResult> Accept(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _friends.RespondToRequestAsync(id, userId.Value, accept: true);
-            return NoContent();
-        }
-
-        [HttpPost("requests/{id:int}/reject")]
-        public async Task<IActionResult> Reject(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _friends.RespondToRequestAsync(id, userId.Value, accept: false);
-            return NoContent();
-        }
-
-        // ── Cancel own pending request ────────────────────────────────────────
-
-        [HttpDelete("requests/{id:int}")]
-        public async Task<IActionResult> CancelRequest(int id)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _friends.CancelRequestAsync(id, userId.Value);
-            return NoContent();
-        }
-
-        // ── Friends list ──────────────────────────────────────────────────────
-
-        [HttpGet]
-        public async Task<ActionResult<List<FriendDto>>> GetFriends()
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            return Ok(await _friends.GetFriendsAsync(userId.Value));
-        }
-
-        [HttpDelete("{friendId:int}")]
-        public async Task<IActionResult> RemoveFriend(int friendId)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Forbid();
-            await _friends.RemoveFriendAsync(userId.Value, friendId);
-            return NoContent();
-        }
-
-        // ── Relationship status (auth optional) ───────────────────────────────
-
-        [HttpGet("status/{targetUserId:int}")]
-        [AllowAnonymous]
-        public async Task<ActionResult<RelationshipStatusDto>> GetStatus(int targetUserId)
-        {
-            var userId = User.GetUserId();
-            if (!userId.HasValue) return Ok(new RelationshipStatusDto { Status = "none" });
-            var status = await _friends.GetRelationshipStatusAsync(userId.Value, targetUserId);
-            return Ok(new RelationshipStatusDto { Status = status });
-        }
+        await requests.AcceptRequestAsync(id, userId, ct);
+        return NoContent();
     }
 
-    public class SendFriendRequestDto
+    [HttpPost("requests/{id:int}/reject")]
+    public async Task<IActionResult> Reject([CurrentUserId] int userId, int id, CancellationToken ct)
     {
-        public int TargetUserId { get; set; }
+        await requests.DeclineRequestAsync(id, userId, ct);
+        return NoContent();
     }
 
-    public class SendFriendRequestByUsernameDto
+    [HttpDelete("requests/{id:int}")]
+    public async Task<IActionResult> CancelRequest([CurrentUserId] int userId, int id, CancellationToken ct)
     {
-        public string Username { get; set; } = string.Empty;
+        await requests.CancelRequestAsync(id, userId, ct);
+        return NoContent();
     }
 
-    public class RelationshipStatusDto
+    [HttpGet]
+    public async Task<ActionResult<List<FriendDto>>> GetFriends([CurrentUserId] int userId, CancellationToken ct) =>
+        Ok(await friendships.GetFriendsAsync(userId, ct));
+
+    [HttpDelete("{friendId:int}")]
+    public async Task<IActionResult> RemoveFriend([CurrentUserId] int userId, int friendId, CancellationToken ct)
     {
-        public string Status { get; set; } = string.Empty;
+        await friendships.RemoveFriendAsync(userId, friendId, ct);
+        return NoContent();
+    }
+
+    /// <summary>Authentication is optional: anonymous callers have no relationship with anyone.</summary>
+    [HttpGet("status/{targetUserId:int}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<RelationshipStatusDto>> GetStatus(int targetUserId, CancellationToken ct)
+    {
+        var status = User.GetUserId() is int userId
+            ? await friendships.GetRelationshipStatusAsync(userId, targetUserId, ct)
+            : RelationshipStatus.None;
+        return Ok(new RelationshipStatusDto { Status = status });
     }
 }

@@ -1,11 +1,13 @@
 using DailyChallenges.Models;
 
-namespace DailyChallenges.Services.Ranking
+namespace DailyChallenges.Services.Ranking;
+
+/// <summary>Higher ScoreValue wins (descending order). Ties broken by earliest CreatedAt.</summary>
+public sealed class HighestRankingStrategy : IRankingStrategy
 {
-    /// <summary>Higher ScoreValue wins (descending order). Ties broken by earliest CreatedAt.</summary>
-    public class HighestRankingStrategy : IRankingStrategy
-    {
-        public IOrderedQueryable<Submission> ApplyOrdering(IQueryable<Submission> query)
-            => query.OrderByDescending(s => s.ScoreValue).ThenBy(s => s.CreatedAt);
-    }
+    public IOrderedQueryable<Submission> ApplyOrdering(IQueryable<Submission> query)
+        => query.OrderByDescending(s => s.ScoreValue).ThenBy(s => s.CreatedAt);
+
+    public IOrderedEnumerable<T> OrderBestFirst<T>(IEnumerable<T> rows) where T : IRankable
+        => rows.OrderByDescending(r => r.ScoreValue).ThenBy(r => r.CreatedAt);
 }

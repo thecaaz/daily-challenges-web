@@ -3,25 +3,9 @@ using System.Text.Json;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Services;
-using DailyChallenges.TestUtilities;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DailyChallenges.IntegrationTests;
-
-/// <summary>An ApiFactory whose clock is fixed, so "the current scoring day" is deterministic.</summary>
-public sealed class FixedClockApiFactory : ApiFactory
-{
-    public static readonly DateTime Now = new(2026, 6, 15, 10, 0, 0, DateTimeKind.Utc);
-
-    public FixedTimeProvider Clock { get; } = new(Now);
-
-    protected override void ConfigureServices(IServiceCollection services)
-    {
-        services.RemoveAll<TimeProvider>();
-        services.AddSingleton<TimeProvider>(Clock);
-    }
-}
 
 /// <summary>
 /// Seeds one game (reset 00:00 UTC, highest wins) with two submissions on the current scoring day
@@ -196,8 +180,12 @@ public class HiddenScoresTests : IClassFixture<HiddenScoresFixture>
         Assert.Contains(_fx.SubmitterYesterday.Id, ids);
         Assert.Equal(includesToday, ids.Contains(_fx.OtherToday.Id));
         Assert.Equal(includesToday ? 4 : 2, items.Count);
+        AssertOnlyCurrentDayScreenshotsAreSigned(items);
+    }
 
-        // Past-day screenshots need no signature; current-day ones are signed.
+    /// <summary>Past-day screenshots need no signature; current-day ones are signed.</summary>
+    private static void AssertOnlyCurrentDayScreenshotsAreSigned(IEnumerable<JsonElement> items)
+    {
         foreach (var item in items)
         {
             var url = item.GetProperty("screenshotUrl").GetString()!;
@@ -289,14 +277,15 @@ public class HiddenScoresTests : IClassFixture<HiddenScoresFixture>
 
     // ── GET /api/submissions/{id}/screenshot ─────────────────────────────────
 
+    /// <summary><c>&lt;img&gt;</c> requests carry no Bearer token, so the signature alone must grant access.</summary>
     [Fact]
     public async Task Signed_current_day_screenshot_url_works_without_a_token()
     {
         var dto = await GetJsonAsync(Client(Viewer.Submitter), $"/api/submissions/{_fx.OtherToday.Id}");
         var url = dto.GetProperty("screenshotUrl").GetString()!;
+        var imageRequestClient = _fx.Factory.CreateClient();
 
-        // <img> requests carry no Bearer token.
-        var res = await _fx.Factory.CreateClient().GetAsync(url);
+        var res = await imageRequestClient.GetAsync(url);
 
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Equal("image/png", res.Content.Headers.ContentType?.MediaType);
@@ -313,39 +302,74 @@ public class HiddenScoresTests : IClassFixture<HiddenScoresFixture>
         Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
     }
 
-    [Fact]
-    public async Task Current_day_screenshot_with_a_bad_signature_is_forbidden()
+    public enum BadSignature
+    {
+        TamperedSignature,
+        TamperedExpiry,
+        Expired,
+        AnotherSubmissionsSignature,
+        NotHex,
+        MissingSignature,
+        MissingExpiry,
+    }
+
+    private const int SignatureLifetimeSeconds = 600;
+
+    private static long NowUnixSeconds => new DateTimeOffset(FixedClockApiFactory.Now).ToUnixTimeSeconds();
+
+    private static string ScreenshotUrl(int submissionId, string query) => $"/api/submissions/{submissionId}/screenshot?{query}";
+
+    private string ValidQuery(int submissionId)
+    {
+        var signer = _fx.Factory.Services.GetRequiredService<IScreenshotUrlSigner>();
+        var exp = NowUnixSeconds + SignatureLifetimeSeconds;
+        return $"exp={exp}&sig={signer.ComputeSignature(submissionId, exp)}";
+    }
+
+    private string BadQuery(int submissionId, BadSignature kind)
+    {
+        var signer = _fx.Factory.Services.GetRequiredService<IScreenshotUrlSigner>();
+        var validExp = NowUnixSeconds + SignatureLifetimeSeconds;
+        var validSig = signer.ComputeSignature(submissionId, validExp);
+        var expiredExp = NowUnixSeconds - 1;
+        return kind switch
+        {
+            BadSignature.TamperedSignature => $"exp={validExp}&sig={(validSig[0] == '0' ? "1" : "0") + validSig[1..]}",
+            BadSignature.TamperedExpiry => $"exp={validExp + 1}&sig={validSig}",
+            BadSignature.Expired => $"exp={expiredExp}&sig={signer.ComputeSignature(submissionId, expiredExp)}",
+            BadSignature.AnotherSubmissionsSignature => $"exp={validExp}&sig={signer.ComputeSignature(_fx.SubmitterToday.Id, validExp)}",
+            BadSignature.NotHex => $"exp={validExp}&sig=not-hex",
+            BadSignature.MissingSignature => $"exp={validExp}",
+            BadSignature.MissingExpiry => $"sig={validSig}",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+    }
+
+    [Theory]
+    [InlineData(BadSignature.TamperedSignature)]
+    [InlineData(BadSignature.TamperedExpiry)]
+    [InlineData(BadSignature.Expired)]
+    [InlineData(BadSignature.AnotherSubmissionsSignature)]
+    [InlineData(BadSignature.NotHex)]
+    [InlineData(BadSignature.MissingSignature)]
+    [InlineData(BadSignature.MissingExpiry)]
+    public async Task Current_day_screenshot_with_a_bad_signature_is_forbidden(BadSignature kind)
     {
         var id = _fx.OtherToday.Id;
-        var signer = _fx.Factory.Services.GetRequiredService<IScreenshotUrlSigner>();
-        var now = new DateTimeOffset(FixedClockApiFactory.Now).ToUnixTimeSeconds();
-        var client = _fx.Factory.CreateClient();
 
-        var validExp = now + 600;
-        var validSig = signer.ComputeSignature(id, validExp);
-        var tampered = (validSig[0] == '0' ? "1" : "0") + validSig[1..];
-        var expiredExp = now - 1;
+        var res = await _fx.Factory.CreateClient().GetAsync(ScreenshotUrl(id, BadQuery(id, kind)));
 
-        var cases = new[]
-        {
-            $"exp={validExp}&sig={tampered}",                                      // tampered signature
-            $"exp={validExp + 1}&sig={validSig}",                                  // tampered expiry
-            $"exp={expiredExp}&sig={signer.ComputeSignature(id, expiredExp)}",     // expired
-            $"exp={validExp}&sig={signer.ComputeSignature(_fx.SubmitterToday.Id, validExp)}", // another submission's signature
-            $"exp={validExp}&sig=not-hex",
-            $"exp={validExp}",
-            $"sig={validSig}",
-        };
+        Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
+    }
 
-        foreach (var query in cases)
-        {
-            var res = await client.GetAsync($"/api/submissions/{id}/screenshot?{query}");
-            Assert.True(res.StatusCode == HttpStatusCode.Forbidden, $"{query}: expected 403, got {res.StatusCode}");
-        }
+    [Fact]
+    public async Task Current_day_screenshot_with_a_valid_signature_is_served()
+    {
+        var id = _fx.OtherToday.Id;
 
-        // Sanity check: the untampered pair works.
-        var ok = await client.GetAsync($"/api/submissions/{id}/screenshot?exp={validExp}&sig={validSig}");
-        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        var res = await _fx.Factory.CreateClient().GetAsync(ScreenshotUrl(id, ValidQuery(id)));
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 
     [Fact]
@@ -363,10 +387,10 @@ public class HiddenScoresTests : IClassFixture<HiddenScoresFixture>
         var signer = _fx.Factory.Services.GetRequiredService<IScreenshotUrlSigner>();
         var url = signer.SignedUrl(_fx.OtherToday.Id);
         var exp = long.Parse(url.Split("exp=")[1].Split('&')[0]);
-        var now = new DateTimeOffset(FixedClockApiFactory.Now).ToUnixTimeSeconds();
+        var now = NowUnixSeconds;
+        var secondsUntilExpiry = exp - now;
 
-        // Valid for (roughly) an hour.
-        Assert.InRange(exp - now, (long)TimeSpan.FromMinutes(45).TotalSeconds, (long)TimeSpan.FromHours(1).TotalSeconds);
+        Assert.InRange(secondsUntilExpiry, (long)TimeSpan.FromMinutes(45).TotalSeconds, (long)TimeSpan.FromHours(1).TotalSeconds);
         Assert.True(signer.IsValid(_fx.OtherToday.Id, exp, url.Split("sig=")[1]));
         Assert.False(signer.IsValid(_fx.OtherToday.Id, now, url.Split("sig=")[1]));
     }
@@ -458,9 +482,8 @@ public class HiddenScoresTests : IClassFixture<HiddenScoresFixture>
                 AssertMasked(e);
                 Assert.False(Has(e, "submissionId"));
             });
-            // Ordered by name, not by score.
-            Assert.Equal(new[] { _fx.Other.Username, _fx.Submitter.Username },
-                entries.Select(e => e.GetProperty("username").GetString()));
+            var usernamesInAlphabeticalOrder = new[] { _fx.Other.Username, _fx.Submitter.Username };
+            Assert.Equal(usernamesInAlphabeticalOrder, entries.Select(e => e.GetProperty("username").GetString()));
             return;
         }
 
@@ -504,7 +527,7 @@ public class HiddenScoresTests : IClassFixture<HiddenScoresFixture>
 
         Assert.Equal(topScore, item.GetProperty("topScoreValue").GetDouble());
         Assert.Equal(myRank, Has(item, "myRank") ? item.GetProperty("myRank").GetInt32() : null);
-        // Play counts are not scores; they still include today.
-        Assert.Equal(4, item.GetProperty("playCount").GetInt32());
+        const int playsIncludingTodaysHiddenScores = 4;
+        Assert.Equal(playsIncludingTodaysHiddenScores, item.GetProperty("playCount").GetInt32());
     }
 }

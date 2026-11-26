@@ -1,8 +1,7 @@
-namespace DailyChallenges.DTOs
+namespace DailyChallenges.DTOs;
+
+public sealed record ScoreHistoryEntryDto
 {
-    public class ScoreHistoryEntryDto
-    {
-        public string ScoringDay { get; set; } = string.Empty;
-        public double? ScoreValue { get; set; }
-    }
+    public string ScoringDay { get; set; } = string.Empty;
+    public double? ScoreValue { get; set; }
 }

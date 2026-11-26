@@ -9,12 +9,17 @@ import ExtensionIcon from '@mui/icons-material/Extension'
 import FavoriteButton from '../FavoriteButton'
 import useAdapter from '../../../hooks/useAdapter'
 import imageUrl from '../../../utils/imageUrl'
+import { placeholderGradient } from '../../../styles/tokens'
 
-export default function GameCard({ game, sx, showSubmit = true }) {
+/**
+ * A game tile linking to the game. The favourite button sits in the card
+ * actions, outside the CardActionArea link: a button can't be nested in an <a>.
+ */
+export default function GameCard({ game }) {
   const adapter = useAdapter(game?.url)
 
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', ...(sx || {}) }}>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardActionArea component={Link} to={`/games/${game.id}`} sx={{ flexGrow: 1 }}>
         {game.imageUrl ? (
           <CardMedia
@@ -32,7 +37,7 @@ export default function GameCard({ game, sx, showSubmit = true }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'linear-gradient(135deg, rgba(255,122,182,0.12), rgba(255,209,102,0.12))',
+              background: placeholderGradient(0.12),
               fontSize: '3.5rem',
             }}
           >
@@ -57,33 +62,33 @@ export default function GameCard({ game, sx, showSubmit = true }) {
       </CardActionArea>
 
       <CardActions disableSpacing sx={{ px: 2, pb: 2, pt: 0, gap: 1 }}>
-        {showSubmit && (
-          (() => {
-            const disabled = Boolean(game.hasSubmittedForLatest);
-            const to = disabled ? undefined : `/submit/${game.id}`;
-            return (
-              <AppButton
-                to={to}
-                variant="contained"
-                color="primary"
-                size="small"
-                startIcon={<EmojiEventsIcon />}
-                disabled={disabled}
-                aria-label={disabled ? 'Already submitted today' : 'Submit score'}
-              >
-                {disabled ? 'Submitted' : 'Submit Score'}
-              </AppButton>
-            )
-          })()
-        )}
+        <SubmitScoreButton game={game} />
         {game.url && (
           <PlayButton game={game} adapter={adapter} />
         )}
-        {/* Kept outside the CardActionArea link: a button can't be nested in an <a>. */}
         <Box sx={{ ml: 'auto' }}>
           <FavoriteButton game={game} />
         </Box>
       </CardActions>
     </Card>
+  )
+}
+
+function SubmitScoreButton({ game }) {
+  const hasSubmitted = Boolean(game.hasSubmittedForLatest)
+  const label = hasSubmitted ? 'Already submitted today' : 'Submit score'
+
+  return (
+    <AppButton
+      to={hasSubmitted ? undefined : `/submit/${game.id}`}
+      variant="contained"
+      color="primary"
+      size="small"
+      startIcon={<EmojiEventsIcon />}
+      disabled={hasSubmitted}
+      aria-label={label}
+    >
+      {hasSubmitted ? 'Submitted' : 'Submit Score'}
+    </AppButton>
   )
 }

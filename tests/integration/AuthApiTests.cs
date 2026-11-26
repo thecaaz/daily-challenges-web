@@ -3,15 +3,14 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Services;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -23,26 +22,7 @@ public class AuthApiTests : IClassFixture<ApiFactory>
 
     public AuthApiTests(ApiFactory factory) => _factory = factory;
 
-    private HttpClient Client() => _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
-
-    private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage res)
-    {
-        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        return doc.RootElement.Clone();
-    }
-
-    /// <summary>The refresh_token value from a response's Set-Cookie header (null when absent or cleared).</summary>
-    private static string? RefreshCookie(HttpResponseMessage res)
-    {
-        if (!res.Headers.TryGetValues("Set-Cookie", out var cookies)) return null;
-        foreach (var c in cookies)
-        {
-            if (!c.StartsWith("refresh_token=", StringComparison.Ordinal)) continue;
-            var value = c["refresh_token=".Length..].Split(';')[0];
-            return string.IsNullOrEmpty(value) ? null : value;
-        }
-        return null;
-    }
+    private HttpClient Client() => _factory.CreateCookielessClient();
 
     private async Task RegisterAsync(string username, string password = Password)
     {
@@ -55,7 +35,7 @@ public class AuthApiTests : IClassFixture<ApiFactory>
         var res = await Client().PostAsJsonAsync("/api/auth/login", new { username, password });
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var json = await ReadJsonAsync(res);
-        var refresh = RefreshCookie(res);
+        var refresh = RefreshCookie.ValueFrom(res);
         Assert.NotNull(refresh);
         return (json.GetProperty("accessToken").GetString()!, refresh!, json.GetProperty("user").GetProperty("id").GetInt32());
     }
@@ -99,18 +79,32 @@ public class AuthApiTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Username_is_trimmed_and_unique_case_insensitively()
+    public async Task Register_trims_the_username()
     {
         var res = await Client().PostAsJsonAsync("/api/auth/register", new { username = "  Case.User-1 ", password = Password });
+
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Equal("Case.User-1", (await ReadJsonAsync(res)).GetProperty("username").GetString());
+    }
 
-        var dup = await Client().PostAsJsonAsync("/api/auth/register", new { username = "case.user-1", password = Password });
+    [Fact]
+    public async Task Register_rejects_a_username_that_differs_only_in_case()
+    {
+        await RegisterAsync("Case.User-2");
+
+        var dup = await Client().PostAsJsonAsync("/api/auth/register", new { username = "case.user-2", password = Password });
+
         Assert.Equal(HttpStatusCode.Conflict, dup.StatusCode);
         Assert.Equal("Username already taken", (await ReadJsonAsync(dup)).GetProperty("message").GetString());
+    }
 
-        // Login ignores case and surrounding whitespace.
-        var (_, _, userId) = await LoginAsync(" CASE.USER-1 ");
+    [Fact]
+    public async Task Login_ignores_username_case_and_surrounding_whitespace()
+    {
+        await RegisterAsync("Case.User-3");
+
+        var (_, _, userId) = await LoginAsync(" CASE.USER-3 ");
+
         Assert.True(userId > 0);
     }
 
@@ -150,42 +144,95 @@ public class AuthApiTests : IClassFixture<ApiFactory>
         Assert.False(string.IsNullOrEmpty((await ReadJsonAsync(res)).GetProperty("message").GetString()));
     }
 
+    /// <summary>A validly signed token with only the claims tokens had before token_use / tv / jti existed.</summary>
+    private string CreatePreUpgradeToken(int userId, string username)
+    {
+        var jwt = _factory.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
+        var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()), new Claim(ClaimTypes.Name, username) };
+        var creds = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)), SecurityAlgorithms.HmacSha256);
+        return new JwtSecurityTokenHandler().WriteToken(
+            new JwtSecurityToken(jwt.Issuer, jwt.Audience, claims, expires: DateTime.UtcNow.AddDays(1), signingCredentials: creds));
+    }
+
     [Fact]
     public async Task Pre_upgrade_tokens_without_token_use_are_rejected()
     {
         await RegisterAsync("legacy-user");
         var (_, _, userId) = await LoginAsync("legacy-user");
 
-        // The claims tokens had before token_use / tv / jti existed.
-        var jwt = _factory.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
-        var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()), new Claim(ClaimTypes.Name, "legacy-user") };
-        var creds = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)), SecurityAlgorithms.HmacSha256);
-        var legacy = new JwtSecurityTokenHandler().WriteToken(
-            new JwtSecurityToken(jwt.Issuer, jwt.Audience, claims, expires: DateTime.UtcNow.AddDays(1), signingCredentials: creds));
+        var legacy = CreatePreUpgradeToken(userId, "legacy-user");
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await GetWithBearerAsync(legacy)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(legacy)).StatusCode);
     }
 
     [Fact]
-    public async Task Refresh_rotates_and_rejects_reuse_of_the_old_token()
+    public async Task Refresh_rotates_the_refresh_token_and_issues_a_working_access_token()
     {
         await RegisterAsync("rotate-user");
         var (_, first, _) = await LoginAsync("rotate-user");
 
-        var res1 = await RefreshAsync(first);
-        Assert.Equal(HttpStatusCode.OK, res1.StatusCode);
-        var second = RefreshCookie(res1);
+        var res = await RefreshAsync(first);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var second = RefreshCookie.ValueFrom(res);
         Assert.NotNull(second);
         Assert.NotEqual(first, second);
-        var newAccess = (await ReadJsonAsync(res1)).GetProperty("accessToken").GetString()!;
+        var newAccess = (await ReadJsonAsync(res)).GetProperty("accessToken").GetString()!;
         Assert.Equal(HttpStatusCode.OK, (await GetWithBearerAsync(newAccess)).StatusCode);
+    }
 
-        // Replaying the rotated-out token fails; the new one still works (once).
-        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(first)).StatusCode);
-        var res2 = await RefreshAsync(second!);
-        Assert.Equal(HttpStatusCode.OK, res2.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(second!)).StatusCode);
+    /// <summary>Registers and logs in <paramref name="username"/>, then refreshes once.</summary>
+    private async Task<(string RotatedOut, string Current)> LoginAndRotateAsync(string username)
+    {
+        await RegisterAsync(username);
+        var (_, first, _) = await LoginAsync(username);
+        var res = await RefreshAsync(first);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        return (first, RefreshCookie.ValueFrom(res)!);
+    }
+
+    [Fact]
+    public async Task Refresh_with_a_rotated_out_token_is_401()
+    {
+        var (rotatedOut, _) = await LoginAndRotateAsync("rotated-out-user");
+
+        var replay = await RefreshAsync(rotatedOut);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
+    }
+
+    [Fact]
+    public async Task Rotated_in_refresh_token_works_exactly_once()
+    {
+        var (rotatedOut, current) = await LoginAndRotateAsync("rotated-in-user");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(rotatedOut)).StatusCode);
+
+        var first = await RefreshAsync(current);
+        var second = await RefreshAsync(current);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, second.StatusCode);
+    }
+
+    private async Task<HttpResponseMessage> LogoutAsync(string refreshToken)
+    {
+        var logout = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+        logout.Headers.Add("Cookie", $"refresh_token={refreshToken}");
+        var res = await Client().SendAsync(logout);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        return res;
+    }
+
+    [Fact]
+    public async Task Logout_clears_the_refresh_cookie()
+    {
+        await RegisterAsync("logout-cookie-user");
+        var (_, session, _) = await LoginAsync("logout-cookie-user");
+
+        var res = await LogoutAsync(session);
+
+        Assert.Contains(res.Headers.GetValues("Set-Cookie"), c => c.StartsWith("refresh_token=;", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -195,12 +242,7 @@ public class AuthApiTests : IClassFixture<ApiFactory>
         var (_, sessionA, _) = await LoginAsync("logout-user");
         var (_, sessionB, _) = await LoginAsync("logout-user");
 
-        var logout = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
-        logout.Headers.Add("Cookie", $"refresh_token={sessionA}");
-        var logoutRes = await Client().SendAsync(logout);
-        Assert.Equal(HttpStatusCode.OK, logoutRes.StatusCode);
-        // The cookie is cleared.
-        Assert.Contains(logoutRes.Headers.GetValues("Set-Cookie"), c => c.StartsWith("refresh_token=;", StringComparison.Ordinal));
+        await LogoutAsync(sessionA);
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(sessionA)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(sessionB)).StatusCode);
@@ -213,6 +255,16 @@ public class AuthApiTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
     }
 
+    private const int ActingAdminId = 900_001;
+    private const string ResetPassword = "brand-new-pass";
+
+    private async Task ResetPasswordAsAdminAsync(int userId)
+    {
+        var admin = _factory.CreateAuthenticatedClient(ActingAdminId, username: "some-admin", isAdmin: true);
+        var reset = await admin.PostAsJsonAsync($"/api/admin/users/{userId}/password", new { newPassword = ResetPassword });
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+    }
+
     [Fact]
     public async Task Admin_password_reset_ends_every_session()
     {
@@ -220,46 +272,82 @@ public class AuthApiTests : IClassFixture<ApiFactory>
         var (_, sessionA, userId) = await LoginAsync("reset-user");
         var (_, sessionB, _) = await LoginAsync("reset-user");
 
-        var admin = _factory.CreateAuthenticatedClient(userId: 900_001, username: "some-admin", isAdmin: true);
-        var reset = await admin.PostAsJsonAsync($"/api/admin/users/{userId}/password", new { newPassword = "brand-new-pass" });
-        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+        await ResetPasswordAsAdminAsync(userId);
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(sessionA)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(sessionB)).StatusCode);
-
-        // The new password works and its session can refresh.
-        var oldPassword = await Client().PostAsJsonAsync("/api/auth/login", new { username = "reset-user", password = Password });
-        Assert.Equal(HttpStatusCode.Unauthorized, oldPassword.StatusCode);
-        var (_, fresh, _) = await LoginAsync("reset-user", "brand-new-pass");
-        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(fresh)).StatusCode);
     }
 
     [Fact]
-    public async Task Admin_password_reset_validates_length_and_protects_other_admins()
+    public async Task Admin_password_reset_rejects_the_old_password()
     {
-        var otherAdmin = new User { Username = "other-admin", PasswordHash = "x", IsAdmin = true };
-        var plain = new User { Username = "plain-target", PasswordHash = "x" };
+        await RegisterAsync("reset-old-user");
+        var (_, _, userId) = await LoginAsync("reset-old-user");
+
+        await ResetPasswordAsAdminAsync(userId);
+
+        var oldPassword = await Client().PostAsJsonAsync("/api/auth/login", new { username = "reset-old-user", password = Password });
+        Assert.Equal(HttpStatusCode.Unauthorized, oldPassword.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_password_reset_new_password_logs_in_and_its_session_can_refresh()
+    {
+        await RegisterAsync("reset-new-user");
+        var (_, _, userId) = await LoginAsync("reset-new-user");
+
+        await ResetPasswordAsAdminAsync(userId);
+
+        var (_, fresh, _) = await LoginAsync("reset-new-user", ResetPassword);
+        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(fresh)).StatusCode);
+    }
+
+    private async Task<User> SeedUserAsync(string username, bool isAdmin = false)
+    {
+        var user = new User { Username = username, PasswordHash = "x", IsAdmin = isAdmin };
         await _factory.WithDbAsync(async db =>
         {
-            db.Users.AddRange(otherAdmin, plain);
+            db.Users.Add(user);
             await db.SaveChangesAsync();
         });
+        return user;
+    }
+
+    [Fact]
+    public async Task Admin_password_reset_of_another_admin_is_forbidden()
+    {
+        var otherAdmin = await SeedUserAsync("other-admin", isAdmin: true);
         var admin = _factory.CreateAuthenticatedClient(userId: 900_002, username: "acting-admin", isAdmin: true);
 
         var forbidden = await admin.PostAsJsonAsync($"/api/admin/users/{otherAdmin.Id}/password", new { newPassword = "long-enough-1" });
+
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
         Assert.Equal("Cannot reset another admin's password", (await ReadJsonAsync(forbidden)).GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task Admin_password_reset_rejects_a_too_short_password()
+    {
+        var plain = await SeedUserAsync("plain-target");
+        var admin = _factory.CreateAuthenticatedClient(userId: 900_002, username: "acting-admin", isAdmin: true);
 
         var tooShort = await admin.PostAsJsonAsync($"/api/admin/users/{plain.Id}/password", new { newPassword = "short" });
+
         Assert.Equal(HttpStatusCode.BadRequest, tooShort.StatusCode);
+    }
 
-        // The admin's own password is still allowed.
-        var self = _factory.CreateAuthenticatedClient(userId: otherAdmin.Id, username: "other-admin", isAdmin: true);
-        Assert.Equal(HttpStatusCode.NoContent, (await self.PostAsJsonAsync($"/api/admin/users/{otherAdmin.Id}/password", new { newPassword = "long-enough-1" })).StatusCode);
+    [Fact]
+    public async Task Admin_may_reset_their_own_password_which_ends_their_sessions()
+    {
+        var selfAdmin = await SeedUserAsync("self-admin", isAdmin: true);
+        var self = _factory.CreateAuthenticatedClient(userId: selfAdmin.Id, username: "self-admin", isAdmin: true);
 
+        var res = await self.PostAsJsonAsync($"/api/admin/users/{selfAdmin.Id}/password", new { newPassword = "long-enough-1" });
+
+        Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);
         await _factory.WithDbAsync(async db =>
         {
-            var stored = await db.Users.AsNoTracking().SingleAsync(u => u.Id == otherAdmin.Id);
+            var stored = await db.Users.AsNoTracking().SingleAsync(u => u.Id == selfAdmin.Id);
             Assert.Equal(1, stored.TokenVersion);
             Assert.True(BCrypt.Net.BCrypt.Verify("long-enough-1", stored.PasswordHash));
         });
@@ -293,7 +381,7 @@ public class AuthApiTests : IClassFixture<ApiFactory>
         });
         var service = ActivatorUtilities.CreateInstance<ScoringDayBackgroundService>(_factory.Services);
 
-        var purged = await service.PurgeExpiredRevokedTokensAsync();
+        var purged = await service.PurgeExpiredRevokedTokensAsync(CancellationToken.None);
 
         Assert.True(purged >= 1);
         await _factory.WithDbAsync(async db =>

@@ -3,65 +3,55 @@ using DailyChallenges.Models;
 using DailyChallenges.Repositories.Contracts;
 using Microsoft.EntityFrameworkCore;
 
-namespace DailyChallenges.Repositories
+namespace DailyChallenges.Repositories;
+
+/// <summary>Username has NOCASE collation, so equality comparisons on it ignore case.</summary>
+public sealed class EfUserRepository(AppDbContext db) : IUserRepository
 {
-    public class EfUserRepository : IUserRepository
+    private const int DefaultPageSize = 50;
+
+    /// <summary>Ordered by id. A page size below 1 reads as <see cref="DefaultPageSize"/>.</summary>
+    public async Task<(List<User> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, string? search, CancellationToken ct)
     {
-        private readonly AppDbContext _db;
-        public EfUserRepository(AppDbContext db) => _db = db;
+        var matching = MatchingSearch(db.Users.AsQueryable(), search);
+        var total = await matching.CountAsync(ct);
+        var users = await matching
+            .OrderBy(u => u.Id)
+            .TakePage(page, pageSize.ValidPageSizeOr(DefaultPageSize))
+            .ToListAsync(ct);
+        return (users, total);
+    }
 
-        public async Task<(List<User> Items, int TotalCount)> GetPagedAsync(int page, int pageSize, string? search)
-        {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 50;
+    public async Task<User?> GetByIdAsync(int userId, CancellationToken ct) => await db.Users.FindAsync([userId], ct);
 
-            var q = _db.Users.AsQueryable();
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                // Case-insensitive: instr() (what Contains translates to) ignores the column's NOCASE collation.
-                var term = search.Trim().ToLower();
-                q = q.Where(u => u.Username.ToLower().Contains(term));
-            }
+    public Task<User?> GetByUsernameAsync(string username, CancellationToken ct) =>
+        db.Users.FirstOrDefaultAsync(u => u.Username == username, ct);
 
-            var total = await q.CountAsync();
-            var users = await q.OrderBy(u => u.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-            return (users, total);
-        }
+    public Task<bool> ExistsWithUsernameAsync(string username, CancellationToken ct) =>
+        db.Users.AnyAsync(u => u.Username == username, ct);
 
-        public async Task<User?> GetByIdAsync(int userId)
-        {
-            return await _db.Users.FindAsync(userId);
-        }
+    public async Task<bool> IsEmptyAsync(CancellationToken ct) => !await db.Users.AnyAsync(ct);
 
-        // Username has NOCASE collation, so these comparisons ignore case.
-        public async Task<User?> GetByUsernameAsync(string username) =>
-            await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+    public async Task<User> CreateAsync(User user, CancellationToken ct)
+    {
+        db.Users.Add(user);
+        await db.SaveChangesAsync(ct);
+        return user;
+    }
 
-        public Task<bool> ExistsWithUsernameAsync(string username) =>
-            _db.Users.AnyAsync(u => u.Username == username);
+    public async Task<User> UpdateAsync(User user, CancellationToken ct)
+    {
+        db.Users.Update(user);
+        await db.SaveChangesAsync(ct);
+        return user;
+    }
 
-        public async Task<bool> IsEmptyAsync() => !await _db.Users.AnyAsync();
+    /// <summary>Lower-cases both sides: instr() (what Contains translates to) ignores the column's NOCASE collation.</summary>
+    private static IQueryable<User> MatchingSearch(IQueryable<User> users, string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search)) return users;
 
-        public async Task<User> CreateAsync(User user)
-        {
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
-            return user;
-        }
-
-        public async Task<User> UpdateAsync(User user)
-        {
-            _db.Users.Update(user);
-            await _db.SaveChangesAsync();
-            return user;
-        }
-
-        public async Task DeleteAsync(int userId)
-        {
-            var user = await _db.Users.FindAsync(userId);
-            if (user == null) return;
-            _db.Users.Remove(user);
-            await _db.SaveChangesAsync();
-        }
+        var term = search.Trim().ToLower();
+        return users.Where(u => u.Username.ToLower().Contains(term));
     }
 }

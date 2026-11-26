@@ -1,22 +1,16 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef } from 'react'
 import { Box, Typography } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
 import { useScoreCapture } from '../hooks/useScoreCapture'
+import useObjectUrl from '../hooks/useObjectUrl'
+import { imageFrame } from '../styles/tokens'
 
 const GAME_URL = 'https://timeguessr.com/roundonedaily'
 
 export default function TimeguessrDebug() {
   const iframeRef = useRef(null)
   const { score, capturedFile, submitScore, canCapture, capturing, captureError } = useScoreCapture(iframeRef, { url: GAME_URL })
-
-  // Derive a preview URL from the captured File for display
-  const [previewUrl, setPreviewUrl] = useState(null)
-  useEffect(() => {
-    if (!capturedFile) { setPreviewUrl(null); return }
-    const url = URL.createObjectURL(capturedFile)
-    setPreviewUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [capturedFile])
+  const previewUrl = useObjectUrl(capturedFile)
 
   return (
     <Box sx={{ mt: 2 }}>
@@ -35,7 +29,7 @@ export default function TimeguessrDebug() {
       </Box>
       {captureError && <Typography color="error" sx={{ mt: 1 }}>Capture failed: {captureError}</Typography>}
       {score && <pre style={{ whiteSpace: 'pre-wrap', marginTop: 12 }}>{score}</pre>}
-      {previewUrl && <img src={previewUrl} alt="capture preview" style={{ maxWidth: 480, display: 'block', border: '1px solid #ddd', padding: 4, marginTop: 12 }} />}
+      {previewUrl && <img src={previewUrl} alt="capture preview" style={{ maxWidth: 480, display: 'block', border: `1px solid ${imageFrame.borderColor}`, padding: 4, marginTop: 12 }} />}
     </Box>
   )
 }

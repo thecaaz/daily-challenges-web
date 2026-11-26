@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useScoreCapture, CAPTURE_TIMEOUT_MS, normalizeCapturedScore } from '../hooks/useScoreCapture'
+import { useScoreCapture, CAPTURE_TIMEOUT_MS } from '../hooks/useScoreCapture'
+import { normalizeCapturedScore } from '../utils/capturedScore'
 import compressImage from '../utils/compressImage'
 import useAdapter from '../hooks/useAdapter'
 
@@ -32,8 +33,10 @@ function dispatch(data, { source, origin }) {
   window.dispatchEvent(new MessageEvent('message', { data, source, origin }))
 }
 
-// Start a capture and let the overlay-settle delay pass so the ARM + capture
-// request are posted. Returns the nonces the hook used.
+/**
+ * Starts a capture and lets the overlay-settle delay pass so the ARM and
+ * capture requests are posted. Returns the nonces the hook used.
+ */
 async function startCapture(ctx) {
   const postSpy = vi.spyOn(window, 'postMessage').mockImplementation(() => {})
   await act(async () => {
@@ -44,6 +47,18 @@ async function startCapture(ctx) {
   const captureReq = ctx.gameWindow.postMessage.mock.calls.find(([m]) => m.type === 'REQUEST_VISIBLE_TAB_FROM_PARENT')
   const arm = postSpy.mock.calls.find(([m]) => m.type === 'SCOREBRIDGE_ARM')
   return { scoreNonce: scoreReq?.[0].nonce, captureNonce: captureReq?.[0].nonce, scoreReq, captureReq, arm }
+}
+
+function swapIframeForSubmissionForm(ctx) {
+  ctx.iframeRef.current = null
+}
+
+function repointIframe(ctx, url, contentWindow) {
+  ctx.iframeRef.current = { ...ctx.iframeRef.current, src: url, contentWindow }
+}
+
+function cancel(ctx) {
+  act(() => { ctx.hook.result.current.cancelCapture() })
 }
 
 async function sendScore(ctx, data, opts = {}) {
@@ -102,14 +117,22 @@ describe('useScoreCapture', () => {
   })
 
   describe('SCORE_RESPONSE', () => {
-    it('accepts the score with the right nonce, source and origin, once', async () => {
+    it('accepts the score with the right nonce, source and origin', async () => {
+      ctx = setup()
+      const { scoreNonce } = await startCapture(ctx)
+
+      await sendScore(ctx, { nonce: scoreNonce, score: 40456 })
+
+      expect(ctx.hook.result.current.score).toBe('40456')
+    })
+
+    it('ignores a second response with an already used nonce', async () => {
       ctx = setup()
       const { scoreNonce } = await startCapture(ctx)
       await sendScore(ctx, { nonce: scoreNonce, score: 40456 })
-      expect(ctx.hook.result.current.score).toBe('40456')
 
-      // Nonce is single-use.
       await sendScore(ctx, { nonce: scoreNonce, score: 1 })
+
       expect(ctx.hook.result.current.score).toBe('40456')
     })
 
@@ -152,22 +175,31 @@ describe('useScoreCapture', () => {
       const { scoreNonce, captureNonce } = await startCapture(ctx)
       await sendCapture({ nonce: captureNonce, dataUrl: DATA_URL })
       expect(ctx.hook.result.current.showSubmission).toBe(true)
+      swapIframeForSubmissionForm(ctx)
 
-      // The page swaps the iframe for the submission form.
-      ctx.iframeRef.current = null
       await sendScore(ctx, { nonce: scoreNonce, score: 777 })
+
       expect(ctx.hook.result.current.score).toBe('777')
     })
 
-    it('validates against the window/origin snapshotted when the capture started', async () => {
+    it('rejects a response from the window the iframe was repointed to after the capture started', async () => {
       ctx = setup()
       const { scoreNonce } = await startCapture(ctx)
-      // The iframe now points somewhere else: the response must still come from the original game window.
       const otherWindow = { postMessage: vi.fn() }
-      ctx.iframeRef.current = { ...ctx.iframeRef.current, src: 'https://evil.example/', contentWindow: otherWindow }
+      repointIframe(ctx, 'https://evil.example/', otherWindow)
+
       await sendScore(ctx, { nonce: scoreNonce, score: 1 }, { source: otherWindow, origin: 'https://evil.example' })
+
       expect(ctx.hook.result.current.score).toBe('')
+    })
+
+    it('still accepts the game window the capture started with after the iframe was repointed', async () => {
+      ctx = setup()
+      const { scoreNonce } = await startCapture(ctx)
+      repointIframe(ctx, 'https://evil.example/', { postMessage: vi.fn() })
+
       await sendScore(ctx, { nonce: scoreNonce, score: 2 })
+
       expect(ctx.hook.result.current.score).toBe('2')
     })
 
@@ -204,11 +236,22 @@ describe('useScoreCapture', () => {
       expect(ctx.hook.result.current.capturedFile).toBeNull()
     })
 
-    it('rejects a capture without or with the wrong nonce', async () => {
+    it('rejects a capture without a nonce', async () => {
       ctx = setup()
       await startCapture(ctx)
+
       await sendCapture({ dataUrl: DATA_URL })
+
+      expect(compressImage).not.toHaveBeenCalled()
+      expect(ctx.hook.result.current.showSubmission).toBe(false)
+    })
+
+    it('rejects a capture with the wrong nonce', async () => {
+      ctx = setup()
+      await startCapture(ctx)
+
       await sendCapture({ nonce: 'wrong', dataUrl: DATA_URL })
+
       expect(compressImage).not.toHaveBeenCalled()
       expect(ctx.hook.result.current.showSubmission).toBe(false)
     })
@@ -232,27 +275,41 @@ describe('useScoreCapture', () => {
   })
 
   describe('cancelCapture', () => {
-    it('restores the overlay, stops capturing and ignores late responses', async () => {
+    it('stops capturing and restores the overlay', async () => {
       ctx = setup()
-      const { scoreNonce, captureNonce } = await startCapture(ctx)
+      await startCapture(ctx)
       expect(ctx.hook.result.current.capturing).toBe(true)
       expect(ctx.container.style.position).toBe('fixed')
 
-      act(() => { ctx.hook.result.current.cancelCapture() })
+      cancel(ctx)
+
       expect(ctx.hook.result.current.capturing).toBe(false)
       expect(ctx.container.style.position).toBe('relative')
+    })
+
+    it('ignores capture and score responses that arrive after the cancel', async () => {
+      ctx = setup()
+      const { scoreNonce, captureNonce } = await startCapture(ctx)
+      cancel(ctx)
 
       await sendCapture({ nonce: captureNonce, dataUrl: DATA_URL })
       await sendScore(ctx, { nonce: scoreNonce, score: 123 })
+
       const r = ctx.hook.result.current
       expect(compressImage).not.toHaveBeenCalled()
       expect(r.score).toBe('')
       expect(r.capturedFile).toBeNull()
       expect(r.showSubmission).toBe(false)
       expect(r.captureError).toBeNull()
+    })
 
-      // The timeout of the cancelled capture doesn't open the form later either.
+    it('does not open the form or report an error when the cancelled capture times out', async () => {
+      ctx = setup()
+      await startCapture(ctx)
+      cancel(ctx)
+
       await act(async () => { await vi.advanceTimersByTimeAsync(CAPTURE_TIMEOUT_MS) })
+
       expect(ctx.hook.result.current.showSubmission).toBe(false)
       expect(ctx.hook.result.current.captureError).toBeNull()
     })
@@ -265,7 +322,7 @@ describe('useScoreCapture', () => {
       await sendCapture({ nonce: captureNonce, dataUrl: DATA_URL })
       expect(compressImage).toHaveBeenCalled()
 
-      act(() => { ctx.hook.result.current.cancelCapture() })
+      cancel(ctx)
       await act(async () => { resolveCompress(new File(['x'], 'late.webp', { type: 'image/webp' })) })
       expect(ctx.hook.result.current.capturedFile).toBeNull()
       expect(ctx.hook.result.current.showSubmission).toBe(false)
@@ -274,7 +331,7 @@ describe('useScoreCapture', () => {
     it('allows a new capture after a cancel', async () => {
       ctx = setup()
       await startCapture(ctx)
-      act(() => { ctx.hook.result.current.cancelCapture() })
+      cancel(ctx)
       ctx.gameWindow.postMessage.mockClear()
       const { captureNonce } = await startCapture(ctx)
       expect(captureNonce).toBeTruthy()
@@ -287,18 +344,25 @@ describe('useScoreCapture', () => {
   describe('overlay', () => {
     it('restores the overlay after the timeout when the extension never answers', async () => {
       ctx = setup()
-      const { captureNonce } = await startCapture(ctx)
+      await startCapture(ctx)
       expect(ctx.container.style.position).toBe('fixed')
       expect(ctx.container.style.zIndex).toBe('2147483647')
 
       await act(async () => { await vi.advanceTimersByTimeAsync(CAPTURE_TIMEOUT_MS) })
+
       expect(ctx.container.style.position).toBe('relative')
       expect(ctx.container.style.width).toBe('640px')
       expect(ctx.hook.result.current.capturing).toBe(false)
       expect(ctx.hook.result.current.captureError).toBeTruthy()
+    })
 
-      // A late answer is ignored.
+    it('ignores a capture that arrives after the timeout', async () => {
+      ctx = setup()
+      const { captureNonce } = await startCapture(ctx)
+      await act(async () => { await vi.advanceTimersByTimeAsync(CAPTURE_TIMEOUT_MS) })
+
       await sendCapture({ nonce: captureNonce, dataUrl: DATA_URL })
+
       expect(compressImage).not.toHaveBeenCalled()
     })
 

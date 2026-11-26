@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import compressImage from '../utils/compressImage'
+import useObjectUrl from './useObjectUrl'
+
+const IMAGE_TYPE_PREFIX = 'image/'
+const CLIPBOARD_FILENAME = 'clipboard.png'
 
 /**
+ * A screenshot picked from a file input or pasted from the clipboard
+ * (Ctrl+V), compressed when possible, with an object-URL preview that is
+ * revoked when the screenshot changes. A paste with an image is claimed
+ * (preventDefault) before the first await, while the event is still dispatching.
+ *
  * @param {Function} [showSnackbar]
  * @param {object} [options]
  * @param {boolean} [options.enabled=true] - listen for clipboard pastes. Pass
@@ -9,65 +18,53 @@ import compressImage from '../utils/compressImage'
  */
 export default function useImageUpload(showSnackbar, { enabled = true } = {}) {
   const [screenshot, setScreenshot] = useState(null)
-  const [previewUrl, setPreviewUrl] = useState(null)
-
-  // create/revoke preview URL when screenshot changes
-  useEffect(() => {
-    if (!screenshot) {
-      setPreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(screenshot)
-    setPreviewUrl(url)
-    return () => { URL.revokeObjectURL(url) }
-  }, [screenshot])
+  const previewUrl = useObjectUrl(screenshot)
 
   const onFileChange = useCallback(async (e) => {
     const raw = e.target.files?.[0] ?? null
-    if (!raw) { setScreenshot(null); return }
-    try {
-      const compressed = await compressImage(raw)
-      setScreenshot(compressed)
-    } catch (_) {
-      setScreenshot(raw)
+    if (!raw) {
+      setScreenshot(null)
+      return
     }
+    setScreenshot(await compressOr(raw, raw))
   }, [])
 
-  // handle paste events (Ctrl+V) to accept images from clipboard
   useEffect(() => {
     if (!enabled) return undefined
-    const handler = async (e) => {
-      try {
-        const items = e.clipboardData?.items
-        if (!items) return
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i]
-          if (item && item.type && item.type.startsWith('image/')) {
-            const blob = item.getAsFile ? item.getAsFile() : null
-            if (blob) {
-              // Must be called synchronously, before the first await.
-              e.preventDefault()
-              try {
-                const compressed = await compressImage(blob)
-                setScreenshot(compressed)
-              } catch (_) {
-                const file = new File([blob], 'clipboard.png', { type: blob.type })
-                setScreenshot(file)
-              }
-              if (typeof showSnackbar === 'function') showSnackbar('Image pasted from clipboard', 'success')
-              return
-            }
-          }
-        }
-      } catch (err) {
-        // ignore
-      }
+    const handlePaste = async (e) => {
+      const image = firstClipboardImage(e.clipboardData?.items)
+      if (!image) return
+      e.preventDefault()
+      setScreenshot(await compressOr(image, asClipboardFile(image)))
+      if (typeof showSnackbar === 'function') showSnackbar('Image pasted from clipboard', 'success')
     }
-    window.addEventListener('paste', handler)
-    return () => window.removeEventListener('paste', handler)
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
   }, [showSnackbar, enabled])
 
   const clear = useCallback(() => setScreenshot(null), [])
 
   return { screenshot, previewUrl, setScreenshot, onFileChange, clear }
+}
+
+async function compressOr(image, fallback) {
+  try {
+    return await compressImage(image)
+  } catch {
+    return fallback
+  }
+}
+
+/** Reads the clipboard synchronously: its data is gone after the paste event. */
+function firstClipboardImage(items) {
+  if (!items) return null
+  for (const item of Array.from(items)) {
+    const blob = item?.type?.startsWith(IMAGE_TYPE_PREFIX) && item.getAsFile ? item.getAsFile() : null
+    if (blob) return blob
+  }
+  return null
+}
+
+function asClipboardFile(blob) {
+  return new File([blob], CLIPBOARD_FILENAME, { type: blob.type })
 }

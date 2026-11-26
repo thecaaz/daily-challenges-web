@@ -17,6 +17,7 @@
   var GROUPED = new RegExp('^\\d{1,3}(?:' + SEP_CLASS + '\\d{3})+$')
   var SEPARATORS = new RegExp(SEP_CLASS, 'g')
   var NUMBER_CHARS = new RegExp('^(?:\\d|' + SEP_CLASS + ')*$')
+  var DIGITS = /^\d+$/
   // m:ss or h:mm:ss, optional 1-3 digit fraction after '.' or ','.
   var TIME = /^(\d+):([0-5]\d)(?::([0-5]\d))?(?:[.,](\d{1,3}))?$/
 
@@ -24,78 +25,99 @@
   // grouping/decimal separators or ':' (times), with an optional sign.
   var TOKEN = new RegExp('[+-]?\\d+(?:(?:' + SEP_CLASS + '|:)\\d+)*')
 
-  function finite(n) {
-    if (!Number.isFinite(n)) return null
-    return n === 0 ? 0 : n // no -0
-  }
-
-  function parseTime(s) {
-    var m = TIME.exec(s)
-    if (!m) return null
-    var total
-    if (m[3] !== undefined) {
-      total = Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])
-    } else {
-      total = Number(m[1]) * 60 + Number(m[2])
-    }
-    return finite(Number(String(total) + (m[4] ? '.' + m[4] : '')))
-  }
+  var TIME_SEPARATOR = ':'
+  var SECONDS_PER_MINUTE = 60
+  var SECONDS_PER_HOUR = 3600
+  var MAX_DECIMAL_DIGITS = 2
 
   /**
    * Parse a whole score string. Returns a number, or null when the trimmed
    * string is not exactly one score.
    *
-   * opts.integerOnly: never treat a '.'/',' as a decimal point (for games
+   * options.integerOnly: never treat a '.'/',' as a decimal point (for games
    * whose scores are always whole numbers, e.g. TimeGuessr "40.456").
    */
-  function parseScore(input, opts) {
+  function parseScore(input, options) {
     if (input == null) return null
-    var s = String(input).trim()
-    if (s === '') return null
-    var integerOnly = !!(opts && opts.integerOnly)
+    var text = String(input).trim()
+    if (text === '') return null
+    var integerOnly = !!(options && options.integerOnly)
 
-    if (s.indexOf(':') !== -1) return integerOnly ? null : parseTime(s)
+    if (text.indexOf(TIME_SEPARATOR) !== -1) return integerOnly ? null : parseTime(text)
 
-    var sign = ''
-    if (s[0] === '+' || s[0] === '-') {
-      sign = s[0] === '-' ? '-' : ''
-      s = s.slice(1)
-    }
-    if (s === '' || !NUMBER_CHARS.test(s)) return null
+    var signed = splitSign(text)
+    if (signed.unsigned === '' || !NUMBER_CHARS.test(signed.unsigned)) return null
 
-    var intPart = s
-    var frac = ''
-    if (!integerOnly) {
-      var idx = Math.max(s.lastIndexOf('.'), s.lastIndexOf(','))
-      if (idx !== -1) {
-        var before = s.slice(0, idx)
-        var after = s.slice(idx + 1)
-        if (/^\d+$/.test(after) && (after.length <= 2 || before === '0' || before === '')) {
-          intPart = before === '' ? '0' : before
-          frac = after
-        }
-      }
-    }
+    var parts = integerOnly ? wholeNumber(signed.unsigned) : splitDecimalPoint(signed.unsigned)
+    var digits = integerDigits(parts.integer)
+    return digits === null ? null : toFiniteNumber(signed.sign, digits, parts.fraction)
+  }
 
-    var digits
-    if (/^\d+$/.test(intPart)) digits = intPart
-    else if (GROUPED.test(intPart)) digits = intPart.replace(SEPARATORS, '')
-    else return null
+  /** Total seconds of an m:ss or h:mm:ss time, keeping its fraction. */
+  function parseTime(text) {
+    var match = TIME.exec(text)
+    if (!match) return null
+    var hasHours = match[3] !== undefined
+    var totalSeconds = hasHours
+      ? Number(match[1]) * SECONDS_PER_HOUR + Number(match[2]) * SECONDS_PER_MINUTE + Number(match[3])
+      : Number(match[1]) * SECONDS_PER_MINUTE + Number(match[2])
+    return toFiniteNumber('', String(totalSeconds), match[4])
+  }
 
-    return finite(Number(sign + digits + (frac ? '.' + frac : '')))
+  function splitSign(text) {
+    var first = text[0]
+    if (first !== '+' && first !== '-') return { sign: '', unsigned: text }
+    return { sign: first === '-' ? '-' : '', unsigned: text.slice(1) }
+  }
+
+  function wholeNumber(text) {
+    return { integer: text, fraction: '' }
+  }
+
+  /**
+   * The last '.' or ',' is a decimal point when at most MAX_DECIMAL_DIGITS
+   * digits follow it or nothing but '0' precedes it ("0.125", ".5");
+   * otherwise it is a grouping separator ("40.456").
+   */
+  function splitDecimalPoint(text) {
+    var pointIndex = Math.max(text.lastIndexOf('.'), text.lastIndexOf(','))
+    if (pointIndex === -1) return wholeNumber(text)
+    var before = text.slice(0, pointIndex)
+    var after = text.slice(pointIndex + 1)
+    var hasNoIntegerPart = before === '0' || before === ''
+    var isDecimalPoint = DIGITS.test(after) && (after.length <= MAX_DECIMAL_DIGITS || hasNoIntegerPart)
+    if (!isDecimalPoint) return wholeNumber(text)
+    return { integer: before === '' ? '0' : before, fraction: after }
+  }
+
+  /** Plain digits, or digits in groups of three, without the separators; null otherwise. */
+  function integerDigits(integer) {
+    if (DIGITS.test(integer)) return integer
+    if (GROUPED.test(integer)) return integer.replace(SEPARATORS, '')
+    return null
+  }
+
+  function toFiniteNumber(sign, digits, fraction) {
+    var value = Number(sign + digits + (fraction ? '.' + fraction : ''))
+    if (!Number.isFinite(value)) return null
+    return withoutNegativeZero(value)
+  }
+
+  function withoutNegativeZero(value) {
+    return value === 0 ? 0 : value
   }
 
   /** Find the first score-looking token in free page text, or null. */
   function findScoreToken(text) {
     if (text == null) return null
-    var m = String(text).match(TOKEN)
-    return m ? m[0] : null
+    var match = String(text).match(TOKEN)
+    return match ? match[0] : null
   }
 
   /** Read the first score in free page text and parse it with the spec. */
-  function readNumber(text, opts) {
+  function readNumber(text, options) {
     var token = findScoreToken(text)
-    return token === null ? null : parseScore(token, opts)
+    return token === null ? null : parseScore(token, options)
   }
 
   return { parseScore: parseScore, findScoreToken: findScoreToken, readNumber: readNumber }

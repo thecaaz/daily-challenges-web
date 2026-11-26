@@ -1,24 +1,19 @@
-namespace DailyChallenges.Services
+namespace DailyChallenges.Services;
+
+/// <summary>
+/// Reads an uploaded image into memory (screenshots are stored as DB blobs), keeping the
+/// file-reading and validation logic out of the services that persist it.
+/// </summary>
+public sealed class LocalFileStorage(IFileValidator validator) : IFileStorage
 {
-    // Simple implementation that reads the file into memory and returns bytes.
-    // This keeps existing DB blob storage behavior while isolating file-reading logic.
-    public class LocalFileStorage : IFileStorage
+    /// <summary>The file's bytes and the content type detected from them (not the client-declared one).</summary>
+    public async Task<(byte[]? Data, string? ContentType)> ReadFileAsync(IFormFile? file)
     {
-        private readonly IFileValidator _validator;
+        if (file == null || file.Length == 0) return (null, null);
 
-        public LocalFileStorage(IFileValidator validator)
-        {
-            _validator = validator;
-        }
-
-        /// <summary>The file's bytes and the content type detected from them (not the client-declared one).</summary>
-        public async Task<(byte[]? Data, string? ContentType)> ReadFileAsync(IFormFile? file)
-        {
-            if (file == null || file.Length == 0) return (null, null);
-            var contentType = _validator.ValidateImage(file);
-            using var ms = new MemoryStream();
-            await file.CopyToAsync(ms);
-            return (ms.ToArray(), contentType);
-        }
+        var contentType = validator.ValidateImage(file);
+        using var buffer = new MemoryStream();
+        await file.CopyToAsync(buffer);
+        return (buffer.ToArray(), contentType);
     }
 }

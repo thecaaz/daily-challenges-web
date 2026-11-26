@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import useFavorite from '../hooks/useFavorite'
 
-// ── Mocks ─────────────────────────────────────────────────────────────────────
-
 const mockNavigate = vi.fn()
 let mockLocation = { pathname: '/games/42', search: '?scoringDay=2026-01-02' }
 vi.mock('react-router-dom', () => ({
@@ -45,14 +43,20 @@ describe('useFavorite', () => {
     expect(result.current.isFavorite).toBe(false)
   })
 
+  it('marks the game as favorite immediately on toggle, before the API answers', () => {
+    mockApiPost.mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useFavorite(42, false))
+
+    act(() => { result.current.toggle() })
+
+    expect(result.current.isFavorite).toBe(true)
+  })
+
   it('toggles to true and calls POST', async () => {
     mockApiPost.mockResolvedValue({})
     const { result } = renderHook(() => useFavorite(42, false))
 
     act(() => { result.current.toggle() })
-
-    // Optimistic update fires immediately
-    expect(result.current.isFavorite).toBe(true)
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(mockApiPost).toHaveBeenCalledWith('/favorites/42')
@@ -71,16 +75,16 @@ describe('useFavorite', () => {
     expect(mockApiDelete).toHaveBeenCalledWith('/favorites/42')
   })
 
-  it('reverts optimistic update on API failure', async () => {
+  it('reverts the optimistic update and shows an error when the API fails', async () => {
     mockApiPost.mockRejectedValue(new Error('network'))
     const { result } = renderHook(() => useFavorite(42, false))
 
     act(() => { result.current.toggle() })
-    expect(result.current.isFavorite).toBe(true) // optimistic
+    expect(result.current.isFavorite).toBe(true)
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    expect(result.current.isFavorite).toBe(false) // reverted
+    expect(result.current.isFavorite).toBe(false)
     expect(mockShowSnackbar).toHaveBeenCalledWith('Failed to update favorite', 'error')
   })
 
@@ -129,5 +133,38 @@ describe('useFavorite', () => {
 
     expect(listener).toHaveBeenCalled()
     window.removeEventListener('favorite-changed', listener)
+  })
+
+  it('announces the optimistic change, then the confirmed one', async () => {
+    mockApiPost.mockResolvedValue({})
+    const details = []
+    const listener = event => details.push(event.detail)
+    window.addEventListener('favorite-changed', listener)
+    const { result } = renderHook(() => useFavorite(42, false))
+
+    await act(() => result.current.toggle())
+
+    window.removeEventListener('favorite-changed', listener)
+    expect(details).toEqual([
+      { gameId: 42, isFavorite: true, optimistic: true },
+      { gameId: 42, isFavorite: true, confirmed: true },
+    ])
+  })
+
+  it('announces the rollback when the request fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockApiDelete.mockRejectedValue(new Error('down'))
+    const details = []
+    const listener = event => details.push(event.detail)
+    window.addEventListener('favorite-changed', listener)
+    const { result } = renderHook(() => useFavorite(42, true))
+
+    await act(() => result.current.toggle())
+
+    window.removeEventListener('favorite-changed', listener)
+    expect(details).toEqual([
+      { gameId: 42, isFavorite: false, optimistic: true },
+      { gameId: 42, isFavorite: true },
+    ])
   })
 })

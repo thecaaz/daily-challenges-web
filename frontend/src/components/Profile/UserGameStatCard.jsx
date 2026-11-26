@@ -6,42 +6,40 @@ import formatNumber from '../../utils/formatNumber'
 import ScoreSparkline from './ScoreSparkline'
 
 export default function UserGameStatCard({ game }) {
-  const id = game.gameId ?? game.GameId
-  const name = game.name ?? game.Name ?? 'Game'
-  const plays = game.plays ?? game.Plays ?? 0
-  const best = game.highestScore ?? game.HighestScore
-  const bestId = game.bestSubmissionId ?? game.BestSubmissionId
-  const last = game.lastPlayed ?? game.LastPlayed
-  const history = game.scoreHistory ?? game.ScoreHistory
-  const rankingMode = game.rankingMode ?? game.RankingMode
+  const { gameId, highestScore, bestSubmissionId, lastPlayed, scoreHistory, rankingMode } = game
+  const name = game.name ?? 'Game'
+  const plays = game.plays ?? 0
 
   return (
     <Card variant="outlined">
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <MuiLink component={Link} to={`/games/${id}`} underline="hover">
+          <MuiLink component={Link} to={`/games/${gameId}`} underline="hover">
             <Typography variant="subtitle1">{name}</Typography>
           </MuiLink>
           <Typography variant="caption" color="text.secondary">Plays: {formatNumber(plays)}</Typography>
         </Box>
         <Box sx={{ mt: 1 }}>
           <Typography variant="body2">
-            Best: {best != null ? (
-              bestId != null ? (
-                <MuiLink component={Link} to={`/submission/${bestId}`} underline="hover">{formatNumber(best)}</MuiLink>
-              ) : (
-                formatNumber(best)
-              )
-            ) : '—'}
+            Best: <BestScore highestScore={highestScore} bestSubmissionId={bestSubmissionId} />
           </Typography>
-          {last ? <Typography variant="body2" color="text.secondary">Last played: {timeAgo(last)}</Typography> : null}
+          {lastPlayed ? <Typography variant="body2" color="text.secondary">Last played: {timeAgo(lastPlayed)}</Typography> : null}
         </Box>
-        {history && history.length > 0 && (
+        {scoreHistory && scoreHistory.length > 0 && (
           <Box sx={{ mt: 1 }}>
-            <ScoreSparkline history={history} rankingMode={rankingMode} />
+            <ScoreSparkline history={scoreHistory} rankingMode={rankingMode} />
           </Box>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/** The best score, linked to its submission when known; a dash without one. */
+function BestScore({ highestScore, bestSubmissionId }) {
+  if (highestScore == null) return '—'
+  if (bestSubmissionId == null) return formatNumber(highestScore)
+  return (
+    <MuiLink component={Link} to={`/submission/${bestSubmissionId}`} underline="hover">{formatNumber(highestScore)}</MuiLink>
   )
 }

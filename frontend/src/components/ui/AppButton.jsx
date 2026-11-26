@@ -2,6 +2,29 @@ import React from 'react'
 import { Button as MuiButton } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 
+const NEW_TAB = '_blank'
+const SAFE_NEW_TAB_REL = 'noopener noreferrer'
+
+/** Anchor attributes for `href`; a new tab gets a safe `rel` unless one is given. */
+function linkProps({ href, target, rel }) {
+  if (!href) return {}
+  const props = { href }
+  if (target) props.target = target
+  if (target === NEW_TAB) props.rel = rel || SAFE_NEW_TAB_REL
+  else if (rel) props.rel = rel
+  return props
+}
+
+function rootComponent({ to, href, component }) {
+  if (to) return RouterLink
+  if (href) return 'a'
+  return component
+}
+
+/**
+ * MUI Button that renders as a router Link for `to`, an anchor for `href`, or
+ * an explicit `component`. `dataTest` becomes a `data-test` attribute.
+ */
 const AppButton = React.forwardRef(function AppButton(props, ref) {
   const {
     to,
@@ -19,20 +42,8 @@ const AppButton = React.forwardRef(function AppButton(props, ref) {
     ...rest
   } = props
 
-  // Choose underlying component: Router Link for `to`, anchor for `href`, or allow explicit `component`.
-  const Component = to ? RouterLink : href ? 'a' : component
-
-  const componentProps = {}
-  if (to) componentProps.to = to
-  if (href) componentProps.href = href
-  if (href && target) componentProps.target = target
-
-  // For external links opened in a new tab, default to safer rel values if none provided
-  if (href && target === '_blank') {
-    componentProps.rel = rel || 'noopener noreferrer'
-  } else if (href && rel) {
-    componentProps.rel = rel
-  }
+  const Component = rootComponent({ to, href, component })
+  const componentProps = { ...(to && { to }), ...linkProps({ href, target, rel }) }
 
   return (
     <MuiButton

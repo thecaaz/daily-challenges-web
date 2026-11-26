@@ -16,8 +16,11 @@ vi.mock('../api', () => ({
 
 import { AuthProvider, useAuth } from '../contexts/AuthContext'
 
-// Records the user seen on the child's very first render.
 const firstRenderUsers = []
+function httpError(status) {
+  return Object.assign(new Error(String(status)), { response: { status } })
+}
+
 function Child() {
   const { user, loading } = useAuth()
   const seen = React.useRef(false)
@@ -36,26 +39,30 @@ describe('AuthProvider', () => {
     firstRenderUsers.length = 0
   })
 
-  it('renders children only after the session restore finished', async () => {
-    let finishRefresh
-    mockRefresh.mockImplementation(() => new Promise(r => { finishRefresh = r }))
-    mockGet.mockResolvedValue({ data: { id: 1, username: 'alice' } })
+  it('shows a loading screen instead of children while the session is being restored', () => {
+    mockRefresh.mockImplementation(() => new Promise(() => {}))
 
     render(<AuthProvider><Child /></AuthProvider>)
 
     expect(screen.queryByTestId('child')).toBeNull()
     expect(screen.getByText('Loading…')).toBeInTheDocument()
+  })
+
+  it('gives children the restored user from their very first render', async () => {
+    let finishRefresh
+    mockRefresh.mockImplementation(() => new Promise(r => { finishRefresh = r }))
+    mockGet.mockResolvedValue({ data: { id: 1, username: 'alice' } })
+    render(<AuthProvider><Child /></AuthProvider>)
 
     await act(async () => { finishRefresh('token') })
 
     await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('hello alice'))
-    // The very first render of the app already had the restored user.
     expect(firstRenderUsers).toEqual([{ user: { id: 1, username: 'alice' }, loading: false }])
     expect(mockGet).toHaveBeenCalledWith('/auth/me')
   })
 
   it('renders anonymously when there is no session, without calling /auth/me', async () => {
-    mockRefresh.mockRejectedValue(Object.assign(new Error('401'), { response: { status: 401 } }))
+    mockRefresh.mockRejectedValue(httpError(401))
 
     render(<AuthProvider><Child /></AuthProvider>)
 
@@ -99,12 +106,72 @@ describe('AuthProvider', () => {
     render(<AuthProvider><Child /><Grab /></AuthProvider>)
     await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('hello alice'))
 
-    mockGet.mockRejectedValueOnce(Object.assign(new Error('500'), { response: { status: 500 } }))
+    mockGet.mockRejectedValueOnce(httpError(500))
     await act(async () => { await ctx.fetchMe() })
     expect(screen.getByTestId('child')).toHaveTextContent('hello alice')
 
-    mockGet.mockRejectedValueOnce(Object.assign(new Error('401'), { response: { status: 401 } }))
+    mockGet.mockRejectedValueOnce(httpError(401))
     await act(async () => { await ctx.fetchMe() })
     expect(screen.getByTestId('child')).toHaveTextContent('anonymous')
+  })
+
+  it('login stores the access token and loads the user', async () => {
+    mockRefresh.mockRejectedValue(new Error('no session'))
+    mockPost.mockResolvedValue({ data: { accessToken: 'tok', extra: 1 } })
+    mockGet.mockResolvedValue({ data: { id: 2, username: 'bob' } })
+    let ctx
+    function Grab() { ctx = useAuth(); return null }
+    render(<AuthProvider><Child /><Grab /></AuthProvider>)
+    await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('anonymous'))
+
+    let result
+    await act(async () => { result = await ctx.login('bob', 'pw') })
+
+    expect(mockPost).toHaveBeenCalledWith('/auth/login', { username: 'bob', password: 'pw' })
+    expect(mockSetAccessToken).toHaveBeenCalledWith('tok')
+    expect(result).toEqual({ accessToken: 'tok', extra: 1 })
+    expect(screen.getByTestId('child')).toHaveTextContent('hello bob')
+  })
+
+  it('login stores the camelCase accessToken of the auth result', async () => {
+    mockRefresh.mockRejectedValue(new Error('no session'))
+    mockGet.mockResolvedValue({ data: { id: 2, username: 'bob' } })
+    let ctx
+    function Grab() { ctx = useAuth(); return null }
+    render(<AuthProvider><Child /><Grab /></AuthProvider>)
+    await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('anonymous'))
+    mockPost.mockResolvedValueOnce({ data: { user: { id: 2, username: 'bob' }, accessToken: 'TOK', expiresInSeconds: 1800 } })
+
+    await act(async () => { await ctx.login('bob', 'pw') })
+
+    expect(mockSetAccessToken.mock.calls).toEqual([['TOK']])
+  })
+
+  it('login stores no token when the response has none', async () => {
+    mockRefresh.mockRejectedValue(new Error('no session'))
+    mockGet.mockResolvedValue({ data: { id: 2, username: 'bob' } })
+    let ctx
+    function Grab() { ctx = useAuth(); return null }
+    render(<AuthProvider><Child /><Grab /></AuthProvider>)
+    await waitFor(() => expect(screen.getByTestId('child')).toHaveTextContent('anonymous'))
+    mockPost.mockResolvedValueOnce({ data: {} })
+
+    await act(async () => { await ctx.login('bob', 'pw') })
+
+    expect(mockSetAccessToken).not.toHaveBeenCalledWith(expect.any(String))
+  })
+
+  it('register posts the credentials and returns the response body', async () => {
+    mockRefresh.mockRejectedValue(new Error('no session'))
+    mockPost.mockResolvedValue({ data: { id: 3 } })
+    let ctx
+    function Grab() { ctx = useAuth(); return null }
+    render(<AuthProvider><Grab /></AuthProvider>)
+    await waitFor(() => expect(ctx.loading).toBe(false))
+
+    const result = await ctx.register('carol', 'pw')
+
+    expect(mockPost).toHaveBeenCalledWith('/auth/register', { username: 'carol', password: 'pw' })
+    expect(result).toEqual({ id: 3 })
   })
 })

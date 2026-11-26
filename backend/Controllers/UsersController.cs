@@ -1,42 +1,31 @@
-using DailyChallenges.Services;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using DailyChallenges.Services.Contracts;
 using DailyChallenges.DTOs;
+using DailyChallenges.Services.Contracts;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
-namespace DailyChallenges.Controllers
+namespace DailyChallenges.Controllers;
+
+[ApiController]
+[Route("api/users")]
+public sealed class UsersController(IUserProfileService profiles) : ControllerBase
 {
-    [ApiController]
-    [Route("api/users")]
-    public class UsersController : ControllerBase
+    private const int DefaultTopGames = 10;
+    private const int MinTopGames = 1;
+    private const int MaxTopGames = 50;
+
+    [HttpGet("{id}/profile")]
+    public Task<ActionResult<UserProfileDto>> GetProfile(int id, int topGames = DefaultTopGames, CancellationToken ct = default) =>
+        GetProfileResultAsync(id, topGames, ct);
+
+    [HttpGet("me/profile")]
+    [Authorize]
+    public Task<ActionResult<UserProfileDto>> GetMyProfile([CurrentUserId(WhenMissing = MissingUserIdResponse.Unauthorized)] int userId, int topGames = DefaultTopGames, CancellationToken ct = default) =>
+        GetProfileResultAsync(userId, topGames, ct);
+
+    private async Task<ActionResult<UserProfileDto>> GetProfileResultAsync(int userId, int topGames, CancellationToken ct)
     {
-        private readonly IUserProfileService _profileService;
-
-        public UsersController(IUserProfileService profileService)
-        {
-            _profileService = profileService;
-        }
-
-        [HttpGet("{id}/profile")]
-        public async Task<ActionResult<UserProfileDto>> GetProfile(int id, int topGames = 10)
-        {
-            var profile = await _profileService.GetProfileAsync(id, Math.Clamp(topGames, 1, 50), User);
-            if (profile == null) return NotFound();
-            return Ok(profile);
-        }
-
-        [HttpGet("me/profile")]
-        [Authorize]
-        public async Task<ActionResult<UserProfileDto>> GetMyProfile(int topGames = 10)
-        {
-            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(claim)) return Unauthorized();
-            if (!int.TryParse(claim, out var userId)) return Unauthorized();
-
-            var profile = await _profileService.GetProfileAsync(userId, Math.Clamp(topGames, 1, 50), User);
-            if (profile == null) return NotFound();
-            return Ok(profile);
-        }
+        var profile = await profiles.GetProfileAsync(userId, Math.Clamp(topGames, MinTopGames, MaxTopGames), User, ct);
+        if (profile == null) return NotFound();
+        return Ok(profile);
     }
 }

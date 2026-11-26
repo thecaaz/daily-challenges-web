@@ -1,20 +1,12 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Chip, Tooltip } from '@mui/material'
-import api from '../api'
+import useReleaseInfo from '../hooks/useReleaseInfo'
 import ChangelogModal from './ChangelogModal'
+import { faintOutline } from '../styles/tokens'
 
 export default function VersionBadge() {
-  const [info, setInfo] = useState(null)
+  const info = useReleaseInfo()
   const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    let mounted = true
-    api.get('/info').then(res => {
-      if (!mounted) return
-      setInfo(res.data)
-    }).catch(() => {})
-    return () => { mounted = false }
-  }, [])
 
   if (!info || !info.version) return null
 
@@ -30,7 +22,7 @@ export default function VersionBadge() {
           size="small"
           clickable
           onClick={() => setOpen(true)}
-          sx={{ ml: 1, bgcolor: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: 'inherit' }}
+          sx={{ ml: 1, bgcolor: 'transparent', border: faintOutline, color: 'inherit' }}
         />
       </Tooltip>
       <ChangelogModal open={open} onClose={() => setOpen(false)} version={labelBase} rawVersion={raw} changelog={info.changelog} />

@@ -23,8 +23,9 @@ Contents
 
 - `manifest.json` - permissions and content-script injection
 - `app-origins.js` - the app-origin allowlist (`globalThis.ScoreBridgeOrigins`), loaded in the background page and as the first content script
-- `scoreparse.js` - score parsing (`globalThis.ScoreParse`), implementing the shared spec in `tests/fixtures/score-parsing.json`; tested from `frontend/src/test/scoreparse.test.js`
-- `content-script.js` - adapters and the page message protocol
+- `scoreparse.js` - score parsing (`globalThis.ScoreParse`), implementing the shared spec in `tests/fixtures/score-parsing.json`; tested from `frontend/src/test/scoreparse.test.js` (the other scripts from `frontend/src/test/extension*.test.js`)
+- `site-adapters.js` - the built-in site adapters (`globalThis.ScoreBridgeAdapters`), loaded before the content script
+- `content-script.js` - the page message protocol and capture arming
 - `background.js` - the capture bridge (`tabs.captureTab`)
 - `build.mjs` - release build and `updates.json` helper (see below)
 - `frontend/test-harness.html` - manual harness that embeds a game page and exercises the message flow

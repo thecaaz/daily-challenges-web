@@ -4,22 +4,23 @@
 // time to get UTC (UTC+1 -> -60, UTC-5 -> 300). It is a parameter so callers
 // and tests don't depend on the machine's timezone.
 
-const MINUTES_PER_DAY = 24 * 60
+const MINUTES_PER_HOUR = 60
+const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
 
 function parseHHmm(hhmm) {
-  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(String(hhmm ?? '').trim())
-  if (!m) return null
-  const h = Number(m[1])
-  const min = Number(m[2])
-  if (h > 23 || min > 59) return null
-  return h * 60 + min
+  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(String(hhmm ?? '').trim())
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours > 23 || minutes > 59) return null
+  return hours * MINUTES_PER_HOUR + minutes
 }
 
 function formatMinutes(total) {
   const wrapped = ((total % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
-  const h = Math.floor(wrapped / 60)
-  const m = wrapped % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const hours = Math.floor(wrapped / MINUTES_PER_HOUR)
+  const minutes = wrapped % MINUTES_PER_HOUR
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }
 
 /** Current browser offset (Date#getTimezoneOffset semantics). */

@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services.Ranking;
@@ -12,6 +13,7 @@ public class BlobFreeQueryTests
 {
     private static readonly DateTime Day1 = new(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly byte[] Png = { 0x89, 0x50, 0x4E, 0x47, 1, 2, 3 };
+    private const int MissingId = 9999;
 
     private static (Game Game, Submission Sub) Seed(AppDbContext ctx)
     {
@@ -40,19 +42,17 @@ public class BlobFreeQueryTests
 
         var results = new List<Submission?>
         {
-            (await repo.GetByGameAsync(1)).Single(),
-            (await repo.GetByGamePagedAsync(1, 1, 10)).Single(),
-            (await repo.GetTopByGameByScoreValueAsync(1, 10, strategy)).Single(),
-            (await repo.GetTopByGameByUserByScoreValueAsync(1, 1, 10, strategy)).Single(),
-            (await repo.GetByGameAndDayByScoreValueAsync(1, Day1, strategy)).Single(),
-            await repo.GetByGameAndUserAsync(1, 1),
-            (await repo.GetByUserAndGamesAndDaysAsync(1, new List<int> { 1 }, new List<DateTime> { Day1 })).Single(),
-            (await repo.GetByScoringDaysAsync(new List<DateTime> { Day1 })).Single(),
-            (await repo.GetRecentActivityByUsersAsync(new[] { 1 }, Day1, 10, 5)).Single(),
-            (await repo.GetByGameFilteredAsync(1, 1, 10, null, null)).Items.Single(),
-            await repo.GetWinnerForGameAndDayAsync(1, Day1, strategy),
-            (await repo.GetWinnersForGameAndDaysAsync(1, new List<DateTime> { Day1 }, strategy)).Single(),
-            await repo.GetByIdWithoutBlobAsync(seeded.Id),
+            (await repo.GetByGameAsync(1, CancellationToken.None)).Single(),
+            (await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 10), strategy, CancellationToken.None)).Single(),
+            (await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 10) { UserId = 1 }, strategy, CancellationToken.None)).Single(),
+            (await repo.GetByGameAndDayByScoreValueAsync(1, Day1, strategy, CancellationToken.None)).Single(),
+            (await repo.GetByUserAndGamesAndDaysAsync(1, new List<int> { 1 }, new List<DateTime> { Day1 }, CancellationToken.None)).Single(),
+            (await repo.GetByScoringDaysAsync(new List<DateTime> { Day1 }, CancellationToken.None)).Single(),
+            (await repo.GetRecentActivityByUsersAsync(new RecentActivityQuery(new[] { 1 }, Day1, 10, 5), CancellationToken.None)).Single(),
+            (await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10), CancellationToken.None)).Items.Single(),
+            await repo.GetWinnerForGameAndDayAsync(1, Day1, strategy, CancellationToken.None),
+            (await repo.GetWinnersForGameAndDaysAsync(1, new List<DateTime> { Day1 }, strategy, CancellationToken.None)).Single(),
+            await repo.GetByIdWithoutBlobAsync(seeded.Id, CancellationToken.None),
         };
 
         Assert.All(results, s =>
@@ -74,49 +74,98 @@ public class BlobFreeQueryTests
     }
 
     [Fact]
-    public async Task Submission_blob_and_write_paths_still_see_the_blob()
+    public async Task Submission_blob_read_returns_the_blob()
     {
         await using var db = new TestDb();
         var (_, seeded) = Seed(db.Ctx);
         var repo = new EfSubmissionRepository(db.Ctx);
 
-        var (data, contentType) = await repo.GetBlobAsync(seeded.Id);
+        var (data, contentType) = await repo.GetBlobAsync(seeded.Id, CancellationToken.None);
+
         Assert.Equal(Png, data);
         Assert.Equal("image/png", contentType);
-        Assert.Equal((null, null), await repo.GetBlobAsync(9999));
-
-        // Update keeps the blob, delete removes the row.
-        var tracked = await repo.GetByIdAsync(seeded.Id);
-        Assert.Equal(Png, tracked!.ScreenshotData);
-        tracked.Score = "11";
-        await repo.UpdateAsync(tracked);
-        db.Ctx.ChangeTracker.Clear();
-        Assert.Equal(Png, (await repo.GetBlobAsync(seeded.Id)).Data);
-
-        await repo.DeleteAsync(seeded.Id);
-        Assert.Null(await repo.GetByIdAsync(seeded.Id));
     }
 
     [Fact]
-    public async Task Game_list_omits_blob_but_blob_and_write_paths_work()
+    public async Task Submission_blob_read_returns_null_for_a_missing_row()
+    {
+        await using var db = new TestDb();
+        Seed(db.Ctx);
+        var repo = new EfSubmissionRepository(db.Ctx);
+
+        var blob = await repo.GetBlobAsync(MissingId, CancellationToken.None);
+
+        Assert.Equal((null, null), blob);
+    }
+
+    [Fact]
+    public async Task Submission_update_keeps_the_blob()
+    {
+        await using var db = new TestDb();
+        var (_, seeded) = Seed(db.Ctx);
+        var repo = new EfSubmissionRepository(db.Ctx);
+        var tracked = await repo.GetByIdAsync(seeded.Id, CancellationToken.None);
+        Assert.Equal(Png, tracked!.ScreenshotData);
+
+        tracked.Score = "11";
+        await repo.UpdateAsync(tracked, CancellationToken.None);
+
+        db.Ctx.ChangeTracker.Clear();
+        Assert.Equal(Png, (await repo.GetBlobAsync(seeded.Id, CancellationToken.None)).Data);
+    }
+
+    [Fact]
+    public async Task Submission_delete_removes_the_row()
+    {
+        await using var db = new TestDb();
+        var (_, seeded) = Seed(db.Ctx);
+        var repo = new EfSubmissionRepository(db.Ctx);
+
+        await repo.DeleteAsync(seeded.Id, CancellationToken.None);
+
+        Assert.Null(await repo.GetByIdAsync(seeded.Id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Game_list_omits_the_blob()
     {
         await using var db = new TestDb();
         Seed(db.Ctx);
         var repo = new EfGameRepository(db.Ctx);
 
-        var listed = (await repo.GetAllAsync()).Single();
+        var listed = (await repo.GetAllAsync(CancellationToken.None)).Single();
+
         Assert.Null(listed.ScreenshotData);
         Assert.Equal("image/png", listed.ScreenshotContentType);
         Assert.Equal("G", listed.Name);
+    }
 
-        Assert.Equal(Png, (await repo.GetBlobAsync(1)).Data);
+    [Fact]
+    public async Task Game_blob_read_returns_the_blob()
+    {
+        await using var db = new TestDb();
+        var (game, _) = Seed(db.Ctx);
+        var repo = new EfGameRepository(db.Ctx);
 
-        var tracked = await repo.GetByIdAsync(1);
+        var blob = await repo.GetBlobAsync(game.Id, CancellationToken.None);
+
+        Assert.Equal(Png, blob.Data);
+    }
+
+    [Fact]
+    public async Task Game_update_keeps_the_blob()
+    {
+        await using var db = new TestDb();
+        var (game, _) = Seed(db.Ctx);
+        var repo = new EfGameRepository(db.Ctx);
+        var tracked = await repo.GetByIdAsync(game.Id, CancellationToken.None);
+
         tracked!.Name = "Renamed";
-        await repo.UpdateAsync(tracked);
+        await repo.UpdateAsync(tracked, CancellationToken.None);
+
         db.Ctx.ChangeTracker.Clear();
-        Assert.Equal("Renamed", (await repo.GetAllAsync()).Single().Name);
-        Assert.Equal(Png, (await repo.GetBlobAsync(1)).Data);
+        Assert.Equal("Renamed", (await repo.GetAllAsync(CancellationToken.None)).Single().Name);
+        Assert.Equal(Png, (await repo.GetBlobAsync(game.Id, CancellationToken.None)).Data);
     }
 }
 
@@ -157,11 +206,12 @@ public class DbUpdateExceptionExtensionsTests
     public async Task Other_constraint_violations_are_not_unique_violations()
     {
         await using var db = new TestDb();
-        db.Ctx.Games.Add(new Game { Id = 1, Name = null! }); // NOT NULL constraint
+        var violatesNotNull = new Game { Id = 1, Name = null! };
+        db.Ctx.Games.Add(violatesNotNull);
         var ex = await Assert.ThrowsAsync<DbUpdateException>(() => db.Ctx.SaveChangesAsync());
 
         var sqlite = Assert.IsType<SqliteException>(ex.InnerException);
-        Assert.Equal(19, sqlite.SqliteErrorCode);
+        Assert.Equal(SqliteAssert.ConstraintError, sqlite.SqliteErrorCode);
         Assert.False(ex.IsUniqueViolation());
     }
 }

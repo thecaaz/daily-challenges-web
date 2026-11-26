@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
+import useLatestRequest from './useLatestRequest'
 
 /**
  * Friendship status with `targetUserId`: 'none' | 'pending_sent' | 'pending_received' | 'friends'.
@@ -13,10 +14,10 @@ export default function useFriendStatus(targetUserId) {
   const [status, setStatus] = useState('none')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
-  const requestRef = useRef(0)
+  const startRequest = useLatestRequest()
 
   const fetchStatus = useCallback(() => {
-    const requestId = ++requestRef.current
+    const isLatest = startRequest()
     if (!targetUserId || userId == null) {
       setStatus('none')
       setError(false)
@@ -27,10 +28,10 @@ export default function useFriendStatus(targetUserId) {
     setLoading(true)
     setError(false)
     api.get(`/friends/status/${targetUserId}`)
-      .then(r => { if (requestId === requestRef.current) setStatus(r?.data?.status ?? 'none') })
-      .catch(() => { if (requestId === requestRef.current) setError(true) })
-      .finally(() => { if (requestId === requestRef.current) setLoading(false) })
-  }, [targetUserId, userId])
+      .then(response => { if (isLatest()) setStatus(response?.data?.status ?? 'none') })
+      .catch(() => { if (isLatest()) setError(true) })
+      .finally(() => { if (isLatest()) setLoading(false) })
+  }, [targetUserId, userId, startRequest])
 
   useEffect(() => {
     fetchStatus()

@@ -1,14 +1,18 @@
 import React from 'react'
 import { Grid } from '@mui/material'
+import SubmissionCard from '../../SubmissionCard'
 
-export default function SubmissionGrid({ items = [], ItemComponent, itemKey = 'id', xs = 12, sm = 6, md = 4, containerSx, itemProps }) {
-  if (!items || items.length === 0) return null
+const gridSx = { mt: 1 }
+
+/** Responsive grid of submission cards; `cardPropsFor(submission)` adds props to each card. */
+export default function SubmissionGrid({ submissions, cardPropsFor }) {
+  if (!submissions || submissions.length === 0) return null
 
   return (
-    <Grid container spacing={2} sx={containerSx}>
-      {items.map(i => (
-        <Grid item xs={xs} sm={sm} md={md} key={i[itemKey]}>
-          <ItemComponent submission={i} {...(typeof itemProps === 'function' ? itemProps(i) : (itemProps || {}))} />
+    <Grid container spacing={2} sx={gridSx}>
+      {submissions.map(submission => (
+        <Grid item xs={12} sm={6} md={4} key={submission.id}>
+          <SubmissionCard submission={submission} {...cardPropsFor?.(submission)} />
         </Grid>
       ))}
     </Grid>

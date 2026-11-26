@@ -1,3 +1,50 @@
+## [1.30.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.29.0...v1.30.0) (2026-11-05)
+
+
+### Features
+
+* **extension:** release extension 0.5.0 ([16544b7](https://github.com/thecaaz/daily-challenges-web/commit/16544b7c3789a8bc805c00057ddc5c84acec777a))
+
+## [1.29.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.2...v1.29.0) (2026-11-05)
+
+
+### Features
+
+* address full code-review findings ([3812117](https://github.com/thecaaz/daily-challenges-web/commit/3812117383d7b6697aeb78abd812c3d7fe5d505a))
+
+
+### Bug Fixes
+
+* make XP streak tests deterministic and run tests in CI ([0965f80](https://github.com/thecaaz/daily-challenges-web/commit/0965f80b4861e86400413926f91c7196cc178da7))
+
+### [1.28.2](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.1...v1.28.2) (2026-08-15)
+
+
+### Bug Fixes
+
+* swizz number formatting in tg ([a3f2f18](https://github.com/thecaaz/daily-challenges-web/commit/a3f2f18bde9448e3964c37788cb664eb2b0685d9))
+* udpate extension ([f73b20f](https://github.com/thecaaz/daily-challenges-web/commit/f73b20f019680aa3e7505d70eccc3bfc128dd040))
+
+### [1.28.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.28.0...v1.28.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* score being decimals on some machines, even though it should be a natural number ([934c0e1](https://github.com/thecaaz/daily-challenges-web/commit/934c0e1572ffd1c42af5985451f64cfef42f333d))
+
+
+### Reverts
+
+* Revert "ci: add gate job matching the CI Build required status check" ([55762f6](https://github.com/thecaaz/daily-challenges-web/commit/55762f6bb66f4e876a23520381e7d03708c4978a))
+
+## [1.28.0](https://github.com/thecaaz/daily-challenges-web/compare/v1.27.1...v1.28.0) (2026-08-06)
+
+
+### Features
+
+* **extension:** add BlindCut and MotionPath adapters ([d48c33a](https://github.com/thecaaz/daily-challenges-web/commit/d48c33a68440fee1fbaaca3caac2bf9140c73ba3))
+* release extension 0.4.2 ([de29298](https://github.com/thecaaz/daily-challenges-web/commit/de2929850cc8a0505c9a377dc7ec03b0f97e59c8))
+
 ### [1.27.1](https://github.com/thecaaz/daily-challenges-web/compare/v1.27.0...v1.27.1) (2026-07-23)
 
 

@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
+using static DailyChallenges.IntegrationTests.Infrastructure.HttpResponseJson;
 
 namespace DailyChallenges.IntegrationTests;
 
@@ -11,12 +12,6 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
     private readonly ApiFactory _factory;
 
     public ApiSmokeTests(ApiFactory factory) => _factory = factory;
-
-    private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage res)
-    {
-        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
-        return doc.RootElement.Clone();
-    }
 
     private async Task<int> SeedUserAsync(string username)
     {
@@ -38,19 +33,34 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
         Assert.Equal(JsonValueKind.Array, (await ReadJsonAsync(res)).ValueKind);
     }
 
+    private const string AuthorizedEndpoint = "/api/notifications/unread-count";
+
     [Fact]
-    public async Task Authorized_endpoint_requires_a_valid_token()
+    public async Task Authorized_endpoint_rejects_a_request_without_a_token()
     {
-        var anonymous = await _factory.CreateClient().GetAsync("/api/notifications/unread-count");
-        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        var res = await _factory.CreateClient().GetAsync(AuthorizedEndpoint);
 
-        var badToken = _factory.CreateClient();
-        badToken.DefaultRequestHeaders.Authorization = new("Bearer", "not-a-jwt");
-        Assert.Equal(HttpStatusCode.Unauthorized, (await badToken.GetAsync("/api/notifications/unread-count")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
 
-        var authed = await _factory.CreateAuthenticatedClient(userId: 4242).GetAsync("/api/notifications/unread-count");
-        Assert.Equal(HttpStatusCode.OK, authed.StatusCode);
-        Assert.Equal(0, (await ReadJsonAsync(authed)).GetProperty("unreadCount").GetInt32());
+    [Fact]
+    public async Task Authorized_endpoint_rejects_a_malformed_token()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", "not-a-jwt");
+
+        var res = await client.GetAsync(AuthorizedEndpoint);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authorized_endpoint_accepts_a_valid_token()
+    {
+        var res = await _factory.CreateAuthenticatedClient(userId: 4242).GetAsync(AuthorizedEndpoint);
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Equal(0, (await ReadJsonAsync(res)).GetProperty("unreadCount").GetInt32());
     }
 
     [Fact]
@@ -63,6 +73,7 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.OK, admin.StatusCode);
     }
 
+    /// <summary>Someone else's notification reads as 404, same as a missing one.</summary>
     [Fact]
     public async Task Domain_exception_becomes_json_error_with_status()
     {
@@ -75,13 +86,13 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
             await db.SaveChangesAsync();
         });
 
-        // Someone else's notification reads as 404, same as a missing one.
         var res = await _factory.CreateAuthenticatedClient(otherId).DeleteAsync($"/api/notifications/{notification.Id}");
 
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
         Assert.Equal("Notification not found", (await ReadJsonAsync(res)).GetProperty("message").GetString());
     }
 
+    /// <summary>SQLite returns Kind=Unspecified; the converter must label it UTC without shifting it.</summary>
     [Fact]
     public async Task DateTimes_are_serialized_as_utc_with_z()
     {
@@ -100,7 +111,6 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
         var res = await _factory.CreateAuthenticatedClient(userId).GetAsync("/api/notifications");
         var item = (await ReadJsonAsync(res)).GetProperty("items")[0];
 
-        // SQLite returns Kind=Unspecified; the converter must label it UTC without shifting it.
         Assert.Equal("2026-04-01T10:30:00Z", item.GetProperty("createdAt").GetString());
         Assert.Equal("2026-04-01", item.GetProperty("scoringDay").GetString());
     }
@@ -119,10 +129,10 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
         var client = _factory.CreateClient();
         var games = (await ReadJsonAsync(await client.GetAsync("/api/games"))).EnumerateArray().ToList();
 
-        var a = games.Single(g => g.GetProperty("id").GetInt32() == withImage.Id);
-        var b = games.Single(g => g.GetProperty("id").GetInt32() == withoutImage.Id);
-        Assert.Equal($"/api/games/{withImage.Id}/image", a.GetProperty("imageUrl").GetString());
-        Assert.False(b.TryGetProperty("imageUrl", out _));
+        var gameWithImage = games.Single(g => g.GetProperty("id").GetInt32() == withImage.Id);
+        var gameWithoutImage = games.Single(g => g.GetProperty("id").GetInt32() == withoutImage.Id);
+        Assert.Equal($"/api/games/{withImage.Id}/image", gameWithImage.GetProperty("imageUrl").GetString());
+        Assert.False(gameWithoutImage.TryGetProperty("imageUrl", out _));
 
         var image = await client.GetAsync($"/api/games/{withImage.Id}/image");
         Assert.Equal(HttpStatusCode.OK, image.StatusCode);

@@ -1,40 +1,26 @@
-import { useEffect, useState } from 'react'
 import api from '../api'
 import { useAuth } from '../contexts/AuthContext'
+import useAsyncData from './useAsyncData'
 
 /**
  * Loads a user's profile. `error` is the axios error (check `error.response.status`
  * for 404). Re-fetches when the viewer changes, because the owner (and admins)
  * also see the current day's entries (otherwise `scoresHidden` is true).
+ * Without a `userId` nothing is loaded and `loading` is false.
  */
 export default function useUserProfile(userId, topGames = 10) {
   const auth = useAuth()
   const viewerId = auth?.user?.id ?? null
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(Boolean(userId))
-  const [error, setError] = useState(null)
+  const hasUser = userId != null
 
-  useEffect(() => {
-    if (userId == null) {
-      setData(null)
-      setLoading(false)
-      setError(null)
-      return
-    }
+  const { data, loading, failure } = useAsyncData(
+    () => (hasUser ? getProfile(userId, topGames) : null),
+    [userId, topGames, viewerId],
+  )
 
-    let cancelled = false
-    setData(null)
-    setLoading(true)
-    setError(null)
+  return { data, loading: hasUser && loading, error: failure }
+}
 
-    api.get(`/users/${userId}/profile`, { params: { topGames } })
-      .then(r => r.data)
-      .then(d => { if (!cancelled) setData(d) })
-      .catch(e => { if (!cancelled) setError(e) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-
-    return () => { cancelled = true }
-  }, [userId, topGames, viewerId])
-
-  return { data, loading, error }
+function getProfile(userId, topGames) {
+  return api.get(`/users/${userId}/profile`, { params: { topGames } }).then(response => response.data)
 }

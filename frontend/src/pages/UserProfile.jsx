@@ -7,6 +7,7 @@ import TopGamesList from '../components/Profile/TopGamesList'
 import AchievementsGrid from '../components/Profile/AchievementsGrid'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
+import { isNotFoundError } from '../api/httpStatus'
 
 export default function UserProfile() {
   const { id } = useParams()
@@ -14,7 +15,7 @@ export default function UserProfile() {
   const { data: profile, loading, error } = useUserProfile(Number.isNaN(userId) ? null : userId)
 
   if (loading) return <Container sx={{ mt: 4 }}><Loading /></Container>
-  if (Number.isNaN(userId) || error?.response?.status === 404) {
+  if (Number.isNaN(userId) || isNotFoundError(error)) {
     return <Container sx={{ mt: 4 }}><NotFound message="User not found." /></Container>
   }
   if (error) return <Container sx={{ mt: 4 }}><Box role="alert">Failed to load profile. Please try again later.</Box></Container>

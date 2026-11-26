@@ -1,70 +1,65 @@
 using DailyChallenges.Data;
+using DailyChallenges.Exceptions;
 using DailyChallenges.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace DailyChallenges.Repositories
+namespace DailyChallenges.Repositories;
+
+public sealed class EfGameRepository(AppDbContext db) : IGameRepository
 {
-    public class EfGameRepository : IGameRepository
+    public Task<List<Game>> GetAllAsync(CancellationToken ct) =>
+        db.Games.SelectWithoutBlob().ToListAsync(ct);
+
+    /// <summary>Tracked, full entity (including the image blob). Write paths rely on tracking.</summary>
+    public Task<Game?> GetByIdAsync(int id, CancellationToken ct) =>
+        db.Games.FirstOrDefaultAsync(g => g.Id == id, ct);
+
+    public Task<Game?> GetByIdWithoutBlobAsync(int id, CancellationToken ct) =>
+        db.Games.Where(g => g.Id == id).SelectWithoutBlob().FirstOrDefaultAsync(ct);
+
+    public async Task<(byte[]? Data, string? ContentType)> GetBlobAsync(int id, CancellationToken ct)
     {
-        private readonly AppDbContext _db;
-        public EfGameRepository(AppDbContext db) => _db = db;
+        var row = await db.Games
+            .Where(g => g.Id == id)
+            .Select(g => new { g.ScreenshotData, g.ScreenshotContentType })
+            .FirstOrDefaultAsync(ct);
+        return row == null ? (null, null) : (row.ScreenshotData, row.ScreenshotContentType);
+    }
 
-        public async Task<List<Game>> GetAllAsync()
+    public async Task<Game> CreateAsync(Game game, CancellationToken ct)
+    {
+        db.Games.Add(game);
+        await db.SaveChangesAsync(ct);
+        return game;
+    }
+
+    /// <summary>Copies the editable fields; the image only when a new, non-empty one is given.</summary>
+    public async Task<Game> UpdateAsync(Game game, CancellationToken ct)
+    {
+        var existing = await db.Games.FirstOrDefaultAsync(g => g.Id == game.Id, ct)
+            ?? throw new NotFoundException("Game not found");
+
+        existing.Name = game.Name;
+        existing.Url = game.Url;
+        existing.ResetTime = game.ResetTime;
+        existing.Description = game.Description;
+        existing.RankingMode = game.RankingMode;
+        if (game.ScreenshotData is { Length: > 0 })
         {
-            return await _db.Games.SelectWithoutBlob().ToListAsync();
+            existing.ScreenshotData = game.ScreenshotData;
+            existing.ScreenshotContentType = game.ScreenshotContentType;
         }
 
-        /// <summary>Tracked, full entity (including the image blob). Write paths rely on tracking.</summary>
-        public async Task<Game?> GetByIdAsync(int id)
-        {
-            return await _db.Games.FirstOrDefaultAsync(g => g.Id == id);
-        }
+        await db.SaveChangesAsync(ct);
+        return existing;
+    }
 
-        public async Task<Game?> GetByIdWithoutBlobAsync(int id)
-        {
-            return await _db.Games.Where(g => g.Id == id).SelectWithoutBlob().FirstOrDefaultAsync();
-        }
+    public async Task DeleteAsync(int id, CancellationToken ct)
+    {
+        var existing = await db.Games.FindAsync([id], ct);
+        if (existing == null) return;
 
-        public async Task<(byte[]? Data, string? ContentType)> GetBlobAsync(int id)
-        {
-            var row = await _db.Games
-                .Where(g => g.Id == id)
-                .Select(g => new { g.ScreenshotData, g.ScreenshotContentType })
-                .FirstOrDefaultAsync();
-            return row == null ? (null, null) : (row.ScreenshotData, row.ScreenshotContentType);
-        }
-
-        public async Task<Game> CreateAsync(Game game)
-        {
-            _db.Games.Add(game);
-            await _db.SaveChangesAsync();
-            return game;
-        }
-
-        public async Task<Game> UpdateAsync(Game game)
-        {
-            var existing = await _db.Games.FirstOrDefaultAsync(g => g.Id == game.Id);
-            if (existing == null) throw new KeyNotFoundException("Game not found");
-            existing.Name = game.Name;
-            existing.Url = game.Url;
-            existing.ResetTime = game.ResetTime;
-            existing.Description = game.Description;
-            existing.RankingMode = game.RankingMode;
-            if (game.ScreenshotData != null && game.ScreenshotData.Length > 0)
-            {
-                existing.ScreenshotData = game.ScreenshotData;
-                existing.ScreenshotContentType = game.ScreenshotContentType;
-            }
-            await _db.SaveChangesAsync();
-            return existing;
-        }
-
-        public async Task DeleteAsync(int id)
-        {
-            var existing = await _db.Games.FindAsync(id);
-            if (existing == null) return;
-            _db.Games.Remove(existing);
-            await _db.SaveChangesAsync();
-        }
+        db.Games.Remove(existing);
+        await db.SaveChangesAsync(ct);
     }
 }
