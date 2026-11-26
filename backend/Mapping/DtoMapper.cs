@@ -40,7 +40,7 @@ public static class DtoMapper
         ScoreValue = s.ScoreValue,
         Rank = null,
         Username = s.Username,
-        ScreenshotUrl = !string.IsNullOrEmpty(s.ScreenshotContentType) ? $"/api/submissions/{s.Id}/screenshot" : null,
+        ScreenshotUrl = SubmissionScreenshotUrl.For(s.Id, s.ScreenshotContentType),
         CreatedAt = s.CreatedAt
     };
 
@@ -57,7 +57,7 @@ public static class DtoMapper
             Name = g.Name,
             Url = g.Url,
             Description = g.Description,
-            ImageUrl = !string.IsNullOrEmpty(g.ScreenshotContentType) ? $"/api/games/{g.Id}/image" : null,
+            ImageUrl = GameImageUrl.For(g.Id, g.ScreenshotContentType),
             ResetTime = g.ResetTime.ToString(ResetTimeFormat),
             RankingMode = g.RankingMode.ToString().ToLowerInvariant(),
             CurrentScoringDay = window.Day,

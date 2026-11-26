@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using DailyChallenges.Mapping;
 using Microsoft.Extensions.Options;
 
 namespace DailyChallenges.Services;
@@ -27,7 +28,7 @@ public sealed class ScreenshotUrlSigner(IOptions<JwtOptions> jwt, TimeProvider t
 
     private readonly byte[] _key = DeriveKey(jwt.Value.Key);
 
-    public string UnsignedUrl(int submissionId) => $"/api/submissions/{submissionId}/screenshot";
+    public string UnsignedUrl(int submissionId) => SubmissionScreenshotUrl.Of(submissionId);
 
     public string SignedUrl(int submissionId)
     {

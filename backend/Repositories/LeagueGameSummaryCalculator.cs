@@ -1,4 +1,5 @@
 using DailyChallenges.DTOs;
+using DailyChallenges.Mapping;
 using DailyChallenges.Models;
 using DailyChallenges.Services;
 using DailyChallenges.Services.Ranking;
@@ -48,7 +49,7 @@ internal sealed class LeagueGameSummaryCalculator(int requestingUserId, int days
         {
             GameId = game.GameId,
             GameName = game.GameName,
-            IconUrl = game.GameHasIcon ? $"/api/games/{game.GameId}/image" : null,
+            IconUrl = game.GameHasIcon ? GameImageUrl.Of(game.GameId) : null,
             LastPlayedAt = gameRows.Max(r => r.CreatedAt),
             PlayCount = gameRows.Count,
             TopScore = top?.Score,
