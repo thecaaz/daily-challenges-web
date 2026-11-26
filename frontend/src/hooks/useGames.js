@@ -1,7 +1,5 @@
-import api from '../api'
+import { getGames } from '../api/games'
 import useAsyncData from './useAsyncData'
-
-const toGameList = data => (Array.isArray(data) ? data : [])
 
 /**
  * All games (an empty list while loading or when the response is not a list).
@@ -9,9 +7,6 @@ const toGameList = data => (Array.isArray(data) ? data : [])
  * @returns {{ games: object[], loading: boolean, error: boolean, retry: () => void }}
  */
 export default function useGames() {
-  const { data, loading, error, refetch } = useAsyncData(
-    () => api.get('/games').then(response => toGameList(response.data)),
-    []
-  )
+  const { data, loading, error, refetch } = useAsyncData(getGames, [])
   return { games: data ?? [], loading, error, retry: refetch }
 }

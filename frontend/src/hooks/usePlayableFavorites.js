@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import api from '../api'
+import { getGames } from '../api/games'
 import { hasAdapterForUrl } from '../utils/adapters'
 import { onFavoriteChange } from '../utils/favoriteEvents'
 
@@ -30,47 +30,37 @@ export default function usePlayableFavorites(userId, { enabled = true, subscribe
   const load = useCallback(async () => {
     const requestId = ++requestRef.current
     const isCurrent = () => requestRef.current === requestId
+    const showFavorites = ({ favorites, isError = false }) => {
+      setState(favorites)
+      setError(isError)
+      setLoading(false)
+    }
 
     if (userId == null) {
-      setState(EMPTY)
-      setLoading(false)
+      showFavorites({ favorites: EMPTY })
       setCheckingPlayable(false)
-      setError(false)
       return
     }
 
-    let favs
+    let favorites
     try {
-      const res = await api.get('/games')
-      const all = Array.isArray(res.data) ? res.data : []
-      favs = all.filter(g => g.isFavorite)
-    } catch (e) {
+      favorites = splitFavorites(await getGames())
+    } catch {
       if (!isCurrent()) return
-      setState(EMPTY)
-      setError(true)
-      setLoading(false)
+      showFavorites({ favorites: EMPTY, isError: true })
       setCheckingPlayable(false)
       return
     }
     if (!isCurrent()) return
+    showFavorites({ favorites })
 
-    const pendingGames = favs.filter(g => !g.hasSubmittedForLatest)
-    setState({ total: favs.length, submittedCount: favs.length - pendingGames.length, pendingGames, playable: [] })
-    setError(false)
-    setLoading(false)
+    const candidates = favorites.pendingGames.filter(game => game.url)
+    setCheckingPlayable(candidates.length > 0)
+    if (candidates.length === 0) return
 
-    const candidates = pendingGames.filter(g => g.url)
-    if (candidates.length === 0) {
-      setCheckingPlayable(false)
-      return
-    }
-    setCheckingPlayable(true)
-    const checks = await Promise.all(candidates.map(g => hasAdapterForUrl(g.url).then(Boolean, () => false)))
+    const playable = await findPlayable(candidates)
     if (!isCurrent()) return
-    const playable = candidates
-      .filter((_, i) => checks[i])
-      .sort((a, b) => Number(a.id) - Number(b.id))
-    setState(prev => ({ ...prev, playable }))
+    setState(previous => ({ ...previous, playable }))
     setCheckingPlayable(false)
   }, [userId])
 
@@ -98,4 +88,23 @@ export default function usePlayableFavorites(userId, { enabled = true, subscribe
     error,
     reload: load,
   }
+}
+
+function splitFavorites(games) {
+  const favorites = games.filter(game => game.isFavorite)
+  const pendingGames = favorites.filter(game => !game.hasSubmittedForLatest)
+  return {
+    total: favorites.length,
+    submittedCount: favorites.length - pendingGames.length,
+    pendingGames,
+    playable: [],
+  }
+}
+
+/** The games the extension can capture, by id; a failed check counts as "no". */
+async function findPlayable(games) {
+  const checks = await Promise.all(games.map(game => hasAdapterForUrl(game.url).then(Boolean, () => false)))
+  return games
+    .filter((_, index) => checks[index])
+    .sort((a, b) => Number(a.id) - Number(b.id))
 }

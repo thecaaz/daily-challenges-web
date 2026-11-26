@@ -1,15 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '../api'
+import { getGames } from '../api/games'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { getApiErrorMessage } from '../utils/apiError'
 import useAsyncData from './useAsyncData'
 import useLatestRequest from './useLatestRequest'
 
 const NO_GAMES = []
-
-function getGames() {
-  return api.get('/games').then(res => res.data || [])
-}
 
 /**
  * Game/day selection and leaderboard data for a league's leaderboard tab.
