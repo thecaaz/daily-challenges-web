@@ -35,7 +35,7 @@ public class XpServiceTests
         var userRepo = new Mock<IUserRepository>();
         var subRepo = new Mock<ISubmissionRepository>();
         var xpEventRepo = new Mock<IXpEventRepository>();
-        var levelCalc = new LevelCalculator(cfg.LevelBase, cfg.LevelExponent);
+        var levels = new LevelCalculator(cfg.LevelBase, cfg.LevelExponent);
 
         xpEventRepo
             .Setup(r => r.AddAsync(It.IsAny<XpEvent>(), It.IsAny<CancellationToken>()))
@@ -43,7 +43,7 @@ public class XpServiceTests
 
         var svc = new XpService(
             userRepo.Object, subRepo.Object, xpEventRepo.Object,
-            levelCalc, Options.Create(cfg),
+            levels, Options.Create(cfg),
             new FixedTimeProvider(now ?? Day1));
 
         return new Sut(svc, userRepo, subRepo, xpEventRepo, cfg);

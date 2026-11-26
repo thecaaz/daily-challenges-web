@@ -12,7 +12,7 @@ public sealed class NotificationsController(INotificationService notifications) 
     private const int DefaultPageSize = 20;
 
     [HttpGet]
-    public async Task<IActionResult> GetNotifications([CurrentUserId] int userId, [FromQuery] int page = 1, [FromQuery] int pageSize = DefaultPageSize, CancellationToken ct = default) =>
+    public async Task<IActionResult> GetNotifications([CurrentUserId] int userId, [FromQuery] int page = Paging.FirstPage, [FromQuery] int pageSize = DefaultPageSize, CancellationToken ct = default) =>
         Ok(await notifications.GetNotificationsAsync(userId, page, pageSize, ct));
 
     [HttpGet("unread-count")]

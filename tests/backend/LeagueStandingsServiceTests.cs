@@ -70,18 +70,38 @@ public class LeagueStandingsServiceTests
         Assert.Equal((5, "G5", 1, 10.0, 1), (summary.GameId, summary.GameName, summary.PlayCount, summary.TopScoreValue, summary.MyRank));
     }
 
+    /// <summary>Mirrors the service's private summary-window limit.</summary>
+    private const int MaxSummaryDays = 31;
+    private const int OversizedDays = 100;
+    private const int ValidDays = 7;
+    private const int OversizedPageSize = 1000;
+    private const int PageBelowFirst = 0;
+
     [Fact]
-    public async Task GetLeagueGameSummaries_OutOfRangeWindowAndPaging_AreClamped()
+    public async Task GetLeagueGameSummaries_OversizedWindow_IsClampedToMaxSummaryDays()
     {
         var sut = Build();
         AsMember(sut);
-        sut.StandingsRepo.Setup(r => r.GetMemberSubmissionsAsync(1, Now.Date.AddDays(-31), Now.Date.AddDays(1), It.IsAny<CancellationToken>()))
+        sut.StandingsRepo.Setup(r => r.GetMemberSubmissionsAsync(1, Now.Date.AddDays(-MaxSummaryDays), Now.Date.AddDays(1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([PlayOf(5)]);
+
+        var (items, _) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, Days: OversizedDays, Page: Paging.FirstPage, PageSize: 20), CancellationToken.None);
+
+        var summary = Assert.Single(items);
+        Assert.Equal(MaxSummaryDays, summary.RecentPlays.Count);
+    }
+
+    [Fact]
+    public async Task GetLeagueGameSummaries_OutOfRangePaging_IsClamped()
+    {
+        var sut = Build();
+        AsMember(sut);
+        sut.StandingsRepo.Setup(r => r.GetMemberSubmissionsAsync(1, Now.Date.AddDays(-ValidDays), Now.Date.AddDays(1), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Enumerable.Range(1, Paging.MaxPageSize + 1).Select(gameId => PlayOf(gameId)).ToList());
 
-        var (items, total) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, Days: 100, Page: 0, PageSize: 1000), CancellationToken.None);
+        var (items, total) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, Days: ValidDays, Page: PageBelowFirst, PageSize: OversizedPageSize), CancellationToken.None);
 
         Assert.Equal(Paging.MaxPageSize + 1, total);
         Assert.Equal(Paging.MaxPageSize, items.Count);
-        Assert.All(items, summary => Assert.Equal(31, summary.RecentPlays.Count));
     }
 }

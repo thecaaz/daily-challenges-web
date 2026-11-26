@@ -11,15 +11,15 @@ namespace DailyChallenges.Data;
 /// </summary>
 public static class UserLevelSync
 {
-    public static int Run(AppDbContext db, LevelCalculator levelCalc, ILogger logger)
+    public static int Run(AppDbContext db, LevelCalculator levels, ILogger logger)
     {
         var users = db.Users.AsNoTracking().Select(u => new { u.Id, u.TotalXp, u.Level }).ToList();
         var fixedCount = 0;
-        foreach (var u in users)
+        foreach (var user in users)
         {
-            var level = levelCalc.GetLevelFromTotalXp(u.TotalXp);
-            if (level == u.Level) continue;
-            var id = u.Id;
+            var level = levels.GetLevelFromTotalXp(user.TotalXp);
+            if (level == user.Level) continue;
+            var id = user.Id;
             db.Users.Where(x => x.Id == id).ExecuteUpdate(set => set.SetProperty(x => x.Level, level));
             fixedCount++;
         }

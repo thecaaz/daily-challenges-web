@@ -34,7 +34,7 @@ public class FriendServiceTests
         var users     = new Mock<IUserProfileRepository>();
         var notifs    = new Mock<INotificationRepository>();
         var ach       = new Mock<IAchievementService>();
-        var levelCalc = new LevelCalculator();
+        var levels = new LevelCalculator();
 
         notifs.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         notifs.Setup(r => r.GetByUserPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -42,7 +42,7 @@ public class FriendServiceTests
 
         var clock = new FixedTimeProvider(Now);
         var requests = new FriendRequestService(friends.Object, users.Object, notifs.Object, ach.Object, clock);
-        var friendships = new FriendshipService(friends.Object, levelCalc, clock);
+        var friendships = new FriendshipService(friends.Object, levels, clock);
         return new Sut(requests, friendships, friends, users, notifs, ach);
     }
 
