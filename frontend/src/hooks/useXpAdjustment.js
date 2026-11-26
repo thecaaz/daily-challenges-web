@@ -6,11 +6,11 @@ import formatNumber from '../utils/formatNumber'
 
 /** Parse an XP amount field: a non-zero whole number, or null. */
 export function parseXpAmount(value) {
-  const s = String(value ?? '').trim()
-  if (!/^[+-]?\d+$/.test(s)) return null
-  const n = Number(s)
-  if (!Number.isSafeInteger(n) || n === 0) return null
-  return Math.abs(n)
+  const text = String(value ?? '').trim()
+  if (!/^[+-]?\d+$/.test(text)) return null
+  const amount = Number(text)
+  if (!Number.isSafeInteger(amount) || amount === 0) return null
+  return Math.abs(amount)
 }
 
 /**

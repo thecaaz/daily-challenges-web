@@ -26,23 +26,23 @@ export default function NotificationBell() {
   const [anchorEl, setAnchorEl] = useState(null)
   const { unreadCount, notifications, loadRecent, markRead, markAllRead, remove } = useNotifications(user)
 
-  const handleOpen = (e) => {
-    setAnchorEl(e.currentTarget)
+  const handleOpen = (event) => {
+    setAnchorEl(event.currentTarget)
     loadRecent()
   }
 
   const handleClose = () => setAnchorEl(null)
 
-  const handleClickNotification = async (n) => {
-    await markRead(n)
+  const handleClickNotification = async (notification) => {
+    await markRead(notification)
     handleClose()
-    const route = notificationRoute(n, user)
+    const route = notificationRoute(notification, user)
     if (route) navigate(route)
   }
 
-  const handleRemoveNotification = (e, n) => {
-    e.stopPropagation()
-    remove(n)
+  const handleRemoveNotification = (event, notification) => {
+    event.stopPropagation()
+    remove(notification)
   }
 
   if (!user) return null
@@ -82,12 +82,12 @@ export default function NotificationBell() {
           </Box>
         ) : (
           <List dense disablePadding sx={listSx}>
-            {notifications.map(n => (
+            {notifications.map(notification => (
               <NotificationListItem
-                key={n.id}
-                notification={n}
-                onClick={() => handleClickNotification(n)}
-                onRemove={(e) => handleRemoveNotification(e, n)}
+                key={notification.id}
+                notification={notification}
+                onClick={() => handleClickNotification(notification)}
+                onRemove={(event) => handleRemoveNotification(event, notification)}
               />
             ))}
           </List>

@@ -12,12 +12,12 @@ export const isLeagueType = type => !!type?.startsWith(LEAGUE_TYPE_PREFIX)
  * Types: day_win, day_placement, friend_request, friend_request_accepted,
  * league_invite, league_joined, achievement.
  */
-export function notificationRoute(n, user) {
-  const type = n?.type ?? ''
+export function notificationRoute(notification, user) {
+  const type = notification?.type ?? ''
   if (isFriendType(type)) return '/friends'
   if (isLeagueType(type)) return '/leagues'
   if (type === ACHIEVEMENT_TYPE) return user?.id != null ? `/users/${user.id}` : null
-  if (n?.gameId) return gameRoute(n)
+  if (notification?.gameId) return gameRoute(notification)
   return null
 }
 

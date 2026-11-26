@@ -14,8 +14,8 @@ const captionSx = { color: onImageText.caption }
  */
 const EXPIRE_GRACE_MS = 1500
 
-function pad(n) {
-  return String(n).padStart(2, '0')
+function pad(value) {
+  return String(value).padStart(2, '0')
 }
 
 function formatHms(milliseconds) {

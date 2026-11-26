@@ -31,12 +31,12 @@ export default function useLeagueGameSummaries(leagueId, initialDays = 7) {
     inFlightRef.current = true
     setLoading(true)
     try {
-      const res = await api.get(`/leagues/${leagueId}/game-summaries`, {
+      const response = await api.get(`/leagues/${leagueId}/game-summaries`, {
         params: { days: periodDays, page, pageSize: PAGE_SIZE },
       })
       if (!isCurrentGeneration()) return
-      const pageItems = res.data?.items || []
-      setTotalCount(res.data?.totalCount ?? 0)
+      const pageItems = response.data?.items || []
+      setTotalCount(response.data?.totalCount ?? 0)
       setItems(prev => mergeItems(prev, pageItems))
       lastLoadedPageRef.current = page
       setError(null)

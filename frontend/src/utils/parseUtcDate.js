@@ -11,13 +11,13 @@ const ISO_WITHOUT_TIMEZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/
 export default function parseUtcDate(input) {
   if (!input) return new Date(NaN)
   if (input instanceof Date) return input
-  const s = String(input).trim()
+  const text = String(input).trim()
 
-  if (HAS_TIMEZONE.test(s)) return new Date(s)
-  if (DATE_ONLY.test(s)) return new Date(`${s}T00:00:00Z`)
-  if (ISO_WITHOUT_TIMEZONE.test(s)) return new Date(`${s}Z`)
+  if (HAS_TIMEZONE.test(text)) return new Date(text)
+  if (DATE_ONLY.test(text)) return new Date(`${text}T00:00:00Z`)
+  if (ISO_WITHOUT_TIMEZONE.test(text)) return new Date(`${text}Z`)
 
-  const parsed = Date.parse(s)
+  const parsed = Date.parse(text)
   if (!isNaN(parsed)) return new Date(parsed)
-  return new Date(s)
+  return new Date(text)
 }

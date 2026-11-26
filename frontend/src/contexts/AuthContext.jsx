@@ -31,9 +31,9 @@ export function AuthProvider({ children }) {
 
   const fetchMe = useCallback(async () => {
     try {
-      const res = await api.get('/auth/me')
-      setUser(res.data)
-      return res.data
+      const response = await api.get('/auth/me')
+      setUser(response.data)
+      return response.data
     } catch (err) {
       if (isUnauthorized(err)) setUser(null)
       return null
@@ -44,16 +44,16 @@ export function AuthProvider({ children }) {
   useAuthExpiredListener(clearSession)
 
   const login = useCallback(async (username, password) => {
-    const res = await api.post('/auth/login', { username, password })
-    const token = extractAccessToken(res.data)
+    const response = await api.post('/auth/login', { username, password })
+    const token = extractAccessToken(response.data)
     if (token) setAccessToken(token)
     await fetchMe()
-    return res.data
+    return response.data
   }, [fetchMe])
 
   const register = useCallback(async (username, password) => {
-    const res = await api.post('/auth/register', { username, password })
-    return res.data
+    const response = await api.post('/auth/register', { username, password })
+    return response.data
   }, [])
 
   const logout = useCallback(async () => {

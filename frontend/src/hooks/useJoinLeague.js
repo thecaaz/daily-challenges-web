@@ -32,9 +32,9 @@ export default function useJoinLeague(token) {
     joinedTokenRef.current = token
 
     api.post(`/leagues/join/${token}`)
-      .then(res => {
-        showSnackbar(`You joined "${res.data.name}"!`)
-        navigate(`/leagues/${res.data.id}`)
+      .then(response => {
+        showSnackbar(`You joined "${response.data.name}"!`)
+        navigate(`/leagues/${response.data.id}`)
       })
       .catch(err => {
         showSnackbar(getApiErrorMessage(err, 'Invalid or expired invite link.'), 'error')

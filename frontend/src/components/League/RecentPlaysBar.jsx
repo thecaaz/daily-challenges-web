@@ -10,9 +10,10 @@ const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/
 
 /** "yyyy-MM-dd" -> "MMM D", without going through a (timezone-dependent) Date. */
 function formatIsoDay(iso) {
-  const m = ISO_DAY.exec(iso || '')
-  if (!m) return iso || ''
-  return `${MONTHS[Number(m[2]) - 1] ?? m[2]} ${Number(m[3])}`
+  const match = ISO_DAY.exec(iso || '')
+  if (!match) return iso || ''
+  const [, , month, day] = match
+  return `${MONTHS[Number(month) - 1] ?? month} ${Number(day)}`
 }
 
 /**

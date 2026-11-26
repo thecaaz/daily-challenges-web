@@ -38,22 +38,22 @@ export function dataUrlToFile(dataUrl, filename) {
  * under `maxBytes` (or the last downscale step is reached).
  *
  * @param {string|File|Blob} source – data-URL string, File, or Blob
- * @param {object}  [opts]
- * @param {number}  [opts.maxWidth=1920]
- * @param {number}  [opts.maxHeight=1080]
- * @param {string}  [opts.format='image/webp']
- * @param {number}  [opts.quality=0.85]
- * @param {number}  [opts.maxBytes=2097152]
+ * @param {object}  [options]
+ * @param {number}  [options.maxWidth=1920]
+ * @param {number}  [options.maxHeight=1080]
+ * @param {string}  [options.format='image/webp']
+ * @param {number}  [options.quality=0.85]
+ * @param {number}  [options.maxBytes=2097152]
  * @returns {Promise<File>}
  */
-export default async function compressImage(source, opts = {}) {
+export default async function compressImage(source, options = {}) {
   const {
     maxWidth = MAX_WIDTH,
     maxHeight = MAX_HEIGHT,
     format = DEFAULT_FORMAT,
     quality = DEFAULT_QUALITY,
     maxBytes = DEFAULT_MAX_BYTES,
-  } = opts
+  } = options
 
   const image = await loadImage(await toDataUrl(source))
   const size = fitWithin({ width: image.naturalWidth, height: image.naturalHeight }, { maxWidth, maxHeight })

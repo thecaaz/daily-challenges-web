@@ -35,8 +35,8 @@ export default function useLeagueLeaderboard(leagueId, isVisible) {
     try {
       const params = { gameId: selectedGameId }
       if (selectedDay) params.scoringDay = selectedDay
-      const res = await api.get(`/leagues/${leagueId}/leaderboard`, { params })
-      if (isLatest()) setLeaderboard(res.data)
+      const response = await api.get(`/leagues/${leagueId}/leaderboard`, { params })
+      if (isLatest()) setLeaderboard(response.data)
     } catch (err) {
       if (!isLatest()) return
       setLeaderboard(null)

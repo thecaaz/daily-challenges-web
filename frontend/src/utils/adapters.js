@@ -100,10 +100,10 @@ function rememberNoExtension(timeoutMs) {
 }
 
 /** Forget what we know and ask the extension again. */
-export function refreshAdapters(opts = {}) {
+export function refreshAdapters(options = {}) {
   cachedAdapters = null
   noExtensionUntil = 0
-  return fetchAdapters({ ...opts, force: true })
+  return fetchAdapters({ ...options, force: true })
 }
 
 /** Test helper: clear all module state. */

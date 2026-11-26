@@ -1,11 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 
-function sameDeps(a, b) {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) {
-    if (!Object.is(a[i], b[i])) return false
-  }
-  return true
+function sameDeps(previousDeps, nextDeps) {
+  return previousDeps.length === nextDeps.length &&
+    previousDeps.every((dep, index) => Object.is(dep, nextDeps[index]))
 }
 
 /**

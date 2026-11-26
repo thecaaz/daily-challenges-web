@@ -21,10 +21,9 @@ export default function getModeColors(tokens, isDark) {
 /** '#ff7ab6' -> '255, 122, 182', for use inside rgba(). */
 export function hexToRgb(hex) {
   if (!hex) return '0,0,0'
-  const h = hex.replace('#', '')
-  const bigint = parseInt(h, 16)
-  const r = (bigint >> 16) & 255
-  const g = (bigint >> 8) & 255
-  const b = bigint & 255
-  return `${r}, ${g}, ${b}`
+  const rgb = parseInt(hex.replace('#', ''), 16)
+  const red = (rgb >> 16) & 255
+  const green = (rgb >> 8) & 255
+  const blue = rgb & 255
+  return `${red}, ${green}, ${blue}`
 }

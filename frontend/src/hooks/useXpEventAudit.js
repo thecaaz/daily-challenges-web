@@ -11,10 +11,10 @@ const EMPTY_FILTERS = { from: '', to: '', eventType: '' }
 
 /** "yyyy-MM-dd" -> the next day as "yyyy-MM-dd" (calendar arithmetic, timezone-free). */
 export function nextDay(yyyyMmDd) {
-  const d = new Date(`${yyyyMmDd}T00:00:00Z`)
-  if (Number.isNaN(d.getTime())) return null
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
+  const date = new Date(`${yyyyMmDd}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return null
+  date.setUTCDate(date.getUTCDate() + 1)
+  return date.toISOString().slice(0, 10)
 }
 
 /**
@@ -55,10 +55,10 @@ export default function useXpEventAudit({ open, userId }) {
     const isLatest = startRequest()
     try {
       const params = { page: pageToLoad, pageSize: XP_EVENTS_PAGE_SIZE, ...buildFilterParams(filtersToApply) }
-      const res = await api.get(`/admin/users/${userId}/xp-events`, { params })
+      const response = await api.get(`/admin/users/${userId}/xp-events`, { params })
       if (!isLatest()) return
-      setItems(res.data?.items || [])
-      setTotalCount(res.data?.totalCount || 0)
+      setItems(response.data?.items || [])
+      setTotalCount(response.data?.totalCount || 0)
       setPage(pageToLoad)
       setAppliedFilters(filtersToApply)
     } catch (err) {
@@ -84,8 +84,8 @@ export default function useXpEventAudit({ open, userId }) {
   const exportCsv = async () => {
     try {
       const params = buildFilterParams(appliedFilters)
-      const res = await api.get(`/admin/users/${userId}/xp-events/export`, { params, responseType: 'blob' })
-      downloadBlob(`xp-events-user-${userId}.csv`, new Blob([res.data]))
+      const response = await api.get(`/admin/users/${userId}/xp-events/export`, { params, responseType: 'blob' })
+      downloadBlob(`xp-events-user-${userId}.csv`, new Blob([response.data]))
     } catch (err) {
       showSnackbar(getApiErrorMessage(err, 'Failed to export CSV'), 'error')
     }

@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { Snackbar, Alert } from '@mui/material'
 
-const SnackbarContext = createContext({ showSnackbar: (msg, severity) => {} })
+const SnackbarContext = createContext({ showSnackbar: (text, severity) => {} })
 
 const AUTO_HIDE_MS = 4000
 const BOTTOM_CENTER = { vertical: 'bottom', horizontal: 'center' }
@@ -17,9 +17,9 @@ export function SnackbarProvider({ children }) {
   const [message, setMessage] = useState('')
   const [severity, setSeverity] = useState('success')
 
-  const showSnackbar = useCallback((msg, sev = 'success') => {
-    setMessage(msg)
-    setSeverity(sev)
+  const showSnackbar = useCallback((text, nextSeverity = 'success') => {
+    setMessage(text)
+    setSeverity(nextSeverity)
     setOpen(true)
   }, [])
 

@@ -17,11 +17,11 @@ export default function useCreateLeague() {
     if (!trimmedName || isCreating) return
     setIsCreating(true)
     try {
-      const res = await api.post('/leagues', { name: trimmedName })
-      showSnackbar(`League "${res.data.name}" created!`)
+      const response = await api.post('/leagues', { name: trimmedName })
+      showSnackbar(`League "${response.data.name}" created!`)
       setIsOpen(false)
       setName('')
-      navigate(`/leagues/${res.data.id}`)
+      navigate(`/leagues/${response.data.id}`)
     } catch (err) {
       showSnackbar(getApiErrorMessage(err, 'Failed to create league.'), 'error')
     } finally {

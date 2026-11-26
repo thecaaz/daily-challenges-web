@@ -30,8 +30,8 @@ export default function usePrompt() {
     })
   }, [settleOpenPrompt])
 
-  const onChange = useCallback((v) => {
-    setState(s => ({ ...s, value: v }))
+  const onChange = useCallback((value) => {
+    setState(s => ({ ...s, value }))
   }, [])
 
   const onConfirm = useCallback(() => {

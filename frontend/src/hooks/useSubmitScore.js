@@ -68,8 +68,8 @@ export default function useSubmitScore(gameId, onSubmitted) {
   const submit = async (score, screenshot) => {
     setIsSubmitting(true)
     try {
-      const res = await api.post('/submissions', submissionFormData(gameId, score, screenshot))
-      await handleSubmitted(res.data || {})
+      const response = await api.post('/submissions', submissionFormData(gameId, score, screenshot))
+      await handleSubmitted(response.data || {})
     } catch (err) {
       if (isConflict(err) && hasSubmittedHandler) await handleDuplicate(err.response.data)
       else showSnackbar(getApiErrorMessage(err, 'Failed to submit'), 'error')

@@ -53,8 +53,8 @@ export default function useDashboard(userId) {
     setLoading(true)
     setError(false)
     try {
-      const res = await api.get('/dashboard')
-      if (isLatest()) setDashboard(res.data || {})
+      const response = await api.get('/dashboard')
+      if (isLatest()) setDashboard(response.data || {})
     } catch {
       if (!isLatest()) return
       setDashboard(null)

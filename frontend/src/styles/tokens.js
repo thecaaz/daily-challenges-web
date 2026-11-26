@@ -94,8 +94,6 @@ const CSS_VAR_NAMES = {
 
 /** CSS custom properties (e.g. { '--bg-1': '#fff7f0' }) for a mode. */
 export function cssVariables(mode = 'light') {
-  const t = tokens(mode)
-  const vars = {}
-  for (const [key, name] of Object.entries(CSS_VAR_NAMES)) vars[name] = t[key]
-  return vars
+  const modeTokens = tokens(mode)
+  return Object.fromEntries(Object.entries(CSS_VAR_NAMES).map(([key, name]) => [name, modeTokens[key]]))
 }

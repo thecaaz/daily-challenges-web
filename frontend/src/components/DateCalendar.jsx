@@ -40,12 +40,12 @@ export default function DateCalendar({ availableDates = [], selectedDate = '', o
   const availSet = useMemo(() => new Set(availableDates || []), [availableDates])
   const slotProps = useMemo(() => ({ day: { availableDates: availSet } }), [availSet])
 
-  const handleChange = (d) => {
-    if (!d) {
+  const handleChange = (date) => {
+    if (!date) {
       onChange('')
       return
     }
-    onChange(toKey(d))
+    onChange(toKey(date))
   }
 
   return (

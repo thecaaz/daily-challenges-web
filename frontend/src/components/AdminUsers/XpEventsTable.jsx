@@ -8,8 +8,8 @@ const COLUMNS = ['When (UTC)', 'Amount', 'Type', 'Details', 'Submission', 'Game'
 /** scoringDay is a "yyyy-MM-dd" string (older backends sent a full DateTime). */
 function formatScoringDay(value) {
   if (!value) return ''
-  const s = String(value)
-  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s
+  const text = String(value)
+  return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text
 }
 
 export default function XpEventsTable({ events }) {
