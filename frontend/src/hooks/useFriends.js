@@ -1,20 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '../api'
+import { getIncomingFriendRequests, getSentFriendRequests } from '../api/friendRequests'
 import { useSnackbar } from '../contexts/SnackbarContext'
 
 const EMPTY_LISTS = { incoming: [], sent: [], friends: [] }
 
 async function getFriendLists() {
-  const [incomingRes, sentRes, friendsRes] = await Promise.all([
-    api.get('/friends/requests/incoming'),
-    api.get('/friends/requests/sent'),
+  const [incoming, sent, friendsResponse] = await Promise.all([
+    getIncomingFriendRequests(),
+    getSentFriendRequests(),
     api.get('/friends'),
   ])
-  return {
-    incoming: incomingRes.data ?? [],
-    sent: sentRes.data ?? [],
-    friends: friendsRes.data ?? [],
-  }
+  return { incoming, sent, friends: friendsResponse.data ?? [] }
 }
 
 /**

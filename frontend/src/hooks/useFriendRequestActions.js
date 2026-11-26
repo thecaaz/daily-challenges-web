@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import api from '../api'
+import { getIncomingFriendRequests, getSentFriendRequests } from '../api/friendRequests'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { getApiErrorMessage } from '../utils/apiError'
 
@@ -52,8 +53,8 @@ export default function useFriendRequestActions(targetUserId, { onChanged, confi
 }
 
 async function cancelSentRequestTo(targetUserId) {
-  const response = await api.get('/friends/requests/sent')
-  const sentRequest = response.data.find(request => request.receiverId === targetUserId)
+  const sentRequests = await getSentFriendRequests()
+  const sentRequest = sentRequests.find(request => request.receiverId === targetUserId)
   if (sentRequest) await api.delete(`/friends/requests/${sentRequest.id}`)
 }
 
@@ -68,6 +69,6 @@ async function declineRequestFrom(targetUserId) {
 }
 
 async function findIncomingRequestFrom(targetUserId) {
-  const response = await api.get('/friends/requests/incoming')
-  return response.data.find(request => request.senderId === targetUserId)
+  const incomingRequests = await getIncomingFriendRequests()
+  return incomingRequests.find(request => request.senderId === targetUserId)
 }
