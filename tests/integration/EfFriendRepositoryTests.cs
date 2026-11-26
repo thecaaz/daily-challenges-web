@@ -45,8 +45,9 @@ public class EfFriendRepositoryTests
         db.Ctx.SeedUser(2);
         SeedFriendRequest(db.Ctx, 1, 2);
         var repo = new EfFriendRepository(db.Ctx);
+        const int receiverOfTheRequest = 2, senderOfTheRequest = 1;
 
-        var result = await repo.GetExistingAsync(2, 1); // queried in reverse
+        var result = await repo.GetExistingAsync(receiverOfTheRequest, senderOfTheRequest);
 
         Assert.NotNull(result);
     }
@@ -74,14 +75,15 @@ public class EfFriendRepositoryTests
         db.Ctx.SeedUser(2);
         db.Ctx.SeedUser(3);
         db.Ctx.SeedUser(4);
-        SeedFriendRequest(db.Ctx, 1, 2);  // incoming for user 2
-        SeedFriendRequest(db.Ctx, 3, 2);  // incoming for user 2
-        SeedFriendRequest(db.Ctx, 2, 4);  // outgoing from user 2 — excluded
+        var incomingFromUser1 = SeedFriendRequest(db.Ctx, 1, 2);
+        var incomingFromUser3 = SeedFriendRequest(db.Ctx, 3, 2);
+        var outgoingToUser4 = SeedFriendRequest(db.Ctx, 2, 4);
         var repo = new EfFriendRepository(db.Ctx);
 
         var results = await repo.GetIncomingPendingAsync(2);
 
-        Assert.Equal(2, results.Count);
+        Assert.Equal(new[] { incomingFromUser1.Id, incomingFromUser3.Id }, results.Select(r => r.Id).OrderBy(id => id));
+        Assert.DoesNotContain(results, r => r.Id == outgoingToUser4.Id);
         Assert.All(results, r => Assert.Equal(2, r.ReceiverId));
     }
 
@@ -102,7 +104,7 @@ public class EfFriendRepositoryTests
     // ── GetOutgoingPendingAsync ───────────────────────────────────────────────
 
     [Fact]
-    public async Task GetOutgoingPending_OnlyReturnsSendersPendingRequests()
+    public async Task GetOutgoingPending_OnlyReturnsSendersPendingRequests_NotIncomingOrDeclined()
     {
         await using var db = new TestDb();
         db.Ctx.SeedUser(1);
@@ -110,15 +112,15 @@ public class EfFriendRepositoryTests
         db.Ctx.SeedUser(3);
         db.Ctx.SeedUser(4);
         db.Ctx.SeedUser(5);
-        SeedFriendRequest(db.Ctx, 1, 2);  // outgoing from user 1
-        SeedFriendRequest(db.Ctx, 1, 3);  // outgoing from user 1
-        SeedFriendRequest(db.Ctx, 4, 1);  // incoming to user 1 — excluded
-        SeedFriendRequest(db.Ctx, 1, 5, FriendRequestStatus.Declined);  // declined — excluded
+        var outgoingToUser2 = SeedFriendRequest(db.Ctx, 1, 2);
+        var outgoingToUser3 = SeedFriendRequest(db.Ctx, 1, 3);
+        SeedFriendRequest(db.Ctx, 4, 1);
+        SeedFriendRequest(db.Ctx, 1, 5, FriendRequestStatus.Declined);
         var repo = new EfFriendRepository(db.Ctx);
 
         var results = await repo.GetOutgoingPendingAsync(1);
 
-        Assert.Equal(2, results.Count);
+        Assert.Equal(new[] { outgoingToUser2.Id, outgoingToUser3.Id }, results.Select(r => r.Id).OrderBy(id => id));
         Assert.All(results, r => Assert.Equal(1, r.SenderId));
     }
 
@@ -129,10 +131,10 @@ public class EfFriendRepositoryTests
     {
         await using var db = new TestDb();
         db.Ctx.SeedUser(1);
-        db.Ctx.SeedUser(2); // user 1 sent to user 2
-        db.Ctx.SeedUser(3); // user 3 sent to user 1
-        SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Accepted);
-        SeedFriendRequest(db.Ctx, 3, 1, FriendRequestStatus.Accepted);
+        db.Ctx.SeedUser(2);
+        db.Ctx.SeedUser(3);
+        SeedFriendRequest(db.Ctx, senderId: 1, receiverId: 2, FriendRequestStatus.Accepted);
+        SeedFriendRequest(db.Ctx, senderId: 3, receiverId: 1, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
 
         var friends = await repo.GetFriendsAsync(1);
@@ -176,7 +178,7 @@ public class EfFriendRepositoryTests
         await using var db = new TestDb();
         db.Ctx.SeedUser(1);
         db.Ctx.SeedUser(2);
-        SeedFriendRequest(db.Ctx, 2, 1, FriendRequestStatus.Accepted); // user 1 is receiver
+        SeedFriendRequest(db.Ctx, senderId: 2, receiverId: 1, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
 
         Assert.True(await repo.HasAcceptedFriendAsync(1));
@@ -226,13 +228,15 @@ public class EfFriendRepositoryTests
         await using var db = new TestDb();
         var repo = new EfFriendRepository(db.Ctx);
 
-        await repo.DeleteAsync(9999); // no-op expected
+        const int missingRequestId = 9999;
+
+        await repo.DeleteAsync(missingRequestId);
     }
 
     // ── One row per pair; Declined ────────────────────────────────────────────
 
     [Fact]
-    public async Task Reverse_direction_insert_is_rejected_by_the_pair_index()
+    public async Task Reverse_direction_insert_is_rejected_by_the_pair_index_and_detached()
     {
         await using var db = new TestDb();
         db.Ctx.SeedUser(1);
@@ -244,7 +248,6 @@ public class EfFriendRepositoryTests
             repo.CreateAsync(new FriendRequest { SenderId = 2, ReceiverId = 1, Status = FriendRequestStatus.Pending }));
         Assert.True(ex.IsUniqueViolation());
 
-        // The failed insert was detached, so the context still saves.
         db.Ctx.SeedUser(3);
         Assert.Equal(1, db.Ctx.FriendRequests.Count());
     }
@@ -274,13 +277,20 @@ public class EfFriendRepositoryTests
         var repo = new EfFriendRepository(db.Ctx);
         var now = new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 
-        Assert.True(await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now));
-        Assert.False(await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now)); // no longer Declined
+        var reopenedOnce = await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now);
+        var reopenedWhenNoLongerDeclined = await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now);
+
+        Assert.True(reopenedOnce);
+        Assert.False(reopenedWhenNoLongerDeclined);
 
         var reopened = await repo.GetByIdAsync(fr.Id);
         Assert.Equal((2, 1, FriendRequestStatus.Pending, now), (reopened!.SenderId, reopened.ReceiverId, reopened.Status, reopened.CreatedAt));
         Assert.Null(reopened.UpdatedAt);
     }
+
+    /// <summary>Someone else changes user 1 while the request is loaded, so the loaded Sender is stale.</summary>
+    private static Task ChangeSenderXpBehindTheContextAsync(TestDb db, int totalXp) =>
+        db.Ctx.Database.ExecuteSqlRawAsync("UPDATE Users SET TotalXp = {0} WHERE Id = 1", totalXp);
 
     [Fact]
     public async Task Update_does_not_write_back_the_loaded_users()
@@ -293,8 +303,7 @@ public class EfFriendRepositoryTests
         var repo = new EfFriendRepository(db.Ctx);
 
         var fr = await repo.GetByIdAsync(seeded.Id);
-        // Someone else changes user 1 meanwhile; the loaded Sender is now stale.
-        await db.Ctx.Database.ExecuteSqlRawAsync("UPDATE Users SET TotalXp = 500 WHERE Id = 1");
+        await ChangeSenderXpBehindTheContextAsync(db, 500);
         fr!.Status = FriendRequestStatus.Accepted;
         await repo.UpdateAsync(fr);
 

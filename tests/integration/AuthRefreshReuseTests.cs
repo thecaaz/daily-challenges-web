@@ -63,15 +63,20 @@ public class AuthRefreshReuseTests
         Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(f, second)).StatusCode);
     }
 
+    private static async Task<string> LoginAgainAsync(FixedClockApiFactory f, string username)
+    {
+        var res = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username, password = Password });
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        return RefreshCookie.ValueFrom(res)!;
+    }
+
     [Fact]
     public async Task Replay_after_the_grace_period_is_treated_as_theft_and_ends_every_session()
     {
         using var f = new FixedClockApiFactory();
         var (first, userId) = await RegisterAndLoginAsync(f, "theft-user");
         var second = await RotateAsync(f, first);
-        // Another device of the same user.
-        var otherDeviceRes = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username = "theft-user", password = Password });
-        var otherDevice = RefreshCookie.ValueFrom(otherDeviceRes)!;
+        var otherDevice = await LoginAgainAsync(f, "theft-user");
 
         f.Clock.Advance(JustOutside);
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(f, first)).StatusCode);
@@ -79,11 +84,20 @@ public class AuthRefreshReuseTests
         Assert.Equal(1, await TokenVersionAsync(f, userId));
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(f, second)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(f, otherDevice)).StatusCode);
+    }
 
-        // Logging in again works.
-        var relogin = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username = "theft-user", password = Password });
-        Assert.Equal(HttpStatusCode.OK, relogin.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(f, RefreshCookie.ValueFrom(relogin)!)).StatusCode);
+    [Fact]
+    public async Task Logging_in_again_after_a_theft_response_works()
+    {
+        using var f = new FixedClockApiFactory();
+        var (first, _) = await RegisterAndLoginAsync(f, "theft-relogin-user");
+        await RotateAsync(f, first);
+        f.Clock.Advance(JustOutside);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(f, first)).StatusCode);
+
+        var fresh = await LoginAgainAsync(f, "theft-relogin-user");
+
+        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(f, fresh)).StatusCode);
     }
 
     [Fact]

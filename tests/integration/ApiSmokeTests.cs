@@ -58,6 +58,7 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.OK, admin.StatusCode);
     }
 
+    /// <summary>Someone else's notification reads as 404, same as a missing one.</summary>
     [Fact]
     public async Task Domain_exception_becomes_json_error_with_status()
     {
@@ -70,13 +71,13 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
             await db.SaveChangesAsync();
         });
 
-        // Someone else's notification reads as 404, same as a missing one.
         var res = await _factory.CreateAuthenticatedClient(otherId).DeleteAsync($"/api/notifications/{notification.Id}");
 
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
         Assert.Equal("Notification not found", (await ReadJsonAsync(res)).GetProperty("message").GetString());
     }
 
+    /// <summary>SQLite returns Kind=Unspecified; the converter must label it UTC without shifting it.</summary>
     [Fact]
     public async Task DateTimes_are_serialized_as_utc_with_z()
     {
@@ -95,7 +96,6 @@ public class ApiSmokeTests : IClassFixture<ApiFactory>
         var res = await _factory.CreateAuthenticatedClient(userId).GetAsync("/api/notifications");
         var item = (await ReadJsonAsync(res)).GetProperty("items")[0];
 
-        // SQLite returns Kind=Unspecified; the converter must label it UTC without shifting it.
         Assert.Equal("2026-04-01T10:30:00Z", item.GetProperty("createdAt").GetString());
         Assert.Equal("2026-04-01", item.GetProperty("scoringDay").GetString());
     }

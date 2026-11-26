@@ -83,11 +83,13 @@ public class EfXpEventRepositoryTests
         Assert.Equal(50, result);
     }
 
+    /// <summary>
+    /// Game 1's current day is Day1, game 2's is Day2 (different reset times). An event of game 1 on
+    /// Day2 is not "today" for game 1, even though Day2 is some other game's current day.
+    /// </summary>
     [Fact]
     public async Task Sum_CountsEachEventOnlyOnItsOwnGamesDay()
     {
-        // Game 1's current day is Day1, game 2's is Day2 (different reset times). An event of game 1 on
-        // Day2 is not "today" for game 1, even though Day2 is some other game's current day.
         await using var db = new TestDb();
         db.Ctx.SeedUser(1);
         SeedGames(db.Ctx, 1, 2);
@@ -134,13 +136,12 @@ public class EfXpEventRepositoryTests
     }
 
     [Fact]
-    public async Task DuplicateDayWin_IsRejectedByTheUniqueIndex()
+    public async Task DuplicateDayWin_IsRejectedByTheUniqueIndex_WhileOtherEventTypesMayRepeat()
     {
         await using var db = new TestDb();
         db.Ctx.SeedUser(1);
         SeedGames(db.Ctx, 1);
         SeedEvent(db.Ctx, 1, "day_win", 100, Day1, gameId: 1);
-        // Other event types on the same key are fine.
         SeedEvent(db.Ctx, 1, "submission", 50, Day1, gameId: 1);
         SeedEvent(db.Ctx, 1, "submission", 50, Day1, gameId: 1);
 
@@ -209,9 +210,9 @@ public class EfXpEventRepositoryTests
             db.Ctx.XpEvents.Add(new XpEvent { UserId = 1, EventType = "submission", Amount = 1, CreatedAt = at });
         db.Ctx.SaveChanges();
         var repo = new EfXpEventRepository(db.Ctx);
+        var april1st = new XpEventFilter(1) { From = Day1, To = Day2 };
 
-        // The client asks for "April 1st" as [Apr 1, Apr 2).
-        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1) { From = Day1, To = Day2 }, 1, 10);
+        var (items, total) = await repo.GetByUserPagedAsync(april1st, 1, 10);
 
         Assert.Equal(2, total);
         Assert.Equal(new[] { Day1.AddHours(23), Day1 }, items.Select(e => DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc)));

@@ -80,9 +80,9 @@ public class EfLeagueStandingsRepositoryTests
 
         var day = new DateTime(2026, 6, 15);
         var lowWins = mode == RankingMode.Lowest;
-        // users 1 and 2 tie for best (10 when lowest wins, 40 when highest wins); user3: 20; user4: 30
-        SeedSub(db.Ctx, 1, lowWins ? 10 : 40, day, userId: 1);
-        SeedSub(db.Ctx, 1, lowWins ? 10 : 40, day, userId: 2);
+        var tiedBestScore = lowWins ? 10 : 40;
+        SeedSub(db.Ctx, 1, tiedBestScore, day, userId: 1);
+        SeedSub(db.Ctx, 1, tiedBestScore, day, userId: 2);
         SeedSub(db.Ctx, 1, 20, day, userId: 3);
         SeedSub(db.Ctx, 1, 30, day, userId: 4);
 

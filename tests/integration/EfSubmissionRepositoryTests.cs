@@ -198,7 +198,8 @@ public class EfSubmissionRepositoryTests
         db.Ctx.SeedUser(1);
         SeedSub(db.Ctx, 1, 100, Day1, userId: 1);
         SeedSub(db.Ctx, 1, 200, Day2, userId: 1);
-        SeedSub(db.Ctx, 1, 300, Day1, userId: null); // anonymous — not counted for user 1
+        var anonymous = (int?)null;
+        SeedSub(db.Ctx, 1, 300, Day1, userId: anonymous);
         var repo = new EfSubmissionRepository(db.Ctx);
 
         var count = await repo.CountByUserAsync(1);
@@ -209,12 +210,12 @@ public class EfSubmissionRepositoryTests
     // ── GetAvailableDatesAsync ────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetAvailableDates_ReturnsDistinctDatesDescending()
+    public async Task GetAvailableDates_CollapsesSameDayPlays_AndReturnsDatesDescending()
     {
         await using var db = new TestDb();
         db.Ctx.SeedGame(1);
         SeedSub(db.Ctx, 1, 100, Day1);
-        SeedSub(db.Ctx, 1, 200, Day1); // duplicate — should collapse
+        SeedSub(db.Ctx, 1, 200, Day1);
         SeedSub(db.Ctx, 1, 300, Day2);
         var repo = new EfSubmissionRepository(db.Ctx);
 
@@ -228,7 +229,7 @@ public class EfSubmissionRepositoryTests
     // ── CountOnGameDaysAsync ──────────────────────────────────────────────────
 
     [Fact]
-    public async Task CountOnGameDays_CountsOnlyEachGamesOwnDay()
+    public async Task CountOnGameDays_CountsOnlyEachRequestedGamesOwnDay()
     {
         await using var db = new TestDb();
         db.Ctx.SeedGame(1);
@@ -236,12 +237,13 @@ public class EfSubmissionRepositoryTests
         db.Ctx.SeedGame(3);
         SeedSub(db.Ctx, 1, 1, Day1);
         SeedSub(db.Ctx, 1, 2, Day1);
-        SeedSub(db.Ctx, 1, 3, Day2); // game 1's other day
-        SeedSub(db.Ctx, 2, 4, Day1); // game 2's other day
-        SeedSub(db.Ctx, 3, 5, Day1); // game not asked for
+        SeedSub(db.Ctx, 1, 3, Day2);
+        SeedSub(db.Ctx, 2, 4, Day1);
+        SeedSub(db.Ctx, 3, 5, Day1);
         var repo = new EfSubmissionRepository(db.Ctx);
+        var currentDayByGame = new Dictionary<int, DateTime> { [1] = Day1, [2] = Day2 };
 
-        var (activeGames, submissions) = await repo.CountOnGameDaysAsync(new Dictionary<int, DateTime> { [1] = Day1, [2] = Day2 });
+        var (activeGames, submissions) = await repo.CountOnGameDaysAsync(currentDayByGame);
 
         Assert.Equal(1, activeGames);
         Assert.Equal(2, submissions);

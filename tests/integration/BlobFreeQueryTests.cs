@@ -1,4 +1,5 @@
 using DailyChallenges.Data;
+using DailyChallenges.IntegrationTests.Infrastructure;
 using DailyChallenges.Models;
 using DailyChallenges.Repositories;
 using DailyChallenges.Services.Ranking;
@@ -74,7 +75,7 @@ public class BlobFreeQueryTests
     }
 
     [Fact]
-    public async Task Submission_blob_and_write_paths_still_see_the_blob()
+    public async Task Submission_blob_read_returns_the_blob_and_null_for_a_missing_row()
     {
         await using var db = new TestDb();
         var (_, seeded) = Seed(db.Ctx);
@@ -84,16 +85,33 @@ public class BlobFreeQueryTests
         Assert.Equal(Png, data);
         Assert.Equal("image/png", contentType);
         Assert.Equal((null, null), await repo.GetBlobAsync(9999));
+    }
 
-        // Update keeps the blob, delete removes the row.
+    [Fact]
+    public async Task Submission_update_keeps_the_blob()
+    {
+        await using var db = new TestDb();
+        var (_, seeded) = Seed(db.Ctx);
+        var repo = new EfSubmissionRepository(db.Ctx);
         var tracked = await repo.GetByIdAsync(seeded.Id);
         Assert.Equal(Png, tracked!.ScreenshotData);
+
         tracked.Score = "11";
         await repo.UpdateAsync(tracked);
+
         db.Ctx.ChangeTracker.Clear();
         Assert.Equal(Png, (await repo.GetBlobAsync(seeded.Id)).Data);
+    }
+
+    [Fact]
+    public async Task Submission_delete_removes_the_row()
+    {
+        await using var db = new TestDb();
+        var (_, seeded) = Seed(db.Ctx);
+        var repo = new EfSubmissionRepository(db.Ctx);
 
         await repo.DeleteAsync(seeded.Id);
+
         Assert.Null(await repo.GetByIdAsync(seeded.Id));
     }
 
@@ -157,11 +175,12 @@ public class DbUpdateExceptionExtensionsTests
     public async Task Other_constraint_violations_are_not_unique_violations()
     {
         await using var db = new TestDb();
-        db.Ctx.Games.Add(new Game { Id = 1, Name = null! }); // NOT NULL constraint
+        var violatesNotNull = new Game { Id = 1, Name = null! };
+        db.Ctx.Games.Add(violatesNotNull);
         var ex = await Assert.ThrowsAsync<DbUpdateException>(() => db.Ctx.SaveChangesAsync());
 
         var sqlite = Assert.IsType<SqliteException>(ex.InnerException);
-        Assert.Equal(19, sqlite.SqliteErrorCode);
+        Assert.Equal(SqliteAssert.ConstraintError, sqlite.SqliteErrorCode);
         Assert.False(ex.IsUniqueViolation());
     }
 }
