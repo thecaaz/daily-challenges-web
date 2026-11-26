@@ -3,6 +3,7 @@ using DailyChallenges.Exceptions;
 using DailyChallenges.Middleware;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DailyChallenges.Tests;
@@ -105,6 +106,59 @@ public class ExceptionToHttpResponseMiddlewareTests
         await middleware.InvokeAsync(context);
 
         Assert.Equal(204, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Client_abort_is_swallowed_without_an_error_log_or_body()
+    {
+        using var aborted = new CancellationTokenSource();
+        await aborted.CancelAsync();
+        var context = new DefaultHttpContext { RequestAborted = aborted.Token };
+        context.Response.Body = new MemoryStream();
+        var logger = new RecordingLogger();
+        var middleware = new ExceptionToHttpResponseMiddleware(_ => throw new TaskCanceledException(), logger);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(0, context.Response.Body.Length);
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal([LogLevel.Debug], logger.Levels);
+    }
+
+    [Fact]
+    public async Task Client_abort_after_the_response_started_is_not_rethrown()
+    {
+        using var aborted = new CancellationTokenSource();
+        await aborted.CancelAsync();
+        var context = new DefaultHttpContext { RequestAborted = aborted.Token };
+        context.Features.Set<IHttpResponseFeature>(new StartedResponseFeature());
+        var logger = new RecordingLogger();
+        var middleware = new ExceptionToHttpResponseMiddleware(_ => throw new OperationCanceledException(), logger);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal([LogLevel.Debug], logger.Levels);
+    }
+
+    [Fact]
+    public async Task Cancellation_without_a_client_abort_is_still_an_unexpected_500()
+    {
+        var (status, message, _) = await RunAsync(new OperationCanceledException("internal timeout"));
+
+        Assert.Equal(500, status);
+        Assert.Equal(ExceptionToHttpResponseMiddleware.GenericErrorMessage, message);
+    }
+
+    private sealed class RecordingLogger : ILogger<ExceptionToHttpResponseMiddleware>
+    {
+        public List<LogLevel> Levels { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Levels.Add(logLevel);
     }
 
     private sealed class StartedResponseFeature : HttpResponseFeature
