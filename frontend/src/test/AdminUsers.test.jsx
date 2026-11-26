@@ -154,21 +154,39 @@ describe('AdminUsers', () => {
     expect(within(rowFor('bob')).getByRole('button', { name: 'Add' })).toBeDisabled()
   })
 
-  it('validates the new password length before sending it', async () => {
-    mockPost.mockResolvedValue({ data: {} })
+  async function openSetPasswordFor(username) {
     renderPage()
-    await screen.findByText('bob')
+    await screen.findByText(username)
+    fireEvent.click(within(rowFor(username)).getByRole('button', { name: 'Set Password' }))
+    return screen.findByRole('dialog')
+  }
 
-    fireEvent.click(within(rowFor('bob')).getByRole('button', { name: 'Set Password' }))
-    const dialog = await screen.findByRole('dialog')
+  it('rejects a too short new password without sending it', async () => {
+    const dialog = await openSetPasswordFor('bob')
+    fireEvent.change(within(dialog).getByLabelText('New Password'), { target: { value: 'short' } })
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+
+    expect(within(dialog).getByText('Password must be 8–128 characters')).toBeInTheDocument()
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
+  it('clears the password error when the password is edited', async () => {
+    const dialog = await openSetPasswordFor('bob')
     const field = within(dialog).getByLabelText('New Password')
     fireEvent.change(field, { target: { value: 'short' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
-    expect(within(dialog).getByText('Password must be 8–128 characters')).toBeInTheDocument()
-    expect(mockPost).not.toHaveBeenCalled()
 
     fireEvent.change(field, { target: { value: 'long enough' } })
+
     expect(within(dialog).queryByText('Password must be 8–128 characters')).not.toBeInTheDocument()
+  })
+
+  it('sets a valid new password and closes the dialog', async () => {
+    mockPost.mockResolvedValue({ data: {} })
+    const dialog = await openSetPasswordFor('bob')
+    fireEvent.change(within(dialog).getByLabelText('New Password'), { target: { value: 'long enough' } })
+
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/admin/users/2/password', { newPassword: 'long enough' }))

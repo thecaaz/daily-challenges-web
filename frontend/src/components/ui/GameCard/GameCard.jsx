@@ -14,11 +14,11 @@ import imageUrl from '../../../utils/imageUrl'
  * A game tile linking to the game. The favourite button sits in the card
  * actions, outside the CardActionArea link: a button can't be nested in an <a>.
  */
-export default function GameCard({ game, sx, showSubmit = true }) {
+export default function GameCard({ game }) {
   const adapter = useAdapter(game?.url)
 
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', ...(sx || {}) }}>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardActionArea component={Link} to={`/games/${game.id}`} sx={{ flexGrow: 1 }}>
         {game.imageUrl ? (
           <CardMedia
@@ -61,25 +61,7 @@ export default function GameCard({ game, sx, showSubmit = true }) {
       </CardActionArea>
 
       <CardActions disableSpacing sx={{ px: 2, pb: 2, pt: 0, gap: 1 }}>
-        {showSubmit && (
-          (() => {
-            const disabled = Boolean(game.hasSubmittedForLatest);
-            const to = disabled ? undefined : `/submit/${game.id}`;
-            return (
-              <AppButton
-                to={to}
-                variant="contained"
-                color="primary"
-                size="small"
-                startIcon={<EmojiEventsIcon />}
-                disabled={disabled}
-                aria-label={disabled ? 'Already submitted today' : 'Submit score'}
-              >
-                {disabled ? 'Submitted' : 'Submit Score'}
-              </AppButton>
-            )
-          })()
-        )}
+        <SubmitScoreButton game={game} />
         {game.url && (
           <PlayButton game={game} adapter={adapter} />
         )}
@@ -88,5 +70,24 @@ export default function GameCard({ game, sx, showSubmit = true }) {
         </Box>
       </CardActions>
     </Card>
+  )
+}
+
+function SubmitScoreButton({ game }) {
+  const hasSubmitted = Boolean(game.hasSubmittedForLatest)
+  const label = hasSubmitted ? 'Already submitted today' : 'Submit score'
+
+  return (
+    <AppButton
+      to={hasSubmitted ? undefined : `/submit/${game.id}`}
+      variant="contained"
+      color="primary"
+      size="small"
+      startIcon={<EmojiEventsIcon />}
+      disabled={hasSubmitted}
+      aria-label={label}
+    >
+      {hasSubmitted ? 'Submitted' : 'Submit Score'}
+    </AppButton>
   )
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Typography, Card, Box, Chip, Tooltip } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
@@ -13,15 +13,16 @@ import NotFound from '../components/ui/NotFound'
 import useSubmission from '../hooks/useSubmission'
 import { isScoreHidden } from '../components/SubmissionCard'
 import { winnerGold } from '../styles/tokens'
+import UserLink from '../components/ui/UserLink'
 
 const winnerIconSx = { color: winnerGold, fontSize: '1.1rem' }
 
 function SubmitterName({ submission }) {
   if (!submission.userId) return submission.username
   return (
-    <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+    <UserLink userId={submission.userId}>
       {submission.username}
-    </Box>
+    </UserLink>
   )
 }
 

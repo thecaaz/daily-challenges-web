@@ -15,6 +15,7 @@ import VersionBadge from '../components/VersionBadge'
 import HiddenScoresCard from '../components/ui/HiddenScoresCard'
 import RankRow from '../components/dashboard/RankRow'
 import AuthForm from '../components/ui/AuthForm'
+import { LOGIN_CREDENTIALS } from '../utils/credentialRules'
 
 const inRouter = ui => render(<MemoryRouter>{ui}</MemoryRouter>)
 
@@ -140,7 +141,11 @@ describe('AuthForm', () => {
     render(
       <ThemeProvider theme={createAppTheme(mode)}>
         <MemoryRouter>
-          <AuthForm title="Sign in" linkPrefix="New here?" linkText="Register" linkTo="/register" />
+          <AuthForm
+            heading={{ title: 'Sign in' }}
+            alternative={{ prefix: 'New here?', text: 'Register', to: '/register' }}
+            credentials={LOGIN_CREDENTIALS}
+          />
         </MemoryRouter>
       </ThemeProvider>
     )

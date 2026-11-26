@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import api from '../api'
+import { getGames } from '../api/games'
 import { useSnackbar } from '../contexts/SnackbarContext'
 import { getApiErrorMessage } from '../utils/apiError'
 
@@ -15,8 +15,7 @@ export default function useAdminGames() {
 
   const reload = useCallback(async () => {
     try {
-      const res = await api.get('/games')
-      setGames(res.data || [])
+      setGames(await getGames())
     } catch (err) {
       showSnackbar(getApiErrorMessage(err, 'Failed to load games'), 'error')
     }

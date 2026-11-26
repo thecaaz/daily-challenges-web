@@ -7,56 +7,33 @@ import useFavorite from '../../hooks/useFavorite'
 /** A span keeps the tooltip working while the button is disabled. */
 const TooltipAnchor = ({ children }) => <span>{children}</span>
 
-export default function FavoriteButton({
-  game,
-  gameId,
-  initial,
-  size = 'small',
-  stopPropagationOnClick = false,
-  tooltip = true,
-  sx,
-  activeIconSx,
-  inactiveIconSx,
-  ...props
-}) {
-  const id = game?.id ?? gameId
-  const initialValue = initial !== undefined ? initial : (game?.isFavorite ?? false)
-  const { isFavorite, toggle, loading } = useFavorite(id, initialValue)
-
-  const handleClick = (ev) => {
-    if (stopPropagationOnClick && ev) {
-      ev.preventDefault()
-      ev.stopPropagation()
-    }
-    toggle()
-  }
+export default function FavoriteButton({ game, sx, activeIconSx, inactiveIconSx }) {
+  const { isFavorite, toggle, loading } = useFavorite(game?.id, game?.isFavorite ?? false)
 
   const icon = isFavorite
     ? <StarIcon fontSize="small" sx={activeIconSx} />
     : <StarBorderIcon fontSize="small" sx={inactiveIconSx} />
+  const tooltip = isFavorite ? 'Remove from favorites' : 'Add to favorites'
 
-  const name = game?.name
-  const label = isFavorite
-    ? (name ? `Remove ${name} from favorites` : 'Remove from favorites')
-    : (name ? `Add ${name} to favorites` : 'Add to favorites')
-
-  const button = (
-    <IconButton
-      size={size}
-      onClick={handleClick}
-      disabled={loading}
-      aria-label={label}
-      aria-pressed={isFavorite}
-      sx={sx}
-      {...props}
-    >
-      {icon}
-    </IconButton>
-  )
-
-  return tooltip ? (
-    <Tooltip title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-      <TooltipAnchor>{button}</TooltipAnchor>
+  return (
+    <Tooltip title={tooltip}>
+      <TooltipAnchor>
+        <IconButton
+          size="small"
+          onClick={() => toggle()}
+          disabled={loading}
+          aria-label={favoriteLabel(isFavorite, game?.name)}
+          aria-pressed={isFavorite}
+          sx={sx}
+        >
+          {icon}
+        </IconButton>
+      </TooltipAnchor>
     </Tooltip>
-  ) : button
+  )
+}
+
+function favoriteLabel(isFavorite, gameName) {
+  if (isFavorite) return gameName ? `Remove ${gameName} from favorites` : 'Remove from favorites'
+  return gameName ? `Add ${gameName} to favorites` : 'Add to favorites'
 }

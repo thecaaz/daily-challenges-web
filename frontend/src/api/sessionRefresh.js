@@ -1,5 +1,5 @@
 import { authApi } from './clients'
-import { setAccessToken } from './accessToken'
+import { extractAccessToken, setAccessToken } from './accessToken'
 
 const UNAUTHORIZED = 401
 
@@ -63,13 +63,10 @@ const refreshWithRetry = async () => {
 
 const postRefresh = async () => {
   const response = await authApi.post('/auth/refresh')
-  const token = extractToken(response.data)
+  const token = extractAccessToken(response.data)
   if (!token) throw new Error('Refresh response had no access token')
   setAccessToken(token)
   return token
 }
-
-const extractToken = (data) =>
-  data?.accessToken || data?.AccessToken || data?.user?.accessToken || null
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))

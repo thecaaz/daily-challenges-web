@@ -15,6 +15,7 @@ vi.mock('../utils/adapters', () => ({
 
 import PlayButton from '../components/ui/PlayButton'
 import AppButton from '../components/ui/AppButton'
+import ChartTooltipLabel from '../components/ui/ChartTooltipLabel'
 import Countdown from '../components/Countdown'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 import SubmissionCard from '../components/SubmissionCard'
@@ -89,6 +90,14 @@ describe('PlayButton', () => {
   })
 })
 
+describe('ChartTooltipLabel', () => {
+  it('shows white text on a translucent black label', () => {
+    render(<ChartTooltipLabel>Today: 3 plays</ChartTooltipLabel>)
+
+    expect(screen.getByText('Today: 3 plays')).toHaveStyle({ background: 'rgba(0,0,0,0.75)', color: '#fff' })
+  })
+})
+
 describe('AppButton', () => {
   it('renders a router link for `to`', () => {
     inRouter(<AppButton to="/games">Games</AppButton>)
@@ -155,18 +164,34 @@ describe('Countdown', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('says the reset is complete and calls onExpire once after a grace period', () => {
+  it('says the reset is complete at the target, before calling onExpire', () => {
     const onExpire = vi.fn()
     render(<Countdown targetDate="2026-01-01T10:00:02Z" onExpire={onExpire} />)
 
     act(() => { vi.advanceTimersByTime(2000) })
+
     expect(screen.getByText('Reset complete!')).toBeInTheDocument()
     expect(onExpire).not.toHaveBeenCalled()
+  })
+
+  it('calls onExpire after a grace period', () => {
+    const onExpire = vi.fn()
+    render(<Countdown targetDate="2026-01-01T10:00:02Z" onExpire={onExpire} />)
+    act(() => { vi.advanceTimersByTime(2000) })
 
     act(() => { vi.advanceTimersByTime(1500) })
+
     expect(onExpire).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onExpire only once', () => {
+    const onExpire = vi.fn()
+    render(<Countdown targetDate="2026-01-01T10:00:02Z" onExpire={onExpire} />)
+    act(() => { vi.advanceTimersByTime(2000) })
+    act(() => { vi.advanceTimersByTime(1500) })
 
     act(() => { vi.advanceTimersByTime(10000) })
+
     expect(onExpire).toHaveBeenCalledTimes(1)
   })
 })

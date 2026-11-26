@@ -1,10 +1,10 @@
 import React from 'react'
-import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Typography, Box } from '@mui/material'
-import { Link } from 'react-router-dom'
+import { Paper, Table, TableHead, TableRow, TableCell, TableBody, Typography } from '@mui/material'
 import AppButton from '../ui/AppButton'
 import { formatDateTime } from '../../utils/dateFormat'
 import { isNonNumericScore } from '../../utils/parseScore'
 import { warningOrange } from '../../styles/tokens'
+import UserLink from '../ui/UserLink'
 
 const NOT_A_NUMBER_STYLE = { color: warningOrange, fontSize: '0.75rem', marginTop: 2 }
 
@@ -65,8 +65,8 @@ function SubmitterName({ submission }) {
   if (!submission.userId) return username
 
   return (
-    <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+    <UserLink userId={submission.userId}>
       {username}
-    </Box>
+    </UserLink>
   )
 }

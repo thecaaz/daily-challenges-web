@@ -1,8 +1,8 @@
 import React from 'react'
-import { Box, TableRow, TableCell, TextField } from '@mui/material'
-import { Link } from 'react-router-dom'
+import { TableRow, TableCell, TextField } from '@mui/material'
 import AppButton from '../ui/AppButton'
 import formatNumber from '../../utils/formatNumber'
+import UserLink from '../ui/UserLink'
 
 const spacedButtonStyle = { marginLeft: 8 }
 
@@ -10,7 +10,7 @@ function UsernameCell({ user }) {
   if (!user.id) return <TableCell>{user.username}</TableCell>
   return (
     <TableCell>
-      <Box component={Link} to={`/users/${user.id}`} sx={{ textDecoration: 'none', color: 'inherit' }}>{user.username}</Box>
+      <UserLink userId={user.id}>{user.username}</UserLink>
     </TableCell>
   )
 }

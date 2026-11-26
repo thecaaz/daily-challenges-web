@@ -2,19 +2,13 @@ import React, { useId } from 'react'
 import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts'
 import { Typography } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
+import ChartTooltipLabel from '../ui/ChartTooltipLabel'
 
 function SparklineTooltip({ active, payload }) {
   if (!active || !payload || payload.length === 0) return null
   const { scoringDay, scoreValue } = payload[0].payload
   if (scoreValue == null) return null
-  return (
-    <Typography
-      variant="caption"
-      sx={{ background: 'rgba(0,0,0,0.75)', color: '#fff', px: 0.75, py: 0.25, borderRadius: 1 }}
-    >
-      {scoringDay}: {scoreValue}
-    </Typography>
-  )
+  return <ChartTooltipLabel>{scoringDay}: {scoreValue}</ChartTooltipLabel>
 }
 
 export default function ScoreSparkline({ history, rankingMode }) {

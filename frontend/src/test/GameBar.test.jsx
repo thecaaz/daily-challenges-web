@@ -99,20 +99,36 @@ describe('GameBar', () => {
     expect(await screen.findByText('Friends')).toBeInTheDocument()
   })
 
-  it('flashes the XP gained when total XP increases, then hides it', () => {
-    vi.useFakeTimers()
-    const { rerender } = renderBar()
-    expect(screen.queryByText(/\+.*XP$/)).not.toBeInTheDocument()
-
+  function gainXp(rerender) {
     mockAuthValue = { user: { ...player, totalXp: 365, xpIntoLevel: 65, xpToNextLevel: 35 }, logout: mockLogout }
     rerender(
       <MemoryRouter initialEntries={['/somewhere']}>
         <Routes><Route path="*" element={<GameBar />} /></Routes>
       </MemoryRouter>
     )
+  }
+
+  it('shows no XP flash on first render', () => {
+    renderBar()
+
+    expect(screen.queryByText(/\+.*XP$/)).not.toBeInTheDocument()
+  })
+
+  it('flashes the XP gained when total XP increases', () => {
+    const { rerender } = renderBar()
+
+    gainXp(rerender)
 
     expect(screen.getByText('+25 XP')).toBeInTheDocument()
+  })
+
+  it('hides the XP flash after a while', () => {
+    vi.useFakeTimers()
+    const { rerender } = renderBar()
+    gainXp(rerender)
+
     act(() => { vi.advanceTimersByTime(2500) })
+
     expect(screen.queryByText('+25 XP')).not.toBeInTheDocument()
   })
 

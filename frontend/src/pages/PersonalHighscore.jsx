@@ -2,7 +2,6 @@ import React from 'react'
 import { useParams } from 'react-router-dom'
 import { Typography, Box } from '@mui/material'
 import AppButton from '../components/ui/AppButton'
-import SubmissionCard from '../components/SubmissionCard'
 import SubmissionGrid from '../components/ui/SubmissionGrid/SubmissionGrid'
 import useRequireAuth from '../hooks/useRequireAuth'
 import useGame from '../hooks/useGame'
@@ -20,7 +19,7 @@ function PersonalHighscoreResults({ highscores, error, onRetry }) {
     )
   }
   if (highscores.length === 0) return <div className="muted">You have no submissions yet.</div>
-  return <SubmissionGrid items={highscores} ItemComponent={SubmissionCard} containerSx={{ mt: 1 }} />
+  return <SubmissionGrid submissions={highscores} />
 }
 
 export default function PersonalHighscore() {
