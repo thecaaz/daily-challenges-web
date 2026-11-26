@@ -27,8 +27,8 @@ export default function AchievementsGrid({ userId }) {
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>
   if (!achievements || achievements.length === 0) return null
 
-  const unlocked = achievements.filter(a => a.unlockedAt || a.UnlockedAt)
-  const locked = achievements.filter(a => !a.unlockedAt && !a.UnlockedAt)
+  const unlocked = achievements.filter(achievement => achievement.unlockedAt)
+  const locked = achievements.filter(achievement => !achievement.unlockedAt)
 
   return (
     <Box>
@@ -41,11 +41,11 @@ export default function AchievementsGrid({ userId }) {
         )}
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-        {unlocked.map(a => (
-          <AchievementBadge key={a.achievementId || a.AchievementId} achievement={a} />
+        {unlocked.map(achievement => (
+          <AchievementBadge key={achievement.achievementId} achievement={achievement} />
         ))}
-        {locked.map(a => (
-          <AchievementBadge key={a.achievementId || a.AchievementId} achievement={a} />
+        {locked.map(achievement => (
+          <AchievementBadge key={achievement.achievementId} achievement={achievement} />
         ))}
       </Box>
     </Box>
