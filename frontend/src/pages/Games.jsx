@@ -2,22 +2,17 @@ import React from 'react'
 import { Grid, Typography, Skeleton, Box, Chip, Card } from '@mui/material'
 import GameCard from '../components/ui/GameCard/GameCard'
 import AppButton from '../components/ui/AppButton'
-import api from '../api'
-import useAsyncData from '../hooks/useAsyncData'
+import useGames from '../hooks/useGames'
 
 export default function Games() {
-  const { data, loading, error, refetch } = useAsyncData(
-    () => api.get('/games').then(r => (Array.isArray(r.data) ? r.data : [])),
-    []
-  )
-  const games = data ?? []
+  const { games, loading, error, retry } = useGames()
 
   if (error) {
     return (
       <Box sx={{ textAlign: 'center', py: 10 }}>
         <Typography variant="h5" gutterBottom>Couldn't load the games</Typography>
         <Typography color="text.secondary" sx={{ mb: 2 }}>Please check your connection and try again.</Typography>
-        <AppButton onClick={refetch}>Retry</AppButton>
+        <AppButton onClick={retry}>Retry</AppButton>
       </Box>
     )
   }

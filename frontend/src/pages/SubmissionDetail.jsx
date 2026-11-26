@@ -4,27 +4,17 @@ import { Typography, Card, Box, Chip, Tooltip } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
 import PanZoomImage from '../components/ui/PanZoomImage'
-import api from '../api'
 import imageUrl from '../utils/imageUrl'
 import goBackOrRoute from '../utils/navigation'
 import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
-import useAsyncData from '../hooks/useAsyncData'
+import useSubmission from '../hooks/useSubmission'
 import { isScoreHidden } from '../components/SubmissionCard'
 import { winnerGold } from '../styles/tokens'
 
 const winnerIconSx = { color: winnerGold, fontSize: '1.1rem' }
-
-function getSubmissionOrNull(id) {
-  return api.get(`/submissions/${id}`)
-    .then(r => r.data ?? null)
-    .catch(err => {
-      if (err?.response?.status === 404) return null
-      throw err
-    })
-}
 
 function SubmitterName({ submission }) {
   if (!submission.userId) return submission.username
@@ -39,14 +29,14 @@ export default function SubmissionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { data: submission, loading, error, refetch } = useAsyncData(() => getSubmissionOrNull(id), [id])
+  const { submission, loading, error, retry } = useSubmission(id)
 
   if (loading) return <Loading />
   if (error) {
     return (
       <Box sx={{ textAlign: 'center', py: 6 }}>
         <Typography gutterBottom>Failed to load this submission.</Typography>
-        <AppButton onClick={refetch}>Retry</AppButton>
+        <AppButton onClick={retry}>Retry</AppButton>
       </Box>
     )
   }
