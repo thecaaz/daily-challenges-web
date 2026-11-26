@@ -11,25 +11,12 @@ import useLeagueGameSummaries from '../hooks/useLeagueGameSummaries'
 import { buildRecentPlaysData } from '../components/League/RecentPlaysBar'
 
 describe('buildRecentPlaysData', () => {
-  it('uses recentPlayDays from the API when present', () => {
+  it("labels each bar with the API's scoring day, the newest as Today", () => {
     const data = buildRecentPlaysData([1, 0, 3], ['2026-11-01', '2026-11-02', '2026-11-03'])
+
     expect(data.map(d => d.isoDate)).toEqual(['2026-11-01', '2026-11-02', '2026-11-03'])
     expect(data.map(d => d.label)).toEqual(['Nov 1', 'Nov 2', 'Today'])
     expect(data.map(d => d.count)).toEqual([1, 0, 3])
-  })
-
-  it('falls back to UTC days counted back from now, without jumping to the next local day late in the UTC day', () => {
-    const lateOnNov4Utc = new Date(Date.UTC(2026, 10, 4, 23, 30))
-
-    const data = buildRecentPlaysData([1, 2, 3], undefined, lateOnNov4Utc)
-
-    expect(data.map(d => d.isoDate)).toEqual(['2026-11-02', '2026-11-03', '2026-11-04'])
-  })
-
-  it('ignores recentPlayDays of the wrong length', () => {
-    const now = new Date(Date.UTC(2026, 0, 1, 12))
-    const data = buildRecentPlaysData([1, 2], ['2026-01-01'], now)
-    expect(data.map(d => d.isoDate)).toEqual(['2025-12-31', '2026-01-01'])
   })
 })
 

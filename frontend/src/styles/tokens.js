@@ -38,6 +38,13 @@ export const medalColors = { gold: winnerGold, silver: '#C0C0C0' }
  */
 export const warningOrange = '#ed6c02'
 
+/** Hover label and cursor of the small Recharts charts; the same in both modes. */
+export const chartTooltip = {
+  background: 'rgba(0,0,0,0.75)',
+  text: '#fff',
+  cursorFill: 'rgba(255,255,255,0.05)',
+}
+
 export default function tokens(mode = 'light') {
   return mode === 'dark' ? dark : light
 }

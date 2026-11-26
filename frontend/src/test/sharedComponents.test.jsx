@@ -15,6 +15,7 @@ vi.mock('../utils/adapters', () => ({
 
 import PlayButton from '../components/ui/PlayButton'
 import AppButton from '../components/ui/AppButton'
+import ChartTooltipLabel from '../components/ui/ChartTooltipLabel'
 import Countdown from '../components/Countdown'
 import ImageUpload from '../components/ui/ImageUpload/ImageUpload'
 import SubmissionCard from '../components/SubmissionCard'
@@ -86,6 +87,14 @@ describe('PlayButton', () => {
     inRouter(<PlayButton game={game} adapter={null} />)
 
     expect(adapterListeners.size).toBe(0)
+  })
+})
+
+describe('ChartTooltipLabel', () => {
+  it('shows white text on a translucent black label', () => {
+    render(<ChartTooltipLabel>Today: 3 plays</ChartTooltipLabel>)
+
+    expect(screen.getByText('Today: 3 plays')).toHaveStyle({ background: 'rgba(0,0,0,0.75)', color: '#fff' })
   })
 })
 
