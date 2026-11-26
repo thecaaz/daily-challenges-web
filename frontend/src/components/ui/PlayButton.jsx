@@ -10,7 +10,7 @@ import { isSafeHttpUrl } from '../../utils/safeUrl'
  * tab. Pass `adapter` when it is already known (null for "none"); without it
  * the extension is asked, and asked again when its adapters change.
  */
-export default function PlayButton({ game, adapter, variant = 'outlined', size = 'small', color = 'primary', children, ...props }) {
+export default function PlayButton({ game, adapter, children, ...buttonProps }) {
   const safe = isSafeHttpUrl(game?.url)
   const isAdapterKnown = adapter !== undefined
   const hasLookedUpAdapter = useHasAdapter(isAdapterKnown || !safe ? null : game.url)
@@ -19,13 +19,12 @@ export default function PlayButton({ game, adapter, variant = 'outlined', size =
   if (!safe) return null
 
   const label = children || 'Play'
-  const endIcon = props.endIcon ?? <OpenInNewIcon />
   const target = supports === true
     ? { to: `/play/${game.id}` }
     : { href: game.url, target: '_blank', rel: 'noopener noreferrer' }
 
   return (
-    <AppButton {...target} variant={variant} size={size} color={color} endIcon={endIcon} {...props}>
+    <AppButton {...target} variant="outlined" size="small" color="primary" endIcon={<OpenInNewIcon />} {...buttonProps}>
       {label}
     </AppButton>
   )

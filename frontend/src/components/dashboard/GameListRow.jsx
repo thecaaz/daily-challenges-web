@@ -60,7 +60,7 @@ export default function GameListRow({ game, look, children }) {
         inactiveIconSx={{ color: 'text.secondary' }}
       />
 
-      <PlayButton game={game} size="small" adapter={adapter} sx={{ flexShrink: 0 }} />
+      <PlayButton game={game} adapter={adapter} sx={{ flexShrink: 0 }} />
     </ListItem>
   )
 }
