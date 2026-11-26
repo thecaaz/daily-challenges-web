@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 
@@ -33,6 +33,20 @@ describe('style characterization', () => {
 
   it('keeps the maximized game player styles', () => {
     const { container } = inTheme('light', <GameIframePlayer src="https://game.example/" title="Game" isMaximized onRestore={() => {}} />)
+
+    expect(container.innerHTML).toMatchSnapshot()
+  })
+
+  it('keeps the inline game player styles', () => {
+    const { container } = inTheme('light', <GameIframePlayer src="https://game.example/" title="Game" isMaximized={false} onRestore={() => {}} />)
+
+    expect(container.innerHTML).toMatchSnapshot()
+  })
+
+  it('shows the game player iframe once it has loaded', () => {
+    const { container } = inTheme('light', <GameIframePlayer src="https://game.example/" title="Game" isMaximized={false} onRestore={() => {}} />)
+
+    fireEvent.load(screen.getByTitle('Game'))
 
     expect(container.innerHTML).toMatchSnapshot()
   })
