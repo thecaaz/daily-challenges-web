@@ -5,7 +5,7 @@ import {
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import { Link } from 'react-router-dom'
 import imageUrl from '../../utils/imageUrl'
-import UserLink from './UserLink'
+import UserLink from '../ui/UserLink'
 import { winnerGold } from '../../styles/tokens'
 
 const HIDDEN_RANK = '–'

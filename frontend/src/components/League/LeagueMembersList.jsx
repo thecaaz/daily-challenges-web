@@ -4,7 +4,7 @@ import {
   IconButton, Chip, Divider, Tooltip,
 } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import UserLink from './UserLink'
+import UserLink from '../ui/UserLink'
 
 /**
  * League members. When `canRemoveMembers`, every member other than the
