@@ -1,6 +1,6 @@
 import React from 'react'
 import useSubmissionPair from '../hooks/useSubmissionPair'
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Typography, Card, Box, Chip, Tooltip, Divider } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
@@ -13,6 +13,7 @@ import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 import { isScoreHidden } from '../components/SubmissionCard'
 import { winnerGold } from '../styles/tokens'
+import UserLink from '../components/ui/UserLink'
 
 const winnerIconSx = { color: winnerGold, fontSize: '1.2rem' }
 
@@ -20,9 +21,9 @@ function SubmitterName({ submission }) {
   const name = <Typography variant="h6" sx={{ fontWeight: 700 }}>{submission.username}</Typography>
   if (!submission.userId) return name
   return (
-    <Box component={Link} to={`/users/${submission.userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+    <UserLink userId={submission.userId}>
       {name}
-    </Box>
+    </UserLink>
   )
 }
 

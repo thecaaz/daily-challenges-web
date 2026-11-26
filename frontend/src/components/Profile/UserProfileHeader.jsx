@@ -1,9 +1,9 @@
 import React from 'react'
 import { Box, Avatar, Typography, LinearProgress, Grid, Chip } from '@mui/material'
-import { Link } from 'react-router-dom'
 import timeAgo from '../../utils/timeAgo'
 import formatNumber from '../../utils/formatNumber'
 import FriendButton from './FriendButton'
+import UserLink from '../ui/UserLink'
 
 export default function UserProfileHeader({ profile }) {
   const username = profile.username || 'user'
@@ -26,9 +26,9 @@ export default function UserProfileHeader({ profile }) {
         </Grid>
         <Grid item xs>
           {userId ? (
-            <Box component={Link} to={`/users/${userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>
+            <UserLink userId={userId}>
               <Typography variant="h5">{username}</Typography>
-            </Box>
+            </UserLink>
           ) : (
             <Typography variant="h5">{username}</Typography>
           )}

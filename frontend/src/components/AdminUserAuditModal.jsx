@@ -1,19 +1,19 @@
 import React from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Box } from '@mui/material'
-import { Link } from 'react-router-dom'
+import { Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import AppButton from './ui/AppButton'
 import formatNumber from '../utils/formatNumber'
 import useXpEventAudit from '../hooks/useXpEventAudit'
 import XpEventFilters from './AdminUsers/XpEventFilters'
 import XpEventsTable from './AdminUsers/XpEventsTable'
+import UserLink from './ui/UserLink'
 
 export { XP_EVENT_TYPES } from './AdminUsers/XpEventFilters'
 export { nextDay, buildFilterParams } from '../hooks/useXpEventAudit'
 
 function AuditedUserName({ userId, username }) {
   if (!username) return `User ${userId}`
-  return <Box component={Link} to={`/users/${userId}`} sx={{ textDecoration: 'none', color: 'inherit' }}>{username}</Box>
+  return <UserLink userId={userId}>{username}</UserLink>
 }
 
 function XpEventsPager({ audit }) {
