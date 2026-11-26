@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getAdapterForUrl, subscribeAdapters } from '../utils/adapters'
+import { getAdapterForUrl, hasAdapterForUrl, subscribeAdapters } from '../utils/adapters'
 
 /**
  * Returns the adapter object for a given game URL, or null if not found / not loaded.
@@ -12,22 +12,53 @@ import { getAdapterForUrl, subscribeAdapters } from '../utils/adapters'
  * @returns {object|null} The adapter descriptor, or null.
  */
 export default function useAdapter(url) {
-  const [adapter, setAdapter] = useState(null)
-  const [version, setVersion] = useState(0)
+  return useExtensionLookup(url, getAdapterForUrl, null)
+}
 
-  useEffect(() => subscribeAdapters(() => setVersion(v => v + 1)), [])
+/**
+ * Whether the extension can capture scores for the URL, also asking the
+ * extension's own matcher when no adapter descriptor matched. Null while
+ * unknown (or without a URL), then true/false. Re-checked when the
+ * extension's adapters change.
+ *
+ * @param {string|null|undefined} url - The game URL; null skips the lookup.
+ * @returns {boolean|null}
+ */
+export function useHasAdapter(url) {
+  return useExtensionLookup(url, lookUpHasAdapter, false)
+}
+
+function lookUpHasAdapter(url) {
+  return hasAdapterForUrl(url).then(Boolean)
+}
+
+function useExtensionLookup(url, lookUp, valueOnFailure) {
+  const [value, setValue] = useState(null)
+  const adaptersVersion = useAdaptersVersion(Boolean(url))
 
   useEffect(() => {
     if (!url) {
-      setAdapter(null)
-      return
+      setValue(null)
+      return undefined
     }
     let mounted = true
-    getAdapterForUrl(url)
-      .then(a => { if (mounted) setAdapter(a) })
-      .catch(() => { if (mounted) setAdapter(null) })
+    lookUp(url)
+      .then(found => { if (mounted) setValue(found) })
+      .catch(() => { if (mounted) setValue(valueOnFailure) })
     return () => { mounted = false }
-  }, [url, version])
+  }, [url, lookUp, valueOnFailure, adaptersVersion])
 
-  return adapter
+  return value
+}
+
+/** Bumped when the extension's adapters change (e.g. it showed up late). */
+function useAdaptersVersion(isSubscribed) {
+  const [version, setVersion] = useState(0)
+
+  useEffect(() => {
+    if (!isSubscribed) return undefined
+    return subscribeAdapters(() => setVersion(v => v + 1))
+  }, [isSubscribed])
+
+  return version
 }
