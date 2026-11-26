@@ -27,10 +27,10 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     private static string RefreshCookieValue(HttpResponseMessage res) =>
         RefreshCookie.SetCookieHeaderFrom(res)["refresh_token=".Length..].Split(';')[0];
 
-    private static async Task<HttpResponseMessage> RegisterAndLoginAsync(ApiFactory f, string username)
+    private static async Task<HttpResponseMessage> RegisterAndLoginAsync(ApiFactory factory, string username)
     {
-        Assert.Equal(HttpStatusCode.OK, (await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/register", new { username, password = Password })).StatusCode);
-        var res = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username, password = Password });
+        Assert.Equal(HttpStatusCode.OK, (await factory.CreateCookielessClient().PostAsJsonAsync("/api/auth/register", new { username, password = Password })).StatusCode);
+        var res = await factory.CreateCookielessClient().PostAsJsonAsync("/api/auth/login", new { username, password = Password });
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         return res;
     }
@@ -45,10 +45,10 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Register_makes_the_first_user_admin_and_later_users_not()
     {
-        using var f = new ApiFactory();
+        using var factory = new ApiFactory();
 
-        var first = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/register", new { username = "first-user", password = Password });
-        var second = await f.CreateCookielessClient().PostAsJsonAsync("/api/auth/register", new { username = "second-user", password = Password });
+        var first = await factory.CreateCookielessClient().PostAsJsonAsync("/api/auth/register", new { username = "first-user", password = Password });
+        var second = await factory.CreateCookielessClient().PostAsJsonAsync("/api/auth/register", new { username = "second-user", password = Password });
 
         Assert.True((await ReadJsonAsync(first)).GetProperty("isAdmin").GetBoolean());
         Assert.False((await ReadJsonAsync(second)).GetProperty("isAdmin").GetBoolean());
@@ -57,11 +57,11 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Login_access_token_has_the_session_claims_and_a_30_minute_lifetime()
     {
-        using var f = new ApiFactory();
-        var jwt = f.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
+        using var factory = new ApiFactory();
+        var jwt = factory.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
         var before = DateTimeOffset.UtcNow;
 
-        var res = await RegisterAndLoginAsync(f, "claims-admin");
+        var res = await RegisterAndLoginAsync(factory, "claims-admin");
         var after = DateTimeOffset.UtcNow;
 
         var body = await ReadJsonAsync(res);
@@ -82,12 +82,11 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Login_refresh_token_has_a_jti_and_the_configured_lifetime_and_no_admin_role_for_regular_users()
     {
-        var f = _factory;
-        var refreshDays = f.Services.GetRequiredService<IOptions<JwtOptions>>().Value.RefreshExpiresDays;
-        await RegisterAndLoginAsync(f, "someone-first");
+        var refreshDays = _factory.Services.GetRequiredService<IOptions<JwtOptions>>().Value.RefreshExpiresDays;
+        await RegisterAndLoginAsync(_factory, "someone-first");
         var before = DateTimeOffset.UtcNow;
 
-        var res = await RegisterAndLoginAsync(f, "regular-user");
+        var res = await RegisterAndLoginAsync(_factory, "regular-user");
         var after = DateTimeOffset.UtcNow;
 
         var refresh = new JwtSecurityTokenHandler().ReadJwtToken(RefreshCookieValue(res));
@@ -105,10 +104,9 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Login_sets_a_strict_secure_http_only_refresh_cookie_for_the_refresh_lifetime()
     {
-        var f = _factory;
         var before = DateTimeOffset.UtcNow;
 
-        var cookie = RefreshCookie.SetCookieHeaderFrom(await RegisterAndLoginAsync(f, "cookie-user")).ToLowerInvariant();
+        var cookie = RefreshCookie.SetCookieHeaderFrom(await RegisterAndLoginAsync(_factory, "cookie-user")).ToLowerInvariant();
         var after = DateTimeOffset.UtcNow;
 
         Assert.Contains("; path=/", cookie);
@@ -122,12 +120,11 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Refresh_issues_a_new_access_token_and_cookie()
     {
-        var f = _factory;
-        var login = await RegisterAndLoginAsync(f, "refresh-user");
+        var login = await RegisterAndLoginAsync(_factory, "refresh-user");
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
         request.Headers.Add("Cookie", $"refresh_token={RefreshCookieValue(login)}");
 
-        var res = await f.CreateCookielessClient().SendAsync(request);
+        var res = await _factory.CreateCookielessClient().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var body = await ReadJsonAsync(res);
@@ -139,9 +136,8 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Logout_expires_the_refresh_cookie_with_the_same_attributes()
     {
-        var f = _factory;
 
-        var res = await f.CreateCookielessClient().PostAsync("/api/auth/logout", null);
+        var res = await _factory.CreateCookielessClient().PostAsync("/api/auth/logout", null);
 
         var body = await ReadJsonAsync(res);
         Assert.True(body.GetProperty("success").GetBoolean());
@@ -156,9 +152,8 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Refresh_without_a_cookie_is_401_with_the_session_expired_message()
     {
-        var f = _factory;
 
-        var res = await f.CreateCookielessClient().PostAsync("/api/auth/refresh", null);
+        var res = await _factory.CreateCookielessClient().PostAsync("/api/auth/refresh", null);
 
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
         Assert.Equal("Session expired. Please log in again.", (await ReadJsonAsync(res)).GetProperty("message").GetString());
@@ -167,11 +162,10 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Refresh_with_a_garbage_cookie_is_401()
     {
-        var f = _factory;
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
         request.Headers.Add("Cookie", "refresh_token=not-a-jwt");
 
-        var res = await f.CreateCookielessClient().SendAsync(request);
+        var res = await _factory.CreateCookielessClient().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
@@ -179,14 +173,13 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Me_returns_the_caller_and_401_without_a_token_or_for_an_unknown_user()
     {
-        var f = _factory;
-        var login = await ReadJsonAsync(await RegisterAndLoginAsync(f, "me-user"));
+        var login = await ReadJsonAsync(await RegisterAndLoginAsync(_factory, "me-user"));
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
         request.Headers.Authorization = new("Bearer", login.GetProperty("accessToken").GetString());
 
-        var me = await f.CreateCookielessClient().SendAsync(request);
-        var anonymous = await f.CreateCookielessClient().GetAsync("/api/auth/me");
-        var unknown = await f.CreateAuthenticatedClient(999_999, "ghost").GetAsync("/api/auth/me");
+        var me = await _factory.CreateCookielessClient().SendAsync(request);
+        var anonymous = await _factory.CreateCookielessClient().GetAsync("/api/auth/me");
+        var unknown = await _factory.CreateAuthenticatedClient(999_999, "ghost").GetAsync("/api/auth/me");
 
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         Assert.Equal("me-user", (await ReadJsonAsync(me)).GetProperty("username").GetString());
@@ -197,10 +190,9 @@ public class AuthSessionContractTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task Profile_endpoints_return_404_for_unknown_users_and_401_for_anonymous_me()
     {
-        var f = _factory;
 
-        var unknown = await f.CreateCookielessClient().GetAsync("/api/users/999999/profile");
-        var anonymousMe = await f.CreateCookielessClient().GetAsync("/api/users/me/profile");
+        var unknown = await _factory.CreateCookielessClient().GetAsync("/api/users/999999/profile");
+        var anonymousMe = await _factory.CreateCookielessClient().GetAsync("/api/users/me/profile");
 
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, anonymousMe.StatusCode);
