@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getGames } from '../api/games'
 import { hasAdapterForUrl } from '../utils/adapters'
 import { onFavoriteChange } from '../utils/favoriteEvents'
+import useLatestRequest from './useLatestRequest'
 
 const EMPTY = Object.freeze({ total: 0, submittedCount: 0, pendingGames: [], playable: [] })
 
@@ -11,7 +12,7 @@ const EMPTY = Object.freeze({ total: 0, submittedCount: 0, pendingGames: [], pla
  *
  * - The favorites summary is shown as soon as /games returns; the extension
  *   checks run afterwards, in parallel (`checkingPlayable` is true meanwhile).
- * - Out-of-order responses are dropped with a request counter.
+ * - Out-of-order responses are dropped (useLatestRequest).
  * - With `subscribe` (default true) it reloads on `favorite-changed` events,
  *   ignoring the optimistic ones (the confirmed or rolled-back event follows).
  *
@@ -25,11 +26,10 @@ export default function usePlayableFavorites(userId, { enabled = true, subscribe
   const [loading, setLoading] = useState(true)
   const [checkingPlayable, setCheckingPlayable] = useState(false)
   const [error, setError] = useState(false)
-  const requestRef = useRef(0)
+  const startRequest = useLatestRequest()
 
   const load = useCallback(async () => {
-    const requestId = ++requestRef.current
-    const isCurrent = () => requestRef.current === requestId
+    const isCurrent = startRequest()
     const showFavorites = ({ favorites, isError = false }) => {
       setState(favorites)
       setError(isError)
@@ -62,15 +62,14 @@ export default function usePlayableFavorites(userId, { enabled = true, subscribe
     if (!isCurrent()) return
     setState(previous => ({ ...previous, playable }))
     setCheckingPlayable(false)
-  }, [userId])
+  }, [userId, startRequest])
 
   useEffect(() => {
     if (!enabled) return undefined
-    const requestCounter = requestRef
     load()
-    const dropInFlightResponses = () => { requestCounter.current++ }
+    const dropInFlightResponses = () => { startRequest() }
     return dropInFlightResponses
-  }, [enabled, load])
+  }, [enabled, load, startRequest])
 
   useEffect(() => {
     if (!enabled || !subscribe || userId == null) return undefined
