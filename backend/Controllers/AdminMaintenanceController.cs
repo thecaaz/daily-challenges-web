@@ -15,6 +15,6 @@ public sealed class AdminMaintenanceController(IScoreMaintenanceService scores) 
     /// Past finalized days are not re-finalized.
     /// </summary>
     [HttpPost("reparse-scores")]
-    public async Task<IActionResult> ReparseScores([FromQuery] bool dryRun = true) =>
-        Ok(dryRun ? await scores.PreviewReparseScoresAsync() : await scores.ReparseScoresAsync());
+    public async Task<IActionResult> ReparseScores([FromQuery] bool dryRun = true, CancellationToken ct = default) =>
+        Ok(dryRun ? await scores.PreviewReparseScoresAsync(ct) : await scores.ReparseScoresAsync(ct));
 }

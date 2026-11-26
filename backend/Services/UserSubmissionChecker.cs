@@ -9,7 +9,7 @@ public sealed class UserSubmissionChecker(
     TimeProvider time) : IUserSubmissionChecker
 {
     /// <summary>A missing game falls back to a midnight UTC reset.</summary>
-    public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user)
+    public async Task<bool> HasUserSubmittedForLatestAsync(int gameId, ClaimsPrincipal? user, CancellationToken ct)
     {
         if (user.GetUserId() is not int userId) return false;
 
@@ -18,6 +18,6 @@ public sealed class UserSubmissionChecker(
         return await submissions.ExistsForUserGameDayAsync(userId, gameId, currentDay);
     }
 
-    public async Task<bool> HasUserSubmittedForDayAsync(int? userId, int gameId, DateTime scoringDay) =>
+    public async Task<bool> HasUserSubmittedForDayAsync(int? userId, int gameId, DateTime scoringDay, CancellationToken ct) =>
         userId.HasValue && await submissions.ExistsForUserGameDayAsync(userId.Value, gameId, scoringDay);
 }

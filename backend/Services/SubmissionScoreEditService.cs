@@ -18,20 +18,20 @@ public sealed class SubmissionScoreEditService(
     IScoreVisibilityService visibility,
     IScreenshotUrlSigner screenshotSigner) : ISubmissionScoreEditService
 {
-    public async Task<SubmissionDto> UpdateAsync(int id, string? score)
+    public async Task<SubmissionDto> UpdateAsync(int id, string? score, CancellationToken ct)
     {
-        var (updated, needsRefinalizing) = await transactions.RunAsync(() => SaveScoreAsync(id, score));
+        var (updated, needsRefinalizing) = await transactions.RunAsync(() => SaveScoreAsync(id, score, ct));
         if (needsRefinalizing) await finalizedDays.RefinalizeAsync(updated.GameId, updated.ScoringDay);
         return await ToAdminDtoAsync(updated);
     }
 
-    private async Task<(Submission Updated, bool NeedsRefinalizing)> SaveScoreAsync(int id, string? score)
+    private async Task<(Submission Updated, bool NeedsRefinalizing)> SaveScoreAsync(int id, string? score, CancellationToken ct)
     {
         var submission = await submissions.GetByIdAsync(id) ?? throw new NotFoundException("Submission not found");
         if (!string.IsNullOrWhiteSpace(score)) ApplyScore(submission, score.Trim());
 
         var updated = await submissions.UpdateAsync(submission);
-        var needsRefinalizing = await finalizedDays.UnfinalizeIfWinnerChangedAsync(updated.GameId, updated.ScoringDay);
+        var needsRefinalizing = await finalizedDays.UnfinalizeIfWinnerChangedAsync(updated.GameId, updated.ScoringDay, ct);
         return (updated, needsRefinalizing);
     }
 

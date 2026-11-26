@@ -31,7 +31,7 @@ public sealed class AchievementService(
         }
     }
 
-    public async Task<List<AchievementDto>> GetForUserAsync(int userId)
+    public async Task<List<AchievementDto>> GetForUserAsync(int userId, CancellationToken ct)
     {
         var unlocked = await userAchievements.GetUnlockedWithTimestampsAsync(userId);
 

@@ -11,7 +11,7 @@ public interface ISubmissionCreationService
     /// ConflictException when the user has already submitted for the day.
     /// </summary>
     /// <returns>Tuple of the created SubmissionDto and the XP awarded (0 for anonymous users).</returns>
-    Task<(SubmissionDto Dto, int XpGain)> CreateAsync(SubmissionDraftRequest request, ClaimsPrincipal user);
+    Task<(SubmissionDto Dto, int XpGain)> CreateAsync(SubmissionDraftRequest request, ClaimsPrincipal user, CancellationToken ct);
 }
 
 /// <summary>A new submission as entered; <see cref="Username"/> is only used for anonymous submitters.</summary>

@@ -24,7 +24,7 @@ public sealed class GameCommandService(
 
     private sealed record ValidatedUpdate(GameUpdateRequest Request, ParsedSettings Settings, UploadedImage? Image);
 
-    public async Task<GameDto> CreateAsync(GameCreateRequest request)
+    public async Task<GameDto> CreateAsync(GameCreateRequest request, CancellationToken ct)
     {
         var settings = ParseSettings(request.ResetTime, request.Url, request.RankingMode);
 
@@ -49,7 +49,7 @@ public sealed class GameCommandService(
     /// A unique violation while saving means two submissions of one user landed on the same scoring day;
     /// it surfaces as the same ConflictException the re-derivation throws for a detected merge.
     /// </summary>
-    public async Task<GameDto> UpdateAsync(int id, GameUpdateRequest request)
+    public async Task<GameDto> UpdateAsync(int id, GameUpdateRequest request, CancellationToken ct)
     {
         var update = new ValidatedUpdate(
             request,
@@ -67,7 +67,7 @@ public sealed class GameCommandService(
         }
     }
 
-    public async Task DeleteAsync(int id) => await games.DeleteAsync(id);
+    public async Task DeleteAsync(int id, CancellationToken ct) => await games.DeleteAsync(id);
 
     /// <summary>
     /// Omitted (null) fields stay unchanged; "" clears Url and Description. A ResetTime change re-derives the

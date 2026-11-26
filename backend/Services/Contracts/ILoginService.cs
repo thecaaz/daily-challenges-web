@@ -9,5 +9,5 @@ public interface ILoginService
     /// <paramref name="response"/>). Throws AuthenticationFailedException("Invalid credentials") for an
     /// unknown username or a wrong password alike.
     /// </summary>
-    Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response);
+    Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response, CancellationToken ct);
 }

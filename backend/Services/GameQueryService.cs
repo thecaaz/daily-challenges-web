@@ -18,7 +18,7 @@ public sealed class GameQueryService(
     private const string AvailableDatesPart = "availableDates";
     private const string HasSubmittedPart = "hasSubmitted";
 
-    public async Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user)
+    public async Task<List<GameDto>> GetAllAsync(ClaimsPrincipal? user, CancellationToken ct)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var allGames = await games.GetAllAsync();
@@ -32,7 +32,7 @@ public sealed class GameQueryService(
         return dtos;
     }
 
-    public async Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id)
+    public async Task<(byte[]? Data, string? ContentType)> GetImageAsync(int id, CancellationToken ct)
     {
         var (data, contentType) = await games.GetBlobAsync(id);
         if (data == null || data.Length == 0) return (null, null);
@@ -43,7 +43,7 @@ public sealed class GameQueryService(
     /// Sub-requests run one after another (they share the scoped DbContext, which allows only one operation
     /// at a time), and failures are reported per part.
     /// </summary>
-    public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include)
+    public async Task<GameOverviewDto> GetOverviewAsync(int gameId, ClaimsPrincipal? user, string? include, CancellationToken ct)
     {
         var game = await games.GetByIdWithoutBlobAsync(gameId) ?? throw new NotFoundException("Game not found");
         var dto = new GameOverviewDto { Game = DtoMapper.ToDto(game, nowUtc: time.GetUtcNow().UtcDateTime) };
@@ -51,10 +51,10 @@ public sealed class GameQueryService(
         var parts = OverviewInclude.Parse(include);
         var loader = new OverviewPartLoader(logger);
         dto.AvailableDates = parts.Wants(AvailableDatesPart)
-            ? await loader.LoadAsync(AvailableDatesPart, () => submissionQueries.GetAvailableDatesAsync(gameId), new List<string>())
+            ? await loader.LoadAsync(AvailableDatesPart, () => submissionQueries.GetAvailableDatesAsync(gameId, ct), new List<string>())
             : new List<string>();
         dto.HasSubmittedForLatest = parts.Wants(HasSubmittedPart)
-            && await loader.LoadAsync(HasSubmittedPart, () => submissionQueries.HasUserSubmittedForLatestAsync(gameId, user), false);
+            && await loader.LoadAsync(HasSubmittedPart, () => submissionQueries.HasUserSubmittedForLatestAsync(gameId, user, ct), false);
         dto.Errors = loader.Errors.Count > 0 ? loader.Errors : null;
 
         await MarkFavoriteAsync(dto.Game, user);

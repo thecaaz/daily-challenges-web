@@ -35,7 +35,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.CreateAsync(It.IsAny<League>()))
             .ReturnsAsync((League l) => { l.Id = 10; created = l; return l; });
 
-        var result = await sut.Service.CreateLeagueAsync(1, "Weekend Warriors");
+        var result = await sut.Service.CreateLeagueAsync(1, "Weekend Warriors", CancellationToken.None);
 
         Assert.Equal(10, result.Id);
         Assert.Equal("Weekend Warriors", result.Name);
@@ -51,7 +51,7 @@ public class LeagueServiceTests
     {
         var sut = Build();
 
-        await Assert.ThrowsAsync<ValidationException>(() => sut.Service.CreateLeagueAsync(1, "   "));
+        await Assert.ThrowsAsync<ValidationException>(() => sut.Service.CreateLeagueAsync(1, "   ", CancellationToken.None));
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public class LeagueServiceTests
         var sut = Build();
         var longName = new string('x', 101);
 
-        await Assert.ThrowsAsync<ValidationException>(() => sut.Service.CreateLeagueAsync(1, longName));
+        await Assert.ThrowsAsync<ValidationException>(() => sut.Service.CreateLeagueAsync(1, longName, CancellationToken.None));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 42));
         sut.LeagueRepo.Setup(r => r.DeleteAsync(1)).ReturnsAsync(true);
 
-        await sut.Service.DeleteLeagueAsync(1, 42);
+        await sut.Service.DeleteLeagueAsync(1, 42, CancellationToken.None);
 
         sut.LeagueRepo.Verify(r => r.DeleteAsync(1), Times.Once);
     }
@@ -82,7 +82,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 42));
 
         await Assert.ThrowsAsync<ForbiddenException>(
-            () => sut.Service.DeleteLeagueAsync(1, requestingUserId: 99));
+            () => sut.Service.DeleteLeagueAsync(1, requestingUserId: 99, CancellationToken.None));
 
         sut.LeagueRepo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
     }
@@ -96,7 +96,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 20)).ReturnsAsync(member);
         sut.LeagueRepo.Setup(r => r.RemoveMemberAsync(member)).Returns(Task.CompletedTask);
 
-        await sut.Service.LeaveLeagueAsync(1, userId: 20);
+        await sut.Service.LeaveLeagueAsync(1, userId: 20, CancellationToken.None);
 
         sut.LeagueRepo.Verify(r => r.RemoveMemberAsync(member), Times.Once);
     }
@@ -108,7 +108,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => sut.Service.LeaveLeagueAsync(1, userId: 10));
+            () => sut.Service.LeaveLeagueAsync(1, userId: 10, CancellationToken.None));
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 20)).ReturnsAsync(member);
         sut.LeagueRepo.Setup(r => r.RemoveMemberAsync(member)).Returns(Task.CompletedTask);
 
-        await sut.Service.KickMemberAsync(1, requestingUserId: 10, targetUserId: 20);
+        await sut.Service.KickMemberAsync(1, requestingUserId: 10, targetUserId: 20, CancellationToken.None);
 
         sut.LeagueRepo.Verify(r => r.RemoveMemberAsync(member), Times.Once);
     }
@@ -132,7 +132,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
 
         await Assert.ThrowsAsync<ForbiddenException>(
-            () => sut.Service.KickMemberAsync(1, requestingUserId: 99, targetUserId: 20));
+            () => sut.Service.KickMemberAsync(1, requestingUserId: 99, targetUserId: 20, CancellationToken.None));
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(league);
         sut.LeagueRepo.Setup(r => r.RenameAsync(1, "New Name")).ReturnsAsync(true);
 
-        var result = await sut.Service.RenameLeagueAsync(1, requestingUserId: 10, "  New Name ");
+        var result = await sut.Service.RenameLeagueAsync(1, requestingUserId: 10, "  New Name ", CancellationToken.None);
 
         Assert.Equal("New Name", result.Name);
         sut.LeagueRepo.Verify(r => r.RenameAsync(1, "New Name"), Times.Once);
@@ -156,6 +156,6 @@ public class LeagueServiceTests
         sut.LeagueRepo.Setup(r => r.GetByIdWithMembersAsync(1)).ReturnsAsync(MakeLeague(1, ownerId: 10));
 
         await Assert.ThrowsAsync<ForbiddenException>(
-            () => sut.Service.RenameLeagueAsync(1, requestingUserId: 99, "New Name"));
+            () => sut.Service.RenameLeagueAsync(1, requestingUserId: 99, "New Name", CancellationToken.None));
     }
 }

@@ -48,7 +48,7 @@ public class LeagueInvitationServiceTests
         sut.InvitationRepo.Setup(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()))
             .ReturnsAsync((LeagueInvitation i) => { i.Id = 5; return i; });
 
-        var result = await sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob");
+        var result = await sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob", CancellationToken.None);
 
         Assert.Equal(5, result.Id);
         Assert.Equal(1, result.LeagueId);
@@ -68,7 +68,7 @@ public class LeagueInvitationServiceTests
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(invitee);
 
         await Assert.ThrowsAsync<ConflictException>(
-            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob", CancellationToken.None));
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class LeagueInvitationServiceTests
         sut.InvitationRepo.Setup(r => r.GetPendingInvitationAsync(1, 20)).ReturnsAsync(existing);
 
         await Assert.ThrowsAsync<ConflictException>(
-            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob", CancellationToken.None));
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class LeagueInvitationServiceTests
         sut.InvitationRepo.Setup(r => r.GetLastDeclinedAtAsync(1, 20)).ReturnsAsync(DateTime.UtcNow.AddHours(-23));
 
         var ex = await Assert.ThrowsAsync<ConflictException>(
-            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob"));
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "bob", CancellationToken.None));
 
         Assert.Equal("bob declined an invitation to this league recently. Try again after 24 hours.", ex.Message);
         sut.InvitationRepo.Verify(r => r.CreateInvitationAsync(It.IsAny<LeagueInvitation>()), Times.Never);
@@ -111,7 +111,7 @@ public class LeagueInvitationServiceTests
         sut.UserRepo.Setup(r => r.GetByUsernameAsync("owner")).ReturnsAsync(self);
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "owner"));
+            () => sut.Service.InviteByUsernameAsync(1, inviterId: 10, username: "owner", CancellationToken.None));
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class LeagueInvitationServiceTests
         sut.InvitationRepo.Setup(r => r.AcceptInvitationAsync(5, 20, It.IsAny<DateTime>()))
             .ReturnsAsync(AcceptInvitationResult.NotPending);
 
-        await Assert.ThrowsAsync<ConflictException>(() => sut.Service.AcceptInvitationAsync(5, 20));
+        await Assert.ThrowsAsync<ConflictException>(() => sut.Service.AcceptInvitationAsync(5, 20, CancellationToken.None));
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
     }

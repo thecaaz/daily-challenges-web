@@ -11,7 +11,7 @@ public sealed class AdminXpEventService(IXpEventRepository xpEvents) : IAdminXpE
 
     private const string CsvHeader = "Id,UserId,SubmissionId,GameId,ScoringDay,Amount,EventType,Details,CreatedAt";
 
-    public async Task<(List<XpEventDto> Items, int TotalCount)> GetXpEventsAsync(XpEventQuery query, int page, int pageSize)
+    public async Task<(List<XpEventDto> Items, int TotalCount)> GetXpEventsAsync(XpEventQuery query, int page, int pageSize, CancellationToken ct)
     {
         var filter = new XpEventFilter(query.UserId) { From = query.From, To = query.To, EventType = query.EventType };
         var (items, total) = await xpEvents.GetByUserPagedAsync(filter, page, pageSize);
@@ -19,9 +19,9 @@ public sealed class AdminXpEventService(IXpEventRepository xpEvents) : IAdminXpE
         return (dtos, total);
     }
 
-    public async Task<(byte[] Data, string Filename)> ExportXpEventsCsvAsync(XpEventQuery query)
+    public async Task<(byte[] Data, string Filename)> ExportXpEventsCsvAsync(XpEventQuery query, CancellationToken ct)
     {
-        var (items, _) = await GetXpEventsAsync(query, Paging.FirstPage, MaxExportRows);
+        var (items, _) = await GetXpEventsAsync(query, Paging.FirstPage, MaxExportRows, ct);
 
         var csv = new StringBuilder();
         csv.AppendLine(CsvHeader);

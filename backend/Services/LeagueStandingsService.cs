@@ -18,7 +18,7 @@ public sealed class LeagueStandingsService(
     private const int MinSummaryDays = 1;
     private const int MaxSummaryDays = 31;
 
-    public async Task<LeagueLeaderboardDto> GetLeaderboardAsync(LeagueLeaderboardQuery query)
+    public async Task<LeagueLeaderboardDto> GetLeaderboardAsync(LeagueLeaderboardQuery query, CancellationToken ct)
     {
         await leagues.RequireMembershipAsync(query.LeagueId, query.RequestingUserId);
         var game = await games.GetByIdWithoutBlobAsync(query.GameId)
@@ -26,7 +26,7 @@ public sealed class LeagueStandingsService(
 
         var currentDay = visibility.GetCurrentScoringDay(game);
         var day = query.ScoringDay?.Date ?? currentDay;
-        var canSeeScores = await visibility.CanSeeDayAsync(new ScoreViewer(query.RequestingUserId, query.RequesterIsAdmin), game, day);
+        var canSeeScores = await visibility.CanSeeDayAsync(new ScoreViewer(query.RequestingUserId, query.RequesterIsAdmin), game, day, ct);
         var rows = await standings.GetLeaderboardAsync(
             new LeagueGameDay(query.LeagueId, query.GameId, day),
             RankingStrategyFactory.GetStrategy(game.RankingMode));
@@ -43,7 +43,7 @@ public sealed class LeagueStandingsService(
         };
     }
 
-    public async Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(LeagueGameSummaryQuery query)
+    public async Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(LeagueGameSummaryQuery query, CancellationToken ct)
     {
         await leagues.RequireMembershipAsync(query.LeagueId, query.RequestingUserId);
         var (leagueId, requestingUserId, days, page, pageSize) = WithinLimits(query);

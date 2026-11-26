@@ -24,7 +24,7 @@ public sealed class AdminUserService(
 
     private DateTime TodayUtc => time.GetUtcNow().UtcDateTime.Date;
 
-    public async Task<(List<UserDto> Items, int TotalCount)> GetUsersAsync(int page, int pageSize, string? search)
+    public async Task<(List<UserDto> Items, int TotalCount)> GetUsersAsync(int page, int pageSize, string? search, CancellationToken ct)
     {
         var (pageUsers, total) = await users.GetPagedAsync(page, pageSize, search);
         var items = pageUsers.Select(u => DtoMapper.ToDto(u, levels, TodayUtc)).ToList();
@@ -35,12 +35,12 @@ public sealed class AdminUserService(
     /// The read-modify-write of TotalXp runs inside BEGIN IMMEDIATE, with the user loaded inside the
     /// transaction, so a concurrent submission or day win cannot overwrite it.
     /// </summary>
-    public async Task<UserDto> AdjustXpAsync(XpAdjustment adjustment)
+    public async Task<UserDto> AdjustXpAsync(XpAdjustment adjustment, CancellationToken ct)
     {
         if (adjustment.Delta == 0) throw new ValidationException(ZeroDeltaMessage);
 
         var effective = adjustment with { Reason = adjustment.Reason ?? DefaultXpAdjustmentReason };
-        await transactions.RunAsync(() => xp.AdjustXpAsync(effective));
+        await transactions.RunAsync(() => xp.AdjustXpAsync(effective, ct));
 
         logger.LogInformation("Admin {AdminId} adjusted XP of user {UserId} by {Delta} ({Reason})",
             effective.AdminUserId, effective.UserId, effective.Delta, effective.Reason);
@@ -52,7 +52,7 @@ public sealed class AdminUserService(
     }
 
     /// <summary>Bumping TokenVersion ends every existing session of the user (refresh tokens carry the old version).</summary>
-    public async Task SetPasswordAsync(int userId, string? newPassword, int? requestingAdminId)
+    public async Task SetPasswordAsync(int userId, string? newPassword, int? requestingAdminId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(newPassword)) throw new ValidationException(PasswordRequiredMessage);
         CredentialRules.ValidatePassword(newPassword);

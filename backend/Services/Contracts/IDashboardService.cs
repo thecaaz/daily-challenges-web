@@ -4,5 +4,5 @@ namespace DailyChallenges.Services.Contracts;
 
 public interface IDashboardService
 {
-    Task<DashboardDataDto> GetDashboardDataAsync(int userId);
+    Task<DashboardDataDto> GetDashboardDataAsync(int userId, CancellationToken ct);
 }

@@ -16,7 +16,7 @@ public sealed class AdminUserDeletionService(
 {
     private sealed record DeletionSummary(int FriendRequests, int Invitations, int OwnedLeagues);
 
-    public async Task DeleteUserAsync(int userId, int requestingAdminId)
+    public async Task DeleteUserAsync(int userId, int requestingAdminId, CancellationToken ct)
     {
         if (userId == requestingAdminId) throw new ValidationException("Cannot delete your own account");
 

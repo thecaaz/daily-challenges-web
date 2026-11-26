@@ -13,7 +13,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
 {
     private const int MaxNameLength = 100;
 
-    public async Task<LeagueDto> CreateLeagueAsync(int ownerId, string name)
+    public async Task<LeagueDto> CreateLeagueAsync(int ownerId, string name, CancellationToken ct)
     {
         var leagueName = RequireValidName(name);
         var owner = await users.GetByIdAsync(ownerId)
@@ -24,7 +24,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
         return LeagueDtoMapper.ToDto(league, owner.Username);
     }
 
-    public async Task<LeagueDto> RenameLeagueAsync(int leagueId, int requestingUserId, string newName)
+    public async Task<LeagueDto> RenameLeagueAsync(int leagueId, int requestingUserId, string newName, CancellationToken ct)
     {
         var leagueName = RequireValidName(newName);
         var league = await leagues.GetExistingWithMembersAsync(leagueId);
@@ -37,7 +37,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
         return LeagueDtoMapper.ToDto(league);
     }
 
-    public async Task DeleteLeagueAsync(int leagueId, int requestingUserId)
+    public async Task DeleteLeagueAsync(int leagueId, int requestingUserId, CancellationToken ct)
     {
         var league = await leagues.GetExistingAsync(leagueId);
         league.RequireOwner(requestingUserId);
@@ -46,13 +46,13 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
             throw new NotFoundException(LeagueAccess.LeagueNotFound);
     }
 
-    public async Task<List<LeagueDto>> GetMyLeaguesAsync(int userId)
+    public async Task<List<LeagueDto>> GetMyLeaguesAsync(int userId, CancellationToken ct)
     {
         var myLeagues = await leagues.GetByUserAsync(userId);
         return myLeagues.Select(LeagueDtoMapper.ToDto).ToList();
     }
 
-    public async Task<LeagueDetailDto> GetLeagueDetailAsync(int leagueId, int requestingUserId)
+    public async Task<LeagueDetailDto> GetLeagueDetailAsync(int leagueId, int requestingUserId, CancellationToken ct)
     {
         var league = await leagues.GetExistingWithMembersAsync(leagueId);
         league.RequireMember(requestingUserId);
@@ -61,7 +61,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
         return LeagueDtoMapper.ToDetailDto(league, PendingInvitationsVisibleTo(league, requestingUserId), nowUtc);
     }
 
-    public async Task LeaveLeagueAsync(int leagueId, int userId)
+    public async Task LeaveLeagueAsync(int leagueId, int userId, CancellationToken ct)
     {
         var league = await leagues.GetExistingAsync(leagueId);
         if (league.OwnerId == userId)
@@ -73,7 +73,7 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
         await leagues.RemoveMemberAsync(member);
     }
 
-    public async Task KickMemberAsync(int leagueId, int requestingUserId, int targetUserId)
+    public async Task KickMemberAsync(int leagueId, int requestingUserId, int targetUserId, CancellationToken ct)
     {
         var league = await leagues.GetExistingAsync(leagueId);
         league.RequireOwner(requestingUserId);

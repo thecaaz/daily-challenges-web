@@ -43,7 +43,7 @@ public class LeagueStandingsServiceTests
         sut.LeagueRepo.Setup(r => r.GetMemberAsync(1, 99)).ReturnsAsync((LeagueMember?)null);
 
         await Assert.ThrowsAsync<ForbiddenException>(
-            () => sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 99, Days: 7, Page: 1, PageSize: 20)));
+            () => sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, RequestingUserId: 99, Days: 7, Page: 1, PageSize: 20), CancellationToken.None));
     }
 
     private static LeagueSubmissionRow PlayOf(int gameId, int userId = 1) =>
@@ -63,7 +63,7 @@ public class LeagueStandingsServiceTests
         sut.StandingsRepo.Setup(r => r.GetMemberSubmissionsAsync(1, Now.Date.AddDays(-7), Now.Date.AddDays(1)))
             .ReturnsAsync([PlayOf(5)]);
 
-        var (items, total) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, 7, 1, 20));
+        var (items, total) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, 7, 1, 20), CancellationToken.None);
 
         Assert.Equal(1, total);
         var summary = Assert.Single(items);
@@ -78,7 +78,7 @@ public class LeagueStandingsServiceTests
         sut.StandingsRepo.Setup(r => r.GetMemberSubmissionsAsync(1, Now.Date.AddDays(-31), Now.Date.AddDays(1)))
             .ReturnsAsync(Enumerable.Range(1, Paging.MaxPageSize + 1).Select(gameId => PlayOf(gameId)).ToList());
 
-        var (items, total) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, Days: 100, Page: 0, PageSize: 1000));
+        var (items, total) = await sut.Service.GetLeagueGameSummariesAsync(new LeagueGameSummaryQuery(1, 1, Days: 100, Page: 0, PageSize: 1000), CancellationToken.None);
 
         Assert.Equal(Paging.MaxPageSize + 1, total);
         Assert.Equal(Paging.MaxPageSize, items.Count);

@@ -30,7 +30,7 @@ public sealed class LeagueInvitationService(
     private const string InvitationNotPending = "This invitation is no longer pending.";
     private const string InviteLinkUnavailable = "Invite link not found or already used.";
 
-    public async Task<LeagueInvitationDto> InviteByUsernameAsync(int leagueId, int inviterId, string username)
+    public async Task<LeagueInvitationDto> InviteByUsernameAsync(int leagueId, int inviterId, string username, CancellationToken ct)
     {
         var league = await leagues.GetExistingWithMembersAsync(leagueId);
         league.RequireOwner(inviterId);
@@ -62,7 +62,7 @@ public sealed class LeagueInvitationService(
         return LeagueDtoMapper.ToDto(invitation);
     }
 
-    public async Task<LeagueInvitationDto> CreateInviteLinkAsync(int leagueId, int inviterId)
+    public async Task<LeagueInvitationDto> CreateInviteLinkAsync(int leagueId, int inviterId, CancellationToken ct)
     {
         var league = await leagues.GetExistingWithMembersAsync(leagueId);
         league.RequireOwner(inviterId);
@@ -74,29 +74,29 @@ public sealed class LeagueInvitationService(
         return LeagueDtoMapper.ToDto(invitation);
     }
 
-    public async Task<LeagueDetailDto> AcceptInvitationAsync(int invitationId, int userId)
+    public async Task<LeagueDetailDto> AcceptInvitationAsync(int invitationId, int userId, CancellationToken ct)
     {
         var invitation = await GetPendingInvitationSentToAsync(invitationId, userId);
-        return await JoinAsync(invitation, userId, InvitationNotPending);
+        return await JoinAsync(invitation, userId, InvitationNotPending, ct);
     }
 
-    public async Task<LeagueDetailDto> JoinByTokenAsync(string token, int userId)
+    public async Task<LeagueDetailDto> JoinByTokenAsync(string token, int userId, CancellationToken ct)
     {
         var invitation = await invitations.GetInvitationByTokenAsync(token)
             ?? throw new NotFoundException(InviteLinkUnavailable);
         if (invitation.ExpiresAt < UtcNow)
             throw new ValidationException("This invite link has expired.");
 
-        return await JoinAsync(invitation, userId, InviteLinkUnavailable);
+        return await JoinAsync(invitation, userId, InviteLinkUnavailable, ct);
     }
 
-    public async Task DeclineInvitationAsync(int invitationId, int userId)
+    public async Task DeclineInvitationAsync(int invitationId, int userId, CancellationToken ct)
     {
         var invitation = await GetPendingInvitationSentToAsync(invitationId, userId);
         await CloseAsync(invitation, LeagueInvitationStatus.Declined);
     }
 
-    public async Task CancelInvitationAsync(int invitationId, int requestingUserId)
+    public async Task CancelInvitationAsync(int invitationId, int requestingUserId, CancellationToken ct)
     {
         var invitation = await invitations.GetInvitationByIdAsync(invitationId)
             ?? throw new NotFoundException(InvitationNotFound);
@@ -108,7 +108,7 @@ public sealed class LeagueInvitationService(
         await CloseAsync(invitation, LeagueInvitationStatus.Cancelled);
     }
 
-    public async Task<List<LeagueInvitationDto>> GetMyPendingInvitationsAsync(int userId)
+    public async Task<List<LeagueInvitationDto>> GetMyPendingInvitationsAsync(int userId, CancellationToken ct)
     {
         var pending = await invitations.GetPendingInvitationsForUserAsync(userId);
         return pending.Select(LeagueDtoMapper.ToDto).ToList();
@@ -206,7 +206,7 @@ public sealed class LeagueInvitationService(
     }
 
     /// <summary>The repository claims the invitation and adds the membership atomically, so a concurrent accept fails.</summary>
-    private async Task<LeagueDetailDto> JoinAsync(LeagueInvitation invitation, int userId, string notPendingMessage)
+    private async Task<LeagueDetailDto> JoinAsync(LeagueInvitation invitation, int userId, string notPendingMessage, CancellationToken ct)
     {
         var league = await leagues.GetExistingAsync(invitation.LeagueId);
 
@@ -217,7 +217,7 @@ public sealed class LeagueInvitationService(
             throw new ConflictException(notPendingMessage);
 
         await NotifyOwnerOfJoinAsync(league, userId);
-        return await leagueViews.GetLeagueDetailAsync(league.Id, userId);
+        return await leagueViews.GetLeagueDetailAsync(league.Id, userId, ct);
     }
 
     private async Task NotifyInviteeAsync(League league, User inviter, User invitee) =>

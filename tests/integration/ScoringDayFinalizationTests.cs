@@ -149,7 +149,7 @@ public class ScoringDayFinalizationTests
             sp.GetRequiredService<IAchievementService>(),
             NullLogger<ScoringDayFinalizerService>.Instance);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => finalizer.FinalizeScoringDayAsync(seed.GameId, Yesterday));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => finalizer.FinalizeScoringDayAsync(seed.GameId, Yesterday, CancellationToken.None));
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public class ScoringDayFinalizationTests
         using var f = new FixedClockApiFactory();
         var seed = await SeedThreeMissedDaysAndTodayAsync(f);
 
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
         Assert.Equal(new[] { Today.AddDays(-3), Today.AddDays(-2), Yesterday }, await FinalizedDaysAsync(f, seed));
         Assert.Equal(3 * WinXp, await WinnerXpAsync(f, seed));
@@ -221,9 +221,9 @@ public class ScoringDayFinalizationTests
     {
         using var f = new FixedClockApiFactory();
         await SeedThreeMissedDaysAndTodayAsync(f);
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
         Assert.Equal(3, await ResultCountAsync(f));
     }
@@ -245,7 +245,7 @@ public class ScoringDayFinalizationTests
         using var f = new FixedClockApiFactory();
         var seed = await SeedUnfinalizedGapDayAsync(f);
 
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
         Assert.Equal(new[] { Today.AddDays(-3), Today.AddDays(-2), Yesterday }, await FinalizedDaysAsync(f, seed));
         Assert.Equal(3 * WinXp, await WinnerXpAsync(f, seed));
@@ -256,9 +256,9 @@ public class ScoringDayFinalizationTests
     {
         using var f = new FixedClockApiFactory();
         var seed = await SeedUnfinalizedGapDayAsync(f);
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
         Assert.Equal(3, await ResultCountAsync(f));
         Assert.Equal(3 * WinXp, await WinnerXpAsync(f, seed));
@@ -289,14 +289,14 @@ public class ScoringDayFinalizationTests
         await SeedOpenDaysAroundALoneResultAsync(f);
         const int loneResult = 1;
 
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
         Assert.Equal(loneResult + ScoringDayBackgroundService.MaxDaysPerTick, await ResultCountAsync(f));
         Assert.True(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-30))));
         Assert.True(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-16))));
         Assert.False(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == Today.AddDays(-15))));
 
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
         Assert.Equal(loneResult + 2 * ScoringDayBackgroundService.MaxDaysPerTick, await ResultCountAsync(f));
     }
@@ -311,7 +311,7 @@ public class ScoringDayFinalizationTests
         const int ticksToFinalizeEveryOpenDay = 3;
 
         for (var tick = 0; tick < ticksToFinalizeEveryOpenDay; tick++)
-            await Background(f).ProcessAllGamesAsync();
+            await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
         var last = await f.QueryDbAsync(db => db.ScoringDayResults.MaxAsync(r => r.ScoringDay));
         Assert.Equal(Yesterday, last.Date);
@@ -334,7 +334,7 @@ public class ScoringDayFinalizationTests
             await db.SaveChangesAsync();
         });
 
-        await Background(f).ProcessAllGamesAsync();
+        await Background(f).ProcessAllGamesAsync(CancellationToken.None);
 
         Assert.True(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == recentGap)));
         Assert.False(await f.QueryDbAsync(db => db.ScoringDayResults.AnyAsync(r => r.ScoringDay == oldGap)));

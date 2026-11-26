@@ -24,7 +24,7 @@ public sealed class DashboardService(
     /// Each XP event counts only on its own game's current scoring day. The stat-card totals are real
     /// counts, not the length of the capped recent-games list.
     /// </summary>
-    public async Task<DashboardDataDto> GetDashboardDataAsync(int userId)
+    public async Task<DashboardDataDto> GetDashboardDataAsync(int userId, CancellationToken ct)
     {
         var today = await todaySnapshots.LoadAsync(userId);
         var friendUsers = await friends.GetFriendsAsync(userId);

@@ -19,7 +19,7 @@ public sealed class RegistrationService(
     private const string UsernameTakenMessage = "Username already taken";
 
     /// <summary>The password is hashed before the transaction starts, so the write lock isn't held for the BCrypt work.</summary>
-    public async Task<UserDto> RegisterAsync(string username, string password)
+    public async Task<UserDto> RegisterAsync(string username, string password, CancellationToken ct)
     {
         var name = CredentialRules.ValidateUsername(username);
         CredentialRules.ValidatePassword(password);

@@ -44,7 +44,7 @@ public class ScoringDayFinalizerServiceTests
         results.Setup(r => r.TryCreateAsync(It.IsAny<ScoringDayResult>())).ReturnsAsync(true);
         notifs.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()))
               .Returns(Task.CompletedTask);
-        xp.Setup(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()))
+        xp.Setup(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(config.WinXp);
         transactions.Setup(t => t.RunAsync(It.IsAny<Func<Task<ScoringDayOutcome?>>>()))
                     .Returns((Func<Task<ScoringDayOutcome?>> work) => work());
@@ -77,10 +77,10 @@ public class ScoringDayFinalizerServiceTests
         var sut = Build();
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(true);
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         sut.GamesRepo.Verify(r => r.GetByIdWithoutBlobAsync(It.IsAny<int>()), Times.Never);
-        sut.XpService.Verify(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
+        sut.XpService.Verify(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
         sut.ResultsRepo.Verify(r => r.TryCreateAsync(It.IsAny<ScoringDayResult>()), Times.Never);
     }
 
@@ -93,7 +93,7 @@ public class ScoringDayFinalizerServiceTests
         sut.ResultsRepo.Setup(r => r.ExistsAsync(1, Day.Date)).ReturnsAsync(false);
         sut.GamesRepo.Setup(r => r.GetByIdWithoutBlobAsync(1)).ReturnsAsync((Game?)null);
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         sut.ResultsRepo.Verify(r => r.TryCreateAsync(It.IsAny<ScoringDayResult>()), Times.Never);
     }
@@ -109,11 +109,11 @@ public class ScoringDayFinalizerServiceTests
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission>());
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         sut.ResultsRepo.Verify(r => r.TryCreateAsync(It.Is<ScoringDayResult>(
             r => r.WinnerUserId == null && r.GameId == 1)), Times.Once);
-        sut.XpService.Verify(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
+        sut.XpService.Verify(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class ScoringDayFinalizerServiceTests
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission>());
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
     }
@@ -144,10 +144,10 @@ public class ScoringDayFinalizerServiceTests
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { winner, second });
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
-        sut.XpService.Verify(r => r.AwardForDayWinAsync(10, 1, Day.Date), Times.Once);
-        sut.XpService.Verify(r => r.AwardForDayWinAsync(11, It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
+        sut.XpService.Verify(r => r.AwardForDayWinAsync(10, 1, Day.Date, It.IsAny<CancellationToken>()), Times.Once);
+        sut.XpService.Verify(r => r.AwardForDayWinAsync(11, It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class ScoringDayFinalizerServiceTests
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { winner });
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         sut.ResultsRepo.Verify(r => r.TryCreateAsync(It.Is<ScoringDayResult>(
             r => r.WinnerUserId == 10 && r.GameId == 1)), Times.Once);
@@ -176,7 +176,7 @@ public class ScoringDayFinalizerServiceTests
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { winner });
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         sut.Achievements.Verify(a => a.CheckAndAwardAsync(10, AchievementTrigger.DayWin), Times.Once);
         sut.Achievements.Verify(a => a.CheckAndAwardAsync(10, AchievementTrigger.LevelUp), Times.Once);
@@ -194,12 +194,12 @@ public class ScoringDayFinalizerServiceTests
             .ReturnsAsync(new List<Submission> { MakeSub(1, userId: 10) });
         sut.ResultsRepo.Setup(r => r.TryCreateAsync(It.IsAny<ScoringDayResult>()))
             .Callback(() => calls.Add("result")).ReturnsAsync(true);
-        sut.XpService.Setup(x => x.AwardForDayWinAsync(10, 1, Day.Date))
+        sut.XpService.Setup(x => x.AwardForDayWinAsync(10, 1, Day.Date, It.IsAny<CancellationToken>()))
             .Callback(() => calls.Add("xp")).ReturnsAsync(100);
         sut.Achievements.Setup(a => a.CheckAndAwardAsync(10, It.IsAny<AchievementTrigger>()))
             .Callback((int _, AchievementTrigger t) => calls.Add(t.ToString())).Returns(Task.CompletedTask);
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         Assert.Equal(new[] { "result", "xp", "DayWin", "LevelUp" }, calls);
     }
@@ -215,9 +215,9 @@ public class ScoringDayFinalizerServiceTests
             .ReturnsAsync(new List<Submission> { MakeSub(1, userId: 10) });
         sut.ResultsRepo.Setup(r => r.TryCreateAsync(It.IsAny<ScoringDayResult>())).ReturnsAsync(false);
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
-        sut.XpService.Verify(x => x.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
+        sut.XpService.Verify(x => x.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
         sut.Achievements.Verify(a => a.CheckAndAwardAsync(It.IsAny<int>(), It.IsAny<AchievementTrigger>()), Times.Never);
     }
@@ -233,7 +233,7 @@ public class ScoringDayFinalizerServiceTests
         sut.NotifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.Service.FinalizeScoringDayAsync(1, Day));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None));
 
         sut.Achievements.Verify(a => a.CheckAndAwardAsync(It.IsAny<int>(), It.IsAny<AchievementTrigger>()), Times.Never);
     }
@@ -259,7 +259,7 @@ public class ScoringDayFinalizerServiceTests
             .Callback<List<Notification>>(n => capturedNotifs = n)
             .Returns(Task.CompletedTask);
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         Assert.NotNull(capturedNotifs);
         Assert.Equal(2, capturedNotifs!.Count);
@@ -280,7 +280,7 @@ public class ScoringDayFinalizerServiceTests
             .Callback<List<Notification>>(n => notifs = n)
             .Returns(Task.CompletedTask);
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         Assert.Contains(notifs!, n => n.UserId == 10 && n.Type == "day_win" && n.Rank == 1);
     }
@@ -304,7 +304,7 @@ public class ScoringDayFinalizerServiceTests
             .Callback<List<Notification>>(n => notifs = n)
             .Returns(Task.CompletedTask);
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         Assert.Contains(notifs!, n => n.UserId == 11 && n.Type == "day_placement" && n.Rank == 2);
     }
@@ -321,9 +321,9 @@ public class ScoringDayFinalizerServiceTests
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { anonymousSubmission });
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
-        sut.XpService.Verify(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>()), Times.Never);
+        sut.XpService.Verify(r => r.AwardForDayWinAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public class ScoringDayFinalizerServiceTests
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission> { anonymousSubmission });
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day);
+        await sut.Service.FinalizeScoringDayAsync(1, Day, CancellationToken.None);
 
         sut.ResultsRepo.Verify(r => r.TryCreateAsync(It.Is<ScoringDayResult>(
             r => r.WinnerUserId == null)), Times.Once);
@@ -355,7 +355,7 @@ public class ScoringDayFinalizerServiceTests
             .Callback<List<Notification>>(n => notifs = n)
             .Returns(Task.CompletedTask);
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day.AddHours(15));
+        await sut.Service.FinalizeScoringDayAsync(1, Day.AddHours(15), CancellationToken.None);
 
         Assert.Equal(new[] { "You won on TestGame! +123 XP", "You placed #3 on TestGame" }, notifs!.Select(n => n.Message));
         Assert.Equal(new int?[] { 1, 3 }, notifs!.Select(n => n.Rank));
@@ -377,7 +377,7 @@ public class ScoringDayFinalizerServiceTests
         sut.SubsRepo.Setup(r => r.GetByGameAndDayByScoreValueAsync(1, Day.Date, It.IsAny<IRankingStrategy>()))
             .ReturnsAsync(new List<Submission>());
 
-        await sut.Service.FinalizeScoringDayAsync(1, Day.AddHours(15));
+        await sut.Service.FinalizeScoringDayAsync(1, Day.AddHours(15), CancellationToken.None);
 
         sut.ResultsRepo.Verify(r => r.TryCreateAsync(It.Is<ScoringDayResult>(
             r => r.ScoringDay == Day.Date && r.ProcessedAt == Day.AddDays(1))), Times.Once);

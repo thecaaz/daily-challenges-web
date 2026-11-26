@@ -27,7 +27,7 @@ public sealed class FriendRequestService(
     private const string AlreadyRequestedMessage = "A friend request already exists between these users.";
     private const string RequestNotFoundMessage = "Friend request not found.";
 
-    public async Task<FriendRequestDto> SendRequestAsync(int senderId, int targetUserId)
+    public async Task<FriendRequestDto> SendRequestAsync(int senderId, int targetUserId, CancellationToken ct)
     {
         if (senderId == targetUserId)
             throw new ValidationException("You cannot send a friend request to yourself.");
@@ -43,15 +43,15 @@ public sealed class FriendRequestService(
         return DtoMapper.ToDto(request);
     }
 
-    public async Task<FriendRequestDto> SendRequestByUsernameAsync(int senderId, string username)
+    public async Task<FriendRequestDto> SendRequestByUsernameAsync(int senderId, string username, CancellationToken ct)
     {
         var target = await users.GetByUsernameAsync(username.Trim())
             ?? throw new NotFoundException($"No user found with username '{username}'.");
 
-        return await SendRequestAsync(senderId, target.Id);
+        return await SendRequestAsync(senderId, target.Id, ct);
     }
 
-    public async Task AcceptRequestAsync(int requestId, int receiverId)
+    public async Task AcceptRequestAsync(int requestId, int receiverId, CancellationToken ct)
     {
         var request = await GetPendingRequestToAsync(requestId, receiverId);
         var now = time.GetUtcNow().UtcDateTime;
@@ -63,14 +63,14 @@ public sealed class FriendRequestService(
     }
 
     /// <summary>The row is kept as Declined: its UpdatedAt starts the sender's <see cref="RerequestCooldown"/>.</summary>
-    public async Task DeclineRequestAsync(int requestId, int receiverId)
+    public async Task DeclineRequestAsync(int requestId, int receiverId, CancellationToken ct)
     {
         var request = await GetPendingRequestToAsync(requestId, receiverId);
         await SaveStatusAsync(request, FriendRequestStatus.Declined, time.GetUtcNow().UtcDateTime);
     }
 
     /// <summary>A request the caller did not send reads as "not found", like in <see cref="GetPendingRequestToAsync"/>.</summary>
-    public async Task CancelRequestAsync(int requestId, int senderId)
+    public async Task CancelRequestAsync(int requestId, int senderId, CancellationToken ct)
     {
         var request = await friends.GetByIdAsync(requestId);
         if (request is null || request.SenderId != senderId)

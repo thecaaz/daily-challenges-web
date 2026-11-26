@@ -63,7 +63,7 @@ public class XpServiceTests
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((User?)null);
 
-        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day1);
+        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
         Assert.Equal(0, result);
     }
 
@@ -75,7 +75,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day1);
+        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
         Assert.Equal(sut.Config.BaseXpPerSubmission, result);
     }
@@ -88,7 +88,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day1);
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
         Assert.Equal(1, user.Streak);
     }
@@ -101,7 +101,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day1);
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
         Assert.Equal(3, user.Streak);
     }
@@ -114,7 +114,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
         Assert.Equal(3, user.Streak);
     }
@@ -127,7 +127,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day3);
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day3, CancellationToken.None);
 
         Assert.Equal(1, user.Streak);
     }
@@ -140,7 +140,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
+        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
         const int baseXp = 50;
         const double oneStreakDayBonus = 0.01;
@@ -157,7 +157,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
+        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
         int maxXp = (int)Math.Round(50 * (1 + 0.30));
         Assert.Equal(maxXp, result);
@@ -171,7 +171,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
+        var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
         int maxXp = (int)Math.Round(50 * (1 + 0.30));
         Assert.Equal(maxXp, result);
@@ -185,7 +185,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        var awarded = await sut.Service.AwardForSubmissionAsync(1, 1, Day1);
+        var awarded = await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
         Assert.Equal(200 + awarded, user.TotalXp);
     }
@@ -203,7 +203,7 @@ public class XpServiceTests
             .Callback<XpEvent>(e => captured = e)
             .ReturnsAsync((XpEvent e) => e);
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day1);
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
         Assert.NotNull(captured);
         Assert.Equal("submission", captured!.EventType);
@@ -219,7 +219,7 @@ public class XpServiceTests
         var sub = NewSub(1, 1);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(sub);
 
-        var awarded = await sut.Service.AwardForSubmissionAsync(1, 1, Day1);
+        var awarded = await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
         Assert.Equal(awarded, sub.XpAwarded);
     }
@@ -233,7 +233,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
         Assert.Equal(now, user.LastSubmissionAt);
     }
@@ -247,7 +247,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day2);
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
         Assert.Equal(4, user.Streak);
     }
@@ -260,7 +260,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
 
-        await sut.Service.AwardForSubmissionAsync(1, 1, Day3);
+        await sut.Service.AwardForSubmissionAsync(1, 1, Day3, CancellationToken.None);
 
         Assert.Equal(5, user.Streak);
     }
@@ -274,7 +274,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((User?)null);
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            sut.Service.AdjustXpAsync(new XpAdjustment(99, 100, "test", AdminUserId: null)));
+            sut.Service.AdjustXpAsync(new XpAdjustment(99, 100, "test", AdminUserId: null), CancellationToken.None));
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 100);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "bonus", AdminUserId: null));
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "bonus", AdminUserId: null), CancellationToken.None);
 
         Assert.Equal(150, user.TotalXp);
     }
@@ -296,7 +296,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 100);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -30, "penalty", AdminUserId: null));
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -30, "penalty", AdminUserId: null), CancellationToken.None);
 
         Assert.Equal(70, user.TotalXp);
     }
@@ -308,7 +308,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 10);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty", AdminUserId: null));
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty", AdminUserId: null), CancellationToken.None);
 
         Assert.Equal(0, user.TotalXp);
     }
@@ -326,7 +326,7 @@ public class XpServiceTests
             .Callback<XpEvent>(e => captured = e)
             .ReturnsAsync((XpEvent e) => e);
 
-        var applied = await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty", AdminUserId: 2));
+        var applied = await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty", AdminUserId: 2), CancellationToken.None);
 
         Assert.Equal(-10, applied);
         Assert.NotNull(captured);
@@ -346,7 +346,7 @@ public class XpServiceTests
             .Callback<XpEvent>(e => captured = e)
             .ReturnsAsync((XpEvent e) => e);
 
-        await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "reward", AdminUserId: 2));
+        await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "reward", AdminUserId: 2), CancellationToken.None);
 
         Assert.NotNull(captured);
         Assert.Equal("admin_adjustment", captured!.EventType);
@@ -361,7 +361,7 @@ public class XpServiceTests
         var sut = Build();
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((User?)null);
 
-        var result = await sut.Service.AwardForDayWinAsync(1, 1, Day1);
+        var result = await sut.Service.AwardForDayWinAsync(1, 1, Day1, CancellationToken.None);
         Assert.Equal(0, result);
     }
 
@@ -372,7 +372,7 @@ public class XpServiceTests
         var user = NewUser(totalXp: 0);
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
 
-        var result = await sut.Service.AwardForDayWinAsync(1, 1, Day1);
+        var result = await sut.Service.AwardForDayWinAsync(1, 1, Day1, CancellationToken.None);
 
         Assert.Equal(sut.Config.WinXp, result);
         Assert.Equal(sut.Config.WinXp, user.TotalXp);
@@ -390,7 +390,7 @@ public class XpServiceTests
             .Callback<XpEvent>(e => captured = e)
             .ReturnsAsync((XpEvent e) => e);
 
-        await sut.Service.AwardForDayWinAsync(1, 5, Day1);
+        await sut.Service.AwardForDayWinAsync(1, 5, Day1, CancellationToken.None);
 
         Assert.NotNull(captured);
         Assert.Equal("day_win", captured!.EventType);
@@ -406,7 +406,7 @@ public class XpServiceTests
         sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
         sut.XpEventRepo.Setup(r => r.HasDayWinAsync(1, 5, Day1.Date)).ReturnsAsync(true);
 
-        var result = await sut.Service.AwardForDayWinAsync(1, 5, Day1);
+        var result = await sut.Service.AwardForDayWinAsync(1, 5, Day1, CancellationToken.None);
 
         Assert.Equal(0, result);
         Assert.Equal(100, user.TotalXp);

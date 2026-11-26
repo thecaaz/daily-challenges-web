@@ -74,7 +74,7 @@ public class UserProfileServiceTests
     {
         var sut = Build(History());
 
-        var profile = await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(OwnerId));
+        var profile = await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(OwnerId), CancellationToken.None);
 
         Assert.NotNull(profile);
         Assert.False(profile!.ScoresHidden);
@@ -94,7 +94,7 @@ public class UserProfileServiceTests
     {
         var sut = Build(History());
 
-        var profile = await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(99));
+        var profile = await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(99), CancellationToken.None);
 
         Assert.True(profile!.ScoresHidden);
         Assert.Equal(new[] { 1 }, Assert.Single(sut.ExcludedIds)!);
@@ -107,7 +107,7 @@ public class UserProfileServiceTests
     {
         var sut = Build(new List<Submission> { On(4, GameA, Today.AddDays(-1), 40) });
 
-        var profile = await sut.Service.GetProfileAsync(OwnerId, 10, viewer: null);
+        var profile = await sut.Service.GetProfileAsync(OwnerId, 10, viewer: null, CancellationToken.None);
 
         Assert.False(profile!.ScoresHidden);
     }
@@ -117,10 +117,10 @@ public class UserProfileServiceTests
     {
         var sut = Build(History());
 
-        await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(OwnerId));
-        await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(OwnerId));
-        await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(99));
-        await sut.Service.GetProfileAsync(OwnerId, 5, Viewer(OwnerId));
+        await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(OwnerId), CancellationToken.None);
+        await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(OwnerId), CancellationToken.None);
+        await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(99), CancellationToken.None);
+        await sut.Service.GetProfileAsync(OwnerId, 5, Viewer(OwnerId), CancellationToken.None);
 
         sut.Profiles.Verify(r => r.GetByIdAsync(OwnerId), Times.Exactly(3));
     }
@@ -130,6 +130,6 @@ public class UserProfileServiceTests
     {
         var sut = Build(History());
 
-        Assert.Null(await sut.Service.GetProfileAsync(404, 10, Viewer(OwnerId)));
+        Assert.Null(await sut.Service.GetProfileAsync(404, 10, Viewer(OwnerId), CancellationToken.None));
     }
 }

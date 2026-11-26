@@ -33,10 +33,10 @@ public class GameOverviewTests
     [Fact]
     public async Task GetOverviewAsync_PartsFail_ReportsEachFailedPartAndFallsBack()
     {
-        _submissionQueries.Setup(q => q.GetAvailableDatesAsync(GameId)).ThrowsAsync(new InvalidOperationException("dates broke"));
-        _submissionQueries.Setup(q => q.HasUserSubmittedForLatestAsync(GameId, It.IsAny<ClaimsPrincipal?>())).ThrowsAsync(new TimeoutException("check broke"));
+        _submissionQueries.Setup(q => q.GetAvailableDatesAsync(GameId, It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("dates broke"));
+        _submissionQueries.Setup(q => q.HasUserSubmittedForLatestAsync(GameId, It.IsAny<ClaimsPrincipal?>(), It.IsAny<CancellationToken>())).ThrowsAsync(new TimeoutException("check broke"));
 
-        var overview = await Build().GetOverviewAsync(GameId, null, include: null);
+        var overview = await Build().GetOverviewAsync(GameId, null, include: null, CancellationToken.None);
 
         Assert.Empty(overview.AvailableDates!);
         Assert.False(overview.HasSubmittedForLatest);
@@ -49,10 +49,10 @@ public class GameOverviewTests
     [Fact]
     public async Task GetOverviewAsync_OnePartFails_KeepsTheOtherPart()
     {
-        _submissionQueries.Setup(q => q.GetAvailableDatesAsync(GameId)).ReturnsAsync(new List<string> { "2026-06-15" });
-        _submissionQueries.Setup(q => q.HasUserSubmittedForLatestAsync(GameId, It.IsAny<ClaimsPrincipal?>())).ThrowsAsync(new InvalidOperationException("check broke"));
+        _submissionQueries.Setup(q => q.GetAvailableDatesAsync(GameId, It.IsAny<CancellationToken>())).ReturnsAsync(new List<string> { "2026-06-15" });
+        _submissionQueries.Setup(q => q.HasUserSubmittedForLatestAsync(GameId, It.IsAny<ClaimsPrincipal?>(), It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("check broke"));
 
-        var overview = await Build().GetOverviewAsync(GameId, null, include: null);
+        var overview = await Build().GetOverviewAsync(GameId, null, include: null, CancellationToken.None);
 
         Assert.Equal(new[] { "2026-06-15" }, overview.AvailableDates);
         Assert.Equal("hasSubmitted", Assert.Single(overview.Errors!).Part);
@@ -61,9 +61,9 @@ public class GameOverviewTests
     [Fact]
     public async Task GetOverviewAsync_PartNotIncluded_IsNotQueried()
     {
-        var overview = await Build().GetOverviewAsync(GameId, null, "availableDates");
+        var overview = await Build().GetOverviewAsync(GameId, null, "availableDates", CancellationToken.None);
 
-        _submissionQueries.Verify(q => q.HasUserSubmittedForLatestAsync(It.IsAny<int>(), It.IsAny<ClaimsPrincipal?>()), Times.Never);
+        _submissionQueries.Verify(q => q.HasUserSubmittedForLatestAsync(It.IsAny<int>(), It.IsAny<ClaimsPrincipal?>(), It.IsAny<CancellationToken>()), Times.Never);
         Assert.False(overview.HasSubmittedForLatest);
         Assert.Null(overview.Errors);
     }
@@ -71,6 +71,6 @@ public class GameOverviewTests
     [Fact]
     public async Task GetOverviewAsync_MissingGame_ThrowsKeyNotFound()
     {
-        await Assert.ThrowsAsync<NotFoundException>(() => Build().GetOverviewAsync(404, null, include: null));
+        await Assert.ThrowsAsync<NotFoundException>(() => Build().GetOverviewAsync(404, null, include: null, CancellationToken.None));
     }
 }

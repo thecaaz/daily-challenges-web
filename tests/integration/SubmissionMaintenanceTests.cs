@@ -549,7 +549,7 @@ public class SubmissionMaintenanceTests
         f.FailFinalization = false;
 
         await new ScoringDayBackgroundService(f.Services.GetRequiredService<IServiceScopeFactory>(), NullLogger<ScoringDayBackgroundService>.Instance, f.Clock)
-            .ProcessAllGamesAsync();
+            .ProcessAllGamesAsync(CancellationToken.None);
 
         Assert.Equal(bob.Id, await f.QueryDbAsync(db => db.ScoringDayResults.Select(r => r.WinnerUserId).SingleAsync()));
     }
@@ -596,6 +596,6 @@ public sealed class RefinalizeFailureApiFactory : ApiFactory
 
     private sealed class ThrowingFinalizer : IScoringDayFinalizerService
     {
-        public Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay) => throw new InvalidOperationException("finalizer down");
+        public Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay, CancellationToken ct) => throw new InvalidOperationException("finalizer down");
     }
 }

@@ -286,7 +286,7 @@ public class AchievementServiceTests
         sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1))
             .ReturnsAsync(new Dictionary<string, DateTime>());
 
-        var result = await sut.Service.GetForUserAsync(1);
+        var result = await sut.Service.GetForUserAsync(1, CancellationToken.None);
 
         Assert.Equal(AchievementCatalog.All.Count, result.Count);
     }
@@ -299,7 +299,7 @@ public class AchievementServiceTests
         sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1))
             .ReturnsAsync(new Dictionary<string, DateTime> { ["win_1"] = ts });
 
-        var result = await sut.Service.GetForUserAsync(1);
+        var result = await sut.Service.GetForUserAsync(1, CancellationToken.None);
 
         var win1 = result.Single(r => r.AchievementId == "win_1");
         Assert.Equal(ts, win1.UnlockedAt);
@@ -312,7 +312,7 @@ public class AchievementServiceTests
         sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1))
             .ReturnsAsync(new Dictionary<string, DateTime>());
 
-        var result = await sut.Service.GetForUserAsync(1);
+        var result = await sut.Service.GetForUserAsync(1, CancellationToken.None);
 
         Assert.All(result, r => Assert.Null(r.UnlockedAt));
     }

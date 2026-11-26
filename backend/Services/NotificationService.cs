@@ -10,7 +10,7 @@ public sealed class NotificationService(INotificationRepository notifications) :
 {
     private const string NotFoundMessage = "Notification not found";
 
-    public async Task<NotificationPageDto> GetNotificationsAsync(int userId, int page, int pageSize)
+    public async Task<NotificationPageDto> GetNotificationsAsync(int userId, int page, int pageSize, CancellationToken ct)
     {
         var (clampedPage, clampedPageSize) = Paging.Clamp(page, pageSize);
         var (items, total, unread) = await notifications.GetByUserPagedAsync(userId, clampedPage, clampedPageSize);
@@ -23,14 +23,14 @@ public sealed class NotificationService(INotificationRepository notifications) :
         };
     }
 
-    public Task<int> GetUnreadCountAsync(int userId) => notifications.GetUnreadCountAsync(userId);
+    public Task<int> GetUnreadCountAsync(int userId, CancellationToken ct) => notifications.GetUnreadCountAsync(userId);
 
-    public Task MarkReadAsync(int id, int userId) => notifications.MarkReadAsync(id, userId);
+    public Task MarkReadAsync(int id, int userId, CancellationToken ct) => notifications.MarkReadAsync(id, userId);
 
-    public Task MarkAllReadAsync(int userId) => notifications.MarkAllReadAsync(userId);
+    public Task MarkAllReadAsync(int userId, CancellationToken ct) => notifications.MarkAllReadAsync(userId);
 
     /// <summary>For non-admins, someone else's notification reads as "not found" so ids cannot be probed.</summary>
-    public async Task DeleteAsync(int id, RequestingUser requester)
+    public async Task DeleteAsync(int id, RequestingUser requester, CancellationToken ct)
     {
         var notification = await GetExistingAsync(id);
         if (!requester.IsAdmin && notification.UserId != requester.UserId)

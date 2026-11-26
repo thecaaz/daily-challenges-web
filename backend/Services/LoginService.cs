@@ -17,7 +17,7 @@ public sealed class LoginService(IUserRepository users, SessionIssuer sessions) 
     private static readonly Lazy<string> UnknownUserPasswordHash = new(() => BCrypt.Net.BCrypt.HashPassword(TimingDummyPassword));
 
     /// <summary>Username lookups are case-insensitive (NOCASE column).</summary>
-    public async Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response)
+    public async Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response, CancellationToken ct)
     {
         var user = await users.GetByUsernameAsync(CredentialRules.NormalizeUsername(username));
         if (user == null)

@@ -22,7 +22,7 @@ public sealed class ScoringDayOutcomeRecorder(
     ILogger<ScoringDayOutcomeRecorder> logger)
 {
     /// <returns>The outcome, or null when another run already claimed the day (nothing was written).</returns>
-    public async Task<ScoringDayOutcome?> RecordAsync(Game game, DateTime day)
+    public async Task<ScoringDayOutcome?> RecordAsync(Game game, DateTime day, CancellationToken ct)
     {
         var rankedSubmissions = await submissions.GetByGameAndDayByScoreValueAsync(
             game.Id, day, RankingStrategyFactory.GetStrategy(game.RankingMode));
@@ -30,7 +30,7 @@ public sealed class ScoringDayOutcomeRecorder(
 
         if (!await ClaimDayAsync(game.Id, day, winner?.UserId)) return null;
 
-        await AwardWinXpAsync(game, day, winner?.UserId);
+        await AwardWinXpAsync(game, day, winner?.UserId, ct);
         var notificationCount = await NotifyParticipantsAsync(game, day, rankedSubmissions);
         return new ScoringDayOutcome(winner?.UserId, winner?.Username, notificationCount);
     }
@@ -44,11 +44,11 @@ public sealed class ScoringDayOutcomeRecorder(
             ProcessedAt = time.GetUtcNow().UtcDateTime
         });
 
-    private async Task AwardWinXpAsync(Game game, DateTime day, int? winnerUserId)
+    private async Task AwardWinXpAsync(Game game, DateTime day, int? winnerUserId, CancellationToken ct)
     {
         if (winnerUserId is not int userId) return;
 
-        var xpAwarded = await xp.AwardForDayWinAsync(userId, game.Id, day);
+        var xpAwarded = await xp.AwardForDayWinAsync(userId, game.Id, day, ct);
         logger.LogInformation("Awarded {Xp} XP to user {UserId} for winning game {GameName} on {Day}",
             xpAwarded, userId, game.Name, ScoringDayCalculator.FormatScoringDay(day));
     }

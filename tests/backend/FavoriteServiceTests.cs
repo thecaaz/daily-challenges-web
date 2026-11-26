@@ -23,7 +23,7 @@ public class FavoriteServiceTests
     {
         var (service, favorites, _) = Build();
 
-        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.AddFavoriteAsync(1, 9));
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => service.AddFavoriteAsync(1, 9, CancellationToken.None));
 
         Assert.Equal("Game not found", ex.Message);
         favorites.Verify(r => r.AddAsync(It.IsAny<Favorite>()), Times.Never);
@@ -35,7 +35,7 @@ public class FavoriteServiceTests
         var (service, favorites, games) = Build();
         games.Setup(r => r.GetByIdAsync(9)).ReturnsAsync(new Game { Id = 9 });
 
-        await service.AddFavoriteAsync(1, 9);
+        await service.AddFavoriteAsync(1, 9, CancellationToken.None);
 
         favorites.Verify(r => r.AddAsync(It.Is<Favorite>(f => f.UserId == 1 && f.GameId == 9 && f.CreatedAt == Now)), Times.Once);
     }
@@ -45,7 +45,7 @@ public class FavoriteServiceTests
     {
         var (service, favorites, _) = Build();
 
-        await service.RemoveFavoriteAsync(1, 9);
+        await service.RemoveFavoriteAsync(1, 9, CancellationToken.None);
 
         favorites.Verify(r => r.RemoveAsync(1, 9), Times.Once);
     }

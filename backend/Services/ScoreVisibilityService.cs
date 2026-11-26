@@ -10,13 +10,13 @@ public sealed class ScoreVisibilityService(IUserSubmissionChecker checker, TimeP
 
     public bool IsCurrentDay(Game game, DateTime scoringDay) => scoringDay.Date == GetCurrentScoringDay(game);
 
-    public Task<bool> CanSeeDayAsync(ClaimsPrincipal? user, Game game, DateTime scoringDay) =>
-        CanSeeDayAsync(ScoreViewer.From(user), game, scoringDay);
+    public Task<bool> CanSeeDayAsync(ClaimsPrincipal? user, Game game, DateTime scoringDay, CancellationToken ct) =>
+        CanSeeDayAsync(ScoreViewer.From(user), game, scoringDay, ct);
 
-    public async Task<bool> CanSeeDayAsync(ScoreViewer viewer, Game game, DateTime scoringDay)
+    public async Task<bool> CanSeeDayAsync(ScoreViewer viewer, Game game, DateTime scoringDay, CancellationToken ct)
     {
         if (!IsCurrentDay(game, scoringDay)) return true;
         if (viewer.IsAdmin) return true;
-        return await checker.HasUserSubmittedForDayAsync(viewer.UserId, game.Id, scoringDay.Date);
+        return await checker.HasUserSubmittedForDayAsync(viewer.UserId, game.Id, scoringDay.Date, ct);
     }
 }

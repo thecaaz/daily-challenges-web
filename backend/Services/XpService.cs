@@ -25,7 +25,7 @@ public sealed class XpService(
 
     private readonly XpConfig _config = config.Value;
 
-    public async Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay)
+    public async Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay, CancellationToken ct)
     {
         var user = await users.GetByIdAsync(userId);
         if (user == null) return 0;
@@ -55,7 +55,7 @@ public sealed class XpService(
         return xpAwarded;
     }
 
-    public async Task<int> AdjustXpAsync(XpAdjustment adjustment)
+    public async Task<int> AdjustXpAsync(XpAdjustment adjustment, CancellationToken ct)
     {
         var (userId, delta, reason, adminUserId) = adjustment;
         var user = await users.GetByIdAsync(userId)
@@ -78,7 +78,7 @@ public sealed class XpService(
         return applied;
     }
 
-    public async Task<int> RevokeSubmissionAsync(SubmissionXpRevocation revocation)
+    public async Task<int> RevokeSubmissionAsync(SubmissionXpRevocation revocation, CancellationToken ct)
     {
         var (userId, submissionId, gameId, scoringDay, amount, reason) = revocation;
         if (amount <= 0) return 0;
@@ -103,7 +103,7 @@ public sealed class XpService(
     }
 
     /// <summary>The event is deleted rather than offset, so the unique day_win index lets the day be won again.</summary>
-    public async Task<int> RevokeDayWinAsync(int userId, int gameId, DateTime scoringDay)
+    public async Task<int> RevokeDayWinAsync(int userId, int gameId, DateTime scoringDay, CancellationToken ct)
     {
         var dayWin = await xpEvents.GetDayWinAsync(userId, gameId, scoringDay.Date);
         if (dayWin == null) return 0;
@@ -116,7 +116,7 @@ public sealed class XpService(
     }
 
     /// <summary>Idempotent: a day is won at most once (also enforced by a filtered unique index).</summary>
-    public async Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay)
+    public async Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay, CancellationToken ct)
     {
         var scoringDate = scoringDay.Date;
         if (await xpEvents.HasDayWinAsync(userId, gameId, scoringDate)) return 0;

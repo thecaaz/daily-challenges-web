@@ -20,12 +20,12 @@ public sealed class GameHighscoreService(
     /// Hidden-scores rule: the current scoring day is left out (in SQL, on the stored ScoringDay) unless the
     /// caller may see it. Ordering and the top-50 limit also run in SQL.
     /// </summary>
-    public async Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user)
+    public async Task<HighscoreResult> GetHighscoreAsync(int id, ClaimsPrincipal? user, CancellationToken ct)
     {
         var game = await GetExistingGameAsync(id);
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
         var currentDay = visibility.GetCurrentScoringDay(game);
-        var canSeeCurrent = await visibility.CanSeeDayAsync(user, game, currentDay);
+        var canSeeCurrent = await visibility.CanSeeDayAsync(user, game, currentDay, ct);
 
         var top = await submissions.GetTopByScoreValueAsync(
             new TopScoresQuery(id, TopLimit) { ExcludeScoringDay = canSeeCurrent ? null : currentDay }, strategy);
@@ -33,7 +33,7 @@ public sealed class GameHighscoreService(
     }
 
     /// <summary>The caller's own submissions are always visible.</summary>
-    public async Task<HighscoreResult> GetPersonalHighscoreAsync(int id, int userId)
+    public async Task<HighscoreResult> GetPersonalHighscoreAsync(int id, int userId, CancellationToken ct)
     {
         var game = await GetExistingGameAsync(id);
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);

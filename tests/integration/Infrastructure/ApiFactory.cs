@@ -87,7 +87,7 @@ public class ApiFactory : WebApplicationFactory<Program>
     public async Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay)
     {
         using var scope = Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, scoringDay);
+        await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, scoringDay, CancellationToken.None);
     }
 
     /// <summary>An HttpClient that does not store cookies, so each test sends the refresh cookie explicitly.</summary>

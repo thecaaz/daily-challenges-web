@@ -21,10 +21,10 @@ public sealed class ScoreMaintenanceService(
 
     private sealed record ScoreDiff(int Total, List<ScoreValueChange> Changes);
 
-    public async Task<ReparseScoresReportDto> PreviewReparseScoresAsync() =>
+    public async Task<ReparseScoresReportDto> PreviewReparseScoresAsync(CancellationToken ct) =>
         BuildReport(await DiffStoredScoresAsync(), dryRun: true);
 
-    public async Task<ReparseScoresReportDto> ReparseScoresAsync()
+    public async Task<ReparseScoresReportDto> ReparseScoresAsync(CancellationToken ct)
     {
         var report = await transactions.RunAsync(RewriteChangedScoresAsync);
         logger.LogWarning("Re-parsed scores: {Changed} of {Total} ScoreValues rewritten ({BecameNull} now unranked, {BecameNumeric} now ranked)",

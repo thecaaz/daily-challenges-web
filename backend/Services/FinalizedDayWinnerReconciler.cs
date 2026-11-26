@@ -21,7 +21,7 @@ public sealed class FinalizedDayWinnerReconciler(
     /// event, so the unique index allows a new award), deletes the day's result notifications and the
     /// ScoringDayResult row. Returns true when the caller must call <see cref="RefinalizeAsync"/> after committing.
     /// </summary>
-    public async Task<bool> UnfinalizeIfWinnerChangedAsync(int gameId, DateTime scoringDay)
+    public async Task<bool> UnfinalizeIfWinnerChangedAsync(int gameId, DateTime scoringDay, CancellationToken ct)
     {
         var day = scoringDay.Date;
         var result = await results.GetAsync(gameId, day);
@@ -35,7 +35,7 @@ public sealed class FinalizedDayWinnerReconciler(
         if (leader?.UserId == result.WinnerUserId) return false;
 
         if (result.WinnerUserId.HasValue)
-            await xp.RevokeDayWinAsync(result.WinnerUserId.Value, gameId, day);
+            await xp.RevokeDayWinAsync(result.WinnerUserId.Value, gameId, day, ct);
         await notifications.DeleteDayResultNotificationsAsync(gameId, day);
         await results.DeleteAsync(result);
         return true;
@@ -47,6 +47,8 @@ public sealed class FinalizedDayWinnerReconciler(
     /// change is applied, and the day is merely left un-finalized until the background job, which
     /// rescans recent un-finalized days every tick, retries it. This is therefore an error boundary:
     /// any exception is logged as a warning and not rethrown.
+    /// It takes no CancellationToken and finalizes with <see cref="CancellationToken.None"/>: once the admin
+    /// change has committed, a client abort must not leave the day un-finalized until the next background tick.
     /// </summary>
     public async Task RefinalizeAsync(int gameId, DateTime scoringDay)
     {
@@ -65,6 +67,6 @@ public sealed class FinalizedDayWinnerReconciler(
     {
         using var scope = scopeFactory.CreateScope();
         var finalizer = scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>();
-        await finalizer.FinalizeScoringDayAsync(gameId, day);
+        await finalizer.FinalizeScoringDayAsync(gameId, day, CancellationToken.None);
     }
 }

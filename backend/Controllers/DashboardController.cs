@@ -10,6 +10,6 @@ namespace DailyChallenges.Controllers;
 public sealed class DashboardController(IDashboardService dashboard) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Get([CurrentUserId] int userId) =>
-        Ok(await dashboard.GetDashboardDataAsync(userId));
+    public async Task<IActionResult> Get([CurrentUserId] int userId, CancellationToken ct) =>
+        Ok(await dashboard.GetDashboardDataAsync(userId, ct));
 }

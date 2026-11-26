@@ -43,7 +43,7 @@ public sealed class ScoringDayBackgroundService(
     /// One tick: for every game, finalize each ended scoring day that is not finalized yet, oldest first
     /// (at most <see cref="MaxDaysPerTick"/> per game, within <see cref="ScoringDayCatchUpWindow"/>).
     /// </summary>
-    public async Task ProcessAllGamesAsync(CancellationToken ct = default)
+    public async Task ProcessAllGamesAsync(CancellationToken ct)
     {
         foreach (var game in await GetGamesAsync())
         {
@@ -61,7 +61,7 @@ public sealed class ScoringDayBackgroundService(
     }
 
     /// <summary>Deletes revoked refresh tokens that have expired anyway (they can't be replayed any more).</summary>
-    public async Task<int> PurgeExpiredRevokedTokensAsync(CancellationToken ct = default)
+    public async Task<int> PurgeExpiredRevokedTokensAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
         var sessions = scope.ServiceProvider.GetRequiredService<ISessionRepository>();
@@ -161,7 +161,7 @@ public sealed class ScoringDayBackgroundService(
         try
         {
             using var scope = scopeFactory.CreateScope();
-            await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, day);
+            await scope.ServiceProvider.GetRequiredService<IScoringDayFinalizerService>().FinalizeScoringDayAsync(gameId, day, ct);
             return true;
         }
         catch (Exception ex) when (!IsShutdown(ex, ct))

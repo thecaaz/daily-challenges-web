@@ -35,7 +35,7 @@ public class ScoreVisibilityServiceTests
     [Fact]
     public async Task CanSeeDay_PastDay_IsVisibleToAnonymousViewers()
     {
-        var canSee = await Build().CanSeeDayAsync((ClaimsPrincipal?)null, Game, Today.AddDays(-1));
+        var canSee = await Build().CanSeeDayAsync((ClaimsPrincipal?)null, Game, Today.AddDays(-1), CancellationToken.None);
 
         Assert.True(canSee);
         _checker.VerifyNoOtherCalls();
@@ -44,7 +44,7 @@ public class ScoreVisibilityServiceTests
     [Fact]
     public async Task CanSeeDay_CurrentDay_IsVisibleToAdminsWithoutASubmission()
     {
-        var canSee = await Build().CanSeeDayAsync(Principal(1, isAdmin: true), Game, Today);
+        var canSee = await Build().CanSeeDayAsync(Principal(1, isAdmin: true), Game, Today, CancellationToken.None);
 
         Assert.True(canSee);
         _checker.VerifyNoOtherCalls();
@@ -55,9 +55,9 @@ public class ScoreVisibilityServiceTests
     [InlineData(false)]
     public async Task CanSeeDay_CurrentDay_DependsOnTheUsersSubmission(bool hasSubmitted)
     {
-        _checker.Setup(c => c.HasUserSubmittedForDayAsync(3, Game.Id, Today)).ReturnsAsync(hasSubmitted);
+        _checker.Setup(c => c.HasUserSubmittedForDayAsync(3, Game.Id, Today, It.IsAny<CancellationToken>())).ReturnsAsync(hasSubmitted);
 
-        var canSee = await Build().CanSeeDayAsync(Principal(3, isAdmin: false), Game, Today.AddHours(5));
+        var canSee = await Build().CanSeeDayAsync(Principal(3, isAdmin: false), Game, Today.AddHours(5), CancellationToken.None);
 
         Assert.Equal(hasSubmitted, canSee);
     }
@@ -65,12 +65,12 @@ public class ScoreVisibilityServiceTests
     [Fact]
     public async Task CanSeeDay_CurrentDay_AnonymousViewerAsksTheCheckerWithoutAUser()
     {
-        _checker.Setup(c => c.HasUserSubmittedForDayAsync(null, Game.Id, Today)).ReturnsAsync(false);
+        _checker.Setup(c => c.HasUserSubmittedForDayAsync(null, Game.Id, Today, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
-        var canSee = await Build().CanSeeDayAsync((ClaimsPrincipal?)null, Game, Today);
+        var canSee = await Build().CanSeeDayAsync((ClaimsPrincipal?)null, Game, Today, CancellationToken.None);
 
         Assert.False(canSee);
-        _checker.Verify(c => c.HasUserSubmittedForDayAsync(null, Game.Id, Today), Times.Once);
+        _checker.Verify(c => c.HasUserSubmittedForDayAsync(null, Game.Id, Today, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Theory]
@@ -79,9 +79,9 @@ public class ScoreVisibilityServiceTests
     [InlineData(false, false, false)]
     public async Task CanSeeDay_ResolvedViewer_FollowsTheSameRule(bool isAdmin, bool hasSubmitted, bool expected)
     {
-        _checker.Setup(c => c.HasUserSubmittedForDayAsync(3, Game.Id, Today)).ReturnsAsync(hasSubmitted);
+        _checker.Setup(c => c.HasUserSubmittedForDayAsync(3, Game.Id, Today, It.IsAny<CancellationToken>())).ReturnsAsync(hasSubmitted);
 
-        var canSee = await Build().CanSeeDayAsync(new ScoreViewer(3, isAdmin), Game, Today);
+        var canSee = await Build().CanSeeDayAsync(new ScoreViewer(3, isAdmin), Game, Today, CancellationToken.None);
 
         Assert.Equal(expected, canSee);
     }
