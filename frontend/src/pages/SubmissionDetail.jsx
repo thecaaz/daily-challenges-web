@@ -13,18 +13,9 @@ import NotFound from '../components/ui/NotFound'
 import useSubmission from '../hooks/useSubmission'
 import { isScoreHidden } from '../components/SubmissionCard'
 import { winnerGold } from '../styles/tokens'
-import UserLink from '../components/ui/UserLink'
+import OptionalUserLink from '../components/ui/OptionalUserLink'
 
 const winnerIconSx = { color: winnerGold, fontSize: '1.1rem' }
-
-function SubmitterName({ submission }) {
-  if (!submission.userId) return submission.username
-  return (
-    <UserLink userId={submission.userId}>
-      {submission.username}
-    </UserLink>
-  )
-}
 
 export default function SubmissionDetail() {
   const { id } = useParams()
@@ -53,7 +44,7 @@ export default function SubmissionDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <Typography variant="h5">
-            Submission — <SubmitterName submission={submission} />
+            Submission — <OptionalUserLink userId={submission.userId}>{submission.username}</OptionalUserLink>
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="caption">

@@ -13,17 +13,15 @@ import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 import { isScoreHidden } from '../components/SubmissionCard'
 import { winnerGold } from '../styles/tokens'
-import UserLink from '../components/ui/UserLink'
+import OptionalUserLink from '../components/ui/OptionalUserLink'
 
 const winnerIconSx = { color: winnerGold, fontSize: '1.2rem' }
 
 function SubmitterName({ submission }) {
-  const name = <Typography variant="h6" sx={{ fontWeight: 700 }}>{submission.username}</Typography>
-  if (!submission.userId) return name
   return (
-    <UserLink userId={submission.userId}>
-      {name}
-    </UserLink>
+    <OptionalUserLink userId={submission.userId}>
+      <Typography variant="h6" sx={{ fontWeight: 700 }}>{submission.username}</Typography>
+    </OptionalUserLink>
   )
 }
 

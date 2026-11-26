@@ -4,7 +4,7 @@ import AppButton from '../ui/AppButton'
 import { formatDateTime } from '../../utils/dateFormat'
 import { isNonNumericScore } from '../../utils/parseScore'
 import { warningOrange } from '../../styles/tokens'
-import UserLink from '../ui/UserLink'
+import OptionalUserLink from '../ui/OptionalUserLink'
 
 const NOT_A_NUMBER_STYLE = { color: warningOrange, fontSize: '0.75rem', marginTop: 2 }
 
@@ -46,7 +46,7 @@ function SubmissionRow({ submission, onScoreChange, onSave, onDelete }) {
   return (
     <TableRow>
       <TableCell>{submission.id}</TableCell>
-      <TableCell><SubmitterName submission={submission} /></TableCell>
+      <TableCell><OptionalUserLink userId={submission.userId}>{submission.username}</OptionalUserLink></TableCell>
       <TableCell>
         <input value={submission.score ?? ''} onChange={e => onScoreChange(submission.id, e.target.value)} />
         {isNonNumericScore(submission.score) && <div style={NOT_A_NUMBER_STYLE}>Not a number</div>}
@@ -57,16 +57,5 @@ function SubmissionRow({ submission, onScoreChange, onSave, onDelete }) {
         <AppButton color="error" onClick={() => onDelete(submission.id)}>Delete</AppButton>
       </TableCell>
     </TableRow>
-  )
-}
-
-function SubmitterName({ submission }) {
-  const username = submission.username ?? ''
-  if (!submission.userId) return username
-
-  return (
-    <UserLink userId={submission.userId}>
-      {username}
-    </UserLink>
   )
 }
