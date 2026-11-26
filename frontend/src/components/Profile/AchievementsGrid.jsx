@@ -1,34 +1,16 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Box, Typography, CircularProgress } from '@mui/material'
-import api from '../../api'
+import useAchievements from '../../hooks/useAchievements'
 import AchievementBadge from './AchievementBadge'
 
 export default function AchievementsGrid({ userId }) {
-  const [achievements, setAchievements] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!userId) {
-      setAchievements(null)
-      setLoading(false)
-      return
-    }
-    let mounted = true
-    setLoading(true)
-
-    api.get(`/users/${userId}/achievements`)
-      .then(res => { if (mounted) setAchievements(res.data) })
-      .catch(() => { if (mounted) setAchievements([]) })
-      .finally(() => { if (mounted) setLoading(false) })
-
-    return () => { mounted = false }
-  }, [userId])
+  const { achievements, loading } = useAchievements(userId)
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>
   if (!achievements || achievements.length === 0) return null
 
-  const unlocked = achievements.filter(a => a.unlockedAt || a.UnlockedAt)
-  const locked = achievements.filter(a => !a.unlockedAt && !a.UnlockedAt)
+  const unlocked = achievements.filter(achievement => achievement.unlockedAt)
+  const locked = achievements.filter(achievement => !achievement.unlockedAt)
 
   return (
     <Box>
@@ -41,11 +23,11 @@ export default function AchievementsGrid({ userId }) {
         )}
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-        {unlocked.map(a => (
-          <AchievementBadge key={a.achievementId || a.AchievementId} achievement={a} />
+        {unlocked.map(achievement => (
+          <AchievementBadge key={achievement.achievementId} achievement={achievement} />
         ))}
-        {locked.map(a => (
-          <AchievementBadge key={a.achievementId || a.AchievementId} achievement={a} />
+        {locked.map(achievement => (
+          <AchievementBadge key={achievement.achievementId} achievement={achievement} />
         ))}
       </Box>
     </Box>

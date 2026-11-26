@@ -203,7 +203,7 @@ describe('Admin page', () => {
 
     fireEvent.change(await screen.findByDisplayValue('10'), { target: { value: 'abc' } })
 
-    expect(screen.getByText('Not a number')).toBeInTheDocument()
+    expect(screen.getByText('Not a number')).toHaveStyle({ color: '#ed6c02' })
   })
 
   it('saves an edited score trimmed and reloads the submissions', async () => {

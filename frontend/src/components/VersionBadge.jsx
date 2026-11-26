@@ -1,20 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Chip, Tooltip } from '@mui/material'
-import api from '../api'
+import useReleaseInfo from '../hooks/useReleaseInfo'
 import ChangelogModal from './ChangelogModal'
 
 export default function VersionBadge() {
-  const [info, setInfo] = useState(null)
+  const info = useReleaseInfo()
   const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    let mounted = true
-    api.get('/info').then(res => {
-      if (!mounted) return
-      setInfo(res.data)
-    }).catch(() => {})
-    return () => { mounted = false }
-  }, [])
 
   if (!info || !info.version) return null
 

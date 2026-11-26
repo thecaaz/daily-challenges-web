@@ -7,8 +7,6 @@ import {
   gameFrameOf, isResponseToScoreRequest, requestScreenshot
 } from '../utils/scoreBridge'
 
-export { normalizeCapturedScore }
-
 /** How long the faux-fullscreen overlay may stay up waiting for the extension. */
 export const CAPTURE_TIMEOUT_MS = 3000
 /** Lets the overlay layout settle before the screenshot is taken. */

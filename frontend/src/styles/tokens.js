@@ -29,6 +29,15 @@ const dark = {
 /** Trophy colour of a scoring-day winner; the same in both modes. */
 export const winnerGold = '#FFD700'
 
+/** Medal colours of the higher achievement tiers; the same in both modes. */
+export const medalColors = { gold: winnerGold, silver: '#C0C0C0' }
+
+/**
+ * Inline warning text (e.g. a score that is not a number). MUI's light-mode
+ * warning.main, kept in dark mode too: the theme has no warning colour of its own.
+ */
+export const warningOrange = '#ed6c02'
+
 export default function tokens(mode = 'light') {
   return mode === 'dark' ? dark : light
 }

@@ -23,16 +23,13 @@ export default function ScoreSparkline({ history, rankingMode }) {
   const gradientId = `sparkGrad-${instanceId.replace(/:/g, '')}`
   if (!history || history.length === 0) return null
 
-  const hasValues = history.some(h => (h.scoreValue ?? h.ScoreValue) != null)
+  const hasValues = history.some(entry => entry.scoreValue != null)
   if (!hasValues) return null
 
   const color = theme.palette.primary.main
 
-  const data = history.map(h => ({
-    scoringDay: h.scoringDay ?? h.ScoringDay,
-    scoreValue: h.scoreValue ?? h.ScoreValue,
-  }))
-  const valueCount = data.filter(d => d.scoreValue != null).length
+  const data = history.map(({ scoringDay, scoreValue }) => ({ scoringDay, scoreValue }))
+  const valueCount = data.filter(point => point.scoreValue != null).length
   const isSinglePoint = valueCount === 1
   const singlePointAsDot = isSinglePoint ? { r: 3, fill: color, stroke: color } : false
 

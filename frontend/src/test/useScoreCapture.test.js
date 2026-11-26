@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useScoreCapture, CAPTURE_TIMEOUT_MS, normalizeCapturedScore } from '../hooks/useScoreCapture'
+import { useScoreCapture, CAPTURE_TIMEOUT_MS } from '../hooks/useScoreCapture'
+import { normalizeCapturedScore } from '../utils/capturedScore'
 import compressImage from '../utils/compressImage'
 import useAdapter from '../hooks/useAdapter'
 

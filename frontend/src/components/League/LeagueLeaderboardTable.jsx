@@ -6,9 +6,10 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import { Link } from 'react-router-dom'
 import imageUrl from '../../utils/imageUrl'
 import UserLink from './UserLink'
+import { winnerGold } from '../../styles/tokens'
 
-const TROPHY_COLOR = 'gold'
 const HIDDEN_RANK = '–'
+const trophySx = { color: winnerGold, verticalAlign: 'middle' }
 
 /**
  * Ranked league entries for one game and day. An entry's score, rank and
@@ -47,7 +48,7 @@ function LeaderboardRow({ entry, isHidden, isCurrentUser }) {
     <TableRow sx={isCurrentUser ? { bgcolor: 'action.selected' } : {}}>
       <TableCell>
         {isHidden && HIDDEN_RANK}
-        {!isHidden && isWinner && <EmojiEventsIcon fontSize="small" sx={{ color: TROPHY_COLOR, verticalAlign: 'middle' }} />}
+        {!isHidden && isWinner && <EmojiEventsIcon fontSize="small" sx={trophySx} />}
         {!isHidden && !isWinner && entry.rank}
       </TableCell>
       <TableCell>

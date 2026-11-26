@@ -1,5 +1,3 @@
-import parseScore from '../../utils/parseScore'
-
 const ALLOWED_SCREENSHOT_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024
 
@@ -7,11 +5,6 @@ export const NON_NUMERIC_SCORE_WARNING = 'This score is not a number and may not
 
 /** The score as it is sent: the user's text, trimmed. */
 export const trimScore = score => String(score ?? '').trim()
-
-export const isNonNumericScore = score => {
-  const trimmed = trimScore(score)
-  return trimmed !== '' && isNaN(parseScore(trimmed))
-}
 
 /**
  * Client-side checks before a submission is sent, in the order the user

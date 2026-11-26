@@ -1,11 +1,10 @@
 import React from 'react'
-import useAsyncData from '../hooks/useAsyncData'
+import useSubmissionPair from '../hooks/useSubmissionPair'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { Typography, Card, Box, Chip, Tooltip, Divider } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import AppButton from '../components/ui/AppButton'
 import PanZoomImage from '../components/ui/PanZoomImage'
-import api from '../api'
 import { formatDateTime } from '../utils/dateFormat'
 import formatNumber from '../utils/formatNumber'
 import imageUrl from '../utils/imageUrl'
@@ -13,6 +12,9 @@ import goBackOrRoute from '../utils/navigation'
 import Loading from '../components/ui/Loading'
 import NotFound from '../components/ui/NotFound'
 import { isScoreHidden } from '../components/SubmissionCard'
+import { winnerGold } from '../styles/tokens'
+
+const winnerIconSx = { color: winnerGold, fontSize: '1.2rem' }
 
 function SubmitterName({ submission }) {
   const name = <Typography variant="h6" sx={{ fontWeight: 700 }}>{submission.username}</Typography>
@@ -36,7 +38,7 @@ function SubmissionPanel({ submission }) {
           <SubmitterName submission={submission} />
           {submission.isDayWinner && (
             <Tooltip title={winnerTitle}>
-              <EmojiEventsIcon sx={{ color: '#FFD700', fontSize: '1.2rem' }} />
+              <EmojiEventsIcon sx={winnerIconSx} />
             </Tooltip>
           )}
           {submission.rank != null && (
@@ -64,20 +66,12 @@ export default function CompareSubmissions() {
   const { id1, id2 } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { data, loading, error } = useAsyncData(
-    () => Promise.all([
-      api.get(`/submissions/${id1}`),
-      api.get(`/submissions/${id2}`),
-    ]).then(([r1, r2]) => ({ sub1: r1.data, sub2: r2.data })),
-    [id1, id2]
-  )
-  const sub1 = data?.sub1 ?? null
-  const sub2 = data?.sub2 ?? null
+  const { first, second, loading, error } = useSubmissionPair(id1, id2)
 
   if (loading) return <Loading />
-  if (error || !sub1 || !sub2) return <NotFound message="Could not load submissions for comparison" />
+  if (error || !first || !second) return <NotFound message="Could not load submissions for comparison" />
 
-  const goBack = () => goBackOrRoute(navigate, location, sub1.gameId ? `/games/${sub1.gameId}` : '/', {})
+  const goBack = () => goBackOrRoute(navigate, location, first.gameId ? `/games/${first.gameId}` : '/', {})
 
   return (
     <div>
@@ -87,10 +81,10 @@ export default function CompareSubmissions() {
       </Box>
 
       <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
-        <SubmissionPanel submission={sub1} />
+        <SubmissionPanel submission={first} />
         <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
         <Divider sx={{ display: { xs: 'block', md: 'none' } }} />
-        <SubmissionPanel submission={sub2} />
+        <SubmissionPanel submission={second} />
       </Box>
     </div>
   )
