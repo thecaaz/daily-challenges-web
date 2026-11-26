@@ -19,6 +19,8 @@ public sealed class AdminUserService(
     ILogger<AdminUserService> logger) : IAdminUserService
 {
     private const string DefaultXpAdjustmentReason = "admin_adjustment";
+    private const string ZeroDeltaMessage = "Delta must be non-zero";
+    private const string PasswordRequiredMessage = "NewPassword is required";
 
     private DateTime TodayUtc => time.GetUtcNow().UtcDateTime.Date;
 
@@ -35,6 +37,8 @@ public sealed class AdminUserService(
     /// </summary>
     public async Task<UserDto> AdjustXpAsync(XpAdjustment adjustment)
     {
+        if (adjustment.Delta == 0) throw new ValidationException(ZeroDeltaMessage);
+
         var effective = adjustment with { Reason = adjustment.Reason ?? DefaultXpAdjustmentReason };
         await transactions.RunAsync(() => xp.AdjustXpAsync(effective));
 
@@ -48,8 +52,9 @@ public sealed class AdminUserService(
     }
 
     /// <summary>Bumping TokenVersion ends every existing session of the user (refresh tokens carry the old version).</summary>
-    public async Task SetPasswordAsync(int userId, string newPassword, int? requestingAdminId = null)
+    public async Task SetPasswordAsync(int userId, string? newPassword, int? requestingAdminId = null)
     {
+        if (string.IsNullOrWhiteSpace(newPassword)) throw new ValidationException(PasswordRequiredMessage);
         CredentialRules.ValidatePassword(newPassword);
 
         var user = await GetExistingUserAsync(userId);
