@@ -27,7 +27,7 @@ public sealed class XpService(
 
     public async Task<int> AwardForSubmissionAsync(int userId, int submissionId, DateTime scoringDay, CancellationToken ct)
     {
-        var user = await users.GetByIdAsync(userId);
+        var user = await users.GetByIdAsync(userId, ct);
         if (user == null) return 0;
 
         var now = time.GetUtcNow().UtcDateTime;
@@ -38,7 +38,7 @@ public sealed class XpService(
         AddXp(user, xpAwarded);
         user.Streak = streak;
         RecordLastSubmission(user, now);
-        var submission = await StampSubmissionXpAsync(submissionId, xpAwarded);
+        var submission = await StampSubmissionXpAsync(submissionId, xpAwarded, ct);
 
         await xpEvents.AddAsync(new XpEvent
         {
@@ -50,7 +50,7 @@ public sealed class XpService(
             EventType = XpEventTypes.Submission,
             Details = DescribeStreakBonus(streak, bonusFraction),
             CreatedAt = now
-        });
+        }, ct);
 
         return xpAwarded;
     }
@@ -58,7 +58,7 @@ public sealed class XpService(
     public async Task<int> AdjustXpAsync(XpAdjustment adjustment, CancellationToken ct)
     {
         var (userId, delta, reason, adminUserId) = adjustment;
-        var user = await users.GetByIdAsync(userId)
+        var user = await users.GetByIdAsync(userId, ct)
             ?? throw new NotFoundException($"User {userId} not found");
 
         var applied = ApplyClampedDelta(user, delta);
@@ -73,7 +73,7 @@ public sealed class XpService(
             EventType = XpEventTypes.AdminAdjustment,
             Details = details,
             CreatedAt = time.GetUtcNow().UtcDateTime
-        });
+        }, ct);
 
         return applied;
     }
@@ -82,7 +82,7 @@ public sealed class XpService(
     {
         var (userId, submissionId, gameId, scoringDay, amount, reason) = revocation;
         if (amount <= 0) return 0;
-        var user = await users.GetByIdAsync(userId);
+        var user = await users.GetByIdAsync(userId, ct);
         if (user == null) return 0;
 
         var applied = ApplyDeduction(user, amount);
@@ -97,7 +97,7 @@ public sealed class XpService(
             EventType = XpEventTypes.SubmissionRevoked,
             Details = DescribeRevocation(submissionId, amount, reason),
             CreatedAt = time.GetUtcNow().UtcDateTime
-        });
+        }, ct);
 
         return applied;
     }
@@ -105,13 +105,13 @@ public sealed class XpService(
     /// <summary>The event is deleted rather than offset, so the unique day_win index lets the day be won again.</summary>
     public async Task<int> RevokeDayWinAsync(int userId, int gameId, DateTime scoringDay, CancellationToken ct)
     {
-        var dayWin = await xpEvents.GetDayWinAsync(userId, gameId, scoringDay.Date);
+        var dayWin = await xpEvents.GetDayWinAsync(userId, gameId, scoringDay.Date, ct);
         if (dayWin == null) return 0;
 
-        var user = await users.GetByIdAsync(userId);
+        var user = await users.GetByIdAsync(userId, ct);
         if (user != null) ApplyDeduction(user, dayWin.Amount);
 
-        await xpEvents.RemoveAsync(dayWin);
+        await xpEvents.RemoveAsync(dayWin, ct);
         return dayWin.Amount;
     }
 
@@ -119,9 +119,9 @@ public sealed class XpService(
     public async Task<int> AwardForDayWinAsync(int userId, int gameId, DateTime scoringDay, CancellationToken ct)
     {
         var scoringDate = scoringDay.Date;
-        if (await xpEvents.HasDayWinAsync(userId, gameId, scoringDate)) return 0;
+        if (await xpEvents.HasDayWinAsync(userId, gameId, scoringDate, ct)) return 0;
 
-        var user = await users.GetByIdAsync(userId);
+        var user = await users.GetByIdAsync(userId, ct);
         if (user == null) return 0;
 
         var xpAwarded = AddXp(user, _config.WinXp);
@@ -135,7 +135,7 @@ public sealed class XpService(
             EventType = XpEventTypes.DayWin,
             Details = $"win_xp={xpAwarded}",
             CreatedAt = time.GetUtcNow().UtcDateTime
-        });
+        }, ct);
 
         return xpAwarded;
     }
@@ -159,9 +159,9 @@ public sealed class XpService(
             user.LastSubmissionAt = now;
     }
 
-    private async Task<Submission?> StampSubmissionXpAsync(int submissionId, int xpAwarded)
+    private async Task<Submission?> StampSubmissionXpAsync(int submissionId, int xpAwarded, CancellationToken ct)
     {
-        var submission = await submissions.GetByIdAsync(submissionId);
+        var submission = await submissions.GetByIdAsync(submissionId, ct);
         if (submission != null)
             submission.XpAwarded = xpAwarded;
         return submission;

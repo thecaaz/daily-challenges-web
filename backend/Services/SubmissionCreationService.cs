@@ -22,7 +22,7 @@ public sealed class SubmissionCreationService(
 {
     public async Task<(SubmissionDto Dto, int XpGain)> CreateAsync(SubmissionDraftRequest request, ClaimsPrincipal user, CancellationToken ct)
     {
-        var draft = await drafts.BuildAsync(request, user);
+        var draft = await drafts.BuildAsync(request, user, ct);
         var (created, xpGain) = await SaveAsync(draft, ct);
         await CheckAchievementsAsync(created.UserId);
         return (ToCreatorDto(created), xpGain);
@@ -37,7 +37,7 @@ public sealed class SubmissionCreationService(
     {
         try
         {
-            return await transactions.RunAsync(() => CreateWithXpAwardAsync(draft, ct));
+            return await transactions.RunAsync(() => CreateWithXpAwardAsync(draft, ct), ct);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
@@ -53,7 +53,7 @@ public sealed class SubmissionCreationService(
     /// <summary>The user row is first loaded inside the transaction, which serializes the XP read-modify-write with other writers.</summary>
     private async Task<(Submission Created, int XpGain)> CreateWithXpAwardAsync(Submission draft, CancellationToken ct)
     {
-        var created = await submissions.CreateAsync(draft);
+        var created = await submissions.CreateAsync(draft, ct);
         var xpGain = created.UserId is int userId
             ? await xp.AwardForSubmissionAsync(userId, created.Id, created.ScoringDay, ct)
             : 0;

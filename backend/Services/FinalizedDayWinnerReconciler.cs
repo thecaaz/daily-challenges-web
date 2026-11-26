@@ -24,20 +24,20 @@ public sealed class FinalizedDayWinnerReconciler(
     public async Task<bool> UnfinalizeIfWinnerChangedAsync(int gameId, DateTime scoringDay, CancellationToken ct)
     {
         var day = scoringDay.Date;
-        var result = await results.GetAsync(gameId, day);
+        var result = await results.GetAsync(gameId, day, ct);
         if (result == null) return false;
 
-        var game = await games.GetByIdWithoutBlobAsync(gameId);
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct);
         if (game == null) return false;
 
         var strategy = RankingStrategyFactory.GetStrategy(game.RankingMode);
-        var leader = await submissions.GetWinnerForGameAndDayAsync(gameId, day, strategy);
+        var leader = await submissions.GetWinnerForGameAndDayAsync(gameId, day, strategy, ct);
         if (leader?.UserId == result.WinnerUserId) return false;
 
         if (result.WinnerUserId.HasValue)
             await xp.RevokeDayWinAsync(result.WinnerUserId.Value, gameId, day, ct);
-        await notifications.DeleteDayResultNotificationsAsync(gameId, day);
-        await results.DeleteAsync(result);
+        await notifications.DeleteDayResultNotificationsAsync(gameId, day, ct);
+        await results.DeleteAsync(result, ct);
         return true;
     }
 

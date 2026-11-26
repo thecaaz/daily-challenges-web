@@ -36,8 +36,8 @@ public class FriendServiceTests
         var ach       = new Mock<IAchievementService>();
         var levelCalc = new LevelCalculator();
 
-        notifs.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>())).Returns(Task.CompletedTask);
-        notifs.Setup(r => r.GetByUserPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
+        notifs.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        notifs.Setup(r => r.GetByUserPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync((new List<Notification>(), 0, 0));
 
         var clock = new FixedTimeProvider(Now);
@@ -63,7 +63,7 @@ public class FriendServiceTests
     public async Task SendRequest_TargetNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync((User?)null);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
         await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Requests.SendRequestAsync(1, 2, CancellationToken.None));
     }
@@ -72,8 +72,8 @@ public class FriendServiceTests
     public async Task SendRequest_AlreadyFriends_ThrowsConflictException()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(new FriendRequest
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
 
         var ex = await Assert.ThrowsAsync<ConflictException>(() =>
@@ -85,8 +85,8 @@ public class FriendServiceTests
     public async Task SendRequest_PendingRequestExists_ThrowsConflictException()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2))
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(PendingRequest(1, 1, 2));
 
         var ex = await Assert.ThrowsAsync<ConflictException>(() =>
@@ -99,33 +99,33 @@ public class FriendServiceTests
     {
         var sut = Build();
         var sender = MakeUser(1, "alice");
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(sender);
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(sender);
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
 
         var created = PendingRequest(99, 1, 2);
-        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(created);
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(created);
 
         var dto = await sut.Requests.SendRequestAsync(1, 2, CancellationToken.None);
 
         Assert.Equal(99, dto.Id);
-        sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Once);
+        sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task SendRequest_ValidRequest_SendsNotificationToReceiver()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
-        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>()))
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(1, "alice"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(PendingRequest(1, 1, 2));
 
         await sut.Requests.SendRequestAsync(1, 2, CancellationToken.None);
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(
-            n => n.Any(x => x.UserId == 2 && x.Type == "friend_request"))), Times.Once);
+            n => n.Any(x => x.UserId == 2 && x.Type == "friend_request")), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private static FriendRequest DeclinedRequest(int id, int senderId, int receiverId, DateTime declinedAt) =>
@@ -135,80 +135,80 @@ public class FriendServiceTests
     public async Task SendRequest_DeclinedWithin24h_ThrowsConflictAndDoesNotReopen()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-23)));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-23)));
 
         await Assert.ThrowsAsync<ConflictException>(() => sut.Requests.SendRequestAsync(1, 2, CancellationToken.None));
-        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(It.IsAny<int>(), It.IsAny<FriendRequestDirection>(), It.IsAny<DateTime>()), Times.Never);
-        sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Never);
+        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(It.IsAny<int>(), It.IsAny<FriendRequestDirection>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+        sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task SendRequest_DeclinedOver24hAgo_ReopensTheSameRow()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-25)));
-        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(1, 2), Now)).ReturnsAsync(true);
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 1, 2));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-25)));
+        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(1, 2), Now, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(7, 1, 2));
 
         var dto = await sut.Requests.SendRequestAsync(1, 2, CancellationToken.None);
 
         Assert.Equal(7, dto.Id);
-        sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>()), Times.Never);
+        sut.FriendRepo.Verify(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task SendRequest_TheUserWhoDeclined_CanAskRightAway()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
         var aliceRequestDeclinedByBobAnHourAgo = DeclinedRequest(7, senderId: 1, receiverId: 2, Now.AddHours(-1));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(2, 1)).ReturnsAsync(aliceRequestDeclinedByBobAnHourAgo);
-        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(2, 1), Now)).ReturnsAsync(true);
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(7)).ReturnsAsync(PendingRequest(7, 2, 1));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(2, 1, It.IsAny<CancellationToken>())).ReturnsAsync(aliceRequestDeclinedByBobAnHourAgo);
+        sut.FriendRepo.Setup(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(2, 1), Now, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(7, 2, 1));
 
         var dto = await sut.Requests.SendRequestAsync(2, 1, CancellationToken.None);
 
         Assert.Equal(7, dto.Id);
-        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(2, 1), Now), Times.Once);
+        sut.FriendRepo.Verify(r => r.ReopenDeclinedAsync(7, new FriendRequestDirection(2, 1), Now, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task SendRequest_RecentUnreadNotificationFromSameSender_SkipsNotification()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(1, 1, 2));
-        sut.NotifRepo.Setup(r => r.HasRecentUnreadFromActorAsync(new RecentNotificationQuery(2, "friend_request", 1, Now.AddMinutes(-15)))).ReturnsAsync(true);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.NotifRepo.Setup(r => r.HasRecentUnreadFromActorAsync(new RecentNotificationQuery(2, "friend_request", 1, Now.AddMinutes(-15)), It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         await sut.Requests.SendRequestAsync(1, 2, CancellationToken.None);
 
-        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()), Times.Never);
+        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task SendRequest_Notification_CarriesActor()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(1, 1, 2));
 
         await sut.Requests.SendRequestAsync(1, 2, CancellationToken.None);
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(
-            n => n.Single().ActorUserId == 1 && n.Single().UserId == 2)), Times.Once);
+            n => n.Single().ActorUserId == 1 && n.Single().UserId == 2), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetRelationshipStatus_Declined_ReadsAsNone()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
+        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
 
         Assert.Equal("none", await sut.Friendships.GetRelationshipStatusAsync(1, 2, CancellationToken.None));
     }
@@ -217,7 +217,7 @@ public class FriendServiceTests
     public async Task GetRelationshipStatus_NoRow_ReadsAsNone()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
+        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
 
         Assert.Equal("none", await sut.Friendships.GetRelationshipStatusAsync(1, 2, CancellationToken.None));
     }
@@ -226,7 +226,7 @@ public class FriendServiceTests
     public async Task GetRelationshipStatus_Accepted_ReadsAsFriends()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync(new FriendRequest
+        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 2, ReceiverId = 1, Status = FriendRequestStatus.Accepted });
 
         Assert.Equal("friends", await sut.Friendships.GetRelationshipStatusAsync(1, 2, CancellationToken.None));
@@ -236,8 +236,8 @@ public class FriendServiceTests
     public async Task GetRelationshipStatus_Pending_ReadsAsDirection()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2)).ReturnsAsync(PendingRequest(1, 1, 2));
-        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(2, 1)).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.FriendRepo.Setup(r => r.GetRelationshipAsync(2, 1, It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(1, 1, 2));
 
         Assert.Equal("pending_sent", await sut.Friendships.GetRelationshipStatusAsync(1, 2, CancellationToken.None));
         Assert.Equal("pending_received", await sut.Friendships.GetRelationshipStatusAsync(2, 1, CancellationToken.None));
@@ -247,16 +247,16 @@ public class FriendServiceTests
     public async Task SendRequestByUsername_TrimsTheUsername()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob")).ReturnsAsync(MakeUser(2, "bob"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
-        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(5, 1, 2));
+        sut.UserRepo.Setup(r => r.GetByUsernameAsync("bob", It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(1, "alice"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(5, 1, 2));
 
         var dto = await sut.Requests.SendRequestByUsernameAsync(1, "  bob ", CancellationToken.None);
 
         Assert.Equal(5, dto.Id);
-        sut.FriendRepo.Verify(r => r.CreateAsync(It.Is<FriendRequest>(fr => fr.SenderId == 1 && fr.ReceiverId == 2 && fr.CreatedAt == Now)), Times.Once);
+        sut.FriendRepo.Verify(r => r.CreateAsync(It.Is<FriendRequest>(fr => fr.SenderId == 1 && fr.ReceiverId == 2 && fr.CreatedAt == Now), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -273,8 +273,8 @@ public class FriendServiceTests
     public async Task SendRequest_DeclinedWithin24h_MessageNamesTheTarget()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(DeclinedRequest(7, 1, 2, Now.AddHours(-1)));
 
         var ex = await Assert.ThrowsAsync<ConflictException>(() => sut.Requests.SendRequestAsync(1, 2, CancellationToken.None));
 
@@ -285,9 +285,9 @@ public class FriendServiceTests
     public async Task SendRequest_SenderMissing_ThrowsKeyNotFound()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
-        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(5, 1, 2));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(5, 1, 2));
 
         var ex = await Assert.ThrowsAsync<NotFoundException>(() => sut.Requests.SendRequestAsync(1, 2, CancellationToken.None));
 
@@ -298,20 +298,20 @@ public class FriendServiceTests
     public async Task SendRequest_Notification_HasTheDocumentedContent()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(1, "alice"));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
-        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(PendingRequest(5, 1, 2));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(1, "alice"));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
+        sut.FriendRepo.Setup(r => r.CreateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(5, 1, 2));
 
         await sut.Requests.SendRequestAsync(1, 2, CancellationToken.None);
 
-        sut.NotifRepo.Verify(r => r.HasRecentUnreadFromActorAsync(new RecentNotificationQuery(2, "friend_request", 1, Now.AddMinutes(-15))), Times.Once);
+        sut.NotifRepo.Verify(r => r.HasRecentUnreadFromActorAsync(new RecentNotificationQuery(2, "friend_request", 1, Now.AddMinutes(-15)), It.IsAny<CancellationToken>()), Times.Once);
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(n =>
             n.Single().Message == "alice sent you a friend request."
             && n.Single().Type == "friend_request"
             && n.Single().GameId == null
             && n.Single().ScoringDay == Now.Date
-            && n.Single().CreatedAt == Now)), Times.Once);
+            && n.Single().CreatedAt == Now), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -319,9 +319,9 @@ public class FriendServiceTests
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
-        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync((User?)null);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         await sut.Requests.AcceptRequestAsync(1, 2, CancellationToken.None);
 
@@ -329,14 +329,14 @@ public class FriendServiceTests
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(n =>
             n.Single().Message == "Someone accepted your friend request."
             && n.Single().ActorUserId == 2
-            && n.Single().ScoringDay == Now.Date)), Times.Once);
+            && n.Single().ScoringDay == Now.Date), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetFriends_MapsUsersWithLevel()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetFriendsAsync(1)).ReturnsAsync(new List<User> { MakeUser(2, "bob") });
+        sut.FriendRepo.Setup(r => r.GetFriendsAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new List<User> { MakeUser(2, "bob") });
 
         var friends = await sut.Friendships.GetFriendsAsync(1, CancellationToken.None);
 
@@ -350,8 +350,8 @@ public class FriendServiceTests
     public async Task GetIncomingAndOutgoing_MapRequests()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetIncomingPendingAsync(2)).ReturnsAsync(new List<FriendRequest> { PendingRequest(1, 1, 2) });
-        sut.FriendRepo.Setup(r => r.GetOutgoingPendingAsync(1)).ReturnsAsync(new List<FriendRequest> { PendingRequest(1, 1, 2) });
+        sut.FriendRepo.Setup(r => r.GetIncomingPendingAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(new List<FriendRequest> { PendingRequest(1, 1, 2) });
+        sut.FriendRepo.Setup(r => r.GetOutgoingPendingAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new List<FriendRequest> { PendingRequest(1, 1, 2) });
 
         Assert.Equal("pending", Assert.Single(await sut.Friendships.GetIncomingRequestsAsync(2, CancellationToken.None)).Status);
         Assert.Equal(1, Assert.Single(await sut.Friendships.GetOutgoingRequestsAsync(1, CancellationToken.None)).Id);
@@ -363,7 +363,7 @@ public class FriendServiceTests
     public async Task AnswerRequest_RequestNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((FriendRequest?)null);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(99, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
         await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Requests.AcceptRequestAsync(99, 2, CancellationToken.None));
     }
@@ -372,7 +372,7 @@ public class FriendServiceTests
     public async Task AnswerRequest_WrongReceiver_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, senderId: 1, receiverId: 2));
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(1, senderId: 1, receiverId: 2));
         const int notTheReceiverId = 99;
         await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Requests.AcceptRequestAsync(1, notTheReceiverId, CancellationToken.None));
@@ -382,7 +382,7 @@ public class FriendServiceTests
     public async Task AnswerRequest_AlreadyProcessed_ThrowsConflictException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(new FriendRequest
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
         await Assert.ThrowsAsync<ConflictException>(() =>
             sut.Requests.AcceptRequestAsync(1, 2, CancellationToken.None));
@@ -393,14 +393,31 @@ public class FriendServiceTests
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
-        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
 
         await sut.Requests.AcceptRequestAsync(1, 2, CancellationToken.None);
 
         Assert.Equal(FriendRequestStatus.Accepted, fr.Status);
-        sut.FriendRepo.Verify(r => r.UpdateAsync(fr), Times.Once);
+        sut.FriendRepo.Verify(r => r.UpdateAsync(fr, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>The acceptance is saved with the request's token; the notification after it must not be skipped by an abort.</summary>
+    [Fact]
+    public async Task AnswerRequest_Accept_NotifiesTheSenderWithoutTheRequestToken()
+    {
+        var sut = Build();
+        var fr = PendingRequest(1, 1, 2);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
+        using var request = new CancellationTokenSource();
+
+        await sut.Requests.AcceptRequestAsync(1, 2, request.Token);
+
+        sut.FriendRepo.Verify(r => r.UpdateAsync(fr, request.Token), Times.Once);
+        sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), CancellationToken.None), Times.Once);
     }
 
     [Fact]
@@ -408,9 +425,9 @@ public class FriendServiceTests
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
-        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2));
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2));
 
         await sut.Requests.AcceptRequestAsync(1, 2, CancellationToken.None);
 
@@ -423,14 +440,14 @@ public class FriendServiceTests
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
-        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(MakeUser(2, "bob"));
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(2, "bob"));
 
         await sut.Requests.AcceptRequestAsync(1, 2, CancellationToken.None);
 
         sut.NotifRepo.Verify(r => r.CreateBatchAsync(It.Is<List<Notification>>(
-            n => n.Any(x => x.UserId == 1 && x.Type == "friend_request_accepted"))), Times.Once);
+            n => n.Any(x => x.UserId == 1 && x.Type == "friend_request_accepted")), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -438,15 +455,15 @@ public class FriendServiceTests
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
-        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(fr);
 
         await sut.Requests.DeclineRequestAsync(1, 2, CancellationToken.None);
 
         Assert.Equal(FriendRequestStatus.Declined, fr.Status);
         Assert.Equal(Now, fr.UpdatedAt);
-        sut.FriendRepo.Verify(r => r.UpdateAsync(fr), Times.Once);
-        sut.FriendRepo.Verify(r => r.DeleteAsync(It.IsAny<int>()), Times.Never);
+        sut.FriendRepo.Verify(r => r.UpdateAsync(fr, It.IsAny<CancellationToken>()), Times.Once);
+        sut.FriendRepo.Verify(r => r.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -454,8 +471,8 @@ public class FriendServiceTests
     {
         var sut = Build();
         var fr = PendingRequest(1, 1, 2);
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(fr);
-        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(fr);
+        sut.FriendRepo.Setup(r => r.UpdateAsync(It.IsAny<FriendRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(fr);
 
         await sut.Requests.DeclineRequestAsync(1, 2, CancellationToken.None);
 
@@ -468,7 +485,7 @@ public class FriendServiceTests
     public async Task CancelRequest_RequestNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((FriendRequest?)null);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
         await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Requests.CancelRequestAsync(1, 1, CancellationToken.None));
     }
@@ -477,7 +494,7 @@ public class FriendServiceTests
     public async Task CancelRequest_NotSender_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, senderId: 1, receiverId: 2));
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(1, senderId: 1, receiverId: 2));
         const int notTheSenderId = 99;
         await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Requests.CancelRequestAsync(1, notTheSenderId, CancellationToken.None));
@@ -487,7 +504,7 @@ public class FriendServiceTests
     public async Task CancelRequest_AlreadyAccepted_ThrowsConflictException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(new FriendRequest
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new FriendRequest
             { Id = 1, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
         await Assert.ThrowsAsync<ConflictException>(() =>
             sut.Requests.CancelRequestAsync(1, 1, CancellationToken.None));
@@ -497,12 +514,12 @@ public class FriendServiceTests
     public async Task CancelRequest_PendingBySender_DeletesRequest()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(PendingRequest(1, 1, 2));
-        sut.FriendRepo.Setup(r => r.DeleteAsync(1)).Returns(Task.CompletedTask);
+        sut.FriendRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.FriendRepo.Setup(r => r.DeleteAsync(1, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         await sut.Requests.CancelRequestAsync(1, 1, CancellationToken.None);
 
-        sut.FriendRepo.Verify(r => r.DeleteAsync(1), Times.Once);
+        sut.FriendRepo.Verify(r => r.DeleteAsync(1, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ── RemoveFriendAsync ─────────────────────────────────────────────────────
@@ -511,7 +528,7 @@ public class FriendServiceTests
     public async Task RemoveFriend_FriendshipNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync((FriendRequest?)null);
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync((FriendRequest?)null);
         await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Friendships.RemoveFriendAsync(1, 2, CancellationToken.None));
     }
@@ -520,7 +537,7 @@ public class FriendServiceTests
     public async Task RemoveFriend_NotAccepted_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(PendingRequest(1, 1, 2));
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(PendingRequest(1, 1, 2));
         await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Friendships.RemoveFriendAsync(1, 2, CancellationToken.None));
     }
@@ -529,12 +546,12 @@ public class FriendServiceTests
     public async Task RemoveFriend_AcceptedFriendship_Deletes()
     {
         var sut = Build();
-        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2)).ReturnsAsync(new FriendRequest
+        sut.FriendRepo.Setup(r => r.GetExistingAsync(1, 2, It.IsAny<CancellationToken>())).ReturnsAsync(new FriendRequest
             { Id = 5, SenderId = 1, ReceiverId = 2, Status = FriendRequestStatus.Accepted });
-        sut.FriendRepo.Setup(r => r.DeleteAsync(5)).Returns(Task.CompletedTask);
+        sut.FriendRepo.Setup(r => r.DeleteAsync(5, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         await sut.Friendships.RemoveFriendAsync(1, 2, CancellationToken.None);
 
-        sut.FriendRepo.Verify(r => r.DeleteAsync(5), Times.Once);
+        sut.FriendRepo.Verify(r => r.DeleteAsync(5, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

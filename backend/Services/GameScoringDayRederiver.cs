@@ -22,20 +22,20 @@ public sealed class GameScoringDayRederiver(
 
     private sealed record ScoringDayMove(int SubmissionId, int? UserId, DateTime OldDay, DateTime NewDay);
 
-    public async Task RederiveAsync(int gameId, TimeSpan newResetTime)
+    public async Task RederiveAsync(int gameId, TimeSpan newResetTime, CancellationToken ct)
     {
-        var lastFinalized = await results.GetLastFinalizedDayAsync(gameId);
+        var lastFinalized = await results.GetLastFinalizedDayAsync(gameId, ct);
         EnsureCurrentDayIsNotFinalized(newResetTime, lastFinalized);
 
-        var moves = await PlanMovesAsync(gameId, newResetTime, lastFinalized);
+        var moves = await PlanMovesAsync(gameId, newResetTime, lastFinalized, ct);
         EnsureNoMoveIntoFinalizedDay(moves, lastFinalized);
         EnsureNoUserHasTwoSubmissionsOnOneDay(moves);
 
         var changed = moves.Where(m => m.NewDay != m.OldDay).ToList();
         if (changed.Count == 0) return;
 
-        await ParkOnPlaceholderDaysAsync(changed);
-        await MoveToNewDaysAsync(changed);
+        await ParkOnPlaceholderDaysAsync(changed, ct);
+        await MoveToNewDaysAsync(changed, ct);
     }
 
     /// <summary>The new current day must not be a finalized day either, or new submissions would land in it.</summary>
@@ -46,9 +46,9 @@ public sealed class GameScoringDayRederiver(
             throw new ConflictException($"With this reset time the current scoring day would be {ScoringDayCalculator.FormatScoringDay(newCurrentDay)}, which is already finalized. Try again after the new reset time has passed.");
     }
 
-    private async Task<List<ScoringDayMove>> PlanMovesAsync(int gameId, TimeSpan newResetTime, DateTime? lastFinalized)
+    private async Task<List<ScoringDayMove>> PlanMovesAsync(int gameId, TimeSpan newResetTime, DateTime? lastFinalized, CancellationToken ct)
     {
-        var rows = await submissions.GetScoringDayRowsAsync(gameId, lastFinalized);
+        var rows = await submissions.GetScoringDayRowsAsync(gameId, lastFinalized, ct);
         return rows
             .Select(r => new ScoringDayMove(r.Id, r.UserId, r.ScoringDay.Date, ScoringDayCalculator.GetScoringDay(r.CreatedAt, newResetTime).Date))
             .ToList();
@@ -70,18 +70,18 @@ public sealed class GameScoringDayRederiver(
     /// First of two passes, so the (UserId, GameId, ScoringDay) unique index never sees a transient duplicate
     /// (SQLite checks it row by row): each moved row is parked on its own placeholder day.
     /// </summary>
-    private async Task ParkOnPlaceholderDaysAsync(List<ScoringDayMove> changed)
+    private async Task ParkOnPlaceholderDaysAsync(List<ScoringDayMove> changed, CancellationToken ct)
     {
         for (var i = 0; i < changed.Count; i++)
-            await submissions.SetScoringDayAsync(changed[i].SubmissionId, PlaceholderBaseDay.AddDays(i));
+            await submissions.SetScoringDayAsync(changed[i].SubmissionId, PlaceholderBaseDay.AddDays(i), ct);
     }
 
-    private async Task MoveToNewDaysAsync(List<ScoringDayMove> changed)
+    private async Task MoveToNewDaysAsync(List<ScoringDayMove> changed, CancellationToken ct)
     {
         foreach (var move in changed)
         {
-            await submissions.SetScoringDayAsync(move.SubmissionId, move.NewDay);
-            await xpEvents.SetScoringDayForSubmissionAsync(move.SubmissionId, move.NewDay);
+            await submissions.SetScoringDayAsync(move.SubmissionId, move.NewDay, ct);
+            await xpEvents.SetScoringDayForSubmissionAsync(move.SubmissionId, move.NewDay, ct);
         }
     }
 }

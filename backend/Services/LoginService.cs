@@ -19,7 +19,7 @@ public sealed class LoginService(IUserRepository users, SessionIssuer sessions) 
     /// <summary>Username lookups are case-insensitive (NOCASE column).</summary>
     public async Task<AuthResultDto> LoginAsync(string username, string password, HttpResponse response, CancellationToken ct)
     {
-        var user = await users.GetByUsernameAsync(CredentialRules.NormalizeUsername(username));
+        var user = await users.GetByUsernameAsync(CredentialRules.NormalizeUsername(username), ct);
         if (user == null)
         {
             BCrypt.Net.BCrypt.Verify(password ?? string.Empty, UnknownUserPasswordHash.Value);

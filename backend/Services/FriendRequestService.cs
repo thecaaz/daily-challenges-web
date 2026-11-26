@@ -27,17 +27,21 @@ public sealed class FriendRequestService(
     private const string AlreadyRequestedMessage = "A friend request already exists between these users.";
     private const string RequestNotFoundMessage = "Friend request not found.";
 
+    /// <summary>
+    /// Once the request is saved, the sender lookup and the notification run with
+    /// <see cref="CancellationToken.None"/>, so a client abort cannot leave the saved request unannounced.
+    /// </summary>
     public async Task<FriendRequestDto> SendRequestAsync(int senderId, int targetUserId, CancellationToken ct)
     {
         if (senderId == targetUserId)
             throw new ValidationException("You cannot send a friend request to yourself.");
 
-        var target = await users.GetByIdAsync(targetUserId)
+        var target = await users.GetByIdAsync(targetUserId, ct)
             ?? throw new NotFoundException("User not found.");
         var attempt = new FriendRequestAttempt(senderId, target, time.GetUtcNow().UtcDateTime);
 
-        var request = await CreateOrReopenAsync(attempt);
-        var sender = await users.GetByIdAsync(senderId)
+        var request = await CreateOrReopenAsync(attempt, ct);
+        var sender = await users.GetByIdAsync(senderId, CancellationToken.None)
             ?? throw new NotFoundException("Sender not found.");
         await NotifyTargetUnlessRecentlyNotifiedAsync(attempt, sender.Username);
         return DtoMapper.ToDto(request);
@@ -45,18 +49,19 @@ public sealed class FriendRequestService(
 
     public async Task<FriendRequestDto> SendRequestByUsernameAsync(int senderId, string username, CancellationToken ct)
     {
-        var target = await users.GetByUsernameAsync(username.Trim())
+        var target = await users.GetByUsernameAsync(username.Trim(), ct)
             ?? throw new NotFoundException($"No user found with username '{username}'.");
 
         return await SendRequestAsync(senderId, target.Id, ct);
     }
 
+    /// <summary>The notification and achievement checks run after the status is saved, without the request's token.</summary>
     public async Task AcceptRequestAsync(int requestId, int receiverId, CancellationToken ct)
     {
-        var request = await GetPendingRequestToAsync(requestId, receiverId);
+        var request = await GetPendingRequestToAsync(requestId, receiverId, ct);
         var now = time.GetUtcNow().UtcDateTime;
 
-        await SaveStatusAsync(request, FriendRequestStatus.Accepted, now);
+        await SaveStatusAsync(request, FriendRequestStatus.Accepted, now, ct);
         await NotifySenderOfAcceptanceAsync(request, now);
         await achievements.CheckAndAwardAsync(request.SenderId, AchievementTrigger.FriendAccepted);
         await achievements.CheckAndAwardAsync(receiverId, AchievementTrigger.FriendAccepted);
@@ -65,39 +70,39 @@ public sealed class FriendRequestService(
     /// <summary>The row is kept as Declined: its UpdatedAt starts the sender's <see cref="RerequestCooldown"/>.</summary>
     public async Task DeclineRequestAsync(int requestId, int receiverId, CancellationToken ct)
     {
-        var request = await GetPendingRequestToAsync(requestId, receiverId);
-        await SaveStatusAsync(request, FriendRequestStatus.Declined, time.GetUtcNow().UtcDateTime);
+        var request = await GetPendingRequestToAsync(requestId, receiverId, ct);
+        await SaveStatusAsync(request, FriendRequestStatus.Declined, time.GetUtcNow().UtcDateTime, ct);
     }
 
     /// <summary>A request the caller did not send reads as "not found", like in <see cref="GetPendingRequestToAsync"/>.</summary>
     public async Task CancelRequestAsync(int requestId, int senderId, CancellationToken ct)
     {
-        var request = await friends.GetByIdAsync(requestId);
+        var request = await friends.GetByIdAsync(requestId, ct);
         if (request is null || request.SenderId != senderId)
             throw new NotFoundException(RequestNotFoundMessage);
         if (request.Status != FriendRequestStatus.Pending)
             throw new ConflictException("Only pending requests can be cancelled.");
 
-        await friends.DeleteAsync(request.Id);
+        await friends.DeleteAsync(request.Id, ct);
     }
 
     /// <summary>At most one row exists per pair of users, in either direction (unique index).</summary>
-    private async Task<FriendRequest> CreateOrReopenAsync(FriendRequestAttempt attempt)
+    private async Task<FriendRequest> CreateOrReopenAsync(FriendRequestAttempt attempt, CancellationToken ct)
     {
-        var existing = await friends.GetExistingAsync(attempt.SenderId, attempt.Target.Id);
+        var existing = await friends.GetExistingAsync(attempt.SenderId, attempt.Target.Id, ct);
         if (existing == null)
-            return await CreatePendingAsync(attempt);
+            return await CreatePendingAsync(attempt, ct);
 
         return existing.Status switch
         {
             FriendRequestStatus.Accepted => throw new ConflictException("You are already friends."),
             FriendRequestStatus.Pending => throw new ConflictException(AlreadyRequestedMessage),
-            _ => await ReopenDeclinedAsync(existing, attempt)
+            _ => await ReopenDeclinedAsync(existing, attempt, ct)
         };
     }
 
     /// <summary>A concurrent request for the same pair (double click, or both users at once) loses on the unique index.</summary>
-    private async Task<FriendRequest> CreatePendingAsync(FriendRequestAttempt attempt)
+    private async Task<FriendRequest> CreatePendingAsync(FriendRequestAttempt attempt, CancellationToken ct)
     {
         try
         {
@@ -107,7 +112,7 @@ public sealed class FriendRequestService(
                 ReceiverId = attempt.Target.Id,
                 Status = FriendRequestStatus.Pending,
                 CreatedAt = attempt.Now
-            });
+            }, ct);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
@@ -116,14 +121,14 @@ public sealed class FriendRequestService(
     }
 
     /// <summary>The declined sender waits out the cooldown; the user who declined may ask right away.</summary>
-    private async Task<FriendRequest> ReopenDeclinedAsync(FriendRequest declined, FriendRequestAttempt attempt)
+    private async Task<FriendRequest> ReopenDeclinedAsync(FriendRequest declined, FriendRequestAttempt attempt, CancellationToken ct)
     {
         if (IsDeclinedSenderCoolingDown(declined, attempt))
             throw new ConflictException($"{attempt.Target.Username} declined your friend request recently. Try again after {RerequestCooldown.TotalHours:0} hours.");
 
-        if (!await friends.ReopenDeclinedAsync(declined.Id, new FriendRequestDirection(attempt.SenderId, attempt.Target.Id), attempt.Now))
+        if (!await friends.ReopenDeclinedAsync(declined.Id, new FriendRequestDirection(attempt.SenderId, attempt.Target.Id), attempt.Now, ct))
             throw new ConflictException(AlreadyRequestedMessage);
-        return await friends.GetByIdAsync(declined.Id)
+        return await friends.GetByIdAsync(declined.Id, ct)
             ?? throw new ConflictException(AlreadyRequestedMessage);
     }
 
@@ -133,20 +138,23 @@ public sealed class FriendRequestService(
         return declined.SenderId == attempt.SenderId && declinedAt > attempt.Now - RerequestCooldown;
     }
 
-    /// <summary>Prevents notification spam (request, cancel, request again) within <see cref="NotificationCooldown"/>.</summary>
+    /// <summary>
+    /// Prevents notification spam (request, cancel, request again) within <see cref="NotificationCooldown"/>.
+    /// Runs after the request is saved, so it uses <see cref="CancellationToken.None"/>.
+    /// </summary>
     private async Task NotifyTargetUnlessRecentlyNotifiedAsync(FriendRequestAttempt attempt, string senderUsername)
     {
         var wasRecentlyNotified = await notifications.HasRecentUnreadFromActorAsync(new RecentNotificationQuery(
-            attempt.Target.Id, NotificationTypes.FriendRequest, attempt.SenderId, attempt.Now - NotificationCooldown));
+            attempt.Target.Id, NotificationTypes.FriendRequest, attempt.SenderId, attempt.Now - NotificationCooldown), CancellationToken.None);
         if (wasRecentlyNotified) return;
 
-        await notifications.CreateBatchAsync([FriendNotifications.RequestReceived(attempt, senderUsername)]);
+        await notifications.CreateBatchAsync([FriendNotifications.RequestReceived(attempt, senderUsername)], CancellationToken.None);
     }
 
     /// <summary>Wrong owner reads as "not found" so callers cannot probe which request ids exist.</summary>
-    private async Task<FriendRequest> GetPendingRequestToAsync(int requestId, int receiverId)
+    private async Task<FriendRequest> GetPendingRequestToAsync(int requestId, int receiverId, CancellationToken ct)
     {
-        var request = await friends.GetByIdAsync(requestId);
+        var request = await friends.GetByIdAsync(requestId, ct);
         if (request is null || request.ReceiverId != receiverId)
             throw new NotFoundException(RequestNotFoundMessage);
         if (request.Status != FriendRequestStatus.Pending)
@@ -154,17 +162,18 @@ public sealed class FriendRequestService(
         return request;
     }
 
-    private async Task SaveStatusAsync(FriendRequest request, FriendRequestStatus status, DateTime now)
+    private async Task SaveStatusAsync(FriendRequest request, FriendRequestStatus status, DateTime now, CancellationToken ct)
     {
         request.Status = status;
         request.UpdatedAt = now;
-        await friends.UpdateAsync(request);
+        await friends.UpdateAsync(request, ct);
     }
 
+    /// <summary>Runs after the acceptance is saved, so it uses <see cref="CancellationToken.None"/>.</summary>
     private async Task NotifySenderOfAcceptanceAsync(FriendRequest request, DateTime now)
     {
-        var receiver = await users.GetByIdAsync(request.ReceiverId);
-        await notifications.CreateBatchAsync([FriendNotifications.RequestAccepted(request, receiver?.Username, now)]);
+        var receiver = await users.GetByIdAsync(request.ReceiverId, CancellationToken.None);
+        await notifications.CreateBatchAsync([FriendNotifications.RequestAccepted(request, receiver?.Username, now)], CancellationToken.None);
     }
 }
 

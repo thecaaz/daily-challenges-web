@@ -36,11 +36,11 @@ public interface ILeagueStandingsRepository
     /// Returns the best submission per member for the given game and scoring day,
     /// ordered by the provided ranking strategy. Only members with a ScoreValue are included.
     /// </summary>
-    Task<List<LeagueLeaderboardRow>> GetLeaderboardAsync(LeagueGameDay gameDay, IRankingStrategy strategy);
+    Task<List<LeagueLeaderboardRow>> GetLeaderboardAsync(LeagueGameDay gameDay, IRankingStrategy strategy, CancellationToken ct);
 
     /// <summary>
     /// Returns every submission of the league's members whose scoring day lies between
     /// <paramref name="firstScoringDay"/> and <paramref name="lastScoringDay"/> (both inclusive), scored or not.
     /// </summary>
-    Task<List<LeagueSubmissionRow>> GetMemberSubmissionsAsync(int leagueId, DateTime firstScoringDay, DateTime lastScoringDay);
+    Task<List<LeagueSubmissionRow>> GetMemberSubmissionsAsync(int leagueId, DateTime firstScoringDay, DateTime lastScoringDay, CancellationToken ct);
 }

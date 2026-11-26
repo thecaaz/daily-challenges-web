@@ -30,7 +30,7 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, 1, 2);
         var repo = new EfFriendRepository(db.Ctx);
 
-        var result = await repo.GetExistingAsync(1, 2);
+        var result = await repo.GetExistingAsync(1, 2, CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(1, result!.SenderId);
@@ -47,7 +47,7 @@ public class EfFriendRepositoryTests
         var repo = new EfFriendRepository(db.Ctx);
         const int receiverOfTheRequest = 2, senderOfTheRequest = 1;
 
-        var result = await repo.GetExistingAsync(receiverOfTheRequest, senderOfTheRequest);
+        var result = await repo.GetExistingAsync(receiverOfTheRequest, senderOfTheRequest, CancellationToken.None);
 
         Assert.NotNull(result);
     }
@@ -60,7 +60,7 @@ public class EfFriendRepositoryTests
         db.Ctx.SeedUser(2);
         var repo = new EfFriendRepository(db.Ctx);
 
-        var result = await repo.GetExistingAsync(1, 2);
+        var result = await repo.GetExistingAsync(1, 2, CancellationToken.None);
 
         Assert.Null(result);
     }
@@ -80,7 +80,7 @@ public class EfFriendRepositoryTests
         var outgoingToUser4 = SeedFriendRequest(db.Ctx, 2, 4);
         var repo = new EfFriendRepository(db.Ctx);
 
-        var results = await repo.GetIncomingPendingAsync(2);
+        var results = await repo.GetIncomingPendingAsync(2, CancellationToken.None);
 
         Assert.Equal(new[] { incomingFromUser1.Id, incomingFromUser3.Id }, results.Select(r => r.Id).OrderBy(id => id));
         Assert.DoesNotContain(results, r => r.Id == outgoingToUser4.Id);
@@ -96,7 +96,7 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
 
-        var results = await repo.GetIncomingPendingAsync(2);
+        var results = await repo.GetIncomingPendingAsync(2, CancellationToken.None);
 
         Assert.Empty(results);
     }
@@ -118,7 +118,7 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, 1, 5, FriendRequestStatus.Declined);
         var repo = new EfFriendRepository(db.Ctx);
 
-        var results = await repo.GetOutgoingPendingAsync(1);
+        var results = await repo.GetOutgoingPendingAsync(1, CancellationToken.None);
 
         Assert.Equal(new[] { outgoingToUser2.Id, outgoingToUser3.Id }, results.Select(r => r.Id).OrderBy(id => id));
         Assert.All(results, r => Assert.Equal(1, r.SenderId));
@@ -137,7 +137,7 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, senderId: 3, receiverId: 1, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
 
-        var friends = await repo.GetFriendsAsync(1);
+        var friends = await repo.GetFriendsAsync(1, CancellationToken.None);
 
         Assert.Equal(2, friends.Count);
         Assert.Contains(friends, u => u.Id == 2);
@@ -153,7 +153,7 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Pending);
         var repo = new EfFriendRepository(db.Ctx);
 
-        var friends = await repo.GetFriendsAsync(1);
+        var friends = await repo.GetFriendsAsync(1, CancellationToken.None);
 
         Assert.Empty(friends);
     }
@@ -169,7 +169,7 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
 
-        Assert.True(await repo.HasAcceptedFriendAsync(1));
+        Assert.True(await repo.HasAcceptedFriendAsync(1, CancellationToken.None));
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, senderId: 2, receiverId: 1, FriendRequestStatus.Accepted);
         var repo = new EfFriendRepository(db.Ctx);
 
-        Assert.True(await repo.HasAcceptedFriendAsync(1));
+        Assert.True(await repo.HasAcceptedFriendAsync(1, CancellationToken.None));
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Pending);
         var repo = new EfFriendRepository(db.Ctx);
 
-        Assert.False(await repo.HasAcceptedFriendAsync(1));
+        Assert.False(await repo.HasAcceptedFriendAsync(1, CancellationToken.None));
     }
 
     [Fact]
@@ -203,7 +203,7 @@ public class EfFriendRepositoryTests
         db.Ctx.SeedUser(1);
         var repo = new EfFriendRepository(db.Ctx);
 
-        Assert.False(await repo.HasAcceptedFriendAsync(1));
+        Assert.False(await repo.HasAcceptedFriendAsync(1, CancellationToken.None));
     }
 
     // ── DeleteAsync ───────────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ public class EfFriendRepositoryTests
         var fr = SeedFriendRequest(db.Ctx, 1, 2);
         var repo = new EfFriendRepository(db.Ctx);
 
-        await repo.DeleteAsync(fr.Id);
+        await repo.DeleteAsync(fr.Id, CancellationToken.None);
 
         Assert.Equal(0, db.Ctx.FriendRequests.Count());
     }
@@ -230,7 +230,7 @@ public class EfFriendRepositoryTests
 
         const int missingRequestId = 9999;
 
-        await repo.DeleteAsync(missingRequestId);
+        await repo.DeleteAsync(missingRequestId, CancellationToken.None);
     }
 
     // ── One row per pair; Declined ────────────────────────────────────────────
@@ -245,7 +245,7 @@ public class EfFriendRepositoryTests
         var repo = new EfFriendRepository(db.Ctx);
 
         var ex = await Assert.ThrowsAsync<Microsoft.EntityFrameworkCore.DbUpdateException>(() =>
-            repo.CreateAsync(new FriendRequest { SenderId = 2, ReceiverId = 1, Status = FriendRequestStatus.Pending }));
+            repo.CreateAsync(new FriendRequest { SenderId = 2, ReceiverId = 1, Status = FriendRequestStatus.Pending }, CancellationToken.None));
         Assert.True(ex.IsUniqueViolation());
 
         db.Ctx.SeedUser(3);
@@ -261,10 +261,10 @@ public class EfFriendRepositoryTests
         SeedFriendRequest(db.Ctx, 1, 2, FriendRequestStatus.Declined);
         var repo = new EfFriendRepository(db.Ctx);
 
-        Assert.Empty(await repo.GetIncomingPendingAsync(2));
-        Assert.Empty(await repo.GetOutgoingPendingAsync(1));
-        Assert.Empty(await repo.GetFriendsAsync(1));
-        Assert.False(await repo.HasAcceptedFriendAsync(1));
+        Assert.Empty(await repo.GetIncomingPendingAsync(2, CancellationToken.None));
+        Assert.Empty(await repo.GetOutgoingPendingAsync(1, CancellationToken.None));
+        Assert.Empty(await repo.GetFriendsAsync(1, CancellationToken.None));
+        Assert.False(await repo.HasAcceptedFriendAsync(1, CancellationToken.None));
     }
 
     [Fact]
@@ -277,13 +277,13 @@ public class EfFriendRepositoryTests
         var repo = new EfFriendRepository(db.Ctx);
         var now = new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 
-        var reopenedOnce = await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now);
-        var reopenedWhenNoLongerDeclined = await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now);
+        var reopenedOnce = await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now, CancellationToken.None);
+        var reopenedWhenNoLongerDeclined = await repo.ReopenDeclinedAsync(fr.Id, new FriendRequestDirection(2, 1), now, CancellationToken.None);
 
         Assert.True(reopenedOnce);
         Assert.False(reopenedWhenNoLongerDeclined);
 
-        var reopened = await repo.GetByIdAsync(fr.Id);
+        var reopened = await repo.GetByIdAsync(fr.Id, CancellationToken.None);
         Assert.Equal((2, 1, FriendRequestStatus.Pending, now), (reopened!.SenderId, reopened.ReceiverId, reopened.Status, reopened.CreatedAt));
         Assert.Null(reopened.UpdatedAt);
     }
@@ -302,10 +302,10 @@ public class EfFriendRepositoryTests
         db.Ctx.ChangeTracker.Clear();
         var repo = new EfFriendRepository(db.Ctx);
 
-        var fr = await repo.GetByIdAsync(seeded.Id);
+        var fr = await repo.GetByIdAsync(seeded.Id, CancellationToken.None);
         await ChangeSenderXpBehindTheContextAsync(db, 500);
         fr!.Status = FriendRequestStatus.Accepted;
-        await repo.UpdateAsync(fr);
+        await repo.UpdateAsync(fr, CancellationToken.None);
 
         db.Ctx.ChangeTracker.Clear();
         Assert.Equal(500, db.Ctx.Users.Single(u => u.Id == 1).TotalXp);

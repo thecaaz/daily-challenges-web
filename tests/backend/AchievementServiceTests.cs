@@ -33,9 +33,9 @@ public class AchievementServiceTests
         var friendRepo = new Mock<IFriendRepository>();
 
         var nothingUnlockedYet = new List<string>();
-        achRepo.Setup(r => r.GetUnlockedIdsAsync(It.IsAny<int>())).ReturnsAsync(nothingUnlockedYet);
-        achRepo.Setup(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>())).Returns(Task.CompletedTask);
-        notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>())).Returns(Task.CompletedTask);
+        achRepo.Setup(r => r.GetUnlockedIdsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(nothingUnlockedYet);
+        achRepo.Setup(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        notifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var svc = new AchievementService(
             achRepo.Object, userRepo.Object,
@@ -56,14 +56,14 @@ public class AchievementServiceTests
     public async Task CheckAndAward_AlreadyUnlocked_DoesNotAwardAgain()
     {
         var sut = Build();
-        sut.AchRepo.Setup(r => r.GetUnlockedIdsAsync(1))
+        sut.AchRepo.Setup(r => r.GetUnlockedIdsAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<string> { "submission_first" });
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(5);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(5);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
-        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);
+        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── Trigger routing: wrong trigger never awards ───────────────────────────
@@ -75,12 +75,12 @@ public class AchievementServiceTests
     public async Task CheckAndAward_NonSubmissionTrigger_DoesNotEvaluateSubmissionAchievements(AchievementTrigger trigger)
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(streak: 100, level: 25));
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(250);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(streak: 100, level: 25));
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(250);
 
         await sut.Service.CheckAndAwardAsync(1, trigger);
 
-        sut.SubRepo.Verify(r => r.CountByUserAsync(It.IsAny<int>()), Times.Never);
+        sut.SubRepo.Verify(r => r.CountByUserAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── submission_first ──────────────────────────────────────────────────────
@@ -89,25 +89,25 @@ public class AchievementServiceTests
     public async Task CheckAndAward_Submission_FirstSubmission_Unlocks()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(1);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
         sut.AchRepo.Verify(r => r.AddBatchAsync(It.Is<List<UserAchievement>>(
-            l => l.Any(a => a.AchievementId == "submission_first"))), Times.Once);
+            l => l.Any(a => a.AchievementId == "submission_first")), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task CheckAndAward_Submission_ZeroSubmissions_NoUnlock()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(0);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(0);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
-        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);
+        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── submission_50 / submission_250 ────────────────────────────────────────
@@ -118,13 +118,13 @@ public class AchievementServiceTests
     public async Task CheckAndAward_Submission_CountThreshold_Unlocks(int count, string achievementId)
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(count);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(count);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
         sut.AchRepo.Verify(r => r.AddBatchAsync(It.Is<List<UserAchievement>>(
-            l => l.Any(a => a.AchievementId == achievementId))), Times.Once);
+            l => l.Any(a => a.AchievementId == achievementId)), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ── Streak achievements ───────────────────────────────────────────────────
@@ -136,26 +136,26 @@ public class AchievementServiceTests
     public async Task CheckAndAward_Submission_StreakThreshold_Unlocks(int streak, string achievementId)
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(streak: streak));
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(1);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(streak: streak));
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
         sut.AchRepo.Verify(r => r.AddBatchAsync(It.Is<List<UserAchievement>>(
-            l => l.Any(a => a.AchievementId == achievementId))), Times.Once);
+            l => l.Any(a => a.AchievementId == achievementId)), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task CheckAndAward_Submission_StreakBelowThreshold_NoStreakUnlock()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(streak: 6));
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(1);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(streak: 6));
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
         sut.AchRepo.Verify(r => r.AddBatchAsync(It.Is<List<UserAchievement>>(
-            l => l.Any(a => a.AchievementId.StartsWith("streak_")))), Times.Never);
+            l => l.Any(a => a.AchievementId.StartsWith("streak_"))), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── Win achievements ──────────────────────────────────────────────────────
@@ -167,25 +167,25 @@ public class AchievementServiceTests
     public async Task CheckAndAward_DayWin_WinCountThreshold_Unlocks(int wins, string achievementId)
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.SdrRepo.Setup(r => r.CountWinsByUserAsync(1)).ReturnsAsync(wins);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.SdrRepo.Setup(r => r.CountWinsByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(wins);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.DayWin);
 
         sut.AchRepo.Verify(r => r.AddBatchAsync(It.Is<List<UserAchievement>>(
-            l => l.Any(a => a.AchievementId == achievementId))), Times.Once);
+            l => l.Any(a => a.AchievementId == achievementId)), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task CheckAndAward_DayWin_ZeroWins_NoUnlock()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.SdrRepo.Setup(r => r.CountWinsByUserAsync(1)).ReturnsAsync(0);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.SdrRepo.Setup(r => r.CountWinsByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(0);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.DayWin);
 
-        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);
+        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── Level achievements ────────────────────────────────────────────────────
@@ -197,23 +197,23 @@ public class AchievementServiceTests
     public async Task CheckAndAward_LevelUp_LevelThreshold_Unlocks(int level, string achievementId)
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(level: level));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(level: level));
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.LevelUp);
 
         sut.AchRepo.Verify(r => r.AddBatchAsync(It.Is<List<UserAchievement>>(
-            l => l.Any(a => a.AchievementId == achievementId))), Times.Once);
+            l => l.Any(a => a.AchievementId == achievementId)), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task CheckAndAward_LevelUp_Level4_NoUnlock()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(level: 4));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(level: 4));
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.LevelUp);
 
-        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);
+        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── first_friend ──────────────────────────────────────────────────────────
@@ -222,25 +222,25 @@ public class AchievementServiceTests
     public async Task CheckAndAward_FriendAccepted_HasFriend_Unlocks()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.FriendRepo.Setup(r => r.HasAcceptedFriendAsync(1)).ReturnsAsync(true);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.FriendRepo.Setup(r => r.HasAcceptedFriendAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.FriendAccepted);
 
         sut.AchRepo.Verify(r => r.AddBatchAsync(It.Is<List<UserAchievement>>(
-            l => l.Any(a => a.AchievementId == "first_friend"))), Times.Once);
+            l => l.Any(a => a.AchievementId == "first_friend")), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task CheckAndAward_FriendAccepted_NoFriend_NoUnlock()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.FriendRepo.Setup(r => r.HasAcceptedFriendAsync(1)).ReturnsAsync(false);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.FriendRepo.Setup(r => r.HasAcceptedFriendAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.FriendAccepted);
 
-        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);
+        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── Notifications created for each newly unlocked achievement ────────────
@@ -249,12 +249,12 @@ public class AchievementServiceTests
     public async Task CheckAndAward_NewUnlock_CreatesNotification()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser());
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(1);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser());
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         List<Notification>? capturedNotifs = null;
-        sut.NotifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()))
-            .Callback<List<Notification>>(n => capturedNotifs = n)
+        sut.NotifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>()))
+            .Callback<List<Notification>, CancellationToken>((n, _) => capturedNotifs = n)
             .Returns(Task.CompletedTask);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
@@ -270,11 +270,11 @@ public class AchievementServiceTests
     public async Task CheckAndAward_UserNotFound_DoesNotThrowOrUnlock()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((User?)null);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
-        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);
+        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── GetForUserAsync ───────────────────────────────────────────────────────
@@ -283,7 +283,7 @@ public class AchievementServiceTests
     public async Task GetForUserAsync_ReturnsAllCatalogEntries()
     {
         var sut = Build();
-        sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1))
+        sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, DateTime>());
 
         var result = await sut.Service.GetForUserAsync(1, CancellationToken.None);
@@ -296,7 +296,7 @@ public class AchievementServiceTests
     {
         var sut = Build();
         var ts = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1))
+        sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, DateTime> { ["win_1"] = ts });
 
         var result = await sut.Service.GetForUserAsync(1, CancellationToken.None);
@@ -309,7 +309,7 @@ public class AchievementServiceTests
     public async Task GetForUserAsync_LockedEntry_HasNullUnlockedAt()
     {
         var sut = Build();
-        sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1))
+        sut.AchRepo.Setup(r => r.GetUnlockedWithTimestampsAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, DateTime>());
 
         var result = await sut.Service.GetForUserAsync(1, CancellationToken.None);
@@ -323,25 +323,25 @@ public class AchievementServiceTests
     public async Task CheckAndAward_RepositoryThrows_IsLoggedNotRethrown()
     {
         var sut = Build();
-        sut.AchRepo.Setup(r => r.GetUnlockedIdsAsync(1)).ThrowsAsync(new InvalidOperationException("db down"));
+        sut.AchRepo.Setup(r => r.GetUnlockedIdsAsync(1, It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("db down"));
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 
-        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()), Times.Never);
+        sut.AchRepo.Verify(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task CheckAndAward_SeveralEarned_AwardsThemInOneBatchWithANotificationEach()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(MakeUser(streak: 30));
-        sut.SubRepo.Setup(r => r.CountByUserAsync(1)).ReturnsAsync(50);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(MakeUser(streak: 30));
+        sut.SubRepo.Setup(r => r.CountByUserAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(50);
         List<UserAchievement>? awarded = null;
         List<Notification>? notifications = null;
-        sut.AchRepo.Setup(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>()))
-            .Callback<List<UserAchievement>>(a => awarded = a).Returns(Task.CompletedTask);
-        sut.NotifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>()))
-            .Callback<List<Notification>>(n => notifications = n).Returns(Task.CompletedTask);
+        sut.AchRepo.Setup(r => r.AddBatchAsync(It.IsAny<List<UserAchievement>>(), It.IsAny<CancellationToken>()))
+            .Callback<List<UserAchievement>, CancellationToken>((a, _) => awarded = a).Returns(Task.CompletedTask);
+        sut.NotifRepo.Setup(r => r.CreateBatchAsync(It.IsAny<List<Notification>>(), It.IsAny<CancellationToken>()))
+            .Callback<List<Notification>, CancellationToken>((n, _) => notifications = n).Returns(Task.CompletedTask);
 
         await sut.Service.CheckAndAwardAsync(1, AchievementTrigger.Submission);
 

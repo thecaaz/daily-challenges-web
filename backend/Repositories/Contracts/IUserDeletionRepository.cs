@@ -10,29 +10,29 @@ namespace DailyChallenges.Repositories.Contracts;
 public interface IUserDeletionRepository
 {
     /// <summary>The tracked user, or null.</summary>
-    Task<User?> GetUserAsync(int userId);
+    Task<User?> GetUserAsync(int userId, CancellationToken ct);
 
     /// <summary>Deletes the user's sent and received friend requests in SQL; returns the deleted row count.</summary>
-    Task<int> DeleteFriendRequestsAsync(int userId);
+    Task<int> DeleteFriendRequestsAsync(int userId, CancellationToken ct);
 
     /// <summary>
     /// Deletes the league invitations the user sent and received in SQL (received ones would otherwise stay
     /// Pending with InviteeId = null); returns the deleted row count.
     /// </summary>
-    Task<int> DeleteLeagueInvitationsAsync(int userId);
+    Task<int> DeleteLeagueInvitationsAsync(int userId, CancellationToken ct);
 
     /// <summary>The tracked leagues the user owns.</summary>
-    Task<List<League>> GetOwnedLeaguesAsync(int userId);
+    Task<List<League>> GetOwnedLeaguesAsync(int userId, CancellationToken ct);
 
     /// <summary>The tracked member of the league, other than the user, who joined first (ties by Id), or null.</summary>
-    Task<LeagueMember?> GetLongestStandingOtherMemberAsync(int leagueId, int userId);
+    Task<LeagueMember?> GetLongestStandingOtherMemberAsync(int leagueId, int userId, CancellationToken ct);
 
     /// <summary>Marks the league for deletion; it is deleted by <see cref="RemoveUserAsync"/>.</summary>
     void RemoveLeague(League league);
 
     /// <summary>Clears Username on the user's submissions in SQL. The FK sets their UserId to null on delete.</summary>
-    Task AnonymizeSubmissionsAsync(int userId);
+    Task AnonymizeSubmissionsAsync(int userId, CancellationToken ct);
 
     /// <summary>Deletes the user and flushes all pending tracked changes (league hand-overs and removals).</summary>
-    Task RemoveUserAsync(User user);
+    Task RemoveUserAsync(User user, CancellationToken ct);
 }

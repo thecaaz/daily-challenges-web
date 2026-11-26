@@ -24,20 +24,20 @@ public sealed class ScoringDayFinalizerService(
     public async Task FinalizeScoringDayAsync(int gameId, DateTime scoringDay, CancellationToken ct)
     {
         var day = scoringDay.Date;
-        if (await results.ExistsAsync(gameId, day))
+        if (await results.ExistsAsync(gameId, day, ct))
         {
             logger.LogDebug("Scoring day {Day} for game {GameId} already finalized, skipping", ScoringDayCalculator.FormatScoringDay(day), gameId);
             return;
         }
 
-        var game = await games.GetByIdWithoutBlobAsync(gameId);
+        var game = await games.GetByIdWithoutBlobAsync(gameId, ct);
         if (game == null)
         {
             logger.LogWarning("Game {GameId} not found during finalization", gameId);
             return;
         }
 
-        var outcome = await transactions.RunAsync(() => recorder.RecordAsync(game, day, ct));
+        var outcome = await transactions.RunAsync(() => recorder.RecordAsync(game, day, ct), ct);
         if (outcome == null)
         {
             logger.LogDebug("Scoring day {Day} for game {GameId} was finalized concurrently, skipping", ScoringDayCalculator.FormatScoringDay(day), gameId);

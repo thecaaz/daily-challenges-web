@@ -25,24 +25,24 @@ public sealed class ScoringDayOutcomeRecorder(
     public async Task<ScoringDayOutcome?> RecordAsync(Game game, DateTime day, CancellationToken ct)
     {
         var rankedSubmissions = await submissions.GetByGameAndDayByScoreValueAsync(
-            game.Id, day, RankingStrategyFactory.GetStrategy(game.RankingMode));
+            game.Id, day, RankingStrategyFactory.GetStrategy(game.RankingMode), ct);
         var winner = rankedSubmissions.FirstOrDefault();
 
-        if (!await ClaimDayAsync(game.Id, day, winner?.UserId)) return null;
+        if (!await ClaimDayAsync(game.Id, day, winner?.UserId, ct)) return null;
 
         await AwardWinXpAsync(game, day, winner?.UserId, ct);
-        var notificationCount = await NotifyParticipantsAsync(game, day, rankedSubmissions);
+        var notificationCount = await NotifyParticipantsAsync(game, day, rankedSubmissions, ct);
         return new ScoringDayOutcome(winner?.UserId, winner?.Username, notificationCount);
     }
 
-    private Task<bool> ClaimDayAsync(int gameId, DateTime day, int? winnerUserId) =>
+    private Task<bool> ClaimDayAsync(int gameId, DateTime day, int? winnerUserId, CancellationToken ct) =>
         results.TryCreateAsync(new ScoringDayResult
         {
             GameId = gameId,
             ScoringDay = day,
             WinnerUserId = winnerUserId,
             ProcessedAt = time.GetUtcNow().UtcDateTime
-        });
+        }, ct);
 
     private async Task AwardWinXpAsync(Game game, DateTime day, int? winnerUserId, CancellationToken ct)
     {
@@ -53,11 +53,11 @@ public sealed class ScoringDayOutcomeRecorder(
             xpAwarded, userId, game.Name, ScoringDayCalculator.FormatScoringDay(day));
     }
 
-    private async Task<int> NotifyParticipantsAsync(Game game, DateTime day, List<Submission> rankedSubmissions)
+    private async Task<int> NotifyParticipantsAsync(Game game, DateTime day, List<Submission> rankedSubmissions, CancellationToken ct)
     {
         var dayNotifications = notificationFactory.Create(game, day, rankedSubmissions);
         if (dayNotifications.Count > 0)
-            await notifications.CreateBatchAsync(dayNotifications);
+            await notifications.CreateBatchAsync(dayNotifications, ct);
         return dayNotifications.Count;
     }
 }

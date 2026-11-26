@@ -23,7 +23,7 @@ public class BatchInsertFailureTests
         await Assert.ThrowsAsync<DbUpdateException>(() => repo.AddBatchAsync(new List<UserAchievement>
         {
             new() { UserId = 1, AchievementId = "win_1", UnlockedAt = DateTime.UtcNow },
-        }));
+        }, CancellationToken.None));
 
         Assert.DoesNotContain(db.Ctx.ChangeTracker.Entries(), e => e.State == EntityState.Added);
         db.Ctx.Users.Add(new User { Id = 2, Username = "later" });
@@ -42,7 +42,7 @@ public class BatchInsertFailureTests
         await Assert.ThrowsAsync<DbUpdateException>(() => repo.CreateBatchAsync(new List<Notification>
         {
             new() { UserId = missingUserId, Message = "m", Type = "achievement", ScoringDay = DateTime.UtcNow.Date, CreatedAt = DateTime.UtcNow },
-        }));
+        }, CancellationToken.None));
 
         Assert.DoesNotContain(db.Ctx.ChangeTracker.Entries(), e => e.State == EntityState.Added);
         db.Ctx.Users.Add(new User { Id = 1, Username = "later" });

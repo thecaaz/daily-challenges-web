@@ -19,7 +19,7 @@ public class GameOverviewTests
 
     public GameOverviewTests()
     {
-        _games.Setup(r => r.GetByIdWithoutBlobAsync(GameId)).ReturnsAsync(new Game { Id = GameId, Name = "overview" });
+        _games.Setup(r => r.GetByIdWithoutBlobAsync(GameId, It.IsAny<CancellationToken>())).ReturnsAsync(new Game { Id = GameId, Name = "overview" });
     }
 
     private GameQueryService Build() => new(

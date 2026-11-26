@@ -13,7 +13,7 @@ public sealed class CurrentUserService(IUserRepository users, LevelCalculator le
         var userId = user.GetUserId();
         if (userId == null) return null;
 
-        var current = await users.GetByIdAsync(userId.Value);
+        var current = await users.GetByIdAsync(userId.Value, ct);
         if (current == null) return null;
 
         return DtoMapper.ToDto(current, levels, time.GetUtcNow().UtcDateTime);

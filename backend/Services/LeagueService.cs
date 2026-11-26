@@ -16,10 +16,10 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
     public async Task<LeagueDto> CreateLeagueAsync(int ownerId, string name, CancellationToken ct)
     {
         var leagueName = RequireValidName(name);
-        var owner = await users.GetByIdAsync(ownerId)
+        var owner = await users.GetByIdAsync(ownerId, ct)
             ?? throw new NotFoundException("User not found.");
 
-        var league = await leagues.CreateAsync(NewLeagueOwnedBy(ownerId, leagueName));
+        var league = await leagues.CreateAsync(NewLeagueOwnedBy(ownerId, leagueName), ct);
 
         return LeagueDtoMapper.ToDto(league, owner.Username);
     }
@@ -27,10 +27,10 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
     public async Task<LeagueDto> RenameLeagueAsync(int leagueId, int requestingUserId, string newName, CancellationToken ct)
     {
         var leagueName = RequireValidName(newName);
-        var league = await leagues.GetExistingWithMembersAsync(leagueId);
+        var league = await leagues.GetExistingWithMembersAsync(leagueId, ct);
         league.RequireOwner(requestingUserId);
 
-        if (!await leagues.RenameAsync(leagueId, leagueName))
+        if (!await leagues.RenameAsync(leagueId, leagueName, ct))
             throw new NotFoundException(LeagueAccess.LeagueNotFound);
 
         league.Name = leagueName;
@@ -39,22 +39,22 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
 
     public async Task DeleteLeagueAsync(int leagueId, int requestingUserId, CancellationToken ct)
     {
-        var league = await leagues.GetExistingAsync(leagueId);
+        var league = await leagues.GetExistingAsync(leagueId, ct);
         league.RequireOwner(requestingUserId);
 
-        if (!await leagues.DeleteAsync(leagueId))
+        if (!await leagues.DeleteAsync(leagueId, ct))
             throw new NotFoundException(LeagueAccess.LeagueNotFound);
     }
 
     public async Task<List<LeagueDto>> GetMyLeaguesAsync(int userId, CancellationToken ct)
     {
-        var myLeagues = await leagues.GetByUserAsync(userId);
+        var myLeagues = await leagues.GetByUserAsync(userId, ct);
         return myLeagues.Select(LeagueDtoMapper.ToDto).ToList();
     }
 
     public async Task<LeagueDetailDto> GetLeagueDetailAsync(int leagueId, int requestingUserId, CancellationToken ct)
     {
-        var league = await leagues.GetExistingWithMembersAsync(leagueId);
+        var league = await leagues.GetExistingWithMembersAsync(leagueId, ct);
         league.RequireMember(requestingUserId);
 
         var nowUtc = time.GetUtcNow().UtcDateTime;
@@ -63,27 +63,27 @@ public sealed class LeagueService(ILeagueRepository leagues, IUserProfileReposit
 
     public async Task LeaveLeagueAsync(int leagueId, int userId, CancellationToken ct)
     {
-        var league = await leagues.GetExistingAsync(leagueId);
+        var league = await leagues.GetExistingAsync(leagueId, ct);
         if (league.OwnerId == userId)
             throw new ValidationException("The owner cannot leave the league. Transfer ownership or delete the league.");
 
-        var member = await leagues.GetMemberAsync(leagueId, userId)
+        var member = await leagues.GetMemberAsync(leagueId, userId, ct)
             ?? throw new ForbiddenException(LeagueAccess.NotAMember);
 
-        await leagues.RemoveMemberAsync(member);
+        await leagues.RemoveMemberAsync(member, ct);
     }
 
     public async Task KickMemberAsync(int leagueId, int requestingUserId, int targetUserId, CancellationToken ct)
     {
-        var league = await leagues.GetExistingAsync(leagueId);
+        var league = await leagues.GetExistingAsync(leagueId, ct);
         league.RequireOwner(requestingUserId);
         if (targetUserId == requestingUserId)
             throw new ValidationException("The owner cannot kick themselves.");
 
-        var member = await leagues.GetMemberAsync(leagueId, targetUserId)
+        var member = await leagues.GetMemberAsync(leagueId, targetUserId, ct)
             ?? throw new NotFoundException("The target user is not a member of this league.");
 
-        await leagues.RemoveMemberAsync(member);
+        await leagues.RemoveMemberAsync(member, ct);
     }
 
     private static string RequireValidName(string name)

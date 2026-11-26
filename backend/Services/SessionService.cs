@@ -19,11 +19,11 @@ public sealed class SessionService(
         var token = ReadPresentedToken(request);
         if (token == null) return null;
 
-        var user = await users.GetByIdAsync(token.UserId);
+        var user = await users.GetByIdAsync(token.UserId, ct);
         if (user == null) return null;
         if (IsFromOlderTokenVersion(token, user)) return null;
 
-        if (!await revocations.TryRevokeAsync(token, RevokedRefreshTokenReason.Rotated))
+        if (!await revocations.TryRevokeAsync(token, RevokedRefreshTokenReason.Rotated, ct))
         {
             await revocations.HandleReuseAsync(token);
             return null;
@@ -36,7 +36,7 @@ public sealed class SessionService(
     {
         var token = ReadPresentedToken(request);
         if (token != null)
-            await revocations.TryRevokeAsync(token, RevokedRefreshTokenReason.Logout);
+            await revocations.TryRevokeAsync(token, RevokedRefreshTokenReason.Logout, ct);
 
         cookie.Delete(response);
     }

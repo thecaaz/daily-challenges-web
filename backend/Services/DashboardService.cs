@@ -26,16 +26,16 @@ public sealed class DashboardService(
     /// </summary>
     public async Task<DashboardDataDto> GetDashboardDataAsync(int userId, CancellationToken ct)
     {
-        var today = await todaySnapshots.LoadAsync(userId);
-        var friendUsers = await friends.GetFriendsAsync(userId);
-        var (activeGameCount, submissionCountToday) = await submissions.CountOnGameDaysAsync(today.ScoringDayByGame);
+        var today = await todaySnapshots.LoadAsync(userId, ct);
+        var friendUsers = await friends.GetFriendsAsync(userId, ct);
+        var (activeGameCount, submissionCountToday) = await submissions.CountOnGameDaysAsync(today.ScoringDayByGame, ct);
 
         return new DashboardDataDto
         {
             RecentGames = DashboardRecentGames.Build(today),
-            FriendActivity = await friendActivity.BuildAsync(friendUsers.Select(u => u.Id).ToHashSet(), today),
+            FriendActivity = await friendActivity.BuildAsync(friendUsers.Select(u => u.Id).ToHashSet(), today, ct),
             Friends = ToFriendDtos(friendUsers, today.Now),
-            XpEarnedToday = await xpEvents.SumAmountByUserAndGameDaysAsync(userId, today.ScoringDayByGame, TodayXpEventTypes),
+            XpEarnedToday = await xpEvents.SumAmountByUserAndGameDaysAsync(userId, today.ScoringDayByGame, TodayXpEventTypes, ct),
             UserTodayRanks = DashboardTodayRanks.Compute(today),
             ActiveGameCount = activeGameCount,
             SubmissionCountToday = submissionCountToday

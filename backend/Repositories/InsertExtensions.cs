@@ -10,11 +10,11 @@ namespace DailyChallenges.Repositories;
 public static class InsertExtensions
 {
     /// <summary>Saves the pending inserts; on failure detaches them and rethrows.</summary>
-    public static async Task SaveInsertsOrDetachAsync(this AppDbContext db, IEnumerable<object> inserted)
+    public static async Task SaveInsertsOrDetachAsync(this AppDbContext db, IEnumerable<object> inserted, CancellationToken ct)
     {
         try
         {
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
         }
         catch
         {
@@ -27,12 +27,12 @@ public static class InsertExtensions
     /// Adds and saves <paramref name="entity"/>. Returns false, with the entity detached, when the row
     /// already exists (unique violation); any other failure is rethrown.
     /// </summary>
-    public static async Task<bool> TryInsertAsync<TEntity>(this AppDbContext db, TEntity entity) where TEntity : class
+    public static async Task<bool> TryInsertAsync<TEntity>(this AppDbContext db, TEntity entity, CancellationToken ct) where TEntity : class
     {
         db.Add(entity);
         try
         {
-            await db.SaveInsertsOrDetachAsync([entity]);
+            await db.SaveInsertsOrDetachAsync([entity], ct);
             return true;
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())

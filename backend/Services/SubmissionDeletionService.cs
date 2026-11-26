@@ -22,7 +22,7 @@ public sealed class SubmissionDeletionService(
 
     public async Task DeleteAsync(int id, CancellationToken ct)
     {
-        var deleted = await transactions.RunAsync(() => RemoveSubmissionAsync(id, ct));
+        var deleted = await transactions.RunAsync(() => RemoveSubmissionAsync(id, ct), ct);
         if (deleted == null) return;
 
         logger.LogInformation("Deleted submission {SubmissionId} (game {GameId}, day {Day}); re-finalizing: {Refinalize}",
@@ -33,12 +33,12 @@ public sealed class SubmissionDeletionService(
 
     private async Task<DeletedSubmission?> RemoveSubmissionAsync(int id, CancellationToken ct)
     {
-        var submission = await submissions.GetByIdWithoutBlobAsync(id);
+        var submission = await submissions.GetByIdWithoutBlobAsync(id, ct);
         if (submission == null) return null;
 
         var day = submission.ScoringDay.Date;
         await RevokeAwardedXpAsync(submission, day, ct);
-        await submissions.DeleteAsync(id);
+        await submissions.DeleteAsync(id, ct);
         var needsRefinalizing = await finalizedDays.UnfinalizeIfWinnerChangedAsync(submission.GameId, day, ct);
         return new DeletedSubmission(submission.GameId, day, needsRefinalizing);
     }

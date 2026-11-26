@@ -20,8 +20,8 @@ public sealed class LeagueStandingsService(
 
     public async Task<LeagueLeaderboardDto> GetLeaderboardAsync(LeagueLeaderboardQuery query, CancellationToken ct)
     {
-        await leagues.RequireMembershipAsync(query.LeagueId, query.RequestingUserId);
-        var game = await games.GetByIdWithoutBlobAsync(query.GameId)
+        await leagues.RequireMembershipAsync(query.LeagueId, query.RequestingUserId, ct);
+        var game = await games.GetByIdWithoutBlobAsync(query.GameId, ct)
             ?? throw new NotFoundException("Game not found.");
 
         var currentDay = visibility.GetCurrentScoringDay(game);
@@ -29,7 +29,7 @@ public sealed class LeagueStandingsService(
         var canSeeScores = await visibility.CanSeeDayAsync(new ScoreViewer(query.RequestingUserId, query.RequesterIsAdmin), game, day, ct);
         var rows = await standings.GetLeaderboardAsync(
             new LeagueGameDay(query.LeagueId, query.GameId, day),
-            RankingStrategyFactory.GetStrategy(game.RankingMode));
+            RankingStrategyFactory.GetStrategy(game.RankingMode), ct);
 
         return new LeagueLeaderboardDto
         {
@@ -45,12 +45,12 @@ public sealed class LeagueStandingsService(
 
     public async Task<(List<LeagueGameSummaryDto> Items, int TotalCount)> GetLeagueGameSummariesAsync(LeagueGameSummaryQuery query, CancellationToken ct)
     {
-        await leagues.RequireMembershipAsync(query.LeagueId, query.RequestingUserId);
+        await leagues.RequireMembershipAsync(query.LeagueId, query.RequestingUserId, ct);
         var (leagueId, requestingUserId, days, page, pageSize) = WithinLimits(query);
 
         var calculator = new LeagueGameSummaryCalculator(requestingUserId, days, time.GetUtcNow().UtcDateTime);
         var (firstDay, lastDay) = calculator.CandidateScoringDays;
-        var candidateRows = await standings.GetMemberSubmissionsAsync(leagueId, firstDay, lastDay);
+        var candidateRows = await standings.GetMemberSubmissionsAsync(leagueId, firstDay, lastDay, ct);
         var summaries = calculator.SummarizeByGame(candidateRows);
 
         return (summaries.Skip((page - 1) * pageSize).Take(pageSize).ToList(), summaries.Count);

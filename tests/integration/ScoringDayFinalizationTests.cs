@@ -117,15 +117,15 @@ public class ScoringDayFinalizationTests
     /// <summary>Fails when the finalizer writes notifications (after the claim and the win XP).</summary>
     private sealed class ThrowingNotificationRepository : INotificationRepository
     {
-        public Task CreateBatchAsync(List<Notification> notifications) => throw new InvalidOperationException("boom");
-        public Task<(List<Notification> Items, int TotalCount, int UnreadCount)> GetByUserPagedAsync(int userId, int page, int pageSize) => throw new NotSupportedException();
-        public Task<int> GetUnreadCountAsync(int userId) => throw new NotSupportedException();
-        public Task MarkReadAsync(int id, int userId) => throw new NotSupportedException();
-        public Task MarkAllReadAsync(int userId) => throw new NotSupportedException();
-        public Task<Notification?> GetByIdAsync(int id) => throw new NotSupportedException();
-        public Task DeleteAsync(int id) => throw new NotSupportedException();
-        public Task<int> DeleteDayResultNotificationsAsync(int gameId, DateTime scoringDay) => throw new NotSupportedException();
-        public Task<bool> HasRecentUnreadFromActorAsync(RecentNotificationQuery query) => throw new NotSupportedException();
+        public Task CreateBatchAsync(List<Notification> notifications, CancellationToken ct) => throw new InvalidOperationException("boom");
+        public Task<(List<Notification> Items, int TotalCount, int UnreadCount)> GetByUserPagedAsync(int userId, int page, int pageSize, CancellationToken ct) => throw new NotSupportedException();
+        public Task<int> GetUnreadCountAsync(int userId, CancellationToken ct) => throw new NotSupportedException();
+        public Task MarkReadAsync(int id, int userId, CancellationToken ct) => throw new NotSupportedException();
+        public Task MarkAllReadAsync(int userId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<Notification?> GetByIdAsync(int id, CancellationToken ct) => throw new NotSupportedException();
+        public Task DeleteAsync(int id, CancellationToken ct) => throw new NotSupportedException();
+        public Task<int> DeleteDayResultNotificationsAsync(int gameId, DateTime scoringDay, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> HasRecentUnreadFromActorAsync(RecentNotificationQuery query, CancellationToken ct) => throw new NotSupportedException();
     }
 
     /// <summary>Finalizes yesterday with a finalizer whose notification step throws, and expects the exception.</summary>

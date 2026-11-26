@@ -32,21 +32,21 @@ public class UserProfileServiceTests
         var requestedDays = new List<List<DateTime>>();
         var excludedIds = new List<IReadOnlyCollection<int>?>();
 
-        profiles.Setup(r => r.GetByIdAsync(OwnerId)).ReturnsAsync(new User { Id = OwnerId, Username = "owner" });
-        profiles.Setup(r => r.GetMostPlayedGamesAsync(OwnerId, It.IsAny<int>(), It.IsAny<IReadOnlyCollection<int>?>()))
-            .Callback<int, int, IReadOnlyCollection<int>?>((_, _, excluded) => excludedIds.Add(excluded))
+        profiles.Setup(r => r.GetByIdAsync(OwnerId, It.IsAny<CancellationToken>())).ReturnsAsync(new User { Id = OwnerId, Username = "owner" });
+        profiles.Setup(r => r.GetMostPlayedGamesAsync(OwnerId, It.IsAny<int>(), It.IsAny<IReadOnlyCollection<int>?>(), It.IsAny<CancellationToken>()))
+            .Callback<int, int, IReadOnlyCollection<int>?, CancellationToken>((_, _, excluded, _) => excludedIds.Add(excluded))
             .ReturnsAsync(() => new List<UserGameStatDto>
             {
                 new() { GameId = GameA, Name = "A", Plays = 3 },
                 new() { GameId = GameB, Name = "B", Plays = 1 }
             });
-        games.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Game>
+        games.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<Game>
         {
             new() { Id = GameA, Name = "A", ResetTime = TimeSpan.Zero },
             new() { Id = GameB, Name = "B", ResetTime = TimeSpan.Zero }
         });
-        submissionRepo.Setup(r => r.GetByUserAndGamesAndDaysAsync(OwnerId, It.IsAny<List<int>>(), It.IsAny<List<DateTime>>()))
-            .Callback<int, List<int>, List<DateTime>>((_, _, days) => requestedDays.Add(days))
+        submissionRepo.Setup(r => r.GetByUserAndGamesAndDaysAsync(OwnerId, It.IsAny<List<int>>(), It.IsAny<List<DateTime>>(), It.IsAny<CancellationToken>()))
+            .Callback<int, List<int>, List<DateTime>, CancellationToken>((_, _, days, _) => requestedDays.Add(days))
             .ReturnsAsync(submissions);
 
         var service = new UserProfileService(profiles.Object, submissionRepo.Object, games.Object,
@@ -122,7 +122,7 @@ public class UserProfileServiceTests
         await sut.Service.GetProfileAsync(OwnerId, 10, Viewer(99), CancellationToken.None);
         await sut.Service.GetProfileAsync(OwnerId, 5, Viewer(OwnerId), CancellationToken.None);
 
-        sut.Profiles.Verify(r => r.GetByIdAsync(OwnerId), Times.Exactly(3));
+        sut.Profiles.Verify(r => r.GetByIdAsync(OwnerId, It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
     [Fact]

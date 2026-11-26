@@ -46,7 +46,7 @@ public class EfLeagueStandingsRepositoryTests
         SeedSub(db.Ctx, 1, 50, first, userId: 3);
         SeedSub(db.Ctx, 1, 60, first);
 
-        var rows = await new EfLeagueStandingsRepository(db.Ctx).GetMemberSubmissionsAsync(1, first, last);
+        var rows = await new EfLeagueStandingsRepository(db.Ctx).GetMemberSubmissionsAsync(1, first, last, CancellationToken.None);
 
         Assert.Equal(new[] { (1, first), (2, last) }, rows.Select(r => (r.UserId, r.ScoringDay)).OrderBy(r => r.UserId));
         Assert.All(rows, r => Assert.Equal(("Game1", RankingMode.Lowest, false), (r.GameName, r.GameRankingMode, r.GameHasIcon)));
@@ -61,7 +61,7 @@ public class EfLeagueStandingsRepositoryTests
         var day = new DateTime(2026, 6, 15);
         SeedSub(db.Ctx, 1, 10, day, userId: 1);
 
-        Assert.Empty(await new EfLeagueStandingsRepository(db.Ctx).GetMemberSubmissionsAsync(1, day, day));
+        Assert.Empty(await new EfLeagueStandingsRepository(db.Ctx).GetMemberSubmissionsAsync(1, day, day, CancellationToken.None));
     }
 
     [Theory]
@@ -87,7 +87,7 @@ public class EfLeagueStandingsRepositoryTests
         SeedSub(db.Ctx, 1, 30, day, userId: 4);
 
         var repo = new EfLeagueStandingsRepository(db.Ctx);
-        var rows = await repo.GetLeaderboardAsync(new LeagueGameDay(1, 1, day), DailyChallenges.Services.Ranking.RankingStrategyFactory.GetStrategy(mode));
+        var rows = await repo.GetLeaderboardAsync(new LeagueGameDay(1, 1, day), DailyChallenges.Services.Ranking.RankingStrategyFactory.GetStrategy(mode), CancellationToken.None);
 
         Assert.Equal(new[] { 1, 1, 3, 4 }, rows.Select(r => r.Rank));
         Assert.Equal(lowWins ? new[] { 10.0, 10, 20, 30 } : new[] { 40.0, 40, 30, 20 }, rows.Select(r => r.ScoreValue));

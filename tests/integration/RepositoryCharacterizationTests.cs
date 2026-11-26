@@ -39,9 +39,9 @@ public class RepositoryCharacterizationTests
         var carol = SeedSub(db.Ctx, 1, 42.5, Day1, "carol", 3);
         var repo = new EfSubmissionRepository(db.Ctx);
 
-        var byName = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "ALI" });
-        var byNumber = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "42" });
-        var byScoreText = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "7" });
+        var byName = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "ALI" }, CancellationToken.None);
+        var byNumber = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "42" }, CancellationToken.None);
+        var byScoreText = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "7" }, CancellationToken.None);
 
         Assert.Equal(new[] { alice.Id }, byName.Items.Select(s => s.Id));
         Assert.Equal(new[] { carol.Id, alice.Id }, byNumber.Items.Select(s => s.Id));
@@ -58,10 +58,10 @@ public class RepositoryCharacterizationTests
         var third = SeedSub(db.Ctx, 1, 3, Day2, "c", 3);
         var repo = new EfSubmissionRepository(db.Ctx);
 
-        var pageZero = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 0, 2));
-        var pageTwo = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 2, 2));
-        var onDay1 = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { ScoringDay = Day1.AddHours(5) });
-        var withoutDay2 = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "  ", ExcludeScoringDay = Day2.AddHours(5) });
+        var pageZero = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 0, 2), CancellationToken.None);
+        var pageTwo = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 2, 2), CancellationToken.None);
+        var onDay1 = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { ScoringDay = Day1.AddHours(5) }, CancellationToken.None);
+        var withoutDay2 = await repo.GetByGameFilteredAsync(new SubmissionPageQuery(1, 1, 10) { Search = "  ", ExcludeScoringDay = Day2.AddHours(5) }, CancellationToken.None);
 
         Assert.Equal(3, pageZero.TotalCount);
         Assert.Equal(new[] { third.Id, second.Id }, pageZero.Items.Select(s => s.Id));
@@ -81,8 +81,8 @@ public class RepositoryCharacterizationTests
         var repo = new EfSubmissionRepository(db.Ctx);
         var strategy = new HighestRankingStrategy();
 
-        var defaulted = await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 0), strategy);
-        var withoutDay2 = await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 3) { ExcludeScoringDay = Day2.AddHours(1) }, strategy);
+        var defaulted = await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 0), strategy, CancellationToken.None);
+        var withoutDay2 = await repo.GetTopByScoreValueAsync(new TopScoresQuery(1, 3) { ExcludeScoringDay = Day2.AddHours(1) }, strategy, CancellationToken.None);
 
         Assert.Equal(10, defaulted.Count);
         Assert.Equal(best.Id, defaulted[0].Id);
@@ -99,7 +99,7 @@ public class RepositoryCharacterizationTests
         SeedSub(db.Ctx, 1, 3, Day1, null, 3);
         var repo = new EfSubmissionRepository(db.Ctx);
 
-        var usernames = await repo.GetUsernamesForDayAsync(1, Day1.AddHours(3));
+        var usernames = await repo.GetUsernamesForDayAsync(1, Day1.AddHours(3), CancellationToken.None);
 
         Assert.Equal(new[] { "Anonymous", "dora" }, usernames.OrderBy(n => n));
     }
@@ -112,12 +112,12 @@ public class RepositoryCharacterizationTests
         var sub = SeedSub(db.Ctx, 1, 1, Day1, "a", 1);
         var repo = new EfSubmissionRepository(db.Ctx);
 
-        var updated = await repo.UpdateAsync(new Submission { Id = sub.Id, Score = "9", ScoreValue = 9, Username = "other" });
+        var updated = await repo.UpdateAsync(new Submission { Id = sub.Id, Score = "9", ScoreValue = 9, Username = "other" }, CancellationToken.None);
 
         Assert.Equal("9", updated.Score);
         Assert.Equal(9, updated.ScoreValue);
         Assert.Equal("a", updated.Username);
-        var missing = await Assert.ThrowsAsync<NotFoundException>(() => repo.UpdateAsync(new Submission { Id = 999 }));
+        var missing = await Assert.ThrowsAsync<NotFoundException>(() => repo.UpdateAsync(new Submission { Id = 999 }, CancellationToken.None));
         Assert.Equal("Submission not found", missing.Message);
     }
 
@@ -131,7 +131,7 @@ public class RepositoryCharacterizationTests
         db.Ctx.SaveChanges();
         var repo = new EfNotificationRepository(db.Ctx);
 
-        var (items, total, unread) = await repo.GetByUserPagedAsync(1, 0, 0);
+        var (items, total, unread) = await repo.GetByUserPagedAsync(1, 0, 0, CancellationToken.None);
 
         Assert.Equal(20, items.Count);
         Assert.Equal("m24", items[0].Message);
@@ -150,7 +150,7 @@ public class RepositoryCharacterizationTests
         db.Ctx.SaveChanges();
         var repo = new EfNotificationRepository(db.Ctx);
 
-        var deleted = await repo.DeleteDayResultNotificationsAsync(1, Day1.AddHours(2));
+        var deleted = await repo.DeleteDayResultNotificationsAsync(1, Day1.AddHours(2), CancellationToken.None);
 
         Assert.Equal(2, deleted);
         Assert.Equal("friend_request", db.Ctx.Notifications.Single().Type);
@@ -164,8 +164,8 @@ public class RepositoryCharacterizationTests
         db.Ctx.SaveChanges();
         var repo = new EfUserRepository(db.Ctx);
 
-        var (firstPage, total) = await repo.GetPagedAsync(0, 0, null);
-        var (found, foundTotal) = await repo.GetPagedAsync(1, 10, "  mixed ");
+        var (firstPage, total) = await repo.GetPagedAsync(0, 0, null, CancellationToken.None);
+        var (found, foundTotal) = await repo.GetPagedAsync(1, 10, "  mixed ", CancellationToken.None);
 
         Assert.Equal(50, firstPage.Count);
         Assert.Equal(1, firstPage[0].Id);
@@ -184,7 +184,7 @@ public class RepositoryCharacterizationTests
         db.Ctx.SaveChanges();
         var repo = new EfXpEventRepository(db.Ctx);
 
-        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1), 0, 0);
+        var (items, total) = await repo.GetByUserPagedAsync(new XpEventFilter(1), 0, 0, CancellationToken.None);
 
         Assert.Equal(20, items.Count);
         Assert.Equal(24, items[0].Amount);
@@ -199,12 +199,12 @@ public class RepositoryCharacterizationTests
         db.Ctx.SaveChanges();
         var repo = new EfGameRepository(db.Ctx);
 
-        var updated = await repo.UpdateAsync(new Game { Id = 1, Name = "New", ScreenshotData = Array.Empty<byte>() });
+        var updated = await repo.UpdateAsync(new Game { Id = 1, Name = "New", ScreenshotData = Array.Empty<byte>() }, CancellationToken.None);
 
         Assert.Equal("New", updated.Name);
         Assert.Equal(new byte[] { 1 }, updated.ScreenshotData);
         Assert.Equal("image/png", updated.ScreenshotContentType);
-        var missing = await Assert.ThrowsAsync<NotFoundException>(() => repo.UpdateAsync(new Game { Id = 99 }));
+        var missing = await Assert.ThrowsAsync<NotFoundException>(() => repo.UpdateAsync(new Game { Id = 99 }, CancellationToken.None));
         Assert.Equal("Game not found", missing.Message);
     }
 }

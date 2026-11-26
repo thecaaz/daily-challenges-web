@@ -38,8 +38,8 @@ public class XpServiceTests
         var levelCalc = new LevelCalculator(cfg.LevelBase, cfg.LevelExponent);
 
         xpEventRepo
-            .Setup(r => r.AddAsync(It.IsAny<XpEvent>()))
-            .ReturnsAsync((XpEvent e) => e);
+            .Setup(r => r.AddAsync(It.IsAny<XpEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((XpEvent e, CancellationToken _) => e);
 
         var svc = new XpService(
             userRepo.Object, subRepo.Object, xpEventRepo.Object,
@@ -61,7 +61,7 @@ public class XpServiceTests
     public async Task AwardForSubmission_UserNotFound_Returns0()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((User?)null);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
         Assert.Equal(0, result);
@@ -72,8 +72,8 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
@@ -85,8 +85,8 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
@@ -98,8 +98,8 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser(streak: 3, lastSubmission: Day1);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
@@ -111,8 +111,8 @@ public class XpServiceTests
     {
         var sut = Build(now: Day2);
         var user = NewUser(streak: 2, lastSubmission: Day1);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
@@ -124,8 +124,8 @@ public class XpServiceTests
     {
         var sut = Build(now: Day3);
         var user = NewUser(streak: 5, lastSubmission: Day1);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day3, CancellationToken.None);
 
@@ -137,8 +137,8 @@ public class XpServiceTests
     {
         var sut = Build(now: Day2);
         var user = NewUser(streak: 1, lastSubmission: Day1);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
@@ -154,8 +154,8 @@ public class XpServiceTests
         var sut = Build(now: Day2);
         const int streakWhoseBonusEqualsTheCap = 31;
         var user = NewUser(streak: streakWhoseBonusEqualsTheCap, lastSubmission: Day1);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
@@ -168,8 +168,8 @@ public class XpServiceTests
     {
         var sut = Build(now: Day2);
         var user = NewUser(streak: 100, lastSubmission: Day1);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         var result = await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
@@ -182,8 +182,8 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser(totalXp: 200);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         var awarded = await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
@@ -194,14 +194,14 @@ public class XpServiceTests
     public async Task AwardForSubmission_WritesXpEventWithCorrectType()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewUser());
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewUser());
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         XpEvent? captured = null;
         sut.XpEventRepo
-            .Setup(r => r.AddAsync(It.IsAny<XpEvent>()))
-            .Callback<XpEvent>(e => captured = e)
-            .ReturnsAsync((XpEvent e) => e);
+            .Setup(r => r.AddAsync(It.IsAny<XpEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<XpEvent, CancellationToken>((e, _) => captured = e)
+            .ReturnsAsync((XpEvent e, CancellationToken _) => e);
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
@@ -215,9 +215,9 @@ public class XpServiceTests
     public async Task AwardForSubmission_StampsSubmissionXpAwarded()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewUser());
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewUser());
         var sub = NewSub(1, 1);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(sub);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(sub);
 
         var awarded = await sut.Service.AwardForSubmissionAsync(1, 1, Day1, CancellationToken.None);
 
@@ -230,8 +230,8 @@ public class XpServiceTests
         var now = Day2.AddHours(17).AddMinutes(42);
         var sut = Build(now: now);
         var user = NewUser(lastSubmission: Day1);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
@@ -244,8 +244,8 @@ public class XpServiceTests
     {
         var sut = Build(now: Day2.AddHours(23));
         var user = NewUser(streak: 4, lastSubmission: Day2.AddHours(1));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day2, CancellationToken.None);
 
@@ -257,8 +257,8 @@ public class XpServiceTests
     {
         var sut = Build(now: Day3.AddHours(0.5));
         var user = NewUser(streak: 4, lastSubmission: Day2.AddHours(23.5));
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.SubRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewSub(1, 1));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.SubRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewSub(1, 1));
 
         await sut.Service.AwardForSubmissionAsync(1, 1, Day3, CancellationToken.None);
 
@@ -271,7 +271,7 @@ public class XpServiceTests
     public async Task AdjustXp_UserNotFound_ThrowsNotFoundException()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(99)).ReturnsAsync((User?)null);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(99, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
             sut.Service.AdjustXpAsync(new XpAdjustment(99, 100, "test", AdminUserId: null), CancellationToken.None));
@@ -282,7 +282,7 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser(totalXp: 100);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "bonus", AdminUserId: null), CancellationToken.None);
 
@@ -294,7 +294,7 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser(totalXp: 100);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         await sut.Service.AdjustXpAsync(new XpAdjustment(1, -30, "penalty", AdminUserId: null), CancellationToken.None);
 
@@ -306,7 +306,7 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser(totalXp: 10);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty", AdminUserId: null), CancellationToken.None);
 
@@ -318,13 +318,13 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser(totalXp: 10);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         XpEvent? captured = null;
         sut.XpEventRepo
-            .Setup(r => r.AddAsync(It.IsAny<XpEvent>()))
-            .Callback<XpEvent>(e => captured = e)
-            .ReturnsAsync((XpEvent e) => e);
+            .Setup(r => r.AddAsync(It.IsAny<XpEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<XpEvent, CancellationToken>((e, _) => captured = e)
+            .ReturnsAsync((XpEvent e, CancellationToken _) => e);
 
         var applied = await sut.Service.AdjustXpAsync(new XpAdjustment(1, -1000, "penalty", AdminUserId: 2), CancellationToken.None);
 
@@ -338,13 +338,13 @@ public class XpServiceTests
     public async Task AdjustXp_WritesAdminAdjustmentEvent()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewUser(totalXp: 100));
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewUser(totalXp: 100));
 
         XpEvent? captured = null;
         sut.XpEventRepo
-            .Setup(r => r.AddAsync(It.IsAny<XpEvent>()))
-            .Callback<XpEvent>(e => captured = e)
-            .ReturnsAsync((XpEvent e) => e);
+            .Setup(r => r.AddAsync(It.IsAny<XpEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<XpEvent, CancellationToken>((e, _) => captured = e)
+            .ReturnsAsync((XpEvent e, CancellationToken _) => e);
 
         await sut.Service.AdjustXpAsync(new XpAdjustment(1, 50, "reward", AdminUserId: 2), CancellationToken.None);
 
@@ -359,7 +359,7 @@ public class XpServiceTests
     public async Task AwardForDayWin_UserNotFound_Returns0()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync((User?)null);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
 
         var result = await sut.Service.AwardForDayWinAsync(1, 1, Day1, CancellationToken.None);
         Assert.Equal(0, result);
@@ -370,7 +370,7 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser(totalXp: 0);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var result = await sut.Service.AwardForDayWinAsync(1, 1, Day1, CancellationToken.None);
 
@@ -382,13 +382,13 @@ public class XpServiceTests
     public async Task AwardForDayWin_WritesDayWinXpEvent()
     {
         var sut = Build();
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(NewUser());
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(NewUser());
 
         XpEvent? captured = null;
         sut.XpEventRepo
-            .Setup(r => r.AddAsync(It.IsAny<XpEvent>()))
-            .Callback<XpEvent>(e => captured = e)
-            .ReturnsAsync((XpEvent e) => e);
+            .Setup(r => r.AddAsync(It.IsAny<XpEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<XpEvent, CancellationToken>((e, _) => captured = e)
+            .ReturnsAsync((XpEvent e, CancellationToken _) => e);
 
         await sut.Service.AwardForDayWinAsync(1, 5, Day1, CancellationToken.None);
 
@@ -403,13 +403,13 @@ public class XpServiceTests
     {
         var sut = Build();
         var user = NewUser(totalXp: 100);
-        sut.UserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        sut.XpEventRepo.Setup(r => r.HasDayWinAsync(1, 5, Day1.Date)).ReturnsAsync(true);
+        sut.UserRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        sut.XpEventRepo.Setup(r => r.HasDayWinAsync(1, 5, Day1.Date, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var result = await sut.Service.AwardForDayWinAsync(1, 5, Day1, CancellationToken.None);
 
         Assert.Equal(0, result);
         Assert.Equal(100, user.TotalXp);
-        sut.XpEventRepo.Verify(r => r.AddAsync(It.IsAny<XpEvent>()), Times.Never);
+        sut.XpEventRepo.Verify(r => r.AddAsync(It.IsAny<XpEvent>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
