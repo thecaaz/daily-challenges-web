@@ -15,6 +15,12 @@ function linkProps({ href, target, rel }) {
   return props
 }
 
+function rootComponent({ to, href, component }) {
+  if (to) return RouterLink
+  if (href) return 'a'
+  return component
+}
+
 /**
  * MUI Button that renders as a router Link for `to`, an anchor for `href`, or
  * an explicit `component`. `dataTest` becomes a `data-test` attribute.
@@ -36,7 +42,7 @@ const AppButton = React.forwardRef(function AppButton(props, ref) {
     ...rest
   } = props
 
-  const Component = to ? RouterLink : href ? 'a' : component
+  const Component = rootComponent({ to, href, component })
   const componentProps = { ...(to && { to }), ...linkProps({ href, target, rel }) }
 
   return (
